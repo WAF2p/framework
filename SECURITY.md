@@ -1,5 +1,3 @@
-# SECURITY.md
-
 ## Security Policy
 
 Die Sicherheit von WAF++ und seiner Nutzer hat höchste Priorität.
