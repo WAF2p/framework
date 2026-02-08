@@ -1,5 +1,3 @@
-# CODE_OF_CONDUCT.md
-
 ## Unser Versprechen
 
 Wir als Maintainer und Community-Mitglieder verpflichten uns zu einer offenen, respektvollen und inklusiven Zusammenarbeit – unabhängig von Erfahrung, Herkunft, Identität oder Perspektive.
