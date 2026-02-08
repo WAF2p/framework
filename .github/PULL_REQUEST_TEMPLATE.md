@@ -1,5 +1,3 @@
-# .github/PULL_REQUEST_TEMPLATE.md
-
 ## Beschreibung
 
 Was ändert dieser Pull Request?
