@@ -10,7 +10,7 @@ Die Sicherheit von WAF++ und seiner Nutzer hat höchste Priorität.
 
 Stattdessen:
 
-* E-Mail an **[security@waf2p.org](mailto:security@waf2p.org)**
+* E-Mail an **[security@waf2p.dev](mailto:security@waf2p.dev)**
 * Beschreibe das Problem so detailliert wie möglich
 * Falls vorhanden: Proof-of-Concept oder Reproduktionsschritte
 
