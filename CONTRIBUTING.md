@@ -1,5 +1,3 @@
-# CONTRIBUTING.md
-
 Vielen Dank für dein Interesse, zu **WAF++ (WAF2P)** beizutragen! 🎉
 Dieses Projekt lebt von Community-Beiträgen – egal ob Code, Dokumentation, Ideen oder Feedback.
 
