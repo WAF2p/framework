@@ -1,10 +1,3 @@
-
----
-
-# .github/ISSUE_TEMPLATE/feature_request.md
-
----
-
 name: Feature Request
 description: Schlage eine neue Funktion oder Verbesserung vor
 labels: enhancement

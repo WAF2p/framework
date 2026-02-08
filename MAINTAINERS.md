@@ -1,5 +1,3 @@
-# MAINTAINERS.md
-
 ## Projekt-Maintainer
 
 Die folgenden Personen/Teams sind für Review, Richtung und Qualität des Projekts verantwortlich:

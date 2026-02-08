@@ -1,9 +1,3 @@
----
-
-# .github/ISSUE_TEMPLATE/bug_report.md
-
----
-
 name: Bug Report
 description: Melde einen Fehler oder ein unerwartetes Verhalten
 labels: bug
