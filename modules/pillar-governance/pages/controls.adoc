@@ -1,0 +1,154 @@
+= Controls (Sovereign)
+:page-toc: right
+
+Diese Controls sind der MVP-Katalog für die Säule 7 Sovereign.
+Alle Controls nutzen eindeutige IDs im Format `WAF-SOV-xxx`.
+
+== WAF-SOV-010 Data Residency Policy Defined
+*Intent:* Eindeutige Regeln, wo Daten/Backups/Logs/Metadaten liegen dürfen.
+
+*Requirement:* Eine dokumentierte Data-Residency-Policy MUSS existieren und Primärdaten, Replikation, Backups, Logs/Traces/Metriken sowie Metadaten abdecken. Die Policy MUSS pro Umgebung (prod/non-prod) gültig sein.
+
+*Evidence:*
+- Policy-Dokument inkl. Datenklassen & erlaubte Regionen
+- Architekturdiagramm (Datenflüsse)
+- IaC-Parameter/Module-Defaults für Region/Location
+
+*Automatisierbarkeit:* Teilweise (Dokument + IaC Checks)
+
+*Tags:* data-residency, governance
+
+
+== WAF-SOV-020 Region Pinning Enforced (IaC)
+*Intent:* Sicherstellen, dass Deployments nur in erlaubten Regionen entstehen.
+
+*Requirement:* Deployments MÜSSEN durch Policy-as-Code und/oder IaC Guardrails so eingeschränkt sein, dass nur erlaubte Regionen genutzt werden. Abweichungen MÜSSEN verhindert oder sofort gemeldet werden.
+
+*Evidence:*
+- Policy-as-Code (z.B. OPA/Cloud Policies) oder Guardrail-Konfiguration
+- Terraform/CI Pipeline Regeln (deny on violation)
+- Audit-Log Einträge zu verhinderten Aktionen
+
+*Automatisierbarkeit:* Hoch (IaC/Policy)
+
+*Tags:* region, policy-as-code, terraform
+
+
+== WAF-SOV-030 Backup Location & Retention Controlled
+*Intent:* Backups dürfen Souveränitätsgrenzen nicht unterlaufen.
+
+*Requirement:* Backup-Policies MÜSSEN Region/Location, Retention und Restore-Tests definieren. Cross-Region Replikation MUSS explizit genehmigt und dokumentiert sein.
+
+*Evidence:*
+- Backup-Konfiguration (Location/Retention)
+- Restore-Test Protokolle
+- Storage-Location Nachweise
+
+*Automatisierbarkeit:* Mittel (Config Checks + manuelle Restore-Tests)
+
+*Tags:* backups, retention, restore
+
+
+== WAF-SOV-040 Logging/Telemetry Residency Controlled
+*Intent:* Logs/Traces/Metriken enthalten oft sensitive Daten.
+
+*Requirement:* Observability-Daten (Logs/Traces/Metrics) MÜSSEN in erlaubten Regionen gespeichert werden. Exporte zu externen Plattformen MÜSSEN genehmigt, protokolliert und kontrolliert sein.
+
+*Evidence:*
+- Logging Sink/Export Konfiguration
+- Datenflussdiagramm Observability
+- Egress/Export Allow-Lists + Audit
+
+*Automatisierbarkeit:* Mittel (Config Checks)
+
+*Tags:* logging, telemetry, observability
+
+
+== WAF-SOV-050 Key Ownership & Management Defined
+*Intent:* Schlüsselkontrolle ist Kern von Souveränität.
+
+*Requirement:* Für alle Datenklassen MUSS definiert sein, ob Provider-Managed Keys zulässig sind oder CMK/BYOK/HYOK erforderlich ist. Rotation und Key Deletion MÜSSEN geregelt sein.
+
+*Evidence:*
+- KMS/HSM Konfigurationen
+- Key Policies / IAM Bindings
+- Rotation/Deletion Prozessdokumentation
+
+*Automatisierbarkeit:* Mittel (KMS Config Checks + Prozessnachweis)
+
+*Tags:* keys, kms, hsm
+
+
+== WAF-SOV-060 Privileged Access Controlled (Separation of Duties)
+*Intent:* Admin-Zugriff darf nicht unkontrolliert sein.
+
+*Requirement:* Privilegierte Rollen MÜSSEN minimal gehalten, zeitlich begrenzt und regelmäßig reviewed werden. Separation of Duties MUSS umgesetzt sein (z.B. kein einzelner Benutzer kann alles).
+
+*Evidence:*
+- IAM Rollenmodell + Review-Protokolle
+- JIT/JEA Konfiguration (falls vorhanden)
+- Audit-Logs privilegierter Aktionen
+
+*Automatisierbarkeit:* Teilweise (IAM Checks + Review-Prozess)
+
+*Tags:* iam, privileged-access, sod
+
+
+== WAF-SOV-070 Break-Glass Process & Logging
+*Intent:* Notfallzugriff ja, aber kontrolliert.
+
+*Requirement:* Ein Break-Glass Prozess MUSS existieren (Trigger, Freigabe, Ablauf, Post-Incident Review). Break-Glass Aktionen MÜSSEN vollständig geloggt und regelmäßig ausgewertet werden.
+
+*Evidence:*
+- Break-Glass Runbook + Tickets/Records
+- Logs zu Break-Glass Sessions
+- Review-Protokolle
+
+*Automatisierbarkeit:* Teilweise (Log-Detection + Prozess)
+
+*Tags:* break-glass, incident, logging
+
+
+== WAF-SOV-080 Dependency & Subprocessor Inventory
+*Intent:* Supply Chain ist Teil der Souveränität.
+
+*Requirement:* Es MUSS ein Inventar aller Abhängigkeiten existieren: Managed Services, Drittanbieter, Subprozessoren, CI/CD, Observability, SaaS. Änderungen MÜSSEN versioniert und reviewed werden.
+
+*Evidence:*
+- Dependency Register (Repo/CMDB)
+- Subprocessor/Third-Party Liste + Risiko-/Jurisdiction-Notizen
+- Change-Logs / PR Reviews
+
+*Automatisierbarkeit:* Niedrig–Mittel (Inventarisierung + Git Prozess)
+
+*Tags:* supply-chain, subprocessor, dependencies
+
+
+== WAF-SOV-090 Controlled Egress & Data Exfiltration Guardrails
+*Intent:* Daten dürfen nicht „durch die Hintertür“ raus.
+
+*Requirement:* Egress MUSS kontrolliert werden (default deny oder streng allow-list). Exfiltration Detection MUSS etabliert sein (z.B. ungewöhnliche Datenmengen/Targets).
+
+*Evidence:*
+- Netzwerk-/Firewall-/Proxy Regeln
+- DNS/Proxy Logs
+- Alerting/Use-Cases für Exfiltration
+
+*Automatisierbarkeit:* Mittel (Config + Detection)
+
+*Tags:* egress, network, detection
+
+
+== WAF-SOV-100 Exit Plan & Portability Tested
+*Intent:* Exit ist Teil des Designs, nicht der Krise.
+
+*Requirement:* Ein Exit Plan MUSS existieren (Datenexport, IaC Portabilität, Abhängigkeitsersatz, Zeit/Schritte). Exit/Restore Drills MÜSSEN regelmäßig durchgeführt werden.
+
+*Evidence:*
+- Exit Plan Dokument
+- Datenexport-Protokolle (inkl. Metadaten)
+- Testberichte (Drills) und Lessons Learned
+
+*Automatisierbarkeit:* Niedrig–Mittel (Teilautomatisierung, Test bleibt essenziell)
+
+*Tags:* exit, portability, drills
