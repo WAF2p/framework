@@ -1,0 +1,294 @@
+id: WAF-SOV-100
+title: "Exit Plan & Portability Tested"
+pillar: "sovereign"
+status: "active"
+severity: "medium"
+category: "exit-strategy"
+type: ['governance', 'operations']
+tags: ['exit', 'portability', 'drills', 'lock-in', 'migration', 'data-export', 'iac-portability']
+
+description: >
+  A documented exit plan MUST exist covering data export procedures, IaC portability
+  strategy, dependency replacement mapping, timeline, and cost estimates. Exit/restore
+  drills MUST be performed at least annually to validate that the exit plan is
+  executable. IaC must use open standards and provider-agnostic patterns where feasible
+  to reduce proprietary lock-in. S3 bucket lifecycle policies MUST be configured to
+  support data retention and deletion requirements.
+
+rationale: >
+  A sovereignty posture without exit capability is a sovereignty illusion. If migrating
+  away from a cloud provider is impossible within a reasonable timeframe—due to
+  proprietary data formats, undocumented dependencies, or untested procedures—then the
+  organization is de facto captive regardless of contractual sovereignty guarantees.
+  Exit readiness is the ultimate test of sovereignty: if you can leave, you have power
+  in the relationship; if you cannot, you do not.
+
+threat:
+  - "Data locked in proprietary format that cannot be exported without provider assistance"
+  - "Exit plan exists on paper but has never been tested and is operationally unexecutable"
+  - "Unknown dependencies discovered only during actual migration attempt"
+  - "Proprietary managed services without open alternatives used as sole data processing layer"
+  - "IaC modules tightly coupled to single provider with no abstraction layer"
+  - "Missing S3 lifecycle policies result in infinite retention of sensitive data"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 17 – Right to erasure (must be able to delete data)"
+      - "Art. 20 – Right to data portability"
+      - "Art. 28 – Processor obligations including data return/deletion on termination"
+  - framework: "BSI C5:2020"
+    controls:
+      - "PRO-01 – Portability and interoperability"
+      - "OPS-06 – Exit management"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "PRO-01 – Portability"
+      - "PRO-02 – Interoperability"
+  - framework: "GAIA-X"
+    controls:
+      - "Sovereign Cloud – Reversibility requirements"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.5.20 – Addressing information security in supplier agreements (including exit)"
+      - "A.8.10 – Information deletion"
+
+implementation_guidance:
+  - "Produce a written exit plan covering: trigger criteria, data export procedure, IaC migration steps, dependency alternatives, timeline (T+30/T+90/T+180 scenarios), and cost."
+  - "Conduct annual exit drills: attempt to export all primary data classes and restore in a test environment."
+  - "Use open data formats where feasible: PostgreSQL over proprietary DB engines, OpenTelemetry over proprietary agents, S3-compatible APIs."
+  - "Tag data buckets and databases with 'portability-class' and 'data-export-enabled' to enable automated export orchestration."
+  - "Configure S3 lifecycle policies for all buckets to transition and expire objects per retention policy."
+  - "Prefer IaC modules that abstract provider-specific resources (e.g., cloud-agnostic modules)."
+  - "Store the exit plan alongside the architecture documentation, versioned, and reviewed annually."
+  - "Maintain a 'dependency replacement map': for each proprietary service, document the alternative."
+
+maturity_levels:
+  level_1:
+    description: "No exit plan, no portability considerations"
+    criteria:
+      - "Heavy reliance on proprietary services"
+      - "No documented migration or exit strategy"
+  level_2:
+    description: "Exit plan documented, never tested"
+    criteria:
+      - "Written exit plan exists and is versioned"
+      - "Data export procedure documented"
+      - "Major dependencies identified"
+  level_3:
+    description: "Exit plan tested, IaC uses open standards"
+    criteria:
+      - "Annual exit drill completed with evidence"
+      - "IaC abstraction layer reduces proprietary lock-in"
+      - "S3 lifecycle policies configured"
+      - "Data export verified to produce sovereign-portable formats"
+  level_4:
+    description: "Automated exit readiness monitoring"
+    criteria:
+      - "Automated tracking of proprietary vs. portable resource usage"
+      - "Dependency replacement map maintained and reviewed quarterly"
+      - "Exit drill RTO measured and within defined threshold"
+  level_5:
+    description: "Continuous exit readiness with automated orchestration"
+    criteria:
+      - "Exit orchestration tooling tested quarterly"
+      - "Data portability API tested monthly with result metrics"
+      - "Lock-in risk score integrated into architecture review process"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Exit plan document (version-controlled, covering data export, IaC migration, dependencies, timeline)."
+    - kind: "process"
+      description: "Annual exit/data-export drill report with evidence (what was exported, time taken, gaps found)."
+  optional:
+    - kind: "iac"
+      description: "S3 lifecycle policies and bucket versioning configuration."
+    - kind: "architecture"
+      description: "Dependency replacement map listing proprietary services and their open/portable alternatives."
+
+checks:
+  - id: "waf-sov-100.tf.aws.s3-lifecycle-policy-defined"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "S3 buckets storing sovereign data must have lifecycle policies"
+    description: >
+      S3 buckets containing sovereign data must have lifecycle rules defined
+      to enforce data retention, transition to cheaper storage tiers, and
+      scheduled deletion per the data residency policy.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket"
+    assertions:
+      - attribute: "id"
+        op: "has_associated_resource"
+        associated_resource_type: "aws_s3_bucket_lifecycle_configuration"
+        associated_attribute: "bucket"
+        message: "S3 bucket has no lifecycle configuration. Data retention and deletion cannot be automated."
+    on_fail: "warning"
+    remediation: >
+      Create an aws_s3_bucket_lifecycle_configuration resource defining transition
+      and expiration rules consistent with your data retention policy.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_lifecycle_configuration" "sovereign_data" {
+          bucket = aws_s3_bucket.data.id
+          rule {
+            id     = "sovereign-retention-policy"
+            status = "Enabled"
+            transition {
+              days          = 90
+              storage_class = "STANDARD_IA"
+            }
+            transition {
+              days          = 365
+              storage_class = "GLACIER"
+            }
+            expiration {
+              days = 2555  # 7 years for financial data
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "data" {
+          bucket = "sovereign-data"
+          # No lifecycle configuration
+        }
+
+  - id: "waf-sov-100.tf.aws.s3-versioning-for-data-portability"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "S3 buckets with sovereign data should have versioning enabled"
+    description: >
+      S3 bucket versioning supports data portability by preserving historical
+      versions of objects, enabling point-in-time exports during exit procedures.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_versioning"
+    assertions:
+      - attribute: "versioning_configuration.status"
+        op: "equals"
+        expected: "Enabled"
+        message: "S3 bucket versioning must be Enabled for sovereign data portability."
+    on_fail: "warning"
+    remediation: >
+      Enable versioning on S3 buckets containing sovereign data.
+
+  - id: "waf-sov-100.tf.any.resource-tag-portability"
+    engine: "terraform"
+    provider: "any"
+    automated: true
+    severity: "low"
+    title: "Data resources should have portability metadata tags"
+    description: >
+      Data resources should be tagged with 'portability-class' and 'data-export-enabled'
+      to support automated export orchestration during exit procedures.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket"
+        - "aws_rds_instance"
+        - "aws_rds_cluster"
+        - "aws_dynamodb_table"
+        - "azurerm_storage_account"
+        - "azurerm_sql_database"
+        - "google_storage_bucket"
+        - "google_sql_database_instance"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "portability-class"
+        message: "Resource is missing 'portability-class' tag needed for exit orchestration."
+    on_fail: "info"
+    remediation: >
+      Add 'portability-class' tag with values: portable | proprietary-limited | proprietary-locked.
+      Aim to eliminate 'proprietary-locked' resources or document their alternatives.
+    example:
+      compliant: |
+        resource "aws_rds_instance" "app" {
+          tags = {
+            portability-class    = "portable"          # PostgreSQL – open standard
+            data-export-enabled  = "true"
+            data-residency       = "eu-only"
+          }
+        }
+      non_compliant: |
+        resource "aws_rds_instance" "app" {
+          tags = {
+            environment = "production"
+            # No portability metadata
+          }
+        }
+
+  - id: "waf-sov-100.tf.any.no-proprietary-lock-in-patterns"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "low"
+    title: "Flag use of high-lock-in proprietary data services"
+    description: >
+      Certain AWS services have limited or no export capability and represent high
+      lock-in risk. Their use should be flagged for review and documented in the
+      dependency replacement map.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudsearch_domain"
+        - "aws_mq_broker"
+        - "aws_redshift_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "exit-strategy-documented"
+        message: "High-lock-in service used without documented exit strategy. Add 'exit-strategy-documented' tag."
+    on_fail: "info"
+    remediation: >
+      Add an 'exit-strategy-documented' tag referencing the exit plan section
+      covering this service. Maintain a documented replacement alternative.
+
+  - id: "waf-sov-100.tf.aws.rds-deletion-protection"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "RDS production instances must have deletion protection enabled"
+    description: >
+      RDS instances tagged as production must have deletion_protection = true
+      to prevent accidental destruction of sovereign data during exit procedures
+      or infrastructure changes.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+    assertions:
+      - attribute: "deletion_protection"
+        op: "is_true"
+        message: "RDS deletion_protection must be enabled to prevent accidental data loss."
+    on_fail: "violation"
+    remediation: >
+      Set deletion_protection = true on all production RDS instances and clusters.
+    example:
+      compliant: |
+        resource "aws_db_instance" "sovereign" {
+          deletion_protection = true
+          # ...
+        }
+      non_compliant: |
+        resource "aws_db_instance" "sovereign" {
+          deletion_protection = false  # Data can be deleted without confirmation
+        }
+
+references:
+  narrative: "modules/pillar-sovereign/pages/controls.adoc#WAF-SOV-100"
+  best_practice: "modules/pillar-sovereign/pages/best-practices/bp-exit-strategy.adoc"
+  related_controls:
+    - "WAF-SOV-010"
+    - "WAF-SOV-030"
+    - "WAF-SOV-080"

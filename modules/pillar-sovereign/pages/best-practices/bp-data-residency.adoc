@@ -1,0 +1,207 @@
+= Best Practice: Data Residency Policy
+:page-toc: right
+:description: WAF++ Sovereign – Data Residency Policy definieren, dokumentieren und technisch erzwingen.
+
+== Kontext
+
+Data Residency Policy-Dokumente existieren häufig als PDF in einem SharePoint-Ordner –
+nie reviewed, nie versioniert, nie technisch abgebildet.
+
+Das führt zu:
+
+* IaC mit Default-Regionen außerhalb der erlaubten Jurisdiktion
+* Backups und Logs in nicht genehmigten Regionen
+* Inkonsistenter Tagging-Praxis, die Audits unmöglich macht
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-010[WAF-SOV-010] – Data Residency Policy Defined
+* xref:../controls.adoc#WAF-SOV-030[WAF-SOV-030] – Backup Location & Retention Controlled
+* xref:../controls.adoc#WAF-SOV-040[WAF-SOV-040] – Logging & Telemetry Residency Controlled
+
+== Zielbild
+
+Eine reife Data-Residency-Policy ist:
+
+* **Versioniert**: Im gleichen Repository wie der IaC-Code
+* **Vollständig**: Deckt Primärdaten, Backups, Logs, Metriken, Metadaten ab
+* **Technisch abgebildet**: Terraform-Defaults und Variable-Validation spiegeln die Policy
+* **Kontinuierlich geprüft**: Automatische Drift-Detection gegen Live-Infrastruktur
+
+== Technische Umsetzung
+
+=== Schritt 1: Policy-Dokument strukturieren
+
+[source,yaml]
+----
+# data-residency-policy.yml (im Repo neben Terraform-Code)
+version: "2.0"
+effective_date: "2025-01-01"
+reviewed_by: "CISO, DPO"
+next_review: "2026-01-01"
+
+environments:
+  production:
+    primary_region: "eu-central-1"      # Frankfurt
+    allowed_regions:
+      - "eu-central-1"
+      - "eu-west-1"                     # Dublin (DR only)
+    forbidden_regions:
+      - "us-*"
+      - "ap-*"
+
+  non_production:
+    primary_region: "eu-central-1"
+    allowed_regions:
+      - "eu-central-1"
+
+data_classes:
+  pii:
+    description: "Personenbezogene Daten (DSGVO Art. 4)"
+    allowed_regions: ["eu-central-1"]
+    encryption: "cmk"
+    backup_retention_days: 365
+    log_retention_days: 365
+
+  financial:
+    description: "Finanzdaten, Zahlungsdaten"
+    allowed_regions: ["eu-central-1"]
+    encryption: "cmk"
+    backup_retention_days: 3650  # 10 Jahre
+
+  operational:
+    description: "Betriebsdaten, interne Logs"
+    allowed_regions: ["eu-central-1", "eu-west-1"]
+    encryption: "cmk"
+    backup_retention_days: 90
+    log_retention_days: 90
+----
+
+=== Schritt 2: IaC-Defaults aus Policy ableiten
+
+[source,hcl]
+----
+# variables.tf – zentrales Modul für sovereign Defaults
+
+variable "aws_region" {
+  type        = string
+  description = "Primary AWS deployment region. Must comply with data-residency-policy.yml."
+  default     = "eu-central-1"
+
+  validation {
+    condition = contains([
+      "eu-central-1",
+      "eu-west-1",
+      "eu-north-1",
+      "eu-west-3"
+    ], var.aws_region)
+    error_message = <<-EOF
+      Region '${var.aws_region}' is not in the approved sovereign region list.
+      Approved regions: eu-central-1, eu-west-1, eu-north-1, eu-west-3.
+      See: docs/data-residency-policy.yml
+    EOF
+  }
+}
+
+variable "data_class" {
+  type        = string
+  description = "Data classification for this deployment. Determines encryption and retention requirements."
+
+  validation {
+    condition     = contains(["pii", "financial", "operational", "public", "restricted"], var.data_class)
+    error_message = "Invalid data-class. Must be one of: pii, financial, operational, public, restricted."
+  }
+}
+----
+
+=== Schritt 3: Mandatory Tagging Module
+
+[source,hcl]
+----
+# modules/sovereign-tags/main.tf
+
+locals {
+  sovereign_tags = {
+    data-residency  = var.data_residency
+    data-class      = var.data_class
+    environment     = var.environment
+    managed-by      = "terraform"
+    sovereign-scope = "true"
+  }
+}
+
+variable "data_residency" {
+  type = string
+  validation {
+    condition     = contains(["eu-only", "de-only", "ch-only", "global-approved"], var.data_residency)
+    error_message = "Invalid data-residency value."
+  }
+}
+
+variable "data_class" {
+  type = string
+}
+variable "environment" {
+  type = string
+}
+
+output "tags" {
+  value = local.sovereign_tags
+}
+----
+
+=== Schritt 4: CI-Gate für Policy-Compliance
+
+[source,yaml]
+----
+# .github/workflows/sovereign-checks.yml
+name: Sovereign Compliance Check
+
+on: [pull_request]
+
+jobs:
+  sovereign-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: WAF++ Sovereign Checks
+        run: |
+          # Run WAF++ checker against Terraform code
+          wafpp check \
+            --pillar sovereign \
+            --controls WAF-SOV-010,WAF-SOV-020 \
+            --path ./infrastructure \
+            --fail-on violation
+
+      - name: Validate Region Constraints
+        run: |
+          # OPA policy check
+          opa eval \
+            --input terraform.plan.json \
+            --data policies/sovereign/ \
+            "data.sovereign.deny"
+----
+
+== Typische Fehlmuster
+
+* **„Die Policy ist im Confluence"**: Policies, die nicht versioniert und nicht maschinenlesbar sind,
+  können nicht in IaC-Validation eingebunden werden.
+* **Fehlende Metadaten-Abdeckung**: Policy deckt Primärdaten, aber nicht Logs oder Backups.
+* **Veraltete Policy**: Policy wurde nie reviewed; neue Services/Regionen nicht abgedeckt.
+* **Inkonsistentes Tagging**: Jedes Team definiert eigene Tag-Keys, automatisches Scanning unmöglich.
+
+== Metriken
+
+* Anteil der Data-Ressourcen mit `data-residency` Tag (Ziel: 100%)
+* Anteil der Data-Ressourcen mit `data-class` Tag (Ziel: 100%)
+* Anzahl Policy-Violations pro Sprint (Trend sollte sinken)
+* Zeit seit letztem Policy-Review (Ziel: < 12 Monate)
+
+== Reifegrad
+
+Level 1 – Policy als PDF, nie reviewed +
+Level 2 – Policy versioniert im Repository, Provider-Defaults gesetzt +
+Level 3 – Variable Validation + mandatory Tagging + CI-Gate +
+Level 4 – Automatische Drift-Detection gegen Live-Infrastruktur +
+Level 5 – Policy-as-Code mit Auto-Remediation, vollständige Evidence-Pipeline

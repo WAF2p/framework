@@ -1,0 +1,320 @@
+= WAF-SOV-100 – Exit Plan & Portability Tested
+:page-toc: right
+:control-id: WAF-SOV-100
+:pillar: sovereign
+:severity: medium
+:category: exit-strategy
+:automated: medium
+:description: WAF++ Sovereign – Dokumentierter und getesteter Exit-Plan; S3-Lifecycle-Policies für alle Buckets; Portabilität-Tags für Datenressourcen; RDS Deletion Protection aktivieren.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🟡 Medium | *Kategorie:* Exit Strategy | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Ein dokumentierter Exit-Plan MUSS existieren, der Datenexport-Verfahren, IaC-Portabilitätsstrategie,
+Dependency-Replacement-Mapping, Zeitplan und Kostenschätzungen abdeckt. Exit-/Restore-Drills
+MÜSSEN mindestens jährlich durchgeführt werden, um zu validieren, dass der Exit-Plan
+ausführbar ist.
+
+IaC MUSS offene Standards und provider-agnostische Patterns verwenden, wo machbar, um
+proprietäres Lock-In zu reduzieren. S3-Bucket-Lifecycle-Policies MÜSSEN konfiguriert sein,
+um Data-Retention- und Deletion-Anforderungen zu unterstützen.
+
+== Rationale
+
+Eine Sovereignty-Posture ohne Exit-Fähigkeit ist eine Sovereignty-Illusion. Wenn ein
+Migration-Weg von einem Cloud-Provider in einem vernünftigen Zeitrahmen unmöglich ist –
+aufgrund proprietärer Datenformate, undokumentierter Abhängigkeiten oder ungetesteter
+Verfahren – ist die Organisation de facto gefangen, unabhängig von vertraglichen
+Souveränitätsgarantien.
+
+Exit-Readiness ist der ultimative Test der Souveränität: Wenn man gehen kann, hat man Macht
+in der Beziehung. Wenn man nicht gehen kann, hat man diese Macht nicht.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Daten in proprietärem Format*
+|Daten können nicht ohne Provider-Unterstützung exportiert werden.
+
+|*Nie getesteter Exit-Plan*
+|Exit-Plan existiert auf Papier, ist aber operativ nicht ausführbar.
+
+|*Unbekannte Abhängigkeiten*
+|Abhängigkeiten erst bei tatsächlichem Migrationsversuch entdeckt.
+
+|*Proprietäre Managed Services ohne Alternative*
+|Ohne offene Alternativen einzige Datenprozessierungsschicht.
+
+|*Fehlende S3-Lifecycle-Policies*
+|Unbegrenzte Retention sensitiver Daten; DSGVO Art. 17 nicht erfüllbar.
+
+|*Tightly Coupled IaC*
+|IaC-Module stark an einzelnen Provider gebunden; keine Abstraktionsschicht.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 17 – Recht auf Löschung (Daten müssen löschbar sein); Art. 20 – Recht auf Datenportabilität; Art. 28 – Verarbeiterpflichten inkl. Datenlöschung bei Vertragsende
+
+|*BSI C5:2020*
+|PRO-01 – Portabilität und Interoperabilität; OPS-06 – Exit Management
+
+|*EUCS (ENISA)*
+|PRO-01 – Portabilität; PRO-02 – Interoperabilität
+
+|*GAIA-X*
+|Sovereign Cloud – Reversibilitätsanforderungen
+
+|*ISO 27001:2022*
+|A.5.20 – Informationssicherheit in Lieferantenvereinbarungen (inkl. Exit); A.8.10 – Informationslöschung
+
+|===
+
+== Anforderung
+
+* Ein schriftlicher Exit-Plan MUSS existieren: Auslösekriterien, Datenexport, IaC-Migration, Dependency-Alternativen, Zeitplan und Kosten
+* Jährliche Exit-Drills MÜSSEN mindestens alle primären Datenklassen exportieren und in einer Testumgebung wiederherstellen
+* Daten-Buckets und Datenbanken MÜSSEN mit `portability-class` und `data-export-enabled` getaggt sein
+* S3-Buckets MÜSSEN eine Lifecycle-Policy konfiguriert haben
+* S3-Versioning MUSS für souveräne Daten aktiviert sein
+* Hoch-Lock-In-Services (Redshift, CloudSearch, MQ) MÜSSEN mit `exit-strategy-documented` getaggt sein
+* RDS-Produktionsinstanzen MÜSSEN `deletion_protection = true` setzen
+* IaC SOLLTE offene Standards und provider-agnostische Patterns bevorzugen
+
+== Implementierungsanleitung
+
+. *Exit-Plan erstellen*: Trigger-Kriterien, Datenexport-Verfahren, IaC-Migrations-Schritte, Dependency-Alternativen, Zeitplan (T+30/T+90/T+180 Szenarien) und Kosten dokumentieren.
+. *Jährliche Exit-Drills*: Alle primären Datenklassen exportieren und in Testumgebung wiederherstellen; Zeitdauer und Lücken dokumentieren.
+. *Offene Datenformate bevorzugen*: PostgreSQL statt proprietärer DB-Engines; OpenTelemetry statt proprietärer Agents; S3-kompatible APIs.
+. *Portabilitäts-Tags setzen*: `portability-class` und `data-export-enabled` an alle Daten-Buckets und Datenbanken.
+. *S3-Lifecycle-Policies*: Für alle Buckets konfigurieren; Transition und Expiration per Retention-Policy definieren.
+. *RDS Deletion Protection aktivieren*: `deletion_protection = true` auf allen Produktions-RDS-Instanzen und Aurora-Clustern.
+. *Dependency-Replacement-Map*: Für jeden proprietären Dienst eine dokumentierte Alternative pflegen.
+. *Exit-Plan versioniert ablegen*: Neben der Architekturdokumentation im Repository; jährlicher Review.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Exit-Plan, keine Portabilitätsüberlegungen
+|Starke Abhängigkeit von proprietären Diensten; keine dokumentierte Migrationsstrategie.
+
+|*2*
+|Exit-Plan dokumentiert, nie getestet
+|Schriftlicher Exit-Plan existiert und ist versioniert; Datenexport-Verfahren dokumentiert; Hauptabhängigkeiten identifiziert.
+
+|*3*
+|Exit-Plan getestet, IaC nutzt offene Standards
+|Jährlicher Exit-Drill mit Evidenz abgeschlossen; IaC-Abstraktionsschicht reduziert proprietäres Lock-In; S3-Lifecycle-Policies konfiguriert; Datenexport in sovereign-portable Formaten verifiziert.
+
+|*4*
+|Automatisiertes Exit-Readiness-Monitoring
+|Automatisches Tracking proprietärer vs. portabler Ressourcennutzung; Dependency-Replacement-Map vierteljährlich reviewt; Exit-Drill-RTO gemessen und innerhalb definierter Schwelle.
+
+|*5*
+|Kontinuierliche Exit-Readiness mit automatisierter Orchestrierung
+|Exit-Orchestrierungstool quartalsweise getestet; Datenportabilitäts-API monatlich mit Ergebnismetriken getestet; Lock-In-Risk-Score in Architekturreview-Prozess integriert.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-100.tf.aws.s3-lifecycle-policy-defined
+*Prüft:* S3-Buckets mit souveränen Daten müssen eine Lifecycle-Policy haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "sovereign_data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    id     = "sovereign-retention-policy"
+    status = "Enabled"
+
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 365
+      storage_class = "GLACIER"
+    }
+    expiration {
+      days = 2555  # 7 Jahre für Finanzdaten
+    }
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "data" {
+  bucket = "sovereign-data"
+  # ❌ Keine Lifecycle-Konfiguration –
+  #    Daten nie abgelaufen
+}
+----
+|===
+
+---
+
+=== waf-sov-100.tf.aws.s3-versioning-for-data-portability
+*Prüft:* S3-Bucket-Versioning muss für souveräne Daten aktiviert sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket_versioning" "data" {
+  bucket = aws_s3_bucket.data.id
+  versioning_configuration {
+    status = "Enabled"  # ✅ Datenportabilität
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket_versioning" "data" {
+  bucket = aws_s3_bucket.data.id
+  versioning_configuration {
+    status = "Suspended"
+    # ❌ Versioning deaktiviert
+  }
+}
+----
+|===
+
+---
+
+=== waf-sov-100.tf.any.resource-tag-portability
+*Prüft:* Datenressourcen sollten `portability-class` Tag setzen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "app" {
+  # ...
+  tags = {
+    portability-class   = "portable"   # PostgreSQL
+    data-export-enabled = "true"
+    data-residency      = "eu-only"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "app" {
+  # ...
+  tags = {
+    environment = "production"
+    # ❌ Keine Portabilitäts-Metadaten
+  }
+}
+----
+|===
+
+---
+
+=== waf-sov-100.tf.aws.rds-deletion-protection
+*Prüft:* RDS-Produktionsinstanzen müssen `deletion_protection = true` setzen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "sovereign" {
+  identifier          = "sovereign-prod"
+  deletion_protection = true  # ✅
+  # ...
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "sovereign" {
+  identifier          = "sovereign-prod"
+  deletion_protection = false
+  # ❌ Daten können ohne Bestätigung gelöscht werden
+}
+----
+|===
+
+---
+
+=== waf-sov-100.tf.any.no-proprietary-lock-in-patterns
+*Prüft:* Hoch-Lock-In-Services müssen `exit-strategy-documented` Tag setzen.
+
+[source,hcl]
+----
+# Compliant: Proprietärer Dienst mit dokumentierter Exit-Strategie
+resource "aws_redshift_cluster" "analytics" {
+  # ...
+  tags = {
+    exit-strategy-documented = "exit-plan-v2#redshift-alternatives"
+    portability-class        = "proprietary-limited"
+  }
+}
+
+# Non-Compliant: Proprietärer Dienst ohne dokumentierte Alternative
+resource "aws_cloudsearch_domain" "search" {
+  name = "product-search"
+  # ❌ Kein exit-strategy-documented Tag
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Exit-Plan-Dokument (versioniert; Datenexport, IaC-Migration, Abhängigkeiten, Zeitplan abdeckend).
+
+|*Process*
+|✅ Pflicht
+|Jährlicher Exit-/Datenexport-Drill-Bericht mit Evidenz (was exportiert, Zeit, gefundene Lücken).
+
+|*IaC*
+|Optional
+|S3-Lifecycle-Policies und Bucket-Versioning-Konfiguration.
+
+|*Architecture*
+|Optional
+|Dependency-Replacement-Map mit proprietären Diensten und ihren offenen/portablen Alternativen.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
+* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
+* xref:controls/WAF-SOV-080.adoc[WAF-SOV-080 – Dependency Inventory]
+
+== Best Practice
+
+* xref:best-practices/bp-exit-strategy.adoc[Exit-Strategie implementieren →]

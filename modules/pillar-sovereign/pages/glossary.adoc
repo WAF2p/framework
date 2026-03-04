@@ -1,0 +1,113 @@
+= Glossar
+:page-toc: right
+:description: WAF++ Sovereign – Begriffsdefinitionen für die Sovereign-Cloud-Säule.
+
+*Jurisdiction (Jurisdiktion)*::
+Rechtsraum, unter dem Datenverarbeitung und Zugriffe stattfinden. Bestimmt u.a. welche
+Behörden Zugriffsanfragen stellen dürfen und welche Datenschutzgesetze gelten (z.B. DSGVO für EU, CLOUD Act für USA).
+
+*Data Residency*::
+Geographische und regionale Bindung von Datenspeicherung und -verarbeitung, einschließlich
+Backups, Logs und Metadaten. Data Residency definiert *wo* Daten physisch gespeichert werden.
+
+*Data Sovereignty*::
+Weiterer Begriff als Data Residency. Bezeichnet die vollständige Kontrolle einer Organisation
+über ihre Daten, einschließlich Zugriff, Verschlüsselung, Verarbeitung und Exit-Fähigkeit.
+
+*Control Plane*::
+Die Verwaltungs- und API-Ebene eines Cloud-Anbieters (IAM, Resource Management, Billing, Policies).
+Zugriffe auf die Control Plane können alle Daten-Kontrollen überschreiben.
+
+*Region Pinning*::
+Technische Erzwingung, dass Cloud-Ressourcen nur in explizit genehmigten geographischen Regionen
+erstellt werden können.
+
+*PMK (Provider-Managed Key)*::
+Verschlüsselungsschlüssel, der vollständig vom Cloud-Anbieter verwaltet wird. Der Anbieter
+kann den Schlüssel theoretisch verwenden. Für nicht-sensitive Daten akzeptabel.
+
+*CMK (Customer-Managed Key)*::
+Verschlüsselungsschlüssel, dessen Lebenszyklusmanagement (Erstellung, Rotation, Deletion)
+beim Kunden liegt, aber im KMS des Anbieters gespeichert ist. Anbieter hat technischen Zugriff
+auf KMS, aber Key-Policy schränkt ein, wer den Key nutzen darf.
+
+*BYOK (Bring Your Own Key)*::
+Schlüsselmaterial wird vom Kunden erzeugt und in den Cloud-KMS importiert. Kunde kontrolliert
+Schlüsselmaterial vollständig, muss es aber in die Cloud-Infrastruktur importieren.
+
+*HYOK (Hold Your Own Key)*::
+Schlüsselmaterial verbleibt in einer kundenkontrollierten HSM-Infrastruktur außerhalb des
+Cloud-Anbieters. Cloud-Dienste müssen für jede Verschlüsselungsoperation die externe HSM ansprechen.
+Anbieter hat keinen technischen Zugriff auf das Schlüsselmaterial.
+
+*HSM (Hardware Security Module)*::
+Physisches oder virtuelles Gerät, das kryptografisches Schlüsselmaterial sicher speichert und
+kryptografische Operationen in einer tamper-resistant Umgebung durchführt.
+
+*Break-Glass*::
+Notfallzugriffsprozess mit erhöhten Rechten, der nur in dokumentierten Ausnahmesituationen
+aktiviert wird. Streng zeitbegrenzt, vollständig protokolliert und nachgewertet.
+
+*JIT (Just-In-Time Access)*::
+Zugriffsprovisionierungsmuster, bei dem privilegierte Berechtigungen nur für einen definierten
+Zeitraum und für eine spezifische Aufgabe aktiviert werden. Eliminiert „Standing Privilege".
+
+*SoD (Separation of Duties)*::
+Governance-Prinzip, das verhindert, dass eine einzelne Person alle Schritte eines kritischen
+Prozesses ausführen kann. Beispiel: Wer eine KMS-Key-Policy ändern kann, darf nicht gleichzeitig
+auf die verschlüsselten Daten zugreifen können.
+
+*Subprozessor*::
+Im DSGVO-Kontext: Ein Dienstleister, der im Auftrag eines Verantwortlichen oder Auftragsverarbeiters
+personenbezogene Daten verarbeitet. Unterliegt besonderen Anforderungen (Art. 28 DSGVO).
+
+*VPC Endpoint*::
+Netzwerkverbindung, die den direkten Zugriff auf Cloud-Dienste (S3, KMS, etc.) über das
+interne Cloud-Netzwerk ermöglicht, ohne dass Traffic über das öffentliche Internet geleitet wird.
+
+*Egress*::
+Ausgehender Netzwerkverkehr aus einem Workload oder Netzwerksegment. Im Sovereign-Kontext
+der primäre Exfiltrationspfad für Daten.
+
+*Cryptographic Erasure*::
+Verfahren zur sicheren Datenlöschung durch Vernichtung des Verschlüsselungsschlüssels.
+Da ohne Schlüssel keine Entschlüsselung möglich ist, ist das Datenmaterial faktisch unwiederbringlich.
+Als DSGVO Art. 17-konforme Löschung anerkannt, wenn korrekt implementiert.
+
+*Exit Plan*::
+Dokumentierter Plan, der beschreibt, wie eine Organisation ihre Workloads, Daten und Prozesse
+von einem Cloud-Anbieter migrieren oder portieren kann. Enthält Schritt-für-Schritt-Prozeduren,
+Zeitplan und Datenexport-Mechanismen.
+
+*Portability*::
+Fähigkeit, Daten in standardisierten Formaten zu exportieren und Workloads auf alternativer
+Infrastruktur zu betreiben. Messbares Merkmal einer Sovereign-Architektur.
+
+*DSGVO (GDPR)*::
+Datenschutz-Grundverordnung. EU-Verordnung zum Schutz personenbezogener Daten.
+Zentrale Grundlage für viele Data-Residency und Sovereign-Cloud-Anforderungen.
+
+*BSI C5*::
+Cloud Computing Compliance Criteria Catalogue des Bundesamts für Sicherheit in der
+Informationstechnik. Audit-Standard für Cloud-Dienste in Deutschland.
+
+*EUCS*::
+EU Cloud Services Scheme. Europäisches Cybersicherheitszertifizierungsschema für Cloud-Dienste,
+entwickelt von ENISA. Stufen: Basic, Substantial, High.
+
+*GAIA-X*::
+Europäisches Ökosystemprojekt für eine transparente, sichere und föderierte Cloud-Infrastruktur.
+Definiert Anforderungen an Datensouveränität und Interoperabilität.
+
+*NIS2*::
+Netzwerk- und Informationssicherheitsrichtlinie 2.0. EU-Richtlinie für IT-Sicherheit bei
+kritischen Infrastrukturen und wichtigen Einrichtungen. Erweitert den Anwendungsbereich von NIS1.
+
+*CLOUD Act*::
+US-amerikanisches Gesetz (Clarifying Lawful Overseas Use of Data Act), das US-Behörden
+das Recht gibt, von US-Unternehmen Daten anzufordern, auch wenn diese im Ausland gespeichert sind.
+Direkte Implikation für HYOK/BSI-C5-Anforderungen.
+
+*SLSA (Supply-chain Levels for Software Artifacts)*::
+Framework für Supply-Chain-Sicherheit in der Softwareentwicklung. Stufen 1–4 definieren
+zunehmende Anforderungen an Build-Integrität und Provenienz-Nachweise.

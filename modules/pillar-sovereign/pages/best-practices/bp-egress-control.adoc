@@ -1,0 +1,223 @@
+= Best Practice: Egress Control & Data Exfiltration Prevention
+:page-toc: right
+:description: WAF++ Sovereign – Default-Deny-Egress, VPC Endpoints und Exfiltration-Detection implementieren.
+
+== Kontext
+
+Offener Egress ist die letzte Lücke, durch die Daten die Souveränitätsgrenze verlassen.
+
+Typische Probleme:
+
+* Default Security Groups erlauben `0.0.0.0/0` Outbound
+* AWS-API-Aufrufe traversieren das öffentliche Internet (kein VPC Endpoint)
+* Log-Agents (Datadog, Splunk) senden Telemetrie zu US-Servern
+* DNS-Tunneling als unentdeckter Exfiltrationspfad
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-090[WAF-SOV-090] – Controlled Egress & Data Exfiltration Guardrails
+
+== Zielbild
+
+Alle ausgehenden Verbindungen sind kontrolliert:
+
+* Security Groups: nur explizite, dokumentierte Egress-Regeln
+* VPC Endpoints für alle genutzten Cloud-Services
+* Network Firewall mit Domain Allow-List
+* VPC Flow Logs für forensische Rekonstruktion
+* GuardDuty für Anomalie-Erkennung
+
+== Technische Umsetzung
+
+=== Security Groups: Kein Wildcard-Egress
+
+[source,hcl]
+----
+# Sovereign Application Security Group
+resource "aws_security_group" "app" {
+  name        = "sovereign-app-${var.environment}"
+  description = "Application security group with controlled egress"
+  vpc_id      = aws_vpc.main.id
+
+  # Nur spezifische ausgehende Verbindungen erlaubt
+  egress {
+    description = "HTTPS to internal services"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    description = "DNS resolution (internal resolver)"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  # KEIN: egress { cidr_blocks = ["0.0.0.0/0"] }
+
+  tags = {
+    data-residency  = "eu-only"
+    environment     = var.environment
+    egress-policy   = "restricted"
+  }
+}
+----
+
+=== VPC Endpoints für Cloud-Services
+
+[source,hcl]
+----
+# Gateway Endpoints (kostenlos, kein Data Transfer durch Internet)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+
+  # Restrict to sovereign buckets only
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = ["s3:*"]
+      Resource  = "*"
+      Condition = {
+        StringEquals = {
+          "aws:RequestedRegion" = var.aws_region
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+
+# Interface Endpoints für weitere Services
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.kms"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sts"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint.id]
+  private_dns_enabled = true
+}
+----
+
+=== VPC Flow Logs
+
+[source,hcl]
+----
+resource "aws_flow_log" "sovereign" {
+  vpc_id          = aws_vpc.main.id
+  traffic_type    = "ALL"
+  iam_role_arn    = aws_iam_role.flow_log.arn
+  log_destination = aws_cloudwatch_log_group.flow_log.arn
+
+  tags = {
+    data-class      = "audit"
+    data-residency  = "eu-only"
+    environment     = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "flow_log" {
+  name              = "/sovereign/vpc-flow-logs/${var.environment}"
+  retention_in_days = 90
+  kms_key_id        = aws_kms_key.sovereign_data.arn
+}
+----
+
+=== GuardDuty für Exfiltration Detection
+
+[source,hcl]
+----
+resource "aws_guardduty_detector" "main" {
+  enable = true
+
+  datasources {
+    s3_logs {
+      enable = true
+    }
+    kubernetes {
+      audit_logs {
+        enable = true
+      }
+    }
+    malware_protection {
+      scan_ec2_instance_with_findings {
+        ebs_volumes {
+          enable = true
+        }
+      }
+    }
+  }
+
+  tags = {
+    data-residency = "eu-only"
+    environment    = var.environment
+  }
+}
+
+# Alert on high-severity GuardDuty findings
+resource "aws_cloudwatch_event_rule" "guardduty_high" {
+  name        = "sovereign-guardduty-high-severity"
+  description = "Alert on high/critical GuardDuty findings"
+
+  event_pattern = jsonencode({
+    source      = ["aws.guardduty"]
+    detail-type = ["GuardDuty Finding"]
+    detail = {
+      severity = [{ numeric = [">=", 7] }]
+    }
+  })
+}
+----
+
+== Typische Fehlmuster
+
+* **Default Security Group**: AWS Default SG erlaubt outbound zu allem
+* **NAT Gateway ohne Firewall**: NAT Gateway ist kein Egress-Filter
+* **S3 Public Access nicht geblockt**: Daten direkt im Internet erreichbar
+* **Log-Agents ohne Private Link**: Datadog/Splunk über Public Internet
+
+== Metriken
+
+* Anzahl Security Groups mit `0.0.0.0/0` Egress (Ziel: 0 ohne Dokumentation)
+* Anteil VPCs mit VPC Flow Logs (Ziel: 100%)
+* Anzahl GuardDuty High-Findings pro Monat (Trend)
+* Anteil genutzter AWS Services mit VPC Endpoint (Ziel: alle Production-Services)
+
+== Reifegrad
+
+Level 1 – Default Security Groups, offener Egress +
+Level 2 – Restricted Egress Ports, VPC Endpoints für S3/DynamoDB +
+Level 3 – Default-Deny, Network Firewall mit Domain Allow-List, VPC Flow Logs +
+Level 4 – GuardDuty aktiv, Anomalie-Erkennung in Flow Logs +
+Level 5 – Zero-Trust Network, Auto-Block, vollständige Forensik-Kapazität

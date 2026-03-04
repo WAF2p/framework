@@ -1,0 +1,205 @@
+= Best Practice: Region Pinning & Jurisdiction Enforcement
+:page-toc: right
+:description: WAF++ Sovereign – Region Pinning technisch erzwingen via IaC, Policy-as-Code und CI-Gates.
+
+== Kontext
+
+Region-Beschränkungen werden häufig dokumentiert, aber nicht technisch erzwungen.
+Das führt zu:
+
+* Unbeabsichtigten Deployments in US-Regionen durch falsche Environment-Variablen
+* Shadow-Infrastruktur in Dev-Accounts ohne Region-Guardrails
+* CI/CD-Pipelines, die Provider-Defaults verwenden
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-020[WAF-SOV-020] – Region Pinning Enforced (IaC)
+
+== Zielbild
+
+Deployments außerhalb erlaubter Regionen sind technisch unmöglich:
+
+* Terraform-Validation verhindert Planung mit falscher Region
+* CI-Gate bricht den Build wenn Policy verletzt wird
+* Org-Level-Policy (SCP/Azure Policy) verhindert API-Calls außerhalb erlaubter Regionen
+
+== Technische Umsetzung
+
+=== Layer 1: Terraform Variable Validation
+
+[source,hcl]
+----
+# Shared variables module (alle Repos verwenden dieses Modul)
+variable "aws_region" {
+  type        = string
+  description = "AWS deployment region."
+
+  validation {
+    condition = contains([
+      "eu-central-1",    # Frankfurt – Primary
+      "eu-west-1",       # Dublin – DR only
+      "eu-north-1",      # Stockholm – optional
+    ], var.aws_region)
+    error_message = "Region must be an approved sovereign EU region."
+  }
+}
+
+# Provider Block
+provider "aws" {
+  region = var.aws_region
+}
+
+# Für Azure:
+variable "azure_location" {
+  type    = string
+  validation {
+    condition = contains([
+      "germanywestcentral",
+      "germanynorth",
+      "westeurope",
+      "northeurope",
+      "switzerlandnorth"
+    ], var.azure_location)
+    error_message = "Azure location must be an approved sovereign region."
+  }
+}
+----
+
+=== Layer 2: AWS Service Control Policy (SCP)
+
+[source,json]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyOutsideApprovedRegions",
+      "Effect": "Deny",
+      "NotAction": [
+        "iam:*",
+        "sts:*",
+        "route53:*",
+        "budgets:*",
+        "cloudfront:*",
+        "waf:*",
+        "support:*",
+        "trustedadvisor:*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": [
+            "eu-central-1",
+            "eu-west-1",
+            "eu-north-1"
+          ]
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:aws:iam::*:role/BreakGlassRole"
+          ]
+        }
+      }
+    }
+  ]
+}
+----
+
+=== Layer 3: Azure Policy
+
+[source,json]
+----
+{
+  "properties": {
+    "displayName": "Allowed locations for sovereign workloads",
+    "policyType": "Custom",
+    "mode": "All",
+    "parameters": {
+      "allowedLocations": {
+        "type": "Array",
+        "defaultValue": [
+          "germanywestcentral",
+          "germanynorth",
+          "westeurope",
+          "northeurope"
+        ]
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "location",
+            "notIn": "[parameters('allowedLocations')]"
+          },
+          {
+            "field": "location",
+            "notEquals": "global"
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}
+----
+
+=== Layer 4: CI/CD Check (OPA)
+
+[source,rego]
+----
+# policies/sovereign/region_pinning.rego
+package sovereign
+
+import rego.v1
+
+approved_aws_regions := {
+  "eu-central-1",
+  "eu-west-1",
+  "eu-north-1"
+}
+
+deny contains msg if {
+  some resource in input.resource_changes
+  resource.type == "aws_instance"
+  not resource.change.after.availability_zone
+  msg := sprintf("Resource '%v' has no availability zone set", [resource.address])
+}
+
+deny contains msg if {
+  some provider in input.configuration.provider_config
+  provider.name == "aws"
+  not approved_aws_regions[provider.expressions.region.constant_value]
+  msg := sprintf("AWS provider region '%v' is not in approved sovereign list",
+                 [provider.expressions.region.constant_value])
+}
+----
+
+== Monitoring
+
+* CloudTrail Alarm: `aws:RequestedRegion` außerhalb der genehmigten Liste
+* Regelmäßige Drift-Scans mit `wafpp check --controls WAF-SOV-020`
+* AWS Config Rule: `restricted-regions-policy`
+
+== Typische Fehlmuster
+
+* **„Nur für Tests"**: Dev/Test-Umgebungen sind oft der erste Schritt zu Production-Deployments
+* **Temporäre Ausnahmen ohne Timeout**: Eine befristete Ausnahme wird nie zurückgenommen
+* **Shadow Projects**: Neue AWS-Accounts ohne SCP-Verbindung zur Organisation
+
+== Metriken
+
+* Anzahl blockierter Region-Deployments pro Monat (Trend)
+* Anzahl aktiver SCP-Exceptions
+* Anteil der Provider-Blöcke ohne explizite Region-Variable
+* Zeit bis Entdeckung eines nicht-compliant Deployments
+
+== Reifegrad
+
+Level 1 – Region dokumentiert, keine Enforcement +
+Level 2 – IaC-Defaults gesetzt, Region in Provider-Blöcken +
+Level 3 – Variable Validation + SCP/Org Policy + CI-Gate +
+Level 4 – Drift-Monitoring aktiv, Alarme bei Verstössen +
+Level 5 – Automatische Remediation, Zero-Tolerance

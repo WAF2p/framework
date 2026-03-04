@@ -1,0 +1,149 @@
+= Design-Prinzipien
+:page-toc: right
+:description: WAF++ Sovereign – Technische Design-Prinzipien für sovereign-konforme Architekturen.
+
+Die folgenden Design-Prinzipien übersetzen die Sovereign-Prinzipien in
+*architektonische Entscheidungsleitlinien* für Cloud-Engineers und Architekten.
+
+== DP1 – Sovereignty by Design, not by Retrofit
+
+Souveränität nachträglich einzubauen ist teuer und fehleranfällig.
+
+Jede Architekturentscheidung muss die Frage beantworten:
+_„Wie bewahre ich die Kontrolle über Jurisdiktion, Schlüssel und Abhängigkeiten?"_
+
+*In der Praxis bedeutet das:*
+
+* Regionen und Datenklassen werden *vor* dem ersten Deployment definiert
+* IaC-Module enthalten Region-Validation von Beginn an
+* Encryption-Konfiguration ist Teil des Basis-Stacks, nicht ein Add-on
+
+---
+
+== DP2 – Policy-as-Code beats PDF-Policy
+
+Policies, die nur als Dokument existieren, werden nicht kontinuierlich durchgesetzt.
+
+Jede Sovereign-Anforderung, die technisch ausdrückbar ist, muss als Code vorliegen:
+
+* Terraform Variable Validation für Region-Constraints
+* OPA/Sentinel Policies für Deployment-Guardrails
+* AWS Service Control Policies / Azure Policy / GCP Org Policy
+
+Dokumentenbasierte Policies gelten nur für Anforderungen, die *nicht* technisch ausdrückbar sind
+(z.B. Vertragsklauseln, DPA-Verpflichtungen).
+
+---
+
+== DP3 – Least Privilege by Default, JIT for Exceptions
+
+Jede Identität – menschlich oder technisch – startet mit minimalen Berechtigungen.
+
+*Menschliche Identitäten:*
+
+* Kein Standing Privilege für Production-Zugriff
+* JIT-Aktivierung mit Ticket-Bindung und Time-Limit
+* MFA zwingend für alle Production-Zugriffe
+
+*Technische Identitäten (Service Accounts, CI/CD):*
+
+* Keine langlebigen Access Keys
+* Workload Identity / OIDC für CI/CD-Pipelines
+* Service Account-Berechtigungen auf den spezifischen Task limitiert
+
+---
+
+== DP4 – Encrypt Everything, Own the Keys for Sensitive Data
+
+Verschlüsselung ist Standard. Schlüsselbesitz ist eine Entscheidung.
+
+[cols="1,2,2"]
+|===
+|Datenkategorie |Minimum |Empfohlen
+
+|*Public / nicht-sensitiv*
+|Provider-Managed Key (PMK)
+|CMK
+
+|*Operativ / intern*
+|Customer-Managed Key (CMK)
+|CMK mit Key-Policy-Einschränkungen
+
+|*PII / persönliche Daten*
+|CMK
+|BYOK oder HYOK mit HSM
+
+|*Gesundheit / Finanzen / Geheimhaltung*
+|BYOK (Customer-Key, Cloud-managed HSM)
+|HYOK (Key nie im Cloud-Anbieter)
+
+|===
+
+Key Rotation und Key Deletion Policies sind für alle Kategorien mandatory.
+
+---
+
+== DP5 – Default-Deny Egress, Explicit Allow-List
+
+Ausgehende Verbindungen müssen explizit genehmigt werden.
+
+*Netzwerkebene:*
+
+* Security Groups: kein `0.0.0.0/0` Egress ohne Dokumentation
+* Network Firewall / Azure Firewall mit Domain Allow-List
+* DNS-Egress über kontrollierten Resolver
+
+*Service-Ebene:*
+
+* VPC Endpoints für alle genutzten Cloud-Dienste (S3, KMS, ECR, ...)
+* Keine Datenflüsse zu nicht-inventarisierten Zielen
+
+*Daten-Pipeline-Ebene:*
+
+* Alle externen Datenexporte explizit konfiguriert und genehmigt
+* Log-Shipper und Monitoring-Agents: nur zu DPA-gesicherten Zielen
+
+---
+
+== DP6 – Open Standards reduce Lock-in Risk
+
+Proprietäre Dienste ohne Alternative sind Souveränitätsrisiken.
+
+*Bevorzuge:*
+
+* PostgreSQL über proprietäre DB-Engines (Spanner, Cosmos DB)
+* OpenTelemetry über proprietäre Agents
+* Open Container Initiative (OCI) über proprietäre Container-Formate
+* Standard-IaC (Terraform) über proprietäre Deployment-Tools
+
+*Dokumentiere:*
+
+* Jeder proprietäre Dienst benötigt eine Eintrag im Dependency-Register mit Replacement-Strategie
+* Proprietäre Dienste mit hohem Lock-in-Risiko müssen im Exit-Plan adressiert sein
+
+---
+
+== DP7 – Immutable Audit Trail
+
+Audit-Logs sind das Fundament von Souveränitätsnachweisen.
+
+*Anforderungen an sovereign Audit-Trails:*
+
+* Unveränderlich: Object Lock / Log File Validation / WORM-Storage
+* Vollständig: Alle privilegierten Aktionen, alle Schlüsselzugriffe, alle Region-Deployments
+* Verfügbar: Auch im Incident-Fall lesbar (separater Storage-Account, separate Region)
+* Retentionskonform: Aufbewahrungsfristen aus der Datenschutz-Policy eingehalten
+* Sovereign gespeichert: Log-Destination liegt in einer genehmigten Region
+
+---
+
+== DP8 – Test What You Plan to Rely On
+
+Sovereign-Architektur wird durch Tests bewiesen, nicht durch Dokumentation.
+
+* Restore-Tests für alle Backup-Kategorien (mindestens jährlich)
+* Exit-Drills: Datenexport und Neudeployment in Alternativumgebung
+* Break-Glass-Tests in nicht-produktiver Umgebung
+* Region-Enforcement-Tests: Deployment-Versuch außerhalb erlaubter Regionen
+
+_„Tested once is more valuable than documented twice."_

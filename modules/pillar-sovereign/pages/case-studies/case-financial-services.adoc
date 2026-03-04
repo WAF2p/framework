@@ -1,0 +1,172 @@
+= Fallbeispiel: Financial Services – BaFin-konforme Sovereign Cloud
+:page-toc: right
+:description: WAF++ Sovereign – Regionalbank implementiert sovereign Datenverarbeitung unter BaFin/DORA.
+
+== Ausgangssituation
+
+Eine mittelgroße Regionalbank plant die Migration ihres Core-Banking-Systems
+auf Azure (germanywestcentral). BaFin-Aufsicht und DORA-Compliance (ab 2025) sind
+verpflichtend.
+
+*Anforderungen (BaFin/DORA):*
+
+* Vollständige Kontrolle über Zahlungsdaten und Kundendaten
+* Auslagerungsregister mit Risikobewertung aller IT-Dienstleister
+* Informationssicherheits-Managementsystem (ISMS) nach ISO 27001
+* Incident-Meldepflicht innerhalb 4 Stunden
+* Nachweis von Business Continuity und Recovery-Fähigkeit
+
+== Kritische Risiken
+
+. *Key Management*: Zahlungsdaten (PAN, IBAN) erfordern nach PCI-DSS und BaFin CMK
+  mit nachweisbarem Ownership; Provider-Managed Keys nicht akzeptabel.
+
+. *Auslagerungsregister*: DORA Art. 28 verlangt vollständiges Register aller IT-Drittanbieter
+  mit Risikoklassifizierung und Ausstiegsstrategien.
+
+. *Privileged Access*: MaRisk AT 7.3 erfordert Separation of Duties; keine Person
+  darf sowohl Zahlungsfreigabe als auch Systemzugriff haben.
+
+. *Exit-Strategie*: BaFin verlangt nachgewiesene Exit-Fähigkeit vor Inbetriebnahme.
+
+== Implementierung nach WAF++ Sovereign
+
+=== Key Sovereignty für Zahlungsdaten (WAF-SOV-050)
+
+[source,hcl]
+----
+# Azure Dedicated HSM für BYOK (PCI-DSS Level 1 Anforderung)
+resource "azurerm_dedicated_hardware_security_module" "payments" {
+  name                = "hsm-payments-prod"
+  location            = "germanywestcentral"
+  resource_group_name = azurerm_resource_group.payments.name
+
+  sku_name = "payShield10K_LMK1_CPS60"  # Hardware HSM für Payment-Kryptographie
+
+  network_profile {
+    network_interface_private_ip_addresses = ["10.0.2.10"]
+    subnet_id                              = azurerm_subnet.hsm.id
+  }
+}
+
+# Azure Key Vault mit BYOK aus Dedicated HSM
+resource "azurerm_key_vault" "payments" {
+  name                     = "kv-payments-prod"
+  location                 = "germanywestcentral"
+  resource_group_name      = azurerm_resource_group.payments.name
+  sku_name                 = "premium"
+  purge_protection_enabled = true
+  soft_delete_retention_days = 90
+  enable_rbac_authorization  = true
+
+  network_acls {
+    default_action             = "Deny"
+    bypass                     = ["AzureServices"]
+    virtual_network_subnet_ids = [azurerm_subnet.payments.id]
+  }
+}
+----
+
+=== Auslagerungsregister (WAF-SOV-080)
+
+Das Auslagerungsregister der Bank implementiert den WAF++ Dependency-Standard:
+
+[source,yaml]
+----
+# auslagerungsregister.yml (DORA Art. 28-konform)
+
+version: "3.1"
+gueltig_ab: "2025-01-01"
+geprueft_von: "IT-Risikobeauftragter, Compliance"
+
+it_dienstleister:
+  - id: "DL-001"
+    name: "Microsoft Azure"
+    typ: "Cloud Infrastructure"
+    services: "Compute, Storage, Networking, Key Vault, Azure AD"
+    klassifizierung: "kritisch"
+    daten_kategorien: ["zahlungsdaten", "kundendaten", "betriebsdaten"]
+    verarbeitungsort: "Deutschland (germanywestcentral, germanynorth)"
+    rechtliche_basis: "DSGVO Art. 28, EU Standard Contractual Clauses"
+    risikoklasse: "hoch"
+    risikominderung:
+      - "Azure Germany Region (Deutsche Telekom Trustee bis 2019 – jetzt Microsoft)"
+      - "BSI C5 Testat Typ II vorhanden"
+      - "CMK für alle kritischen Daten; BYOK via Azure Dedicated HSM"
+    austritts_strategie: "docs/exit-plan-azure.md"
+    letztes_review: "2025-Q1"
+    naechstes_review: "2025-Q3"
+
+  - id: "DL-002"
+    name: "GitHub Enterprise"
+    typ: "CI/CD Platform"
+    services: "Source Code Management, Actions (CI/CD)"
+    klassifizierung: "wichtig"
+    daten_kategorien: ["quellcode", "konfiguration"]
+    verarbeitungsort: "EU (GitHub EU Datacenter)"
+    risikoklasse: "mittel"
+    risikominderung:
+      - "Kein Produktionszugriff aus CI/CD"
+      - "OIDC für Cloud-Authentifizierung (keine statischen Secrets)"
+    austritts_strategie: "GitLab Self-Hosted (documented)"
+----
+
+=== Separation of Duties (WAF-SOV-060)
+
+[source,hcl]
+----
+# SoD: Wer zahlt freigeben kann, hat keinen Datenbankzugriff
+
+# Zahlungsfreigabe-Rolle
+resource "azurerm_role_definition" "payment_approver" {
+  name  = "PaymentApprover"
+  scope = azurerm_resource_group.payments.id
+
+  permissions {
+    actions     = ["Microsoft.Authorization/*/read"]
+    data_actions = ["Microsoft.DocumentDB/databaseAccounts/*/read"]
+    # Nur Lesezugriff auf Zahlungsstatus; kein Datenbankzugriff
+  }
+
+  not_actions = [
+    "Microsoft.KeyVault/vaults/*/write",
+    "Microsoft.Sql/*"
+  ]
+}
+
+# Datenbankadmin-Rolle – KEINE Zahlungsfreigabe
+resource "azurerm_role_definition" "db_admin" {
+  name  = "SovereignDatabaseAdmin"
+  scope = azurerm_resource_group.payments.id
+
+  permissions {
+    actions = [
+      "Microsoft.Sql/servers/databases/*",
+      "Microsoft.Storage/storageAccounts/*/read"
+    ]
+  }
+
+  not_actions = [
+    "Microsoft.KeyVault/vaults/keys/*/write",
+    # Kein Schlüsselmanagement-Zugriff
+  ]
+}
+----
+
+== Ergebnis
+
+* BaFin-Auslagerungsmeldung erfolgreich eingereicht
+* DORA Compliance Assessment: alle kritischen Controls erfüllt
+* PCI-DSS SAQ-D Self-Assessment abgeschlossen
+* Ersparnis: 60% weniger manuelle Audit-Aufwand durch WAF++ Checker-Integration
+
+== Lessons Learned
+
+. **DORA verlangt mehr als DSGVO**: Ausstiegsstrategien und Konzentrationsrisiko-Management
+  sind DORA-spezifisch und müssen aktiv umgesetzt werden.
+
+. **SoD in Cloud-IAM ist schwieriger als On-Premises**: Azure RBAC-Rollen müssen sorgfältig
+  designed werden, um SoD zu erzwingen ohne Betrieb zu blockieren.
+
+. **Auslagerungsregister als Kern-Asset**: Das Register ist nicht nur Compliance-Dokument,
+  sondern die Grundlage für alle Supply-Chain-Risikobewertungen.

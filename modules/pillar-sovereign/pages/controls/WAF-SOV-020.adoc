@@ -1,0 +1,269 @@
+= WAF-SOV-020 – Region Pinning Enforced (IaC)
+:page-toc: right
+:control-id: WAF-SOV-020
+:pillar: sovereign
+:severity: critical
+:category: data-residency
+:automated: high
+:description: WAF++ Sovereign – Technische Erzwingung von Region-Constraints via IaC-Validation, Policy-as-Code und CI-Gates.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Kategorie:* Data Residency | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Deployments MÜSSEN durch Policy-as-Code und IaC-Guardrails auf erlaubte souveräne Regionen
+beschränkt sein. Region-Constraints müssen technisch erzwungen werden – nicht nur dokumentiert.
+
+Verstöße MÜSSEN im CI blockiert oder sofort als kritische Policy-Exception gemeldet werden.
+Jede genehmigte Ausnahme erfordert eine dokumentierte Zustimmung mit zeitlicher Befristung.
+
+== Rationale
+
+Dokumentation allein kann versehentliche oder absichtliche Deployments in nicht-souveräne
+Regionen nicht verhindern. Eine einzige ungesicherte Provider-Konfiguration oder
+Umgebungsvariable kann stillschweigend Workloads außerhalb der Jurisdiktionsgrenzen anlegen.
+
+Region Pinning muss auf *jedem Layer* erzwungen werden:
+
+* *IaC-Ebene*: Variable Validation in Terraform
+* *CI/CD-Ebene*: OPA/Sentinel Policy-Gate im Build
+* *Organisations-Ebene*: SCP / Azure Policy / GCP Org Policy als letztes Sicherheitsnetz
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Versehentliches Deployment*
+|Falsche `AWS_DEFAULT_REGION` Umgebungsvariable in der CI-Pipeline legt Ressourcen in US-Ost an.
+
+|*Shadow-Infrastruktur*
+|Entwickler-Account ohne SCP-Guardrails ermöglicht Deployments in beliebigen Regionen.
+
+|*Provider-Default-Fallback*
+|Fehlendes `region`-Attribut im Provider-Block fällt auf undokumentierten Default zurück.
+
+|*Terraform State-Leak*
+|State-Datei mit sensiblen Metadaten in S3-Bucket außerhalb genehmigter Region gespeichert.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 44 – Allgemeiner Grundsatz für Übermittlungen; Art. 46 – Geeignete Garantien
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; INF-01 – Physischer Standort der Infrastruktur
+
+|*EUCS (ENISA)*
+|SOV-01 – Datenlokation; SOV-02 – Jurisdiktionskontrolle
+
+|*GAIA-X*
+|Sovereign Cloud – Standorttransparenz und Datenlokation
+
+|*ISO 27001:2022*
+|A.8.10 – Informationslöschung; A.5.29 – Informationssicherheit bei Betriebsunterbrechung
+
+|===
+
+== Anforderung
+
+* Alle Provider-Blöcke MÜSSEN eine explizite `region`/`location` enthalten
+* Alle Region/Location-Variablen MÜSSEN einen `validation`-Block mit erlaubten Werten haben
+* Auf Organisations-Ebene MUSS ein Deny-Mechanismus (SCP/Azure Policy/Org Policy) aktiviert sein
+* Der CI/CD-Prozess MUSS Region-Verstöße blockieren – Warnung allein genügt nicht
+* Hartcodierte non-sovereign Regionen (us-*, ap-*, sa-*) in IaC sind verboten
+
+== Implementierungsanleitung
+
+. *Erlaubte-Regionen-Liste* als gemeinsame Variable oder locals in einem Basis-Modul definieren.
+. *Variable-Validation* zu jedem Region/Location-Parameter hinzufügen.
+. *AWS SCP* mit `DenyOutsideApprovedRegions` auf Organisations-Ebene aktivieren.
+. *Azure Policy* oder *GCP Org Policy* als Äquivalent konfigurieren.
+. *CI-Gate* implementieren: OPA oder Sentinel prüft den Terraform Plan.
+. *Drift-Erkennung* aktivieren: Scheduled Scans finden manuell erstellte Ressourcen.
+. *Ausnahmen formalisieren*: Jede Ausnahme erfordert CISO/DPO-Zustimmung, ist zeitlich begrenzt und dokumentiert.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Region dokumentiert
+|Erlaubte Regionen in Policy-Dokument aufgeführt; kein technisches Enforcement.
+
+|*2*
+|IaC-Region-Constraints gesetzt
+|Alle Provider-Blöcke haben explizite Region; Region-Variablen mit Validation-Block.
+
+|*3*
+|Vollständiges Enforcement
+|CI-Pipeline blockiert Non-Sovereign-Deployments; OPA/SCP/Policy in Kraft; keine undokumentierten Ausnahmen.
+
+|*4*
+|Kontinuierliches Drift-Monitoring
+|Geplante Scans erkennen Ressourcen außerhalb genehmigter Regionen; Alerts innerhalb 1h; wöchentliche Compliance-Reports.
+
+|*5*
+|Automatische Remediation
+|Non-konforme Ressourcen werden automatisch gelöscht oder quarantäniert; vollständiger Audit-Trail jeder Enforcement-Aktion.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-020.tf.aws.provider-region-in-allowed-list
+*Prüft:* AWS Provider muss `region` explizit setzen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+provider "aws" {
+  region = var.aws_region
+}
+----
+a|[source,hcl]
+----
+provider "aws" {
+  # region via AWS_DEFAULT_REGION –
+  # nicht sovereign-sicher
+}
+----
+|===
+
+---
+
+=== waf-sov-020.tf.aws.region-variable-validation
+*Prüft:* Region-Variablen müssen einen `validation`-Block mit erlaubten Werten besitzen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+variable "aws_region" {
+  type    = string
+  default = "eu-central-1"
+  validation {
+    condition = contains([
+      "eu-central-1",
+      "eu-west-1",
+      "eu-north-1"
+    ], var.aws_region)
+    error_message = <<-EOF
+      Region '${var.aws_region}' nicht in der
+      genehmigten souveränen Regionsliste.
+    EOF
+  }
+}
+----
+a|[source,hcl]
+----
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+  # Kein validation-Block –
+  # beliebige Region erlaubt
+}
+----
+|===
+
+---
+
+=== waf-sov-020.tf.aws.no-hardcoded-non-sovereign-region
+*Prüft:* Keine hartkodierten non-sovereign Regionsstrings (z.B. `us-east-1`, `ap-southeast-1`) in IaC.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+provider "aws" {
+  region = var.aws_region
+  # var.aws_region validated to EU
+}
+----
+a|[source,hcl]
+----
+provider "aws" {
+  region = "us-east-1"  # ❌ Hartcodierte
+                         # non-sovereign Region
+}
+----
+|===
+
+---
+
+=== SCP-Beispiel (Organisations-Ebene)
+*Zweck:* Letztes Sicherheitsnetz – verhindert API-Calls außerhalb genehmigter Regionen.
+
+[source,json]
+----
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "DenyOutsideApprovedRegions",
+    "Effect": "Deny",
+    "NotAction": ["iam:*","sts:*","route53:*","cloudfront:*"],
+    "Resource": "*",
+    "Condition": {
+      "StringNotEquals": {
+        "aws:RequestedRegion": [
+          "eu-central-1",
+          "eu-west-1",
+          "eu-north-1"
+        ]
+      }
+    }
+  }]
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Code mit Variable-Validation-Blöcken für alle Region/Location-Parameter.
+
+|*Policy*
+|✅ Pflicht
+|OPA/Sentinel-Regeln, AWS SCP, Azure Policy oder GCP Org Policy mit Region-Restriktion.
+
+|*Logs*
+|Optional
+|CI-Pipeline-Logs mit blockiertem Non-Region-Deployment-Versuch (als Funktionsnachweis).
+
+|*Config*
+|Optional
+|Cloud-Provider Org-Policy-Export mit aktiven Region-Beschränkungen.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy Defined]
+* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging & Telemetry Residency]
+* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
+
+== Best Practice
+
+* xref:best-practices/bp-region-pinning.adoc[Region Pinning implementieren →]

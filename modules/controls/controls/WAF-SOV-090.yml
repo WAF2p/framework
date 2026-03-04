@@ -1,0 +1,288 @@
+id: WAF-SOV-090
+title: "Controlled Egress & Data Exfiltration Guardrails"
+pillar: "sovereign"
+status: "active"
+severity: "high"
+category: "network-sovereignty"
+type: ['security', 'network']
+tags: ['egress', 'network', 'detection', 'security-groups', 'vpc-endpoints', 'firewall', 'data-exfiltration']
+
+description: >
+  Outbound network traffic MUST be controlled using a default-deny or strict allow-list
+  policy. Security groups must not permit unrestricted egress (0.0.0.0/0) without
+  explicit justification. VPC endpoints MUST be used for access to cloud provider APIs
+  to keep traffic on the sovereign network. Data exfiltration detection MUST be
+  established to alert on anomalous outbound data volumes or unexpected destinations.
+
+rationale: >
+  Unrestricted egress is the final escape valve for data that bypasses all other
+  sovereignty controls. Even with region pinning, CMK encryption, and access controls
+  in place, uncontrolled egress allows a compromised workload to copy entire databases
+  to an external server. VPC endpoints prevent traffic from leaving the cloud provider
+  backbone to the public internet. Exfiltration detection provides the detective control
+  layer when preventive egress controls are insufficient or bypassed.
+
+threat:
+  - "Compromised application copying database dumps to external storage via unrestricted egress"
+  - "Malicious insider using open outbound port to exfiltrate sensitive data over DNS tunneling"
+  - "Misconfigured data pipeline routing PII to a non-sovereign external destination"
+  - "AWS API calls traversing the public internet (no VPC endpoint) exposing traffic metadata"
+  - "Open security group egress allowing port scans and outbound connections to C2 servers"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing (network security)"
+      - "Art. 44-46 – Transfers to third countries"
+  - framework: "BSI C5:2020"
+    controls:
+      - "SIM-02 – Intrusion detection"
+      - "OPS-04 – Data management"
+      - "NET-01 – Network security"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "IVS-09 – Network security"
+      - "IVS-10 – Egress filtering"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.20 – Networks security"
+      - "A.8.21 – Security of network services"
+      - "A.8.22 – Segregation of networks"
+
+implementation_guidance:
+  - "Configure security groups with explicit egress rules—no 'allow all' (0.0.0.0/0) without documented justification."
+  - "Deploy VPC endpoints for S3, DynamoDB, KMS, ECR, and other frequently used services."
+  - "Use AWS Network Firewall, Azure Firewall, or GCP Cloud Armor for centralized egress inspection."
+  - "Enable VPC flow logs for all VPCs to capture egress traffic metadata for forensics."
+  - "Set up GuardDuty (AWS) or equivalent to detect anomalous data transfer patterns."
+  - "Implement DNS-based egress control: all outbound DNS must resolve through an approved resolver."
+  - "Create a documented allow-list of approved external destinations with business justification."
+  - "Alert on: outbound traffic to new/unexpected destinations, large data volumes, non-standard ports."
+
+maturity_levels:
+  level_1:
+    description: "Default security groups, open egress"
+    criteria:
+      - "Some network segmentation exists"
+      - "No explicit egress policy"
+  level_2:
+    description: "Restricted egress, VPC endpoints deployed"
+    criteria:
+      - "Security groups restrict outbound ports"
+      - "VPC endpoints for major cloud services"
+      - "VPC flow logs enabled"
+  level_3:
+    description: "Default-deny egress with explicit allow-list"
+    criteria:
+      - "No security group allows 0.0.0.0/0 egress without justification"
+      - "Network Firewall with domain allow-list"
+      - "Exfiltration detection in place"
+  level_4:
+    description: "Continuous egress monitoring and anomaly detection"
+    criteria:
+      - "GuardDuty or equivalent with custom threat intelligence"
+      - "Alerts on new outbound destinations within minutes"
+      - "DNS egress inspection active"
+  level_5:
+    description: "Zero-trust network with full egress attestation"
+    criteria:
+      - "All outbound connections context-aware and policy-enforced"
+      - "Automated blocking of anomalous egress"
+      - "Egress compliance verified in deployment pipeline"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Security group rules showing egress restrictions; VPC endpoint resources for cloud services."
+    - kind: "iac"
+      description: "VPC flow log resources enabled for all VPCs."
+  optional:
+    - kind: "config"
+      description: "Network Firewall/Azure Firewall domain allow-list export."
+    - kind: "logs"
+      description: "Sample flow log or firewall log showing blocked egress attempts."
+    - kind: "process"
+      description: "Documented allow-list of approved external destinations with business justification."
+
+checks:
+  - id: "waf-sov-090.tf.aws.no-unrestricted-egress"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Security groups must not allow unrestricted egress to 0.0.0.0/0"
+    description: >
+      AWS security group rules with type=egress and cidr_blocks containing 0.0.0.0/0
+      or ::/0 should not exist without documented justification. Unrestricted egress
+      enables data exfiltration and violates the principle of least-privilege networking.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_security_group_rule"
+        - "aws_security_group"
+    assertions:
+      - attribute: "egress.cidr_blocks"
+        op: "not_contains"
+        expected: "0.0.0.0/0"
+        message: "Security group allows unrestricted outbound access to 0.0.0.0/0. Restrict to specific destinations."
+      - attribute: "egress.ipv6_cidr_blocks"
+        op: "not_contains"
+        expected: "::/0"
+        message: "Security group allows unrestricted outbound access to ::/0 (all IPv6)."
+    on_fail: "warning"
+    remediation: >
+      Replace 0.0.0.0/0 egress rules with specific CIDR ranges or prefix lists.
+      Use VPC endpoints for cloud service access to eliminate the need for internet egress.
+    example:
+      compliant: |
+        resource "aws_security_group" "app" {
+          name   = "app-sg"
+          vpc_id = aws_vpc.main.id
+          egress {
+            from_port   = 443
+            to_port     = 443
+            protocol    = "tcp"
+            cidr_blocks = ["10.0.0.0/8"]  # Internal only
+          }
+          # Outbound internet requires Network Firewall / explicit destination
+        }
+      non_compliant: |
+        resource "aws_security_group" "app" {
+          name   = "app-sg"
+          vpc_id = aws_vpc.main.id
+          egress {
+            from_port   = 0
+            to_port     = 0
+            protocol    = "-1"
+            cidr_blocks = ["0.0.0.0/0"]  # Unrestricted outbound
+          }
+        }
+
+  - id: "waf-sov-090.tf.aws.vpc-endpoint-s3"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "VPC must have a gateway endpoint for S3"
+    description: >
+      VPCs containing sovereign workloads should have a gateway endpoint for S3
+      to ensure S3 API traffic stays on the AWS network backbone, not the public internet.
+      This is both a sovereignty and cost optimization control.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc"
+    assertions:
+      - attribute: "id"
+        op: "has_associated_resource"
+        associated_resource_type: "aws_vpc_endpoint"
+        associated_attribute: "vpc_id"
+        filter_attribute: "service_name"
+        filter_contains: "s3"
+        message: "VPC does not have an S3 VPC endpoint. S3 traffic traverses the public internet."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_vpc_endpoint resource for S3 (gateway type) in each VPC
+      containing sovereign workloads.
+    example:
+      compliant: |
+        resource "aws_vpc_endpoint" "s3" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.aws_region}.s3"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+          policy            = data.aws_iam_policy_document.s3_endpoint_policy.json
+        }
+      non_compliant: |
+        resource "aws_vpc" "main" {
+          cidr_block = "10.0.0.0/16"
+          # No S3 VPC endpoint – all S3 traffic via public internet
+        }
+
+  - id: "waf-sov-090.tf.aws.vpc-flow-logs-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "VPC flow logs must be enabled for egress forensics"
+    description: >
+      Every aws_vpc must have VPC flow logs enabled to capture network traffic
+      metadata. This is required for forensic investigation of data exfiltration events
+      and for compliance with audit logging requirements.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc"
+    assertions:
+      - attribute: "id"
+        op: "has_associated_resource"
+        associated_resource_type: "aws_flow_log"
+        associated_attribute: "vpc_id"
+        message: "VPC does not have flow logs enabled. Network traffic cannot be audited."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_flow_log resource for each VPC targeting an approved log destination
+      (S3 in sovereign region or CloudWatch with retention policy set).
+
+  - id: "waf-sov-090.tf.aws.network-acl-no-open-egress"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Network ACLs should not have open egress rules on all ports"
+    description: >
+      Network ACL egress rules allowing all traffic (port 0-65535) to 0.0.0.0/0
+      provide no meaningful defense-in-depth for data exfiltration scenarios.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_network_acl_rule"
+    assertions:
+      - attribute: "egress"
+        op: "not_all_true_with"
+        conditions:
+          - attribute: "from_port"
+            op: "equals"
+            expected: 0
+          - attribute: "cidr_block"
+            op: "equals"
+            expected: "0.0.0.0/0"
+        message: "Network ACL has unrestricted egress rule on all ports to 0.0.0.0/0."
+    on_fail: "warning"
+    remediation: >
+      Restrict network ACL egress rules to specific port ranges and destination CIDRs.
+
+  - id: "waf-sov-090.tf.azurerm.nsg-no-open-outbound"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure NSG must not allow unrestricted outbound traffic"
+    description: >
+      Azure Network Security Groups must not have outbound security rules allowing
+      all traffic (Any/Any) to destination '*' (any destination).
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_network_security_rule"
+    assertions:
+      - attribute: "direction"
+        op: "not_equals_with_sibling"
+        sibling_condition:
+          attribute: "destination_address_prefix"
+          op: "equals"
+          expected: "*"
+        value: "Outbound"
+        message: "Azure NSG has outbound rule allowing traffic to any destination (*)."
+    on_fail: "warning"
+    remediation: >
+      Replace wildcard destination address prefix ('*') with specific CIDRs or service tags.
+
+references:
+  narrative: "modules/pillar-sovereign/pages/controls.adoc#WAF-SOV-090"
+  best_practice: "modules/pillar-sovereign/pages/best-practices/bp-egress-control.adoc"
+  related_controls:
+    - "WAF-SOV-010"
+    - "WAF-SOV-040"
+    - "WAF-SOV-050"
+    - "WAF-SOV-060"

@@ -1,0 +1,223 @@
+= Best Practice: Break-Glass & Controlled Emergency Access
+:page-toc: right
+:description: WAF++ Sovereign – JIT Emergency Access implementieren mit vollständigem Logging und Post-Incident Review.
+
+== Kontext
+
+Break-Glass-Zugriff ist notwendig – aber ungeregelt wird er zum permanenten Backdoor.
+
+Typische Probleme:
+
+* Root-Credentials im 1Password geteilt, nie rotiert
+* Kein Prozess, der definiert, wann Break-Glass erlaubt ist
+* Keine Post-Incident Reviews → Break-Glass wird zur normalen Arbeitsweise
+* Keine Alarme → Missbrauch bleibt unentdeckt
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-060[WAF-SOV-060] – Privileged Access Controlled (SoD)
+* xref:../controls.adoc#WAF-SOV-070[WAF-SOV-070] – Break-Glass Process & Logging
+
+== Zielbild
+
+Break-Glass als Zero-Standing-Privilege-System:
+
+* Keine permanenten Admin-Credentials
+* Aktivierung nur mit Dual Control und Ticket-Bindung
+* Vollständiges Logging aller Aktionen
+* Automatische Deaktivierung nach definiertem Zeitfenster
+* Mandatory Post-Incident Review
+
+== Technische Umsetzung
+
+=== CloudWatch Monitoring für Root-Aktivität
+
+[source,hcl]
+----
+# CloudTrail mit vollständiger Konfiguration
+resource "aws_cloudtrail" "sovereign_audit" {
+  name                          = "sovereign-audit-trail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+  is_multi_region_trail         = true
+  enable_log_file_validation    = true
+  include_global_service_events = true
+
+  # CloudWatch Integration für Real-Time Alerting
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
+  cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cw.arn
+
+  # Encryption
+  kms_key_id = aws_kms_key.cloudtrail.arn
+
+  event_selector {
+    read_write_type           = "All"
+    include_management_events = true
+
+    # S3 Data Events für kritische Buckets
+    data_resource {
+      type   = "AWS::S3::Object"
+      values = ["arn:aws:s3:::${aws_s3_bucket.sovereign_data.id}/"]
+    }
+  }
+}
+
+# Metric Filter für Root Account
+resource "aws_cloudwatch_log_metric_filter" "root_usage" {
+  name           = "root-account-usage"
+  log_group_name = aws_cloudwatch_log_group.cloudtrail.name
+  pattern        = "{$.userIdentity.type = Root && $.userIdentity.invokedBy NOT EXISTS && $.eventType != AwsServiceEvent}"
+
+  metric_transformation {
+    name      = "RootAccountUsageCount"
+    namespace = "SovereignCloud/BreakGlass"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "root_usage" {
+  alarm_name          = "sovereign-root-account-usage"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "RootAccountUsageCount"
+  namespace           = "SovereignCloud/BreakGlass"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "1"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "CRITICAL: Root account activity detected. Requires immediate investigation."
+
+  alarm_actions = [aws_sns_topic.security_critical.arn]
+  ok_actions    = [aws_sns_topic.security_critical.arn]
+}
+
+# Metric Filter für IAM Policy Änderungen
+resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
+  name           = "iam-policy-changes"
+  log_group_name = aws_cloudwatch_log_group.cloudtrail.name
+  pattern        = "{($.eventName = DeleteGroupPolicy) || ($.eventName = DeleteRolePolicy) || ($.eventName = DeleteUserPolicy) || ($.eventName = PutGroupPolicy) || ($.eventName = PutRolePolicy) || ($.eventName = PutUserPolicy) || ($.eventName = CreatePolicy) || ($.eventName = DeletePolicy) || ($.eventName = CreatePolicyVersion) || ($.eventName = DeletePolicyVersion) || ($.eventName = SetDefaultPolicyVersion) || ($.eventName = AttachRolePolicy) || ($.eventName = DetachRolePolicy)}"
+
+  metric_transformation {
+    name      = "IAMPolicyChangeCount"
+    namespace = "SovereignCloud/BreakGlass"
+    value     = "1"
+  }
+}
+----
+
+=== Break-Glass IAM Role
+
+[source,hcl]
+----
+# Break-Glass Role – nur über JIT aktivierbar
+resource "aws_iam_role" "break_glass" {
+  name        = "SovereignBreakGlass"
+  description = "Emergency access role. Activated via JIT only. All usage logged."
+
+  # Nur spezifische vertrauenswürdige Principals können assume (JIT-Tool)
+  assume_role_policy = data.aws_iam_policy_document.break_glass_trust.json
+
+  # Max Session Duration: 4 Stunden
+  max_session_duration = 14400
+
+  tags = {
+    purpose        = "break-glass"
+    requires-jit   = "true"
+    requires-mfa   = "true"
+    log-session    = "true"
+  }
+}
+
+data "aws_iam_policy_document" "break_glass_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "AWS"
+      identifiers = [aws_iam_role.jit_activation.arn]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["true"]
+    }
+
+    condition {
+      test     = "NumericLessThan"
+      variable = "aws:MultiFactorAuthAge"
+      values   = ["3600"]  # MFA nicht älter als 1 Stunde
+    }
+  }
+}
+----
+
+=== Break-Glass Runbook (Template)
+
+[source,yaml]
+----
+# break-glass-runbook.yml
+version: "2.0"
+last_reviewed: "2025-01-15"
+owner: "CISO"
+classification: "Confidential"
+
+trigger_criteria:
+  - "Production system unavailable and normal access cannot be restored within 1 hour"
+  - "Security incident requiring immediate privileged investigation"
+  - "Regulatory emergency requiring immediate data access"
+
+activation_process:
+  step_1_request:
+    action: "Open Emergency Ticket in ITSM system with incident description"
+    approvers_required: 2  # Dual Control
+    max_wait_time: "15 minutes"
+
+  step_2_approval:
+    action: "CISO or designated deputy approves in ITSM"
+    logging: "ITSM ticket + Slack notification to #security-critical"
+
+  step_3_activation:
+    action: "Trigger JIT workflow with ticket ID"
+    duration: "4 hours maximum"
+    logging: "CloudTrail: all actions during session"
+
+  step_4_use:
+    action: "Perform only the specific task documented in the ticket"
+    prohibition: "No use for routine tasks, testing, or exploration"
+
+  step_5_deactivation:
+    action: "Session expires automatically after 4 hours"
+    follow_up: "Rotate break-glass credentials within 24 hours"
+
+post_incident_review:
+  deadline_days: 5
+  required_participants: ["CISO", "Engineer who activated", "Team Lead"]
+  documentation:
+    - "Timeline of all actions taken"
+    - "Root cause of emergency"
+    - "Preventive measures to avoid future break-glass"
+    - "CloudTrail event IDs from session"
+----
+
+== Typische Fehlmuster
+
+* **Root-Credentials im Passwortmanager**: Mehrere Personen kennen das Passwort, keine Attribution
+* **Keine Zeitbegrenzung**: Break-Glass Session läuft unbegrenzt, wird zur normalen Arbeit
+* **Kein Post-Incident Review**: Break-Glass normalisiert sich ohne Lerneffekt
+* **MFA-Bypass**: Break-Glass ohne MFA-Anforderung
+
+== Metriken
+
+* Anzahl Break-Glass-Aktivierungen pro Quartal (Trend)
+* Prozentsatz Aktivierungen mit vollständigem Post-Incident Review (Ziel: 100%)
+* Zeit zwischen Aktivierung und Deaktivierung (Ziel: < 4h)
+* Anzahl Root-Account-Aktivierungen außerhalb dokumentierter Szenarien (Ziel: 0)
+
+== Reifegrad
+
+Level 1 – Root-Credentials geteilt, kein Prozess +
+Level 2 – Runbook dokumentiert, CloudTrail aktiv +
+Level 3 – Root-Alarm, Post-Incident Review mandatory, Dual Control +
+Level 4 – JIT-System (IAM Identity Center / Azure PIM), automatische Rotation +
+Level 5 – Zero Standing Privilege, vollautomatisiertes Audit-Trail, Drill jährlich

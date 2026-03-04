@@ -1,0 +1,306 @@
+id: WAF-SOV-010
+title: "Data Residency Policy Defined"
+pillar: "sovereign"
+status: "active"
+severity: "high"
+category: "data-residency"
+type: ['governance', 'configuration']
+tags: ['data-residency', 'governance', 'policy', 'classification', 'tagging']
+
+description: >
+  A documented data-residency policy MUST exist that explicitly defines allowed regions,
+  data classifications, and storage rules for all data types: primary data, replicas,
+  backups, logs, traces, metrics, and metadata. The policy MUST be version-controlled
+  and technically reflected in IaC defaults and variable validation.
+
+rationale: >
+  Without a documented and technically enforced data-residency policy, data can silently
+  migrate to non-sovereign jurisdictions through backup replication, log exports, or
+  third-party integrations. Compliance with GDPR, BSI C5, EUCS, and similar frameworks
+  requires demonstrable geographic and jurisdictional control over data at rest and in
+  transit. A policy without IaC reflection is unenforceable and audit-opaque.
+
+threat:
+  - "Unintentional data storage in non-compliant jurisdictions via unconstrained defaults"
+  - "Regulatory breach: GDPR Art. 46, EUCS Tier 3, BSI C5 OPS-04"
+  - "Loss of audit evidence due to undocumented data flows and missing classification"
+  - "Inability to demonstrate data-residency compliance during external audit"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 44 – General principle for transfers"
+      - "Art. 46 – Transfers subject to appropriate safeguards"
+      - "Art. 30 – Records of processing activities"
+  - framework: "BSI C5:2020"
+    controls:
+      - "OPS-04 – Data management"
+      - "SIM-01 – Security incident management"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "DSP-01 – Data classification"
+      - "IAM-04 – Access control policy"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.10 – Information deletion"
+      - "A.5.33 – Protection of records"
+      - "A.5.12 – Classification of information"
+  - framework: "GAIA-X"
+    controls:
+      - "Sovereign Cloud – Data location requirements"
+
+implementation_guidance:
+  - "Document all data classes (e.g., PII, health, financial, operational, public) with allowed jurisdictions per class."
+  - "Define allowed regions explicitly—avoid open-ended 'EU' definitions; pin to specific cloud region identifiers."
+  - "Cover all data storage types: primary data, replication, backup, logs, traces, metrics, and metadata."
+  - "Version-control the policy document alongside IaC code; use semantic versioning and changelog."
+  - "Reflect policy decisions as IaC variable defaults, provider configurations, and variable validation rules."
+  - "Run quarterly reviews to detect policy drift and new data flows not yet covered by the policy."
+  - "Tag all data-storing resources with 'data-class' and 'data-residency' labels for automated scanning."
+
+maturity_levels:
+  level_1:
+    description: "Policy documented, primary regions defined"
+    criteria:
+      - "Data residency policy document exists and is versioned"
+      - "At least primary data storage regions are explicitly defined"
+  level_2:
+    description: "All data classes covered, backups and logs included"
+    criteria:
+      - "Policy covers primary data, backups, logs, traces, and metadata"
+      - "Allowed regions defined per data class"
+      - "Policy is reviewed at least annually"
+  level_3:
+    description: "Policy technically reflected in IaC"
+    criteria:
+      - "IaC uses provider region defaults and variable validation from policy"
+      - "CI pipeline validates region settings against policy on every PR"
+      - "Data resources tagged consistently with data-class and data-residency"
+  level_4:
+    description: "Continuous drift detection and alerting"
+    criteria:
+      - "Automated scanning detects policy violations in deployed resources"
+      - "Alerts on new unclassified data stores within 24 hours"
+      - "Drift reports generated weekly and reviewed"
+  level_5:
+    description: "Policy-as-code with auto-remediation and evidence pipeline"
+    criteria:
+      - "Policy fully encoded as machine-readable OPA/Sentinel/YAML rules"
+      - "Violations auto-remediated or deployment blocked"
+      - "Audit evidence automatically collected and linked to control IDs"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Data-residency policy document (version-controlled, covering all data classes and regions per environment)."
+    - kind: "iac"
+      description: "Terraform provider configs and variable defaults/validation reflecting allowed regions per policy."
+  optional:
+    - kind: "architecture"
+      description: "Architecture diagrams showing data flows with trust boundaries and region labels."
+    - kind: "process"
+      description: "Change records and review logs demonstrating policy review cycle."
+    - kind: "config"
+      description: "Resource inventory export showing region/location of all data stores."
+
+checks:
+  - id: "waf-sov-010.tf.any.resource-tag-data-residency"
+    engine: "terraform"
+    provider: "any"
+    automated: true
+    severity: "high"
+    title: "Data resources must carry 'data-residency' tag"
+    description: >
+      Primary data resources (object storage, relational DB, NoSQL, data warehouses)
+      must be tagged with 'data-residency' to indicate the jurisdiction constraint for that resource.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket"
+        - "aws_rds_instance"
+        - "aws_rds_cluster"
+        - "aws_dynamodb_table"
+        - "aws_elasticache_cluster"
+        - "aws_elasticsearch_domain"
+        - "aws_opensearch_domain"
+        - "azurerm_storage_account"
+        - "azurerm_sql_database"
+        - "azurerm_cosmosdb_account"
+        - "google_storage_bucket"
+        - "google_sql_database_instance"
+        - "google_bigtable_instance"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "data-residency"
+        message: "Resource is missing the 'data-residency' tag required by sovereignty policy."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "data-class"
+        message: "Resource is missing the 'data-class' tag required by data classification policy."
+    on_fail: "violation"
+    remediation: >
+      Add 'data-residency' and 'data-class' tags to all data-storing resources.
+      Acceptable values for 'data-residency': eu-only, de-only, ch-only, at-only, global-approved.
+      Acceptable values for 'data-class': pii, health, financial, operational, public, restricted.
+    example:
+      compliant: |
+        resource "aws_s3_bucket" "customer_data" {
+          bucket = "acme-customer-data-prod"
+          tags = {
+            data-class      = "pii"
+            data-residency  = "eu-only"
+            environment     = "production"
+            owner           = "platform-team"
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "customer_data" {
+          bucket = "acme-customer-data-prod"
+          # Missing data-residency and data-class tags
+          tags = {
+            environment = "production"
+          }
+        }
+
+  - id: "waf-sov-010.tf.aws.provider-region-explicit"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS provider must have 'region' explicitly set"
+    description: >
+      AWS provider blocks must have an explicit 'region' attribute set to prevent
+      unintended deployments to non-sovereign regions via environment variable fallback.
+    scope:
+      block_type: "provider"
+      provider_name: "aws"
+    assertions:
+      - attribute: "region"
+        op: "attribute_exists"
+        message: "AWS provider block is missing explicit 'region' attribute."
+      - attribute: "region"
+        op: "not_empty"
+        message: "AWS provider 'region' must not be empty."
+    on_fail: "violation"
+    remediation: >
+      Set 'region' explicitly in all AWS provider blocks.
+      Use a variable with a validation block to restrict to approved regions.
+    example:
+      compliant: |
+        variable "aws_region" {
+          type    = string
+          default = "eu-central-1"
+          validation {
+            condition     = contains(["eu-central-1", "eu-west-1"], var.aws_region)
+            error_message = "Region must be in approved sovereign EU list."
+          }
+        }
+        provider "aws" {
+          region = var.aws_region
+        }
+      non_compliant: |
+        provider "aws" {
+          # No region set – defaults to AWS_DEFAULT_REGION env var
+        }
+
+  - id: "waf-sov-010.tf.azurerm.location-explicit"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "critical"
+    title: "Azure resource groups must have 'location' explicitly set"
+    description: >
+      Azure resource groups (and key resources) must have an explicit 'location' attribute
+      rather than inheriting from parent or relying on environment defaults.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_resource_group"
+        - "azurerm_storage_account"
+        - "azurerm_sql_server"
+        - "azurerm_kubernetes_cluster"
+    assertions:
+      - attribute: "location"
+        op: "attribute_exists"
+        message: "Azure resource is missing explicit 'location' attribute."
+      - attribute: "location"
+        op: "not_empty"
+        message: "Azure resource 'location' must not be empty."
+    on_fail: "violation"
+    remediation: >
+      Set 'location' explicitly on all Azure resources.
+      Use a variable with a validation block to restrict to approved Azure regions.
+    example:
+      compliant: |
+        variable "azure_location" {
+          type    = string
+          default = "germanywestcentral"
+          validation {
+            condition     = contains(["germanywestcentral", "westeurope", "northeurope"], var.azure_location)
+            error_message = "Location must be an approved sovereign Azure region."
+          }
+        }
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-sovereign-prod"
+          location = var.azure_location
+        }
+      non_compliant: |
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-sovereign-prod"
+          # No location set
+        }
+
+  - id: "waf-sov-010.tf.google.region-explicit"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "critical"
+    title: "GCP resources must have 'region' or 'location' explicitly set"
+    description: >
+      GCP resources must have 'region' or 'location' explicitly set to prevent
+      unintended deployment to non-sovereign regions via provider-level defaults.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_storage_bucket"
+        - "google_sql_database_instance"
+        - "google_compute_instance"
+        - "google_container_cluster"
+        - "google_bigquery_dataset"
+    assertions:
+      - attribute: "location"
+        op: "attribute_exists_or_fallback"
+        fallback_attribute: "region"
+        message: "GCP resource is missing explicit 'region' or 'location' attribute."
+    on_fail: "violation"
+    remediation: >
+      Set 'location' or 'region' explicitly on all GCP data resources.
+      Use a variable with validation to restrict to approved GCP regions.
+    example:
+      compliant: |
+        variable "gcp_region" {
+          type    = string
+          default = "europe-west3"
+          validation {
+            condition     = startswith(var.gcp_region, "europe-")
+            error_message = "Only European GCP regions are approved for sovereign workloads."
+          }
+        }
+        resource "google_storage_bucket" "data" {
+          name     = "acme-sovereign-data"
+          location = var.gcp_region
+        }
+      non_compliant: |
+        resource "google_storage_bucket" "data" {
+          name = "acme-sovereign-data"
+          # No location set – defaults to provider default
+        }
+
+references:
+  narrative: "modules/pillar-sovereign/pages/controls.adoc#WAF-SOV-010"
+  best_practice: "modules/pillar-sovereign/pages/best-practices/bp-data-residency.adoc"
+  related_controls:
+    - "WAF-SOV-020"
+    - "WAF-SOV-030"
+    - "WAF-SOV-040"

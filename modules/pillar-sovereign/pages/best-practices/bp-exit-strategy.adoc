@@ -1,0 +1,250 @@
+= Best Practice: Exit-Strategie & Portabilität
+:page-toc: right
+:description: WAF++ Sovereign – Exit-Plan erstellen, Exit-Drills durchführen und IaC portabel gestalten.
+
+== Kontext
+
+Die meisten Organisationen haben keinen getesteten Exit-Plan.
+Wenn ein Anbieterwechsel notwendig wird (Insolvenz, Preiserhöhung, regulatorische Anforderung,
+geopolitisches Risiko), scheitert die Migration an:
+
+* Proprietären Datenformaten ohne Exportpfad
+* Fehlenden IaC-Abstraktionen
+* Undokumentierten Abhängigkeiten
+* Nie getesteten Restore-Prozessen
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-100[WAF-SOV-100] – Exit Plan & Portability Tested
+* xref:../controls.adoc#WAF-SOV-080[WAF-SOV-080] – Dependency & Subprocessor Inventory
+
+== Zielbild
+
+Eine exit-ready Organisation kann:
+
+* Alle Daten innerhalb von 72 Stunden in einem offenen Format exportieren
+* Eine alternative Infrastruktur aus existierendem IaC innerhalb von 7 Tagen planen
+* Die Migration vollständig innerhalb von 90 Tagen durchführen
+
+== Technische Umsetzung
+
+=== Exit-Plan Struktur
+
+[source,markdown]
+----
+# Cloud Exit Plan – Sovereign Cloud Framework
+Version: 2.0
+Last Reviewed: 2025-Q1
+Owner: CTO / Platform Team
+
+## Trigger-Kriterien
+- Cloud-Provider kündigt Betrieb einer Region ab
+- Regulatorische Anforderung erfordert Anbieterwechsel
+- Strategische Entscheidung für Multi-Cloud oder On-Premises
+- Preiserhöhung überschreitet X% des aktuellen Budgets
+
+## Scope
+- Alle Produktionssysteme und -daten
+- Priorität: PII-Daten > Finanzdaten > Operativdaten > Archive
+
+## T+0 bis T+7: Vorbereitung
+- [ ] Exit-Entscheidung dokumentieren und kommunizieren
+- [ ] Dependency-Register prüfen: welche Services haben keine Alternative?
+- [ ] Zielumgebung auswählen und vorbereiten
+
+## T+8 bis T+30: Datenexport
+- [ ] Datenbankexport: pg_dump / mysqldump für alle PostgreSQL/MySQL DBs
+- [ ] Objektspeicher: aws s3 sync zu unabhängigem Backup-Speicher
+- [ ] Konfigurationsdaten: Terraform State, Kubernetes Configs
+- [ ] Geheimnisse: Vault-Export oder manuelle Migration (kein Provider-Lock-In)
+
+## T+31 bis T+90: Infrastruktur-Migration
+- [ ] Terraform-Module für Zielcloud anpassen
+- [ ] DNS-Migration (TTL vorher auf 60s reduzieren)
+- [ ] Traffic-Migration: schrittweise über Load Balancer / DNS
+- [ ] Validierung: alle Funktionen in Zielumgebung testen
+
+## Abhängigkeitsersatz-Matrix
+| Aktueller Service | Alternative | Migrations-Aufwand |
+|---|---|---|
+| AWS RDS PostgreSQL | GCP Cloud SQL / Azure PostgreSQL / Self-hosted | Niedrig |
+| AWS S3 | GCS / Azure Blob / MinIO | Niedrig (S3-compatible API) |
+| AWS EKS | GKE / AKS / Self-hosted K8s | Mittel |
+| AWS Lambda | Google Cloud Functions / Azure Functions | Mittel |
+| AWS Cognito | Auth0 / Keycloak | Hoch |
+----
+
+=== S3 Lifecycle Policy (Retention & Deletion)
+
+[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "sovereign_data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    id     = "pii-data-retention"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "data-class"
+        value = "pii"
+      }
+    }
+
+    # Transition to cheaper storage after 90 days
+    transition {
+      days          = 90
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 365
+      storage_class = "GLACIER_IR"
+    }
+
+    # Delete after 7 years (DSGVO-konforme Aufbewahrung)
+    expiration {
+      days = 2555
+    }
+
+    # Clean up incomplete multipart uploads
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  rule {
+    id     = "operational-data-retention"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "data-class"
+        value = "operational"
+      }
+    }
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    expiration {
+      days = 365
+    }
+  }
+}
+----
+
+=== Portables IaC mit Abstraktionsmodul
+
+[source,hcl]
+----
+# modules/sovereign-storage/main.tf
+# Provider-agnostisches Interface für Objektspeicher
+
+variable "provider" {
+  type    = string
+  default = "aws"
+  validation {
+    condition     = contains(["aws", "azure", "gcp"], var.provider)
+    error_message = "Provider must be aws, azure, or gcp."
+  }
+}
+
+variable "bucket_name" {
+  type = string
+}
+
+variable "data_class" {
+  type = string
+}
+
+# AWS Implementation
+module "aws_storage" {
+  count  = var.provider == "aws" ? 1 : 0
+  source = "./providers/aws"
+
+  bucket_name = var.bucket_name
+  data_class  = var.data_class
+  kms_key_arn = var.aws_kms_key_arn
+}
+
+# Azure Implementation
+module "azure_storage" {
+  count  = var.provider == "azure" ? 1 : 0
+  source = "./providers/azure"
+
+  container_name = var.bucket_name
+  data_class     = var.data_class
+}
+
+output "bucket_id" {
+  value = var.provider == "aws" ? module.aws_storage[0].bucket_id : module.azure_storage[0].container_id
+}
+----
+
+=== Exit-Drill Checkliste
+
+[source,yaml]
+----
+# exit-drill-checklist.yml
+# Durchzuführen: mindestens jährlich, idealerweise halbjährlich
+
+drill_date: "2025-Q4"
+conducted_by: ["Platform Lead", "DBA", "DevOps Engineer"]
+scope: "All production databases and S3 buckets"
+
+tasks:
+  data_export:
+    - action: "Export all PostgreSQL databases via pg_dump"
+      expected_duration: "2 hours"
+      success_criteria: "All dumps created, checksums verified"
+      result: ""  # Ausfüllen nach Drill
+
+    - action: "Sync all S3 buckets to offline storage"
+      expected_duration: "4 hours"
+      success_criteria: "Object count matches, spot-check of random files"
+      result: ""
+
+    - action: "Export Terraform state files"
+      expected_duration: "15 minutes"
+      success_criteria: "All state files accessible and readable"
+      result: ""
+
+  infrastructure_recreation:
+    - action: "Run 'terraform plan' against alternative provider module"
+      expected_duration: "1 hour"
+      success_criteria: "Plan completes without errors, resource count reasonable"
+      result: ""
+
+  findings:
+    blockers: []         # Was würde eine reale Migration blockieren?
+    improvements: []     # Was könnte verbessert werden?
+    estimated_rto: ""    # Geschätzte Gesamtdauer für reale Migration
+
+next_drill_date: "2026-Q2"
+----
+
+== Typische Fehlmuster
+
+* **Proprietäre Dienste ohne Alternative**: Kinesis Firehose, AWS Managed Kafka ohne Kafka-kompatible Alternative
+* **Terraform-State in S3 ohne Export**: State kann nicht migiert werden wenn S3 nicht zugänglich ist
+* **Undokumentierte manuell erstellte Ressourcen**: Nicht im IaC → nicht migrierbar
+* **Nie getesteter Exit-Plan**: Annahmen statt Fakten über Migrationsdauer
+
+== Metriken
+
+* Zeit seit letztem Exit-Drill (Ziel: < 12 Monate)
+* Anzahl blockierender proprietärer Services (Trend sollte sinken)
+* Geschätzte Exit-RTO (Ziel: < 90 Tage)
+* Anteil Datenressourcen mit `portability-class` Tag (Ziel: 100%)
+
+== Reifegrad
+
+Level 1 – Kein Exit-Plan, proprietäre Services ohne Alternative +
+Level 2 – Exit-Plan dokumentiert, nie getestet, Basis-IaC portabel +
+Level 3 – Jährlicher Exit-Drill, offene Standards bevorzugt, S3 Lifecycle Policies +
+Level 4 – Dependency Replacement Map aktuell, RTO gemessen +
+Level 5 – Exit RTO < 90 Tage bewiesen, automatisierte Export-Tests

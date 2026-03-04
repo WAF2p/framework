@@ -1,0 +1,279 @@
+id: WAF-SOV-060
+title: "Privileged Access Controlled (Separation of Duties)"
+pillar: "sovereign"
+status: "active"
+severity: "critical"
+category: "access-control"
+type: ['security', 'governance']
+tags: ['iam', 'privileged-access', 'sod', 'least-privilege', 'zero-trust', 'jit']
+
+description: >
+  Privileged roles MUST be minimized, time-bound, and subject to regular access reviews.
+  Separation of Duties MUST be enforced: no single principal should be able to
+  create infrastructure, approve deployments, AND manage encryption keys simultaneously.
+  Wildcard IAM permissions ('*' on '*') are forbidden. Administrative access MUST use
+  JIT (Just-In-Time) provisioning where technically feasible.
+
+rationale: >
+  Overprivileged access is the primary vector for both external compromise and insider
+  threat in cloud environments. A developer with AdministratorAccess can bypass any
+  data-residency control, disable logging, or exfiltrate key material. Sovereignty
+  requires that administrative actions are constrained, observable, and attributable.
+  Separation of Duties prevents any single compromised credential from destroying the
+  entire sovereignty posture.
+
+threat:
+  - "Compromised developer credentials with wildcard permissions enabling full data access"
+  - "CI/CD service account with AdministratorAccess allowing unrestricted infrastructure changes"
+  - "Single principal able to modify key policy and then access encrypted data (no SoD)"
+  - "Permanent admin credentials never rotated and not subject to MFA enforcement"
+  - "Service accounts with excessive permissions used for routine non-privileged tasks"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing (access control)"
+      - "Art. 5(1)(f) – Integrity and confidentiality"
+  - framework: "BSI C5:2020"
+    controls:
+      - "IAM-01 – Identity and access management"
+      - "IAM-03 – Privileged access management"
+      - "IAM-05 – Separation of duties"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "IAM-01 – Access control policy"
+      - "IAM-03 – Privileged access"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.2 – Privileged access rights"
+      - "A.8.3 – Information access restriction"
+      - "A.5.3 – Segregation of duties"
+  - framework: "SOC 2"
+    controls:
+      - "CC6.3 – Role-based access control"
+      - "CC6.6 – Logical access"
+
+implementation_guidance:
+  - "Apply the principle of least privilege: grant only the permissions needed for the specific task."
+  - "Use IAM roles instead of IAM users; avoid long-lived access keys."
+  - "Prohibit wildcard actions ('Action: *') combined with wildcard resources ('Resource: *') in custom policies."
+  - "Attach AWS managed AdministratorAccess policy only in documented break-glass scenarios."
+  - "Implement JIT access using AWS IAM Identity Center, Azure PIM, or equivalent."
+  - "Enforce MFA for all human principals with access to production environments."
+  - "Conduct quarterly IAM access reviews; document findings and remediation."
+  - "Use Service Control Policies (SCPs) to prevent privilege escalation at the org level."
+  - "Separate CI/CD permissions (deploy) from data access permissions (read/write data)."
+
+maturity_levels:
+  level_1:
+    description: "Basic IAM roles, no wildcard admin"
+    criteria:
+      - "No AdministratorAccess attached to regular user accounts"
+      - "IAM users have separate roles per responsibility"
+  level_2:
+    description: "Least-privilege custom roles, MFA enforced"
+    criteria:
+      - "No wildcard Action/Resource combinations in custom policies"
+      - "MFA enforced for all human console/API access"
+      - "Annual IAM access review conducted"
+  level_3:
+    description: "JIT access, formal SoD, quarterly reviews"
+    criteria:
+      - "JIT provisioning in place for privileged access"
+      - "Documented SoD matrix (who can do what)"
+      - "Quarterly access reviews with evidence"
+  level_4:
+    description: "Automated detection of privilege drift"
+    criteria:
+      - "IAM Access Analyzer or equivalent continuously monitors for over-permissive policies"
+      - "Alerts on policy changes or new admin role assignments"
+      - "SCP denies privilege escalation actions at org level"
+  level_5:
+    description: "Zero-trust IAM with continuous verification"
+    criteria:
+      - "All access context-aware and time-bound by default"
+      - "Automated remediation of policy violations"
+      - "IAM compliance integrated into deployment pipeline"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "IAM policy documents in Terraform showing no wildcard permissions and least-privilege design."
+    - kind: "process"
+      description: "Quarterly IAM access review records with findings and remediation status."
+  optional:
+    - kind: "config"
+      description: "IAM Access Analyzer findings export showing no active overpermission issues."
+    - kind: "logs"
+      description: "CloudTrail logs showing privileged access events for review."
+    - kind: "config"
+      description: "SCP or Azure Policy configuration restricting privilege escalation."
+
+checks:
+  - id: "waf-sov-060.tf.aws.no-wildcard-iam-policy"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "IAM policies must not grant Action:* with Resource:*"
+    description: >
+      Custom IAM policies must not combine wildcard actions ('*') with wildcard
+      resources ('*') as this grants full administrative access. This is the
+      most common over-privileged pattern in AWS environments.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_policy"
+        - "aws_iam_role_policy"
+        - "aws_iam_user_policy"
+    assertions:
+      - attribute: "policy"
+        op: "json_not_contains_pattern"
+        pattern: '"Action":\s*["\[]*\*["\]]*.*"Resource":\s*["\[]*\*["\]]*'
+        message: "IAM policy grants Action:* with Resource:* (full admin). This is forbidden."
+    on_fail: "violation"
+    remediation: >
+      Replace wildcard Action/Resource combinations with specific permissions
+      and specific resource ARNs following the least-privilege principle.
+    example:
+      compliant: |
+        data "aws_iam_policy_document" "s3_read" {
+          statement {
+            effect    = "Allow"
+            actions   = ["s3:GetObject", "s3:ListBucket"]
+            resources = [
+              aws_s3_bucket.data.arn,
+              "${aws_s3_bucket.data.arn}/*"
+            ]
+          }
+        }
+      non_compliant: |
+        data "aws_iam_policy_document" "admin" {
+          statement {
+            effect    = "Allow"
+            actions   = ["*"]
+            resources = ["*"]
+          }
+        }
+
+  - id: "waf-sov-060.tf.aws.no-administrator-access-managed-policy"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS managed AdministratorAccess policy must not be attached to regular roles"
+    description: >
+      The AWS managed policy 'AdministratorAccess' must not be attached to
+      regular IAM roles or users. It is permitted only for explicitly documented
+      break-glass emergency roles.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_role_policy_attachment"
+        - "aws_iam_user_policy_attachment"
+        - "aws_iam_group_policy_attachment"
+    assertions:
+      - attribute: "policy_arn"
+        op: "not_equals"
+        expected: "arn:aws:iam::aws:policy/AdministratorAccess"
+        message: "AdministratorAccess managed policy must not be attached to non-break-glass roles."
+    on_fail: "violation"
+    remediation: >
+      Replace AdministratorAccess with a custom least-privilege policy.
+      If needed for break-glass, document the use with a comment and restrict
+      activation through JIT/approval workflow.
+    example:
+      compliant: |
+        resource "aws_iam_role_policy_attachment" "app" {
+          role       = aws_iam_role.app.name
+          policy_arn = aws_iam_policy.app_custom.arn
+          # Uses a custom least-privilege policy
+        }
+      non_compliant: |
+        resource "aws_iam_role_policy_attachment" "admin" {
+          role       = aws_iam_role.developer.name
+          policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+
+  - id: "waf-sov-060.tf.aws.iam-password-policy-configured"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "IAM account password policy must be configured"
+    description: >
+      An aws_iam_account_password_policy resource must exist with minimum
+      password length, complexity requirements, and password reuse prevention.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_account_password_policy"
+    assertions:
+      - attribute: "minimum_password_length"
+        op: "greater_than_or_equal"
+        expected: 14
+        message: "IAM password minimum length must be >= 14 characters."
+      - attribute: "require_uppercase_characters"
+        op: "is_true"
+        message: "IAM password policy must require uppercase characters."
+      - attribute: "require_symbols"
+        op: "is_true"
+        message: "IAM password policy must require symbols."
+      - attribute: "password_reuse_prevention"
+        op: "greater_than_or_equal"
+        expected: 12
+        message: "IAM password policy must prevent reuse of at least 12 previous passwords."
+      - attribute: "max_password_age"
+        op: "less_than_or_equal"
+        expected: 90
+        message: "IAM password max age must be <= 90 days."
+    on_fail: "violation"
+    remediation: >
+      Configure an aws_iam_account_password_policy resource with strong password requirements.
+    example:
+      compliant: |
+        resource "aws_iam_account_password_policy" "strict" {
+          minimum_password_length        = 16
+          require_uppercase_characters   = true
+          require_lowercase_characters   = true
+          require_numbers                = true
+          require_symbols                = true
+          allow_users_to_change_password = true
+          max_password_age               = 90
+          password_reuse_prevention      = 24
+        }
+      non_compliant: |
+        # No aws_iam_account_password_policy resource defined
+
+  - id: "waf-sov-060.tf.aws.no-iam-user-direct-access-keys"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "IAM users should not have long-lived access keys in Terraform"
+    description: >
+      Creating aws_iam_access_key resources in Terraform creates long-lived static
+      credentials that should be avoided. Use IAM roles, OIDC federation, or
+      short-lived credentials instead.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_access_key"
+    assertions:
+      - attribute: "status"
+        op: "not_equals"
+        expected: "Active"
+        message: "Long-lived IAM access keys should not be created via Terraform. Use roles or OIDC."
+    on_fail: "warning"
+    remediation: >
+      Replace static IAM access keys with IAM roles and temporary credentials.
+      For CI/CD: use OIDC provider to issue short-lived tokens.
+      For applications: use EC2 instance profiles or ECS task roles.
+
+references:
+  narrative: "modules/pillar-sovereign/pages/controls.adoc#WAF-SOV-060"
+  best_practice: "modules/pillar-sovereign/pages/best-practices/bp-break-glass.adoc"
+  related_controls:
+    - "WAF-SOV-050"
+    - "WAF-SOV-070"
+    - "WAF-SOV-080"

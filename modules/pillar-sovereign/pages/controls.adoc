@@ -1,0 +1,348 @@
+= Controls (WAF-SOV)
+:page-toc: right
+:description: WAF++ – Vollständiger Controls-Katalog der Sovereign-Säule (WAF-SOV-010 bis WAF-SOV-100).
+
+Die Sovereign-Säule wird durch 10 messbare Controls operationalisiert.
+Jeder Control hat eine eindeutige ID im Format `WAF-SOV-NNN`, eine Severity-Einstufung,
+maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+
+Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-SOV-*.yml`
+und können vom WAF++ Checker Tool direkt ausgeführt werden.
+
+== Controls-Übersicht
+
+[cols="1,3,1,1"]
+|===
+|Control ID |Titel |Severity |Kategorie
+
+|xref:controls/WAF-SOV-010.adoc[WAF-SOV-010]
+|Data Residency Policy Defined
+|🟠 High
+|Data Residency
+
+|xref:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+|Region Pinning Enforced (IaC)
+|🔴 Critical
+|Data Residency
+
+|xref:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+|Backup Location & Retention Controlled
+|🟠 High
+|Data Residency
+
+|xref:controls/WAF-SOV-040.adoc[WAF-SOV-040]
+|Logging & Telemetry Residency Controlled
+|🟠 High
+|Observability
+
+|xref:controls/WAF-SOV-050.adoc[WAF-SOV-050]
+|Key Ownership & Management Defined
+|🔴 Critical
+|Key Sovereignty
+
+|xref:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+|Privileged Access Controlled (Separation of Duties)
+|🔴 Critical
+|Access Control
+
+|xref:controls/WAF-SOV-070.adoc[WAF-SOV-070]
+|Break-Glass Process & Logging
+|🟠 High
+|Access Control
+
+|xref:controls/WAF-SOV-080.adoc[WAF-SOV-080]
+|Dependency & Subprocessor Inventory
+|🟡 Medium
+|Supply Chain
+
+|xref:controls/WAF-SOV-090.adoc[WAF-SOV-090]
+|Controlled Egress & Data Exfiltration Guardrails
+|🟠 High
+|Network Sovereignty
+
+|xref:controls/WAF-SOV-100.adoc[WAF-SOV-100]
+|Exit Plan & Portability Tested
+|🟡 Medium
+|Exit Strategy
+
+|===
+
+---
+
+---
+
+[#WAF-SOV-010]
+== WAF-SOV-010 – Data Residency Policy Defined
+
+*Severity:* High | *Kategorie:* Data Residency | *Automatisierbar:* Teilweise
+
+*Intent:* Ohne dokumentierte und technisch abgebildete Residency-Policy ist
+kein anderer Sovereign-Control nachweisbar.
+
+*Anforderung:* Eine dokumentierte Data-Residency-Policy MUSS existieren, die für alle
+Datenkategorien (Primärdaten, Replikation, Backups, Logs/Traces/Metriken, Metadaten)
+und alle Umgebungen (prod/non-prod) erlaubte Regionen und Datenklassen definiert.
+Die Policy MUSS versioniert und technisch in IaC-Defaults und Variable-Validation
+abgebildet sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-010.tf.any.resource-tag-data-residency` – Data-Resources müssen Tags
+  `data-residency` und `data-class` tragen
+* `waf-sov-010.tf.aws.provider-region-explicit` – AWS-Provider muss `region` explizit setzen
+* `waf-sov-010.tf.azurerm.location-explicit` – Azure-Resources müssen `location` explizit setzen
+* `waf-sov-010.tf.google.region-explicit` – GCP-Resources müssen `region` oder `location` setzen
+
+*Evidenz:*
+
+* Versioniertes Policy-Dokument (alle Datenklassen, alle erlaubte Regionen)
+* Terraform-Code mit Provider-Konfiguration und Variable-Defaults
+
+*Best Practice:* xref:best-practices/bp-data-residency.adoc[Data Residency]
+
+---
+
+[#WAF-SOV-020]
+== WAF-SOV-020 – Region Pinning Enforced (IaC)
+
+*Severity:* Critical | *Kategorie:* Data Residency | *Automatisierbar:* Hoch
+
+*Intent:* Dokumentierte Regionen ohne technisches Enforcement sind keine Kontrolle.
+
+*Anforderung:* Deployments MÜSSEN durch Policy-as-Code und IaC-Guardrails auf erlaubte
+Regionen eingeschränkt sein. Verstösse MÜSSEN im CI blockiert oder sofort gemeldet werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-020.tf.aws.provider-region-in-allowed-list` – AWS Provider muss Region explizit setzen
+* `waf-sov-020.tf.aws.region-variable-validation` – Region-Variable muss Validation-Block haben
+* `waf-sov-020.tf.azurerm.location-variable-validation` – Azure Location-Variable mit Validation
+* `waf-sov-020.tf.google.region-variable-validation` – GCP Region-Variable mit Validation
+* `waf-sov-020.tf.aws.no-hardcoded-non-sovereign-region` – Keine hartkodierten US/APAC-Regionen
+
+*Evidenz:*
+
+* Terraform Variable-Validation-Blöcke für Region/Location
+* OPA/Sentinel-Policy oder SCP/Azure Policy/GCP Org Policy
+
+*Best Practice:* xref:best-practices/bp-region-pinning.adoc[Region Pinning]
+
+---
+
+[#WAF-SOV-030]
+== WAF-SOV-030 – Backup Location & Retention Controlled
+
+*Severity:* High | *Kategorie:* Data Residency | *Automatisierbar:* Mittel
+
+*Intent:* Backups sind häufig der erste Souveränitätsleck, den Auditor-Teams übersehen.
+
+*Anforderung:* Backup-Policies MÜSSEN explizit Region/Location, Mindest-Retention und
+Restore-Test-Zeitpläne definieren. Cross-Region-Replikation MUSS ausdrücklich genehmigt
+und in eine gültige sovereign Region gerichtet sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-030.tf.aws.db-instance-backup-retention` – RDS backup_retention_period >= 7
+* `waf-sov-030.tf.aws.rds-cluster-backup-retention` – Aurora Cluster Retention >= 7
+* `waf-sov-030.tf.aws.dynamodb-pitr-enabled` – DynamoDB PITR aktiviert
+* `waf-sov-030.tf.aws.backup-vault-in-approved-region` – Backup Vault in genehmigter Region
+* `waf-sov-030.tf.azurerm.recovery-vault-location` – Azure Recovery Vault in genehmigter Region
+* `waf-sov-030.tf.aws.s3-versioning-enabled` – S3 Versioning für Backup-Buckets
+
+*Evidenz:*
+
+* Terraform Backup-Konfiguration mit explizitem Location und Retention
+* Restore-Test-Protokolle (mindestens quartalsweise für kritische Daten)
+
+---
+
+[#WAF-SOV-040]
+== WAF-SOV-040 – Logging & Telemetry Residency Controlled
+
+*Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Mittel
+
+*Intent:* Logs enthalten oft sensitive Daten – und sind oft das erste, was bei Audits geprüft wird.
+
+*Anforderung:* Alle Observability-Daten (Logs/Traces/Metriken) MÜSSEN in erlaubten Regionen
+gespeichert werden. Exporte zu externen Plattformen MÜSSEN genehmigt, protokolliert und
+kontrolliert sein. VPC Flow Logs MÜSSEN für alle Produktions-VPCs aktiviert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-040.tf.aws.cloudtrail-multi-region` – CloudTrail multi-region + log file validation
+* `waf-sov-040.tf.aws.cloudwatch-log-group-retention` – Log Group Retention >= 30 Tage, != 0
+* `waf-sov-040.tf.aws.vpc-flow-logs-enabled` – Flow Logs für alle VPCs
+* `waf-sov-040.tf.aws.cloudtrail-cloudwatch-integration` – CloudTrail mit CloudWatch verknüpft
+* `waf-sov-040.tf.aws.log-group-kms-encryption` – Audit-Log-Groups mit KMS verschlüsselt
+
+*Evidenz:*
+
+* Terraform CloudTrail- und Log-Group-Konfigurationen
+* Liste aller aktiven Log-Destinationen mit Region-Nachweis
+
+---
+
+[#WAF-SOV-050]
+== WAF-SOV-050 – Key Ownership & Management Defined
+
+*Severity:* Critical | *Kategorie:* Key Sovereignty | *Automatisierbar:* Mittel–Hoch
+
+*Intent:* Schlüsselkontrolle ist der Kern von Datensouveränität.
+
+*Anforderung:* Für alle Datenklassen MUSS der Schlüssel-Ownership-Modus definiert sein
+(PMK/CMK/BYOK/HYOK). Rotation und Key Deletion MÜSSEN governed sein.
+Sensible Datenkategorien (PII, Gesundheit, Finanzen) MÜSSEN CMK oder BYOK verwenden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-050.tf.aws.kms-key-rotation-enabled` – KMS Key Rotation aktiviert
+* `waf-sov-050.tf.aws.kms-key-deletion-window` – Deletion Window >= 14 Tage
+* `waf-sov-050.tf.aws.s3-bucket-kms-encryption` – S3 nutzt aws:kms (CMK), nicht AES256
+* `waf-sov-050.tf.aws.ebs-volume-encrypted` – EBS Volumes verschlüsselt
+* `waf-sov-050.tf.aws.rds-storage-encrypted` – RDS Storage verschlüsselt
+* `waf-sov-050.tf.azurerm.key-vault-soft-delete` – Azure Key Vault mit Purge Protection
+
+*Evidenz:*
+
+* KMS-Konfigurationen mit CMK-ARN-Referenzen
+* Key Policy Export; Rotations- und Deletion-Prozessdokumentation
+
+*Best Practice:* xref:best-practices/bp-key-sovereignty.adoc[Key Sovereignty]
+
+---
+
+[#WAF-SOV-060]
+== WAF-SOV-060 – Privileged Access Controlled (Separation of Duties)
+
+*Severity:* Critical | *Kategorie:* Access Control | *Automatisierbar:* Teilweise
+
+*Intent:* Admin-Zugriff ohne Einschränkungen negiert alle anderen Sovereign-Controls.
+
+*Anforderung:* Privilegierte Rollen MÜSSEN minimal gehalten, zeitlich begrenzt und regelmäßig
+reviewed werden. Separation of Duties MUSS umgesetzt sein. Wildcard-IAM-Permissions
+(`Action: *` + `Resource: *`) sind verboten.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-060.tf.aws.no-wildcard-iam-policy` – Keine Action:* mit Resource:* Kombination
+* `waf-sov-060.tf.aws.no-administrator-access-managed-policy` – Kein AdministratorAccess für normale Rollen
+* `waf-sov-060.tf.aws.iam-password-policy-configured` – IAM Passwort-Policy konfiguriert
+* `waf-sov-060.tf.aws.no-iam-user-direct-access-keys` – Keine langlebigen IAM Access Keys
+
+*Evidenz:*
+
+* IAM Policy Documents (Terraform) ohne Wildcard-Berechtigungen
+* Quartalsweise IAM Access Review Protokolle
+
+*Best Practice:* xref:best-practices/bp-break-glass.adoc[Break-Glass]
+
+---
+
+[#WAF-SOV-070]
+== WAF-SOV-070 – Break-Glass Process & Logging
+
+*Severity:* High | *Kategorie:* Access Control | *Automatisierbar:* Teilweise
+
+*Intent:* Notfallzugriff ja – aber ausschließlich kontrolliert und vollständig auditiert.
+
+*Anforderung:* Ein Break-Glass-Prozess MUSS existieren (Trigger, Freigabe, Ablauf,
+Post-Incident Review). Alle Break-Glass-Aktionen MÜSSEN vollständig geloggt und
+CloudWatch-Alarme für Root-Account-Aktivität MÜSSEN konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-070.tf.aws.cloudtrail-enabled-all-regions` – CloudTrail multi-region, log validation, global events
+* `waf-sov-070.tf.aws.cloudtrail-s3-bucket-not-public` – CloudTrail S3 nicht öffentlich
+* `waf-sov-070.tf.aws.cloudwatch-alarm-root-login` – Alarm bei Root-Account-Aktivität
+* `waf-sov-070.tf.aws.cloudwatch-alarm-iam-policy-changes` – Alarm bei IAM-Policy-Änderungen
+* `waf-sov-070.tf.aws.cloudtrail-s3-access-logging` – S3 Access Logging für CloudTrail-Bucket
+
+*Evidenz:*
+
+* Break-Glass Runbook (versioniert)
+* CloudTrail-Konfiguration mit Log-Validation
+* Post-Incident Review Protokolle
+
+---
+
+[#WAF-SOV-080]
+== WAF-SOV-080 – Dependency & Subprocessor Inventory
+
+*Severity:* Medium | *Kategorie:* Supply Chain | *Automatisierbar:* Teilweise
+
+*Intent:* Supply-Chain-Risiken sind Souveränitätsrisiken.
+
+*Anforderung:* Ein Inventar aller Abhängigkeiten MUSS existieren (Managed Services,
+Drittanbieter, Subprozessoren, CI/CD, Observability, SaaS). Terraform-Provider-Versionen
+MÜSSEN gepinnt sein. Lock-Files MÜSSEN committet sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-080.tf.any.required-providers-version-pinned` – Alle Provider mit Version Constraint
+* `waf-sov-080.tf.any.required-terraform-version` – Terraform required_version gesetzt
+* `waf-sov-080.tf.any.module-source-version-pinned` – Module mit gepinnter Version
+* `waf-sov-080.tf.any.no-untrusted-registry-modules` – Keine unapproved öffentlichen Git-Module
+
+*Evidenz:*
+
+* Subprozessoren-Register (Git-versioniert, mit DPA-Referenzen)
+* `terraform.lock.hcl` im Repository
+
+*Best Practice:* xref:best-practices/bp-supply-chain.adoc[Supply Chain]
+
+---
+
+[#WAF-SOV-090]
+== WAF-SOV-090 – Controlled Egress & Data Exfiltration Guardrails
+
+*Severity:* High | *Kategorie:* Network Sovereignty | *Automatisierbar:* Mittel
+
+*Intent:* Offener Egress ist die letzte Lücke, durch die Daten die Souveränitätsgrenze verlassen.
+
+*Anforderung:* Egress MUSS kontrolliert werden (default deny oder strict allow-list).
+Exfiltration Detection MUSS etabliert sein. VPC Endpoints MÜSSEN für genutzte Cloud-Services
+existieren.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-090.tf.aws.no-unrestricted-egress` – Security Groups ohne 0.0.0.0/0 Egress
+* `waf-sov-090.tf.aws.vpc-endpoint-s3` – VPC Endpoint für S3 vorhanden
+* `waf-sov-090.tf.aws.vpc-flow-logs-enabled` – VPC Flow Logs aktiviert
+* `waf-sov-090.tf.aws.network-acl-no-open-egress` – Network ACL ohne offene Egress-Regel
+* `waf-sov-090.tf.azurerm.nsg-no-open-outbound` – Azure NSG ohne offenen Outbound zu *
+
+*Evidenz:*
+
+* Security-Group-Konfigurationen ohne Wildcard-Egress
+* VPC-Endpoint-Ressourcen für genuzte Cloud-Services
+* Flow-Log-Konfiguration
+
+*Best Practice:* xref:best-practices/bp-egress-control.adoc[Egress Control]
+
+---
+
+[#WAF-SOV-100]
+== WAF-SOV-100 – Exit Plan & Portability Tested
+
+*Severity:* Medium | *Kategorie:* Exit Strategy | *Automatisierbar:* Niedrig–Mittel
+
+*Intent:* Exit-Fähigkeit ist das ultimative Souveränitätskriterium.
+
+*Anforderung:* Ein Exit Plan MUSS existieren (Datenexport, IaC-Portabilität,
+Abhängigkeitsersatz, Zeitplanung). Exit/Restore Drills MÜSSEN mindestens jährlich
+durchgeführt und dokumentiert werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sov-100.tf.aws.s3-lifecycle-policy-defined` – S3 Buckets mit Lifecycle Policy
+* `waf-sov-100.tf.aws.s3-versioning-for-data-portability` – S3 Versioning aktiviert
+* `waf-sov-100.tf.any.resource-tag-portability` – Data-Resources mit `portability-class` Tag
+* `waf-sov-100.tf.any.no-proprietary-lock-in-patterns` – High-Lock-In Services gekennzeichnet
+* `waf-sov-100.tf.aws.rds-deletion-protection` – RDS Deletion Protection aktiviert
+
+*Evidenz:*
+
+* Exit-Plan-Dokument (versioniert)
+* Jährlicher Exit-Drill-Bericht mit Findings und Zeitnachweis
+
+*Best Practice:* xref:best-practices/bp-exit-strategy.adoc[Exit-Strategie]

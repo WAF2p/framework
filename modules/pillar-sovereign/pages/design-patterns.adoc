@@ -1,0 +1,199 @@
+= Design Patterns
+:page-toc: right
+:description: WAF++ Sovereign – Architekturpatterns für sovereign-konforme Cloud-Infrastruktur.
+
+Die folgenden Patterns sind erprobt und von den WAF++ Prinzipien abgeleitet.
+Sie sind cloud-agnostisch formuliert, mit provider-spezifischen Hinweisen.
+
+== Pattern 1: Region-Pinned Landing Zone
+
+=== Problem
+Ohne eine strukturierte Landing Zone können einzelne Teams Ressourcen in beliebigen Regionen erstellen.
+
+=== Lösung
+Eine Landing Zone mit eingebautem Region-Pinning schlägt alle anderen Maßnahmen durch technische Vorab-Constraints.
+
+=== Struktur
+
+----
+Organization Root
+├── Management Account
+│   └── Service Control Policy: DenyOutsideApprovedRegions
+├── Sovereign Workload OU
+│   ├── Production Account
+│   │   ├── Terraform: provider.region = var.aws_region (validated)
+│   │   ├── VPC Endpoints: S3, KMS, ECR, STS
+│   │   └── CloudTrail: multi-region, log-validation, sovereign S3
+│   └── Non-Production Account
+│       └── Same constraints, different data classification
+└── Shared Services Account
+    └── Central Logging: CloudWatch Logs, S3 (eu-central-1 enforced)
+----
+
+=== Controls
+* WAF-SOV-010: Residency Policy in IaC-Defaults abgebildet
+* WAF-SOV-020: SCP verhindert Outside-Region Deployments
+* WAF-SOV-040: Zentrales Logging sovereign gespeichert
+
+=== Anti-Pattern
+* Einzelne Accounts ohne SCP-Guardrails
+* „Default VPC" mit offener Security Group Konfiguration
+* Kein zentrales Logging-Konto
+
+---
+
+== Pattern 2: Sovereign Key Hierarchy
+
+=== Problem
+Standard-Verschlüsselung mit Provider-Managed Keys gibt dem Anbieter theoretischen Zugriff.
+
+=== Lösung
+Eine drei-schichtige Key-Hierarchie nach Datenkritikalität:
+
+----
+Tier 1 – Public/Low-sensitivity Data
+└── Provider-Managed Key (PMK) – akzeptabel
+
+Tier 2 – Internal/Operational Data
+└── Customer-Managed Key (CMK) in Cloud-KMS
+    ├── Rotation: automatisch (jährlich)
+    └── Key Policy: restrict to specific services/principals
+
+Tier 3 – PII / Financial / Health Data
+└── BYOK: Customer-Key, Cloud-managed HSM (CloudHSM, Azure HSM, Cloud HSM)
+    oder
+    HYOK: Key in externem HSM (Thales, Utimaco, Securosys)
+    ├── Zugriff für Cloud-Provider: technisch nicht möglich
+    └── Rotation: manuell / prozessgesteuert
+----
+
+=== Controls
+* WAF-SOV-050: Key Ownership, Rotation, Deletion
+
+=== Empfehlungen
+* CloudHSM (AWS) oder Azure Dedicated HSM für Tier-2/3 Keys
+* Key Ceremonies für HYOK dokumentieren und jährlich durchführen
+* Cryptographic Erasure als DSGVO Art. 17-Umsetzung planen
+
+---
+
+== Pattern 3: Sovereign Observability Stack
+
+=== Problem
+Standard-Monitoring-Setups exportieren Telemetriedaten zu US-basierten SaaS-Anbietern.
+
+=== Lösung
+Ein sovereign Observability Stack verarbeitet Daten innerhalb der genehmigten Regionen:
+
+----
+Application
+└── OpenTelemetry SDK (vendor-neutral)
+    ├── Traces → Sovereign Trace Backend (Jaeger/Tempo in eu-central-1)
+    ├── Metrics → Sovereign Metrics Backend (Prometheus/Thanos in eu-central-1)
+    └── Logs → CloudWatch/S3 (eu-central-1, retention=90d, KMS-encrypted)
+                    └── Optionaler Export zu DPA-gesichertem SIEM
+----
+
+=== Wenn externer SIEM notwendig:
+* DPA abschließen und Datenverarbeitungsregion prüfen
+* Datenmaskierung vor Export (PII-Felder entfernen)
+* Export über Private Link / VPN (kein Public Internet)
+* Regelmäßige Review: Welche Daten verlassen die Souveränitätsgrenze?
+
+=== Controls
+* WAF-SOV-040: Logging Residency
+* WAF-SOV-090: Egress Control
+
+---
+
+== Pattern 4: Break-Glass with Zero Standing Privilege
+
+=== Problem
+Permanente Admin-Rollen sind ein dauerhaftes Angriffsziel.
+
+=== Lösung
+Zero Standing Privilege: Admin-Zugriff existiert nicht permanent, sondern wird nur bei Bedarf aktiviert.
+
+----
+Normalbetrieb:
+├── Developers: read-only oder scoped write (Applikationsebene)
+├── Operations: Operations-Rolle (kein IAM-Zugriff)
+└── Platform: Platform-Rolle (IaC-Deploy, kein Datenzugriff)
+
+Break-Glass Aktivierung:
+├── Trigger: dokumentierter Incident / Genehmigung (Dual Control)
+├── Aktivierung: JIT-System (IAM Identity Center / Azure PIM)
+├── Dauer: max. 4h, nach Ablauf automatische Deaktivierung
+├── Logging: CloudTrail sammelt alle Aktionen
+└── Review: Post-Incident Review innerhalb 5 Werktagen, Protokoll archiviert
+----
+
+=== Controls
+* WAF-SOV-060: Privileged Access, SoD
+* WAF-SOV-070: Break-Glass Process & Logging
+
+---
+
+== Pattern 5: Sovereign Egress Gateway
+
+=== Problem
+Anwendungen mit offener Egress-Konfiguration können Daten zu beliebigen Zielen senden.
+
+=== Lösung
+Zentralisierter Egress-Punkt mit Domain Allow-List und Anomalie-Erkennung:
+
+----
+Workload Subnet (Private)
+└── alle ausgehenden Verbindungen → Egress Gateway
+
+Egress Gateway
+├── AWS Network Firewall / Azure Firewall / GCP Cloud Armor
+├── Domain Allow-List (FQDN-basiert)
+│   ├── Approved: *.amazonaws.com (via VPC Endpoint)
+│   ├── Approved: *.internal.company.com
+│   └── Blocked: * (default deny)
+├── DNS: Route53 Resolver / Azure Private DNS
+└── Logging: Flow Logs → sovereign S3
+
+VPC Endpoints (kein Internet-Routing):
+├── com.amazonaws.eu-central-1.s3
+├── com.amazonaws.eu-central-1.kms
+├── com.amazonaws.eu-central-1.ecr.api
+└── com.amazonaws.eu-central-1.sts
+----
+
+=== Controls
+* WAF-SOV-090: Controlled Egress
+* WAF-SOV-040: VPC Flow Logs
+
+---
+
+== Pattern 6: Exit-Ready IaC Architecture
+
+=== Problem
+Proprietäres IaC mit hartkodierter Provider-Abhängigkeit macht Migration extrem teuer.
+
+=== Lösung
+Portables IaC mit abstrakten Modulen und offenen Standards:
+
+----
+IaC Abstraction Layer
+├── Module: network/vpc → AWS VPC oder Azure VNet
+├── Module: storage/object → S3 oder Azure Blob oder GCS
+├── Module: database/relational → RDS PostgreSQL oder Azure PostgreSQL
+└── Module: compute/container → EKS oder AKS oder GKE
+
+Daten-Standards:
+├── PostgreSQL (open) statt Aurora Serverless v2 (proprietär)
+├── OpenTelemetry statt X-Ray (proprietär)
+└── S3-compatible API statt proprietary object store features
+
+Exit-Readiness:
+├── Quarterly Data Export Test: alle Daten exportiert und validiert
+├── Terraform Plan in Ziel-Cloud: IaC angepasst und geplant
+└── Lessons Learned dokumentiert
+----
+
+=== Controls
+* WAF-SOV-100: Exit Plan & Portability
+* WAF-SOV-080: Dependency & Subprocessor Inventory

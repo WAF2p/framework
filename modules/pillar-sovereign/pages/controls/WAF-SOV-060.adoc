@@ -1,0 +1,279 @@
+= WAF-SOV-060 – Privileged Access Controlled (Separation of Duties)
+:page-toc: right
+:control-id: WAF-SOV-060
+:pillar: sovereign
+:severity: critical
+:category: access-control
+:automated: high
+:description: WAF++ Sovereign – Privilegierte Rollen minimieren, zeitlich begrenzen und regelmäßig reviewen; Wildcard-IAM-Permissions verbieten; Separation of Duties erzwingen.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Kategorie:* Access Control | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Privilegierte Rollen MÜSSEN minimiert, zeitlich begrenzt und regelmäßigen Zugriffsreviews
+unterzogen werden. Separation of Duties MUSS erzwungen sein: Kein einzelner Principal darf
+gleichzeitig Infrastruktur erstellen, Deployments genehmigen UND Verschlüsselungsschlüssel
+verwalten.
+
+Wildcard-IAM-Permissions (`*` auf `*`) sind verboten. Administrativer Zugriff MUSS JIT
+(Just-In-Time) provisioniert werden, wo technisch machbar.
+
+== Rationale
+
+Überprivilegierter Zugriff ist der primäre Angriffsvektor sowohl für externe Kompromittierung
+als auch für Insider-Bedrohungen in Cloud-Umgebungen. Ein Entwickler mit
+`AdministratorAccess` kann beliebige Data-Residency-Controls umgehen, Logging deaktivieren
+oder Schlüsselmaterial exfiltrieren.
+
+Souveränität erfordert, dass administrative Aktionen beschränkt, beobachtbar und
+zurechenbar sind. Separation of Duties verhindert, dass ein einzelnes kompromittiertes
+Credential die gesamte Sovereignty-Posture zerstört.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Kompromittierte Entwickler-Credentials*
+|Wildcard-Permissions ermöglichen vollständigen Datenzugriff bei Credential-Kompromittierung.
+
+|*CI/CD mit AdministratorAccess*
+|Service-Account der Build-Pipeline mit Vollzugriff ermöglicht beliebige Infrastrukturänderungen.
+
+|*Fehlende SoD*
+|Ein Principal kann Key Policy ändern und danach auf verschlüsselte Daten zugreifen.
+
+|*Permanente Admin-Credentials*
+|Niemals rotierte Admin-Schlüssel ohne MFA-Enforcement als dauerhaftes Angriffsziel.
+
+|*Überprivilegierte Service Accounts*
+|Routinemäßige Nicht-Privileg-Tasks über Accounts mit überschüssigen Berechtigungen ausgeführt.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 32 – Sicherheit der Verarbeitung (Zugangskontrolle); Art. 5(1)(f) – Integrität und Vertraulichkeit
+
+|*BSI C5:2020*
+|IAM-01 – Identity- und Access-Management; IAM-03 – Privileged Access Management; IAM-05 – Funktionstrennung
+
+|*EUCS (ENISA)*
+|IAM-01 – Zugangskontrollrichtlinie; IAM-03 – Privilegierter Zugang
+
+|*ISO 27001:2022*
+|A.8.2 – Privilegierte Zugriffsrechte; A.8.3 – Einschränkung des Informationszugangs; A.5.3 – Aufgabentrennung
+
+|*SOC 2*
+|CC6.3 – Rollenbasierte Zugriffskontrolle; CC6.6 – Logischer Zugang
+
+|===
+
+== Anforderung
+
+* Wildcard-Actions (`Action: *`) kombiniert mit Wildcard-Resources (`Resource: *`) sind in benutzerdefinierten Policies verboten
+* `AdministratorAccess` darf nur in dokumentierten Break-Glass-Szenarien vergeben werden
+* MFA MUSS für alle menschlichen Principals mit Produktionszugang erzwungen sein
+* IAM-Passwort-Policy MUSS konfiguriert sein (Mindestlänge >= 14, Ablauf <= 90 Tage)
+* Langlebige statische Access Keys SOLLEN nicht über Terraform erstellt werden
+* Quartalsweise IAM-Zugriffsreviews MÜSSEN durchgeführt und dokumentiert werden
+* JIT-Zugang MUSS für privilegierte Operationen implementiert werden, wo machbar
+* SCP/Azure Policy MUSS Privilege Escalation auf Organisations-Ebene verhindern
+
+== Implementierungsanleitung
+
+. *Least Privilege*: Nur die für die spezifische Aufgabe notwendigen Berechtigungen vergeben.
+. *IAM Roles statt IAM Users*: Langlebige Access Keys vermeiden; OIDC-Federation für CI/CD nutzen.
+. *Wildcard-Verbot*: `Action: *` kombiniert mit `Resource: *` in benutzerdefinierten Policies explizit verbieten.
+. *AdministratorAccess nur für Break-Glass*: Nur in dokumentierten Notfallszenarien; JIT-Aktivierung implementieren.
+. *JIT Access*: AWS IAM Identity Center, Azure PIM oder äquivalente Lösung für privilegierten Zugang.
+. *MFA erzwingen*: Für alle menschlichen Principals mit Produktionszugang; SCP zur Durchsetzung.
+. *Quarterly Access Reviews*: Vierteljährliche IAM-Zugriffsreviews mit Findings und Remediation-Status dokumentieren.
+. *SCP/Azure Policy*: Privilege-Escalation-Aktionen auf Organisations-Ebene blocken.
+. *CI/CD-Trennung*: Deploy-Berechtigungen von Datenzugriffsberechtigungen trennen.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Basis-IAM-Rollen, kein Wildcard-Admin
+|Kein `AdministratorAccess` an normale Nutzeraccounts; IAM-User haben getrennte Rollen pro Verantwortlichkeit.
+
+|*2*
+|Least-Privilege-Rollen, MFA erzwungen
+|Kein `Action:*`/`Resource:*` in benutzerdefinierten Policies; MFA für alle Human Console/API Access; jährliches IAM-Review durchgeführt.
+
+|*3*
+|JIT-Zugang, formale SoD, quartalsweise Reviews
+|JIT-Provisionierung für privilegierten Zugang; dokumentierte SoD-Matrix (wer darf was); vierteljährliche Reviews mit Evidenz.
+
+|*4*
+|Automatisierte Erkennung von Privilege Drift
+|IAM Access Analyzer oder äquivalentes Tool überwacht kontinuierlich auf überprivilegierte Policies; Alerts auf Policy-Änderungen; SCP blockt Privilege Escalation.
+
+|*5*
+|Zero-Trust IAM mit kontinuierlicher Verifikation
+|Alle Zugriffe context-aware und zeitlich begrenzt; automatisierte Remediation von Policy-Verstößen; IAM-Compliance in Deployment-Pipeline integriert.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-060.tf.aws.no-wildcard-iam-policy
+*Prüft:* IAM-Policies dürfen keine `Action:*` mit `Resource:*` Kombination enthalten.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+data "aws_iam_policy_document" "s3_read" {
+  statement {
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:ListBucket"]
+    resources = [
+      aws_s3_bucket.data.arn,
+      "${aws_s3_bucket.data.arn}/*"
+    ]
+  }
+}
+----
+a|[source,hcl]
+----
+data "aws_iam_policy_document" "admin" {
+  statement {
+    effect    = "Allow"
+    actions   = ["*"]
+    resources = ["*"]
+    # ❌ Vollständiger Admin-Zugriff
+  }
+}
+----
+|===
+
+---
+
+=== waf-sov-060.tf.aws.no-administrator-access-managed-policy
+*Prüft:* Das AWS-managed-Policy `AdministratorAccess` darf nicht an reguläre Rollen gebunden sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_role_policy_attachment" "app" {
+  role       = aws_iam_role.app.name
+  policy_arn = aws_iam_policy.app_custom.arn
+  # ✅ Verwendet eine benutzerdefinierte Least-Privilege-Policy
+}
+----
+a|[source,hcl]
+----
+resource "aws_iam_role_policy_attachment" "admin" {
+  role       = aws_iam_role.developer.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  # ❌ AdministratorAccess an reguläre Rolle
+}
+----
+|===
+
+---
+
+=== waf-sov-060.tf.aws.iam-password-policy-configured
+*Prüft:* IAM-Account-Passwort-Policy muss konfiguriert sein (Mindestlänge >= 14, Ablauf <= 90 Tage).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_account_password_policy" "strict" {
+  minimum_password_length        = 16
+  require_uppercase_characters   = true
+  require_lowercase_characters   = true
+  require_numbers                = true
+  require_symbols                = true
+  allow_users_to_change_password = true
+  max_password_age               = 90
+  password_reuse_prevention      = 24
+}
+----
+a|[source,hcl]
+----
+# ❌ Keine aws_iam_account_password_policy Ressource
+#    definiert – Provider-Defaults gelten
+----
+|===
+
+---
+
+=== waf-sov-060.tf.aws.no-iam-user-direct-access-keys
+*Prüft:* Langlebige IAM-Access-Keys sollten nicht über Terraform erstellt werden.
+
+[source,hcl]
+----
+# Non-Compliant: Statische langlebige Credentials via Terraform
+resource "aws_iam_access_key" "user" {
+  user   = aws_iam_user.service.name
+  status = "Active"  # ⚠️ Langlebiger statischer Key
+}
+
+# Compliant: OIDC-basierte kurzlebige Tokens für CI/CD
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["..."]
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|IAM-Policy-Dokumente in Terraform ohne Wildcard-Permissions und mit Least-Privilege-Design.
+
+|*Process*
+|✅ Pflicht
+|Vierteljährliche IAM-Zugriffsreview-Protokolle mit Findings und Remediation-Status.
+
+|*Config*
+|Optional
+|IAM Access Analyzer Findings-Export ohne aktive Overpermission-Issues.
+
+|*Logs*
+|Optional
+|CloudTrail-Logs mit privilegierten Zugriffsereignissen für Review.
+
+|*Config*
+|Optional
+|SCP- oder Azure-Policy-Konfiguration zur Einschränkung von Privilege Escalation.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]
+* xref:controls/WAF-SOV-070.adoc[WAF-SOV-070 – Break-Glass & Logging]
+* xref:controls/WAF-SOV-080.adoc[WAF-SOV-080 – Dependency Inventory]
+
+== Best Practice
+
+* xref:best-practices/bp-break-glass.adoc[Break-Glass & Privileged Access implementieren →]
