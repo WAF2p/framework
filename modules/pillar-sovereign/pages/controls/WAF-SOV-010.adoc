@@ -1,0 +1,254 @@
+= WAF-SOV-010 – Data Residency Policy Defined
+:page-toc: right
+:control-id: WAF-SOV-010
+:pillar: sovereign
+:severity: high
+:category: data-residency
+:automated: partial
+:description: WAF++ Sovereign – Dokumentierte und technisch erzwungene Data-Residency-Policy für alle Datenkategorien.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* High | *Kategorie:* Data Residency | *Automatisierbar:* Teilweise
+
+== Beschreibung
+
+Eine dokumentierte Data-Residency-Policy MUSS existieren, die für alle Datenkategorien
+(Primärdaten, Replikation, Backups, Logs/Traces/Metriken, Metadaten) und alle Umgebungen
+(prod/non-prod) erlaubte Regionen und Datenklassen explizit definiert.
+
+Die Policy MUSS versioniert und technisch in IaC-Defaults, Provider-Konfigurationen
+und Variable-Validation-Blöcken abgebildet sein. Tagging aller datenhaltenden Ressourcen
+mit `data-residency` und `data-class` ist zwingend.
+
+== Rationale
+
+Ohne eine dokumentierte und technisch abgebildete Residency-Policy ist kein anderer
+Sovereign-Control nachweisbar. Ohne Tagging und explizite Region-Konfigurationen in IaC
+können Daten lautlos durch Backup-Replikation, Log-Exporte oder Drittanbieter-Integrationen
+in nicht-souveräne Jurisdiktionen wandern.
+
+Compliance mit DSGVO, BSI C5, EUCS und ähnlichen Regelwerken erfordert *demonstrierbare*
+geographische und jurisdiktionelle Kontrolle – nicht nur vertragliche Zusagen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Daten in falscher Jurisdiktion*
+|Unconstrained IaC-Defaults führen stillschweigend zu Ressourcen in nicht-erlaubten Regionen.
+
+|*Regulatorischer Verstoß*
+|DSGVO Art. 46, EUCS, BSI C5: Fehlende Nachweisbarkeit gilt als Verstoß, selbst wenn Daten faktisch korrekt gespeichert sind.
+
+|*Fehlender Audit-Trail*
+|Nicht klassifizierte Datenflüsse können bei Audits nicht nachgewiesen werden.
+
+|*Drift ohne Erkennung*
+|Neue Ressourcen ohne Tagging-Policy bleiben bei Compliance-Scans unsichtbar.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 30 – Verzeichnis der Verarbeitungstätigkeiten
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; SIM-01 – Sicherheitsvorfallmanagement
+
+|*EUCS (ENISA)*
+|DSP-01 – Datenklassifikation; IAM-04 – Zugangskontrollpolitik
+
+|*ISO 27001:2022*
+|A.8.10 – Informationslöschung; A.5.12 – Klassifizierung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+
+|*GAIA-X*
+|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
+
+|===
+
+== Anforderung
+
+Eine Data-Residency-Policy MUSS:
+
+* alle Datenkategorien (PII, Gesundheitsdaten, Finanzdaten, operativ, öffentlich) benennen
+* pro Datenkategorie erlaubte Regionen und Jurisdiktionen festlegen
+* Primärdaten, Replikationen, Backups, Logs und Metadaten abdecken
+* für alle Umgebungen (prod/non-prod) gültig sein
+* versioniert im Repository vorliegen (kein PDF in SharePoint)
+* technisch in IaC-Defaults, Variable-Validation und Tagging-Pflicht abgebildet sein
+
+== Implementierungsanleitung
+
+. *Policy-Dokument erstellen*: Als maschinenlesbare YAML-Datei neben dem Terraform-Code ablegen; semantische Versionierung verwenden.
+. *Datenklassen definieren*: Mindestens: `pii`, `financial`, `health`, `operational`, `public`.
+. *Regionen explizit festlegen*: Keine offenen „EU"-Angaben; konkrete Cloud-Region-IDs (z.B. `eu-central-1`, `germanywestcentral`).
+. *IaC-Defaults setzen*: Provider-Region in allen Blöcken explizit; kein Fallback auf Umgebungsvariablen.
+. *Variable-Validation ergänzen*: Alle Region/Location-Variablen mit `validation`-Block für erlaubte Werte.
+. *Mandatory Tagging Module einführen*: Zentrales Modul, das `data-residency` und `data-class` Tags erzwingt.
+. *CI-Gate aktivieren*: WAF++ Checker oder OPA-Policy in CI-Pipeline integrieren.
+. *Quarterly Review*: Policy mindestens jährlich, besser quartalsweise auf neue Datenflüsse prüfen.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Policy dokumentiert
+|Policy-Dokument existiert und ist versioniert; Primärregionen definiert.
+
+|*2*
+|Alle Datenkategorien abgedeckt
+|Policy deckt Backups, Logs, Metadaten ab; erlaubte Regionen je Datenkategorie; jährliches Review.
+
+|*3*
+|Technisch in IaC abgebildet
+|IaC nutzt Validation-Blöcke; CI-Pipeline validiert Region-Settings; alle datenhaltenden Ressourcen korrekt getaggt.
+
+|*4*
+|Kontinuierliche Drift-Erkennung
+|Automatisiertes Scanning erkennt Policy-Verstöße in Live-Infrastruktur; Alerts bei neuen unklassifizierten Ressourcen.
+
+|*5*
+|Policy-as-Code mit Auto-Remediation
+|Policy vollständig maschinenlesbar; Verstöße werden automatisch remediert oder geblockt; Audit-Evidenz automatisch gesammelt.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-010.tf.any.resource-tag-data-residency
+*Prüft:* Datenhaltende Ressourcen müssen `data-residency` und `data-class` Tags tragen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "customer_data" {
+  bucket = "acme-customer-data-prod"
+  tags = {
+    data-class     = "pii"
+    data-residency = "eu-only"
+    environment    = "production"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "customer_data" {
+  bucket = "acme-customer-data-prod"
+  tags = {
+    environment = "production"
+    # Fehlend: data-residency, data-class
+  }
+}
+----
+|===
+
+*Remediation:* Tags `data-residency` und `data-class` zu allen datenhaltenden Ressourcen
+(S3, RDS, DynamoDB, Storage Accounts, GCS Buckets) hinzufügen.
+Zulässige Werte für `data-residency`: `eu-only`, `de-only`, `ch-only`, `global-approved`.
+
+---
+
+=== waf-sov-010.tf.aws.provider-region-explicit
+*Prüft:* AWS Provider muss `region` explizit setzen (kein Fallback auf `AWS_DEFAULT_REGION`).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+variable "aws_region" {
+  type    = string
+  default = "eu-central-1"
+  validation {
+    condition = contains(
+      ["eu-central-1", "eu-west-1"],
+      var.aws_region
+    )
+    error_message = "Nur souveräne EU-Regionen erlaubt."
+  }
+}
+provider "aws" {
+  region = var.aws_region
+}
+----
+a|[source,hcl]
+----
+provider "aws" {
+  # Kein region – Fallback auf
+  # AWS_DEFAULT_REGION Env-Variable
+}
+----
+|===
+
+---
+
+=== waf-sov-010.tf.azurerm.location-explicit
+*Prüft:* Azure Resource Groups und kritische Ressourcen müssen `location` explizit setzen.
+
+[source,hcl]
+----
+# Compliant
+variable "azure_location" {
+  type    = string
+  default = "germanywestcentral"
+  validation {
+    condition = contains(
+      ["germanywestcentral", "westeurope", "northeurope"],
+      var.azure_location
+    )
+    error_message = "Nur souveräne Azure-Regionen erlaubt."
+  }
+}
+resource "azurerm_resource_group" "main" {
+  name     = "rg-sovereign-prod"
+  location = var.azure_location
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Versioniertes Data-Residency-Policy-Dokument; alle Datenkategorien und erlaubten Regionen enthalten.
+
+|*IaC*
+|✅ Pflicht
+|Terraform Provider-Konfigurationen und Variable-Defaults mit Region-Validation.
+
+|*Architecture*
+|Optional
+|Architekturdiagramme mit Datenflüssen, Trust Boundaries und Region-Labels.
+
+|*Process*
+|Optional
+|Änderungshistorie und Review-Protokolle des Policy-Dokuments.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning Enforced]
+* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging & Telemetry Residency]
+
+== Best Practice
+
+* xref:best-practices/bp-data-residency.adoc[Data Residency Policy implementieren →]

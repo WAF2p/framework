@@ -1,0 +1,277 @@
+= WAF-SOV-080 – Dependency & Subprocessor Inventory
+:page-toc: right
+:control-id: WAF-SOV-080
+:pillar: sovereign
+:severity: medium
+:category: supply-chain
+:automated: medium
+:description: WAF++ Sovereign – Vollständiges Inventar aller Abhängigkeiten und Subprozessoren pflegen; Terraform-Provider-Versionen und Modul-Quellen pinnen; DPA für alle Datenprozessoren sicherstellen.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🟡 Medium | *Kategorie:* Supply Chain | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Ein Inventar aller Abhängigkeiten und Subprozessoren MUSS gepflegt werden: Managed Cloud
+Services, Third-Party-SaaS-Tools, CI/CD-Plattformen, Observability-Provider und
+Datenprozessoren. Änderungen an diesem Inventar MÜSSEN versioniert, reviewt und genehmigt werden.
+
+Provider-Version-Constraints in Terraform MÜSSEN gepinnt sein, um stille Upgrades zu
+verhindern. Modul-Quellen MÜSSEN auf genehmigte Registries mit versionslocked Referenzen
+verweisen.
+
+== Rationale
+
+Cloud-Souveränität kann nicht bewertet werden, ohne zu wissen, welche Drittparteien Daten
+verarbeiten, aus welcher Jurisdiktion und auf welcher Rechtsgrundlage. Ein Datadog-Agent,
+der Logs an US-Server schickt, ein GitHub-Actions-Runner mit Produktionszugang oder ein
+ungeprüftes Terraform-Modul aus einer nicht vertrauenswürdigen Quelle kann unabhängig die
+Sovereignty-Posture kompromittieren. Supply-Chain-Awareness ist die Voraussetzung für
+Supply-Chain-Kontrolle.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*SaaS-Tool außerhalb genehmigter Jurisdiktion*
+|Monitoring-, Ticketing- oder CI/CD-Tool verarbeitet souveräne Daten außerhalb genehmigter Region.
+
+|*Ungepinnter Terraform-Provider*
+|Nicht gepinnte Provider-Version wird still auf eine Version mit Breaking Changes oder geändertem Verhalten aktualisiert.
+
+|*Ungeprüftes Terraform-Modul*
+|Terraform-Modul aus unbekanntem Autor mit schadhaften Ressourcen-Konfigurationen.
+
+|*Subprozessor ohne DPA*
+|Neuer Subprozessor ohne DSGVO-Art. 28-konforme DPA hinzugefügt.
+
+|*CI/CD als unerkannter Subprozessor*
+|CI/CD-Plattform (GitHub, GitLab, CircleCI) mit Produktionszugang nicht als Subprozessor gelistet.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 28 – Auftragsverarbeiter; Art. 30 – Verzeichnis der Verarbeitungstätigkeiten; Art. 44–46 – Übermittlungen in Drittländer
+
+|*BSI C5:2020*
+|SCA-01 – Supply-Chain-Management; OPS-04 – Datenverwaltung
+
+|*EUCS (ENISA)*
+|SCA-01 – Supply Chain; IAM-04 – Drittpartei-Zugang
+
+|*ISO 27001:2022*
+|A.5.19 – Informationssicherheit in Lieferantenbeziehungen; A.5.20 – Informationssicherheit in Lieferantenvereinbarungen; A.5.21 – Informationssicherheit in der IKT-Lieferkette
+
+|*SLSA*
+|L2 – Build Integrity; L3 – Source Integrity
+
+|===
+
+== Anforderung
+
+* Alle `required_providers` in Terraform MÜSSEN eine Version-Constraint enthalten
+* `required_version` MUSS im Terraform-Block gesetzt sein
+* Terraform-Modul-Versionen MÜSSEN gepinnt sein (Registry: `version = "x.y.z"`; Git: `?ref=vX.Y.Z`)
+* Modul-Quellen DÜRFEN nicht auf nicht-genehmigte öffentliche Git-Repositories verweisen
+* Das Dependency-Register MUSS maschinenlesbar (YAML/JSON) und versioniert im Repository vorliegen
+* Für alle Subprozessoren mit Personendaten MUSS eine DPA-Referenz im Register existieren
+* Das Register MUSS mindestens quartalsweise reviewt werden
+* `terraform.lock.hcl` MUSS ins Repository committet sein
+
+== Implementierungsanleitung
+
+. *Dependency-Register erstellen*: YAML/JSON in Git; alle externen Dienste mit Namen, Zweck, verarbeiteten Daten, Hosting-Region und Rechtsgrundlage.
+. *Provider-Versionen pinnen*: Alle Einträge in `required_providers` mit `~>` Constraint (z.B. `~> 5.40` für AWS Provider v5.x).
+. *Modul-Versionen pinnen*: Registry-Module mit `version = "x.y.z"`; Git-Module mit `?ref=v1.2.3`.
+. *DPA für Datenprozessoren*: DPA-Vereinbarung für jeden Subprozessor mit Personendaten; Referenz im Register.
+. *Quartalsweise Review*: Subprozessor-Liste vierteljährlich prüfen; Änderungen in Changelog festhalten.
+. *Lock-File committen*: `terraform.lock.hcl` im Repository; CI blockiert bei fehlendem Lock-File.
+. *CI/CD als Subprozessor*: Die CI/CD-Plattform selbst als Subprozessor listen, wenn Secrets oder Daten durch sie fließen.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein formales Inventar, Provider-Versionen ungepinnt
+|Gewisse Kenntnis der Hauptabhängigkeiten; keine strukturierte Dokumentation.
+
+|*2*
+|Dependency-Inventar dokumentiert, Provider gepinnt
+|Dependency-Register existiert (auch als Tabelle); Terraform-Provider-Versionen in `required_providers` gepinnt; Lock-File ins Repository committet.
+
+|*3*
+|Versioniertes Inventar mit DPA-Referenzen
+|Maschinenlesbares Dependency-Register in Git; jeder Subprozessor hat DPA-Referenz und Datenklassen-Annotation; quartalsweise Review-Prozess mit dokumentierter Evidenz.
+
+|*4*
+|Automatisiertes Supply-Chain-Monitoring
+|Automatische Alerts bei neuen/geänderten Providern oder Modulen in PRs; SBOM für Infrastruktur-Deployments generiert; Subprozessor-Änderungen lösen Review-Workflow aus.
+
+|*5*
+|Vollständige Supply-Chain-Attestierung
+|SLSA-Compliance für kritische Supply-Chain-Komponenten; automatisierte DPA-Status-Verifikation im Deployment-Gate integriert; kryptografische Attestierung für Modul-Provenance.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-080.tf.any.required-providers-version-pinned
+*Prüft:* Alle `required_providers` müssen Version-Constraints enthalten.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.40"
+    }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.100"
+    }
+  }
+}
+----
+a|[source,hcl]
+----
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      # ❌ Keine Version-Constraint –
+      #    beliebige Version akzeptiert
+    }
+  }
+}
+----
+|===
+
+---
+
+=== waf-sov-080.tf.any.required-terraform-version
+*Prüft:* `required_version` muss im `terraform`-Block gesetzt sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+terraform {
+  required_version = ">= 1.6.0, < 2.0.0"
+}
+----
+a|[source,hcl]
+----
+terraform {
+  # ❌ Kein required_version –
+  #    beliebige Terraform-Version
+}
+----
+|===
+
+---
+
+=== waf-sov-080.tf.any.module-source-version-pinned
+*Prüft:* Terraform-Module müssen eine gepinnte Version referenzieren (kein `ref=main`/`ref=master`).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"  # ✅ Gepinnte Version
+}
+
+module "internal" {
+  source = "git::https://git.example.com/modules/vpc.git?ref=v2.1.0"
+  # ✅ Git-Tag statt Branch-Referenz
+}
+----
+a|[source,hcl]
+----
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  # ❌ Keine Version – neueste Version
+}
+
+module "internal" {
+  source = "git::https://git.example.com/modules/vpc.git?ref=main"
+  # ❌ Mutable Branch-Referenz
+}
+----
+|===
+
+---
+
+=== waf-sov-080.tf.any.no-untrusted-registry-modules
+*Prüft:* Modul-Quellen müssen auf genehmigte Registries oder internes Git verweisen.
+
+[source,hcl]
+----
+# Non-Compliant: Nicht-autorisiertes öffentliches GitHub-Repo
+module "custom" {
+  source = "github.com/unknown-user/terraform-aws-module.git"
+  # ⚠️ Nicht-genehmigtes öffentliches Repository ohne Registry-Validierung
+}
+
+# Compliant: Offizielles Terraform Registry
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Dependency-/Subprozessor-Register (versioniert; alle externen Dienste mit Datenflüssen abdeckend).
+
+|*IaC*
+|✅ Pflicht
+|Terraform `required_providers` mit gepinnten Version-Constraints und committetes Lock-File.
+
+|*Process*
+|Optional
+|Vierteljährliche Review-Protokolle des Subprozessor-Inventars.
+
+|*Governance*
+|Optional
+|DPA-Vereinbarungs-Referenzliste für alle datenprozessierenden Subprozessoren.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
+* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
+* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan]
+
+== Best Practice
+
+* xref:best-practices/bp-supply-chain.adoc[Supply Chain Governance implementieren →]

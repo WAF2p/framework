@@ -1,0 +1,108 @@
+= Sovereign-Prinzipien
+:page-toc: right
+:description: WAF++ – Die 7 Prinzipien der Sovereign Cloud.
+
+Die folgenden sieben Prinzipien bilden das Fundament der Sovereign-Säule im WAF++.
+Sie sind anbieter- und technologieunabhängig formuliert.
+
+== SP1 – Sovereignty is Evidence-Based
+
+Souveränität ohne Nachweis ist eine Behauptung.
+
+Jede Souveränitätsanforderung muss in *prüfbare Evidenz* übersetzbar sein:
+Konfigurationsdaten, Audit-Logs, Runbooks, Vertragsartefakte oder automatisierte IaC-Checks.
+
+*Implikation:* „Wir glauben, unsere Daten liegen in Deutschland" ist keine Evidenz.
+Der Terraform-Provider mit Region-Validation und ein CloudTrail-Log, das zeigt, dass kein
+Deployment außerhalb der EU stattgefunden hat, ist Evidenz.
+
+*Zugehörige Controls:* WAF-SOV-010, WAF-SOV-020
+
+---
+
+== SP2 – Explicit Jurisdiction & Data Boundaries
+
+Erlaubte Regionen und Datenklassen müssen explizit definiert und technisch erzwungen sein.
+
+Implizite Annahmen oder Konventionen ohne technische Enforcement-Mechanismen sind nicht
+souveränitätskonform. Jede Datenklasse braucht eine dokumentierte Jurisdiktionszuweisung.
+
+*Implikation:* „Wir deployen normalerweise in eu-central-1" ist kein Region Pinning.
+Eine Terraform-Variable mit Validation-Block und ein OPA-Policy-Gate im CI ist Region Pinning.
+
+*Zugehörige Controls:* WAF-SOV-010, WAF-SOV-020, WAF-SOV-030, WAF-SOV-040
+
+---
+
+== SP3 – Own Your Keys
+
+Wer den Schlüssel nicht kontrolliert, kontrolliert die Daten nicht.
+
+Für sensible Datenkategorien (PII, Gesundheitsdaten, Finanzdaten) müssen Schlüssel
+im Besitz der Organisation liegen – nicht beim Cloud-Anbieter. Schlüsselrotation und
+-löschung müssen governed sein und auditierbar sein.
+
+*Implikation:* Encryption at Rest mit AES256 (SSE-S3) bedeutet, AWS verwaltet den Schlüssel.
+CMK (Customer Managed Key) bedeutet, die Organisation kontrolliert den Schlüssel.
+HYOK (Hold Your Own Key) mit externem HSM bedeutet: AWS hat niemals Zugriff auf das Schlüsselmaterial.
+
+*Zugehörige Controls:* WAF-SOV-050
+
+---
+
+== SP4 – Control the Control Plane
+
+Privilegierte Zugriffe sind der Kern von Souveränität.
+
+Break-Glass, Admin-Aktionen, Delegation, IAM-Konfigurationsänderungen – all diese Aktionen
+müssen protokolliert, attributiert und periodisch reviewed werden. Zero Standing Privilege
+ist das Zielbild; JIT-Zugriff ist der pragmatische Schritt dorthin.
+
+*Implikation:* Ein Entwickler mit AdministratorAccess kann alle Sovereign-Controls auf einmal
+deaktivieren. Separation of Duties verhindert das.
+
+*Zugehörige Controls:* WAF-SOV-060, WAF-SOV-070
+
+---
+
+== SP5 – Know and Control Your Supply Chain
+
+Alle Abhängigkeiten sind Teil des souveränen Systems – oder eine Lücke darin.
+
+Ein Monitoring-Agent, der Logs zu einem US-Anbieter schickt, eine CI/CD-Plattform, die
+Produktions-Secrets kennt, ein Terraform-Modul aus einer unbekannten Quelle –
+jede dieser Abhängigkeiten ist ein potenzieller Souveränitätsverstoss.
+
+*Implikation:* Ein Subprocessor-Inventar ist keine Formalität. Es ist der Angriffsflächen-Atlas
+der Souveränität.
+
+*Zugehörige Controls:* WAF-SOV-080
+
+---
+
+== SP6 – Egress is the Last Line of Sovereign Defense
+
+Wenn alle anderen Controls versagen, verhindert Egress-Kontrolle den Datenverlust.
+
+Selbst bei kompromittierten Zugangsdaten, fehlerhafter IAM-Policy oder einer 0-Day-Schwachstelle
+in einer Anwendung – ohne Egress können Daten nicht die Souveränitätsgrenze verlassen.
+
+*Implikation:* Default-deny Egress mit VPC-Endpoints für cloud-interne Dienste ist nicht
+optional für sovereign Workloads. Es ist das Sicherheitsnetz.
+
+*Zugehörige Controls:* WAF-SOV-090
+
+---
+
+== SP7 – Exit is a Sovereign Right, not a Project
+
+Portabilität und Exit-Fähigkeit sind keine Nice-to-Have-Features.
+
+Wer seinen Cloud-Anbieter nicht verlassen kann, hat keine Souveränität – unabhängig von
+allen technischen Kontrollen. Exit-Drills, dokumentierte Exit-Pläne und IaC-Portabilität
+sind reguläre Betriebsaufgaben.
+
+*Implikation:* Das Exit-Planungsdokument gehört ins Repository, nicht in eine Schublade.
+Der jährliche Exit-Drill ist so wichtig wie ein Desaster-Recovery-Test.
+
+*Zugehörige Controls:* WAF-SOV-100

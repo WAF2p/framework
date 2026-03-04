@@ -1,0 +1,297 @@
+= WAF-SOV-090 – Controlled Egress & Data Exfiltration Guardrails
+:page-toc: right
+:control-id: WAF-SOV-090
+:pillar: sovereign
+:severity: high
+:category: network-sovereignty
+:automated: high
+:description: WAF++ Sovereign – Ausgehenden Netzwerkverkehr mit Default-Deny oder Allow-List kontrollieren; VPC Endpoints für Cloud-API-Zugriff; Data-Exfiltration-Erkennung implementieren.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🟠 High | *Kategorie:* Network Sovereignty | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Ausgehender Netzwerkverkehr MUSS durch eine Default-Deny- oder strikte Allow-List-Policy
+kontrolliert werden. Security Groups dürfen uneingeschränkten Egress (`0.0.0.0/0`) ohne
+explizite Begründung nicht zulassen. VPC Endpoints MÜSSEN für den Zugriff auf Cloud-Provider-APIs
+verwendet werden, um Traffic auf dem souveränen Netzwerk zu halten.
+
+Data-Exfiltration-Detection MUSS etabliert sein, um auf anomale ausgehende Datenvolumen
+oder unerwartete Destinations zu alarmieren.
+
+== Rationale
+
+Uneingeschränkter Egress ist das letzte Ventil für Daten, die alle anderen Sovereignty-Controls
+umgehen. Selbst mit Region Pinning, CMK-Verschlüsselung und Zugriffskontrollen kann ein
+kompromittierter Workload ganze Datenbanken auf einen externen Server kopieren, wenn kein
+Egress-Control vorhanden ist.
+
+VPC Endpoints verhindern, dass Traffic das Cloud-Provider-Backbone verlässt und über das
+öffentliche Internet geht. Exfiltration-Detection liefert die detektive Kontrollschicht,
+wenn präventive Egress-Controls unzureichend sind oder umgangen werden.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Kompromittierte Anwendung kopiert DB-Dumps*
+|Unrestricted Egress erlaubt Kopieren ganzer Datenbanken auf externen Storage.
+
+|*DNS-Tunneling durch Insider*
+|Offener ausgehender Port zur Datenexfiltration über DNS-Tunneling genutzt.
+
+|*Falsch konfigurierte Datenpipeline*
+|Datenpipeline routet PII an nicht-souveräne externe Destination.
+
+|*AWS-API-Calls über Internet*
+|Fehlende VPC Endpoints exponieren Traffic-Metadaten über öffentliches Internet.
+
+|*Offene Security Group Egress*
+|Erlaubt Port-Scans und ausgehende Verbindungen zu C2-Servern.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 32 – Sicherheit der Verarbeitung (Netzwerksicherheit); Art. 44–46 – Übermittlungen in Drittländer
+
+|*BSI C5:2020*
+|SIM-02 – Intrusion Detection; OPS-04 – Datenverwaltung; NET-01 – Netzwerksicherheit
+
+|*EUCS (ENISA)*
+|IVS-09 – Netzwerksicherheit; IVS-10 – Egress Filtering
+
+|*ISO 27001:2022*
+|A.8.20 – Netzwerksicherheit; A.8.21 – Sicherheit von Netzwerkdiensten; A.8.22 – Netzwerksegmentierung
+
+|===
+
+== Anforderung
+
+* Security Groups DÜRFEN keinen `0.0.0.0/0` Egress ohne dokumentierte Begründung zulassen
+* VPC Endpoints MÜSSEN für S3, DynamoDB, KMS, ECR und andere häufig genutzte Dienste vorhanden sein
+* VPC Flow Logs MÜSSEN für alle VPCs aktiviert sein
+* Network ACLs SOLLEN keine offenen Egress-Regeln auf allen Ports haben
+* Azure NSGs DÜRFEN keinen uneingeschränkten Outbound zu `*` (Any Destination) erlauben
+* GuardDuty oder äquivalentes Tool MUSS für Exfiltrations-Erkennung aktiviert sein
+* Eine dokumentierte Allow-List aller genehmigten externen Destinations MUSS existieren
+
+== Implementierungsanleitung
+
+. *Security Groups mit expliziten Egress-Regeln*: Kein `allow all` (0.0.0.0/0) ohne dokumentierte Begründung.
+. *VPC Endpoints deployen*: S3, DynamoDB, KMS, ECR, STS und weitere häufig genutzte Dienste über Endpoints.
+. *Network Firewall*: AWS Network Firewall, Azure Firewall oder GCP Cloud Armor für zentrale Egress-Inspektion.
+. *VPC Flow Logs*: Für alle VPCs aktivieren; Destination in genehmigter Region.
+. *GuardDuty aktivieren*: Anomale Datentransfer-Muster erkennen; benutzerdefinierte Threat Intelligence.
+. *DNS-Egress kontrollieren*: Alle ausgehenden DNS-Anfragen über genehmigten Resolver.
+. *External-Destination-Allow-List erstellen*: Alle genehmigten externen Ziele mit Business-Begründung dokumentieren.
+. *Alerting einrichten*: Alerts auf neue/unerwartete Destinations, große Datenvolumen, nicht-Standard-Ports.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Standard Security Groups, offener Egress
+|Gewisse Netzwerksegmentierung vorhanden; keine explizite Egress-Policy.
+
+|*2*
+|Eingeschränkter Egress, VPC Endpoints deployt
+|Security Groups schränken ausgehende Ports ein; VPC Endpoints für Haupt-Cloud-Dienste; VPC Flow Logs aktiviert.
+
+|*3*
+|Default-Deny Egress mit expliziter Allow-List
+|Keine Security Group erlaubt 0.0.0.0/0 Egress ohne Begründung; Network Firewall mit Domain-Allow-List; Exfiltrations-Detection vorhanden.
+
+|*4*
+|Kontinuierliches Egress-Monitoring und Anomalie-Erkennung
+|GuardDuty oder äquivalent mit benutzerdefinierter Threat Intelligence; Alerts auf neue Outbound-Destinations innerhalb Minuten; DNS-Egress-Inspektion aktiv.
+
+|*5*
+|Zero-Trust-Netzwerk mit vollständiger Egress-Attestierung
+|Alle ausgehenden Verbindungen context-aware und policy-enforced; automatisiertes Blocking anomaler Egress-Aktivität; Egress-Compliance im Deployment-Pipeline verifiziert.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-090.tf.aws.no-unrestricted-egress
+*Prüft:* Security Groups dürfen keinen uneingeschränkten Egress zu `0.0.0.0/0` oder `::/0` haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_security_group" "app" {
+  name   = "app-sg"
+  vpc_id = aws_vpc.main.id
+
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]  # Nur intern
+  }
+  # Outbound-Internet erfordert Network Firewall
+}
+----
+a|[source,hcl]
+----
+resource "aws_security_group" "app" {
+  name   = "app-sg"
+  vpc_id = aws_vpc.main.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    # ❌ Uneingeschränkter Outbound-Zugriff
+  }
+}
+----
+|===
+
+---
+
+=== waf-sov-090.tf.aws.vpc-endpoint-s3
+*Prüft:* Jede `aws_vpc` muss einen Gateway-Endpoint für S3 haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+  policy = data.aws_iam_policy_document.s3_endpoint_policy.json
+}
+----
+a|[source,hcl]
+----
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  # ❌ Kein S3 VPC Endpoint –
+  #    S3-Traffic über öffentliches Internet
+}
+----
+|===
+
+---
+
+=== waf-sov-090.tf.aws.vpc-flow-logs-enabled
+*Prüft:* Jede `aws_vpc` muss VPC Flow Logs aktiviert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_flow_log" "main" {
+  vpc_id               = aws_vpc.main.id
+  traffic_type         = "ALL"
+  log_destination_type = "cloud-watch-logs"
+  log_destination      = aws_cloudwatch_log_group.flow.arn
+  iam_role_arn         = aws_iam_role.flow_log.arn
+}
+----
+a|[source,hcl]
+----
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  # ❌ Kein Flow Log –
+  #    kein Netzwerk-Audit für Forensik
+}
+----
+|===
+
+---
+
+=== waf-sov-090.tf.azurerm.nsg-no-open-outbound
+*Prüft:* Azure NSG darf keinen uneingeschränkten Outbound-Traffic zu `*` (Any Destination) erlauben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "azurerm_network_security_rule" "outbound_https" {
+  name                        = "allow-outbound-https"
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  destination_port_range      = "443"
+  destination_address_prefix  = "10.0.0.0/8"  # ✅ Spezifisches Ziel
+  # ...
+}
+----
+a|[source,hcl]
+----
+resource "azurerm_network_security_rule" "all_outbound" {
+  name                        = "allow-all-outbound"
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "*"
+  destination_port_range      = "*"
+  destination_address_prefix  = "*"  # ❌ Any Destination
+  # ...
+}
+----
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Security-Group-Regeln mit Egress-Einschränkungen; VPC-Endpoint-Ressourcen für Cloud-Dienste.
+
+|*IaC*
+|✅ Pflicht
+|VPC-Flow-Log-Ressourcen für alle VPCs aktiviert.
+
+|*Config*
+|Optional
+|Network Firewall / Azure Firewall Domain-Allow-List-Export.
+
+|*Logs*
+|Optional
+|Beispiel-Flow-Log oder Firewall-Log mit blockierten Egress-Versuchen.
+
+|*Process*
+|Optional
+|Dokumentierte Allow-List aller genehmigten externen Destinations mit Business-Begründung.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
+* xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]
+* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
+
+== Best Practice
+
+* xref:best-practices/bp-egress-control.adoc[Egress Control implementieren →]

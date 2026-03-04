@@ -1,44 +1,219 @@
 = YAML Control Details (Sovereign)
 :page-toc: right
+:description: WAF++ – Referenz-Übersicht der maschinenlesbaren YAML-Controls der Sovereign-Säule.
 
-Diese Seite dient als Übersicht/Anker für die YAML-Dateien (1:1 Mapping).
+Diese Seite dient als Übersicht der YAML-Kontrolldateien der Sovereign-Säule.
+Die YAML-Dateien enthalten maschinenlesbare Checks, die vom WAF++ Checker Tool
+direkt gegen Terraform-Code ausgeführt werden können.
+
+== Übersicht
+
+[cols="1,3,1,1,1"]
+|===
+|Control ID |Titel |Severity |Provider |Checks
+
+|xref:#WAF-SOV-010[WAF-SOV-010]
+|Data Residency Policy Defined
+|High
+|AWS, Azure, GCP
+|4
+
+|xref:#WAF-SOV-020[WAF-SOV-020]
+|Region Pinning Enforced (IaC)
+|Critical
+|AWS, Azure, GCP
+|5
+
+|xref:#WAF-SOV-030[WAF-SOV-030]
+|Backup Location & Retention Controlled
+|High
+|AWS, Azure
+|6
+
+|xref:#WAF-SOV-040[WAF-SOV-040]
+|Logging & Telemetry Residency Controlled
+|High
+|AWS
+|5
+
+|xref:#WAF-SOV-050[WAF-SOV-050]
+|Key Ownership & Management Defined
+|Critical
+|AWS, Azure
+|6
+
+|xref:#WAF-SOV-060[WAF-SOV-060]
+|Privileged Access Controlled (Separation of Duties)
+|Critical
+|AWS
+|4
+
+|xref:#WAF-SOV-070[WAF-SOV-070]
+|Break-Glass Process & Logging
+|High
+|AWS
+|5
+
+|xref:#WAF-SOV-080[WAF-SOV-080]
+|Dependency & Subprocessor Inventory
+|Medium
+|Any
+|4
+
+|xref:#WAF-SOV-090[WAF-SOV-090]
+|Controlled Egress & Data Exfiltration Guardrails
+|High
+|AWS, Azure
+|5
+
+|xref:#WAF-SOV-100[WAF-SOV-100]
+|Exit Plan & Portability Tested
+|Medium
+|AWS, Any
+|5
+
+|===
+
+== Check-Operator Referenz
+
+Die YAML-Controls nutzen folgende `op`-Werte in Assertions:
+
+[cols="1,2"]
+|===
+|Operator |Bedeutung
+
+|`attribute_exists`
+|Das Attribut existiert (nicht null/unset)
+
+|`not_empty`
+|Das Attribut ist nicht leer (kein leerer String)
+
+|`equals`
+|Wert entspricht genau dem `expected`-Wert
+
+|`not_equals`
+|Wert entspricht nicht dem `expected`-Wert
+
+|`in`
+|Wert ist in der erlaubten Liste enthalten
+
+|`not_in`
+|Wert ist nicht in der verbotenen Liste enthalten
+
+|`is_true`
+|Boolescher Wert ist `true`
+
+|`is_false`
+|Boolescher Wert ist `false`
+
+|`greater_than`
+|Numerischer Wert ist größer als `expected`
+
+|`greater_than_or_equal`
+|Numerischer Wert ist größer oder gleich `expected`
+
+|`less_than_or_equal`
+|Numerischer Wert ist kleiner oder gleich `expected`
+
+|`not_matches`
+|Wert entspricht nicht dem regulären Ausdruck in `pattern`
+
+|`matches`
+|Wert entspricht dem regulären Ausdruck in `pattern`
+
+|`key_exists`
+|Dictionary/Map enthält den Schlüssel `key`
+
+|`block_exists`
+|Ein Block dieses Typs existiert
+
+|`has_associated_resource`
+|Es existiert eine andere Resource, die dieses Objekt referenziert
+
+|`json_not_contains_pattern`
+|JSON-String enthält kein Pattern (Regex-basiert)
+
+|===
+
+---
 
 [#WAF-SOV-010]
-== WAF-SOV-010
-Siehe `controls/WAF-SOV-010.yml`
+== WAF-SOV-010 – Data Residency Policy Defined
+
+Datei: `controls/WAF-SOV-010.yml`
+
+Checks prüfen: Data-Residency-Tagging auf Ressourcen; explizite Region/Location-Attribute
+in Provider-Blöcken für AWS, Azure und GCP.
 
 [#WAF-SOV-020]
-== WAF-SOV-020
-Siehe `controls/WAF-SOV-020.yml`
+== WAF-SOV-020 – Region Pinning Enforced (IaC)
+
+Datei: `controls/WAF-SOV-020.yml`
+
+Checks prüfen: Explizite Region in Provider-Blöcken; Validation-Blöcke in Region/Location-Variablen;
+keine hardkodierten non-sovereign Regionen.
 
 [#WAF-SOV-030]
-== WAF-SOV-030
-Siehe `controls/WAF-SOV-030.yml`
+== WAF-SOV-030 – Backup Location & Retention Controlled
+
+Datei: `controls/WAF-SOV-030.yml`
+
+Checks prüfen: RDS/Aurora backup_retention_period >= 7; DynamoDB PITR aktiviert;
+Backup Vault in genehmigter Region; S3 Versioning für Backup-Buckets.
 
 [#WAF-SOV-040]
-== WAF-SOV-040
-Siehe `controls/WAF-SOV-040.yml`
+== WAF-SOV-040 – Logging & Telemetry Residency Controlled
+
+Datei: `controls/WAF-SOV-040.yml`
+
+Checks prüfen: CloudTrail multi-region mit Log-File-Validation; CloudWatch Log Group
+Retention nicht 0 und >= 30 Tage; VPC Flow Logs für alle VPCs; CloudWatch-Integration.
 
 [#WAF-SOV-050]
-== WAF-SOV-050
-Siehe `controls/WAF-SOV-050.yml`
+== WAF-SOV-050 – Key Ownership & Management Defined
+
+Datei: `controls/WAF-SOV-050.yml`
+
+Checks prüfen: KMS Key Rotation aktiviert; Deletion Window >= 14 Tage; S3 nutzt
+aws:kms (nicht AES256); EBS und RDS Storage verschlüsselt; Azure Key Vault mit Purge Protection.
 
 [#WAF-SOV-060]
-== WAF-SOV-060
-Siehe `controls/WAF-SOV-060.yml`
+== WAF-SOV-060 – Privileged Access Controlled (Separation of Duties)
+
+Datei: `controls/WAF-SOV-060.yml`
+
+Checks prüfen: Keine IAM-Policy mit Action:* und Resource:* kombiniert; kein
+AdministratorAccess an normale Rollen; IAM Passwort-Policy konfiguriert; keine
+langlebigen Access Keys.
 
 [#WAF-SOV-070]
-== WAF-SOV-070
-Siehe `controls/WAF-SOV-070.yml`
+== WAF-SOV-070 – Break-Glass Process & Logging
+
+Datei: `controls/WAF-SOV-070.yml`
+
+Checks prüfen: CloudTrail multi-region, log-validation, global events; CloudTrail S3
+nicht öffentlich; CloudWatch Alarm für Root-Account-Aktivität; Alarm für IAM-Policy-Änderungen.
 
 [#WAF-SOV-080]
-== WAF-SOV-080
-Siehe `controls/WAF-SOV-080.yml`
+== WAF-SOV-080 – Dependency & Subprocessor Inventory
+
+Datei: `controls/WAF-SOV-080.yml`
+
+Checks prüfen: Alle required_providers mit Version Constraint; required_version gesetzt;
+Module-Versionen gepinnt; keine unapproved Git-Module.
 
 [#WAF-SOV-090]
-== WAF-SOV-090
-Siehe `controls/WAF-SOV-090.yml`
+== WAF-SOV-090 – Controlled Egress & Data Exfiltration Guardrails
+
+Datei: `controls/WAF-SOV-090.yml`
+
+Checks prüfen: Security Groups ohne 0.0.0.0/0 Egress; VPC Endpoint für S3 vorhanden;
+VPC Flow Logs aktiviert; Network ACL keine offene Egress; Azure NSG kein offener Outbound.
 
 [#WAF-SOV-100]
-== WAF-SOV-100
-Siehe `controls/WAF-SOV-100.yml`
+== WAF-SOV-100 – Exit Plan & Portability Tested
+
+Datei: `controls/WAF-SOV-100.yml`
+
+Checks prüfen: S3 Buckets mit Lifecycle Policy; S3 Versioning aktiviert; Data-Resources
+mit portability-class Tag; High-Lock-In Services mit exit-strategy Tag; RDS Deletion Protection.

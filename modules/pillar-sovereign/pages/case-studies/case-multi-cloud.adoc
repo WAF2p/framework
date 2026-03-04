@@ -1,0 +1,160 @@
+= Fallbeispiel: Multi-Cloud & Exit – Anbieterwechsel nach Preiserhöhung
+:page-toc: right
+:description: WAF++ Sovereign – SaaS-Unternehmen migriert von AWS zu GCP nach Preiserhöhung; Exit-Plan entscheidet.
+
+== Ausgangssituation
+
+Ein europäisches SaaS-Unternehmen (500 Mitarbeiter, 50.000 Kunden in der EU) betreibt
+seine Plattform auf AWS. Nach einer angekündigten 40%-Preiserhöhung für Data-Transfer-Out
+und einer neuen Datenschutz-Auseinandersetzung mit einem Kunden entscheidet sich das
+Unternehmen für eine Migration auf GCP (europe-west3 Frankfurt).
+
+*Die Frage:* Kann das Unternehmen wirklich migrieren?
+
+== Sovereign Readiness Assessment
+
+Vor der Migration wurde ein Sovereign Readiness Assessment durchgeführt:
+
+[cols="1,2,2"]
+|===
+|Dimension |Status vor Migration |Bewertung
+
+|Data Residency Policy
+|Existiert als PDF
+|Level 2 – nicht maschinenlesbar
+
+|Region Pinning
+|AWS-Provider hat Region, aber keine Variable-Validation
+|Level 2 – IaC nicht validierend
+
+|Backup Location
+|Backups in eu-central-1, aber nie getestet
+|Level 2 – nie restored
+
+|Key Management
+|AES256 (SSE-S3) für alle Daten
+|Level 1 – nur PMK
+
+|Dependency Inventory
+|Informales Spreadsheet, veraltet
+|Level 1
+
+|Exit Plan
+|Nicht vorhanden
+|Level 0
+
+|IaC Portability
+|Terraform, aber viele proprietäre Services (Kinesis, Cognito, SQS)
+|Level 2 – starke AWS-Abhängigkeit
+
+|===
+
+*Befund:* Eine sofortige Migration ist nicht möglich. Geschätzte Dauer: 12–18 Monate.
+
+== Weg zur Exit-Fähigkeit
+
+=== Phase 1: Fundament legen (3 Monate)
+
+. **Dependency Register erstellen (WAF-SOV-080)**
+   - Alle AWS-Services inventarisiert: 47 unterschiedliche Services
+   - Für jeden Service: Open-Source-Alternative identifiziert
+   - Proprietäre Services ohne Alternative: Cognito (→ Keycloak), Kinesis (→ Kafka)
+
+. **CMK für alle PII-Daten (WAF-SOV-050)**
+   - S3-Buckets mit Kundendaten von AES256 auf aws:kms migriert
+   - KMS-Keys werden mit GCP-äquivalent (Cloud KMS) vorbereitet
+
+. **Terraform Module abstrahieren**
+   - Neue Modul-Struktur: `modules/storage/object`, `modules/compute/container`
+   - Provider-spezifische Implementierung unter `providers/aws/` und `providers/gcp/`
+
+=== Phase 2: Portabilität testen (3 Monate)
+
+[source,bash]
+----
+#!/bin/bash
+# exit-readiness-test.sh
+
+echo "=== Exit Readiness Test v1.0 ==="
+
+# Test 1: Datenbankexport
+echo "Testing database export..."
+for db in $(aws rds describe-db-instances --query 'DBInstances[*].DBInstanceIdentifier' --output text); do
+  pg_dump -h $DB_HOST -U $DB_USER -d $db -F c -f "/tmp/export/$db.dump" 2>&1
+  echo "✓ Exported: $db ($(du -sh /tmp/export/$db.dump | cut -f1))"
+done
+
+# Test 2: S3 Bucket Sync
+echo "Testing S3 export..."
+aws s3 sync s3://sovereign-data /tmp/s3-export/ \
+  --region eu-central-1 \
+  --exclude "*.tmp"
+echo "✓ S3 export complete: $(find /tmp/s3-export -type f | wc -l) files"
+
+# Test 3: Terraform Plan für GCP
+echo "Testing GCP Terraform Plan..."
+cd infrastructure/gcp
+terraform init -backend=false
+terraform plan -var="provider=gcp" 2>&1 | tail -5
+
+echo "=== Test Complete ==="
+echo "Estimated migration time: $(date -d '+7 days' +%Y-%m-%d)"
+----
+
+=== Phase 3: Shadow Migration (3 Monate)
+
+* GCP-Infrastruktur (europe-west3) parallel aufgebaut
+* Datenbankreplikation: AWS PostgreSQL → Cloud SQL via Database Migration Service
+* Traffic-Split: 5% auf GCP, Monitoring für 2 Wochen, dann Steigerung
+
+=== Phase 4: Exit & Decommission (3 Monate)
+
+* DNS-Migration (TTL auf 60s gesenkt 2 Wochen vorher)
+* 100% Traffic-Switch an einem Samstag
+* AWS-Infrastruktur: 90 Tage Standby, dann Decommission
+* Datenlöschung: S3 Lifecycle Policy triggert nach Retention-Ablauf
+
+== WAF++ Controls in der Migration
+
+[cols="1,3"]
+|===
+|Control |Rolle in der Migration
+
+|WAF-SOV-080
+|Dependency Register war der Startpunkt – ohne Inventar keine Migrationsstrategie
+
+|WAF-SOV-100
+|Exit-Drill (Phase 2) bewies: Datenbankexport dauert 4h, nicht wie erwartet 1h
+
+|WAF-SOV-010
+|Data-Residency-Policy wurde auf GCP-Regionen erweitert; Tags migiert
+
+|WAF-SOV-020
+|GCP Variable Validation für `europe-west3` implementiert, bevor erster Commit
+
+|WAF-SOV-050
+|Schlüsselmigration: AWS KMS → GCP Cloud KMS; BYOK-Konzept auf GCP übertragen
+
+|===
+
+== Ergebnis
+
+* Migration in 11 Monaten abgeschlossen (Schätzung: 12–18 Monate)
+* Kosteneinsparung nach Migration: 28% (GCP Committed Use Discounts)
+* Kein Datenverlust, keine Downtime über 5 Minuten
+* Lessons Learned: Exit-Readiness-Assessment vor Migration spart 3+ Monate Overhead
+
+== Wichtigste Erkenntnisse
+
+. **Ohne Dependency Register ist Exit-Fähigkeit unmöglich.** Das Register ist der Startpunkt.
+
+. **Proprietäre Services sind der größte Migrationsblocker.** Cognito-zu-Keycloak-Migration
+  dauerte allein 6 Wochen.
+
+. **Exit-Drills liefern reale Zeitschätzungen.** Die Datenbank-Export-Zeit war 4x länger als erwartet.
+
+. **Abstrakte IaC-Module halbieren den Migrations-Aufwand.** Teams mit Provider-abstrakten
+  Modulen migrieren 2x schneller.
+
+. **Sovereign Controls sind Investitionen, keine Kosten.** Die CMK- und Tagging-Struktur
+  ermöglichte automatische Datenmigration via Export-Skript.

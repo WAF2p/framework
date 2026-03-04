@@ -1,0 +1,225 @@
+= Best Practice: Supply Chain & Subprozessoren-Governance
+:page-toc: right
+:description: WAF++ Sovereign – Dependency Register, Terraform Provider Pinning und Subprozessoren-DPA-Management.
+
+== Kontext
+
+Supply-Chain-Risiken sind Souveränitätsrisiken, die häufig übersehen werden:
+
+* Ein Monitoring-Agent (Datadog, New Relic) sendet Logs zu US-Servern
+* Ein CI/CD-System (GitHub Actions, CircleCI) hat Zugriff auf Produktions-Secrets
+* Ein ungepinntes Terraform-Modul von einer unbekannten Quelle wird ohne Review verwendet
+* Ein neuer Subprozessor wird ohne DPA-Review hinzugefügt
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-080[WAF-SOV-080] – Dependency & Subprocessor Inventory
+
+== Zielbild
+
+Eine reife Supply-Chain-Governance hat:
+
+* Ein maschinenlesbares, versioniertes Dependency-Register
+* Gepinnte Terraform-Provider- und Modul-Versionen
+* DPA-Referenzen für alle personendatenverarbeitenden Subprozessoren
+* Automatische Alerts bei neuen/unbekannten Abhängigkeiten
+
+== Technische Umsetzung
+
+=== Dependency Register Format
+
+[source,yaml]
+----
+# subprocessors.yml – Versioniert im Repository
+
+version: "1.2.0"
+last_updated: "2025-03-01"
+reviewed_by: "DPO, CISO"
+next_review: "2025-09-01"
+
+processors:
+  - id: "proc-001"
+    name: "AWS"
+    type: "cloud-provider"
+    services:
+      - "EC2, RDS, S3, KMS, CloudTrail (all EU regions)"
+    data_processed:
+      - class: "all"
+        purpose: "Infrastructure operation"
+    jurisdiction: "EU (GDPR compliant, Standard Contractual Clauses)"
+    dpa_reference: "contracts/dpa-aws-2024.pdf"
+    bsi_c5: "https://aws.amazon.com/de/compliance/bsi-c5/"
+    sovereign_risk: "medium"  # Cloud Act exposure, but HYOK available
+
+  - id: "proc-002"
+    name: "GitHub"
+    type: "ci-cd"
+    services:
+      - "GitHub Actions, GitHub Code Scanning"
+    data_processed:
+      - class: "source-code"
+        purpose: "CI/CD pipeline execution"
+      - class: "secrets"
+        purpose: "Deployment credentials (secrets manager)"
+    jurisdiction: "US (Standard Contractual Clauses)"
+    dpa_reference: "contracts/dpa-github-2024.pdf"
+    sovereign_risk: "high"  # US jurisdiction, accesses deployment credentials
+    mitigation: "No production data in CI/CD. OIDC for cloud access (no long-lived secrets)."
+
+  - id: "proc-003"
+    name: "Datadog"
+    type: "monitoring"
+    services:
+      - "APM, Log Management, Infrastructure Monitoring"
+    data_processed:
+      - class: "logs"
+        purpose: "Observability and alerting"
+      - class: "traces"
+        purpose: "Application performance monitoring"
+    jurisdiction: "EU (EU region selected: app.datadoghq.eu)"
+    dpa_reference: "contracts/dpa-datadog-2024.pdf"
+    sovereign_risk: "medium"
+    mitigation: >
+      EU Datadog endpoint configured. PII scrubbing configured in agent.
+      Log export via Private Link. Annual review of log content for PII.
+
+  - id: "proc-004"
+    name: "PagerDuty"
+    type: "incident-management"
+    services:
+      - "Alerting, On-Call Management"
+    data_processed:
+      - class: "operational"
+        purpose: "Incident notification"
+    jurisdiction: "US (Standard Contractual Clauses)"
+    dpa_reference: "contracts/dpa-pagerduty-2024.pdf"
+    sovereign_risk: "low"  # Only operational metadata, no business data
+----
+
+=== Terraform Provider Pinning
+
+[source,hcl]
+----
+# terraform.tf – Vollständige Provider-Konfiguration
+
+terraform {
+  # Terraform-Version gepinnt
+  required_version = ">= 1.6.0, < 2.0.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.40"  # ~> erlaubt patch-Updates innerhalb von 5.x
+    }
+
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.100"
+    }
+
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.20"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+
+    # Externe Provider explizit deklariert
+    datadog = {
+      source  = "DataDog/datadog"
+      version = "~> 3.40"
+    }
+  }
+
+  backend "s3" {
+    bucket         = "terraform-state-sovereign"
+    key            = "production/terraform.tfstate"
+    region         = "eu-central-1"
+    encrypt        = true
+    kms_key_id     = "alias/production-sovereign"
+    dynamodb_table = "terraform-state-lock"
+  }
+}
+----
+
+=== Modul-Governance
+
+[source,hcl]
+----
+# Gut: Registry-Modul mit gepinnter Version
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"
+
+  name = "sovereign-vpc"
+  cidr = "10.0.0.0/16"
+  # ...
+}
+
+# Gut: Internes Modul mit Git-Tag-Referenz
+module "sovereign_kms" {
+  source = "git::https://git.company.com/terraform/modules//kms?ref=v2.1.0"
+
+  data_class     = "pii"
+  data_residency = "eu-only"
+  environment    = var.environment
+}
+
+# Schlecht: Unpinned Module
+module "vpc_bad" {
+  source = "terraform-aws-modules/vpc/aws"
+  # Keine Version – jede Version wird akzeptiert
+}
+
+# Schlecht: Branch-Referenz (mutable)
+module "internal_bad" {
+  source = "git::https://git.company.com/modules/kms.git?ref=main"
+  # main ist ein Branch – Inhalt kann sich jederzeit ändern
+}
+----
+
+=== Lock File prüfen
+
+[source,bash]
+----
+#!/bin/bash
+# check-lockfile.sh – Teil der CI-Pipeline
+
+# Prüfen ob terraform.lock.hcl existiert und aktuell ist
+if [ ! -f "terraform.lock.hcl" ]; then
+  echo "ERROR: terraform.lock.hcl fehlt. Führe 'terraform init' aus und committe die Datei."
+  exit 1
+fi
+
+# Prüfen ob Lock File im Staging-Bereich ist
+if git diff --cached --name-only | grep -q "terraform.lock.hcl"; then
+  echo "INFO: terraform.lock.hcl wurde geändert – bitte Provider-Upgrade-Review durchführen"
+fi
+
+echo "Lock file check passed"
+----
+
+== Typische Fehlmuster
+
+* **Lock File in .gitignore**: Provider-Versionen nicht reproduzierbar
+* **`>= 0.0.0` Version Constraint**: Keine Pinning-Effekt, beliebige Version wird installiert
+* **Branch-Referenzen in Git-Modulen**: Nicht deterministisch, kann sich ohne Review ändern
+* **Subprozessoren ohne DPA**: DSGVO Art. 28-Verletzung
+
+== Metriken
+
+* Anteil Terraform-Provider ohne Version Constraint (Ziel: 0%)
+* Anteil Module mit gepinnter Version (Ziel: 100%)
+* Anteil Subprozessoren mit DPA-Referenz (Ziel: 100% für DSGVO-relevante)
+* Zeit seit letztem Subprozessoren-Register-Review (Ziel: < 6 Monate)
+
+== Reifegrad
+
+Level 1 – Kein Inventar, unpinned Providers +
+Level 2 – Informales Inventar, Providers gepinnt, Lock File committet +
+Level 3 – Git-versioniertes Register, DPA-Referenzen, Modul-Governance +
+Level 4 – Automatische Alerts bei neuen Dependencies, SBOM generiert +
+Level 5 – SLSA-Compliance, Cryptographic Attestation, Continuous Review

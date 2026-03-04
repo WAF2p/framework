@@ -1,40 +1,311 @@
 id: WAF-SOV-030
 title: "Backup Location & Retention Controlled"
 pillar: "sovereign"
+status: "active"
 severity: "high"
+category: "data-residency"
 type: ['configuration', 'resilience']
-tags: ['backups', 'retention', 'restore']
+tags: ['backups', 'retention', 'restore', 'data-residency', 'rpo', 'rto']
 
 description: >
-  Backups must stay within allowed locations and retention/restore tests must be defined and executed.
+  Backup policies MUST explicitly define region/location constraints, minimum retention
+  periods, and restore-test schedules. Cross-region replication MUST be explicitly
+  configured and documented with an approved sovereign destination. Backup storage MUST
+  remain within the same jurisdictional boundary as primary data unless explicitly
+  approved and documented.
 
 rationale: >
-  Sovereignty requires demonstrable control over jurisdictions, access, encryption keys, dependencies and the ability to exit.
+  Backups are frequently the 'sovereignty leak' that audit teams miss. A primary database
+  may reside in an approved EU region while automated backup replication silently routes
+  data to a US-based disaster-recovery region. Every backup configuration is a potential
+  data-residency violation. Restore testing validates both technical recoverability and
+  that the backup data has not drifted to non-sovereign storage.
+
+threat:
+  - "Backup replication silently routing data to non-sovereign DR regions"
+  - "Backup data stored in default provider-managed storage outside approved jurisdiction"
+  - "Inability to restore within RPO/RTO because restore process was never tested"
+  - "Missing retention policy resulting in indefinite storage of sensitive data"
+  - "Cross-region copy jobs exfiltrating sensitive backup data to non-compliant locations"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 5(1)(e) – Storage limitation"
+      - "Art. 32 – Security of processing (availability and resilience)"
+      - "Art. 44-46 – Transfers to third countries"
+  - framework: "BSI C5:2020"
+    controls:
+      - "OPS-04 – Data management"
+      - "BCM-01 – Business continuity"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "BCR-01 – Backup policy"
+      - "DSP-04 – Data portability"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.13 – Information backup"
+      - "A.5.29 – Information security during disruption"
 
 implementation_guidance:
-  - "Document scope, allowed regions and data classes."
-  - "Enforce via policy-as-code and IaC guardrails wherever possible."
-  - "Continuously detect drift and keep audit evidence versioned."
+  - "Declare backup vault/policy resources in Terraform with explicit location attributes."
+  - "Set retention_period to at least 7 days for non-prod and 30 days for production workloads."
+  - "Enable point-in-time recovery (PITR) for all databases containing personal or financial data."
+  - "Verify cross-region replication targets are in the approved sovereign region list."
+  - "Schedule quarterly restore drills and capture evidence (backup ID, timestamp, RTO achieved)."
+  - "Tag backup vaults with 'data-residency' and 'data-class' consistent with source data."
+  - "Use immutable backup storage configurations (object lock, soft delete) to prevent tampering."
+
+maturity_levels:
+  level_1:
+    description: "Backups enabled, location not explicitly controlled"
+    criteria:
+      - "Backups are enabled for critical databases"
+      - "No explicit location constraints in backup config"
+  level_2:
+    description: "Location and retention defined in IaC"
+    criteria:
+      - "Backup vault location in IaC restricted to approved regions"
+      - "Minimum retention period set and enforced"
+  level_3:
+    description: "Full sovereign backup posture"
+    criteria:
+      - "All backup destinations verified to be in approved regions"
+      - "PITR enabled for PII/financial data"
+      - "Cross-region replication explicitly approved with documented destination"
+  level_4:
+    description: "Continuous monitoring and tested restores"
+    criteria:
+      - "Quarterly restore tests documented with evidence"
+      - "Automated checks verify backup location compliance"
+      - "Alerts on backup jobs targeting non-approved regions"
+  level_5:
+    description: "Immutable, auditable sovereign backup pipeline"
+    criteria:
+      - "Object lock / immutable backups enforced"
+      - "Restore drills automated with RTO/RPO measurement"
+      - "Backup compliance dashboards available to auditors"
 
 evidence:
-  - kind: "architecture"
-    description: "Architecture diagrams with trust boundaries and data flows."
-  - kind: "iac"
-    description: "Terraform code/plan/state showing effective configuration."
-  - kind: "logs"
-    description: "Audit logs demonstrating enforcement and privileged actions."
-  - kind: "process"
-    description: "Runbooks, reviews, drill reports and change records."
+  required:
+    - kind: "iac"
+      description: "Terraform backup resource configurations showing explicit location, retention, and PITR settings."
+    - kind: "process"
+      description: "Restore test records (quarterly minimum) including date, backup ID, time-to-restore, and evidence."
+  optional:
+    - kind: "config"
+      description: "Cloud console backup policy export showing active retention and location settings."
+    - kind: "logs"
+      description: "Backup job logs showing source and destination regions."
 
 checks:
-  - id: "waf-sov-030.placeholder"
+  - id: "waf-sov-030.tf.aws.db-instance-backup-retention"
     engine: "terraform"
-    scope: ["module", "resource"]
-    match:
-      any: []
-    assert:
-      - "Define concrete checks for your provider/resources."
-    automated: false
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "RDS instance backup retention must be >= 7 days"
+    description: >
+      AWS RDS instances must have backup_retention_period set to at least 7 days
+      to meet minimum recovery requirements for sovereign data stores.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+    assertions:
+      - attribute: "backup_retention_period"
+        op: "attribute_exists"
+        message: "aws_db_instance is missing 'backup_retention_period' attribute."
+      - attribute: "backup_retention_period"
+        op: "greater_than_or_equal"
+        expected: 7
+        message: "RDS backup_retention_period must be >= 7 days for sovereign compliance."
+    on_fail: "violation"
+    remediation: >
+      Set backup_retention_period to at least 7 (days) on all production RDS instances
+      and 30 days for instances processing PII or financial data.
+    example:
+      compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "prod-db"
+          engine                 = "postgres"
+          backup_retention_period = 30
+          backup_window          = "03:00-04:00"
+          # ...
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "prod-db"
+          engine                 = "postgres"
+          backup_retention_period = 0  # Backups disabled
+        }
+
+  - id: "waf-sov-030.tf.aws.rds-cluster-backup-retention"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Aurora cluster backup retention must be >= 7 days"
+    description: >
+      AWS RDS Aurora clusters must have backup_retention_period set to at least 7 days.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_rds_cluster"
+    assertions:
+      - attribute: "backup_retention_period"
+        op: "greater_than_or_equal"
+        expected: 7
+        message: "Aurora cluster backup_retention_period must be >= 7 days."
+    on_fail: "violation"
+    remediation: >
+      Set backup_retention_period >= 7 on all Aurora clusters.
+    example:
+      compliant: |
+        resource "aws_rds_cluster" "main" {
+          backup_retention_period = 14
+          preferred_backup_window = "02:00-03:00"
+        }
+      non_compliant: |
+        resource "aws_rds_cluster" "main" {
+          backup_retention_period = 1
+        }
+
+  - id: "waf-sov-030.tf.aws.dynamodb-pitr-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "DynamoDB tables must have point-in-time recovery enabled"
+    description: >
+      DynamoDB tables storing sovereign data must have point_in_time_recovery enabled
+      to allow restoration to any point in the last 35 days.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_dynamodb_table"
+    assertions:
+      - attribute: "point_in_time_recovery.enabled"
+        op: "is_true"
+        message: "DynamoDB table must have point_in_time_recovery.enabled = true."
+    on_fail: "violation"
+    remediation: >
+      Add a point_in_time_recovery block with enabled = true to all DynamoDB tables.
+    example:
+      compliant: |
+        resource "aws_dynamodb_table" "sovereign" {
+          name = "sovereign-table"
+          point_in_time_recovery {
+            enabled = true
+          }
+        }
+      non_compliant: |
+        resource "aws_dynamodb_table" "sovereign" {
+          name = "sovereign-table"
+          # No PITR configured
+        }
+
+  - id: "waf-sov-030.tf.aws.backup-vault-in-approved-region"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS Backup vault must be in an approved sovereign region"
+    description: >
+      AWS Backup vault configurations must not target non-sovereign regions.
+      Any aws_backup_copy_action destination vault must be verified against the approved region list.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_backup_plan"
+    assertions:
+      - attribute: "rule.copy_action.destination_vault_arn"
+        op: "region_in_arn_matches"
+        allowed_values_variable: "var.allowed_regions"
+        message: "Backup copy action destination vault is in a non-approved region."
+    on_fail: "violation"
+    remediation: >
+      Ensure all backup copy action destination vaults reference backup vaults
+      in approved sovereign regions only.
+
+  - id: "waf-sov-030.tf.azurerm.recovery-vault-location"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Recovery Services vault must be in approved location"
+    description: >
+      Azure Recovery Services vaults used for backups must have their 'location'
+      set to an approved sovereign region.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_recovery_services_vault"
+    assertions:
+      - attribute: "location"
+        op: "in_variable"
+        variable: "var.allowed_azure_locations"
+        message: "Azure Recovery Services vault location is not in the approved sovereign locations list."
+    on_fail: "violation"
+    remediation: >
+      Move the Recovery Services vault to an approved sovereign Azure location.
+    example:
+      compliant: |
+        resource "azurerm_recovery_services_vault" "backup" {
+          name                = "rsv-sovereign-prod"
+          location            = "germanywestcentral"
+          resource_group_name = azurerm_resource_group.main.name
+          sku                 = "Standard"
+          soft_delete_enabled = true
+        }
+      non_compliant: |
+        resource "azurerm_recovery_services_vault" "backup" {
+          name     = "rsv-prod"
+          location = "eastus"  # Non-sovereign location
+        }
+
+  - id: "waf-sov-030.tf.aws.s3-versioning-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "S3 buckets storing backup data should have versioning enabled"
+    description: >
+      S3 buckets used as backup destinations must have versioning enabled to
+      protect against accidental deletion and support point-in-time recovery.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_versioning"
+    assertions:
+      - attribute: "versioning_configuration.status"
+        op: "equals"
+        expected: "Enabled"
+        message: "S3 bucket versioning must be Enabled for backup/sovereign data stores."
+    on_fail: "warning"
+    remediation: >
+      Enable versioning on S3 buckets used for backup or sovereign data storage.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_versioning" "backup" {
+          bucket = aws_s3_bucket.backup.id
+          versioning_configuration {
+            status = "Enabled"
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket_versioning" "backup" {
+          bucket = aws_s3_bucket.backup.id
+          versioning_configuration {
+            status = "Suspended"
+          }
+        }
 
 references:
-  narrative: "modules/sovereign/pages/controls.adoc"
+  narrative: "modules/pillar-sovereign/pages/controls.adoc#WAF-SOV-030"
+  best_practice: "modules/pillar-sovereign/pages/best-practices/bp-data-residency.adoc"
+  related_controls:
+    - "WAF-SOV-010"
+    - "WAF-SOV-020"
+    - "WAF-SOV-040"
+    - "WAF-SOV-100"

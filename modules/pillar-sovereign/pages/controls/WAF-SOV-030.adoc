@@ -1,0 +1,252 @@
+= WAF-SOV-030 – Backup Location & Retention Controlled
+:page-toc: right
+:control-id: WAF-SOV-030
+:pillar: sovereign
+:severity: high
+:category: data-residency
+:automated: medium
+:description: WAF++ Sovereign – Backup-Standorte innerhalb der Souveränitätsgrenzen halten; Retention und Restore-Tests definieren und erzwingen.
+
+[.metadata]
+*Pillar:* Sovereign | *Severity:* 🟠 High | *Kategorie:* Data Residency | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Backup-Policies MÜSSEN explizit Region/Location-Constraints, Mindest-Retention-Perioden
+und Restore-Test-Zeitpläne definieren. Cross-Region-Replikation MUSS ausdrücklich
+genehmigt und ausschließlich in gültige souveräne Regionen gerichtet sein.
+
+Backup-Speicher MUSS innerhalb der gleichen Jurisdiktionsgrenze wie die Primärdaten
+verbleiben – außer mit explizit dokumentierter Genehmigung.
+
+== Rationale
+
+Backups sind häufig der erste Souveränitätsleck, den Audit-Teams übersehen.
+Eine Primärdatenbank kann in einer genehmigten EU-Region liegen, während automatisierte
+Backup-Replikation stillschweigend Daten in eine US-DR-Region leitet.
+
+Jede Backup-Konfiguration ist ein potenzieller Datenresidenz-Verstoß. Restore-Tests
+validieren sowohl die technische Wiederherstellbarkeit als auch, dass Backup-Daten
+nicht in nicht-souveränen Speichern gelandet sind.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Backup-Replikation in US-Region*
+|Automatisierte DR-Replikation leitet Backup-Daten stillschweigend in nicht-genehmigte Zielregionen.
+
+|*Provider-Default-Backup-Storage*
+|Managed-Service-Backups landen in provider-verwaltetem Storage außerhalb der genehmigten Jurisdiktion.
+
+|*Ungetestete Restore-Prozesse*
+|RPO/RTO-Verletzung weil Restore-Prozess niemals geübt wurde.
+
+|*Fehlende Retention-Policy*
+|Unklare Retention führt zu endloser Speicherung sensitiver Daten oder zu frühzeitiger Löschung.
+
+|*Cross-Region-Copy-Jobs*
+|Geplante Snapshot-Copies exfiltrieren Backup-Daten in nicht-souveräne Regionen.
+
+|===
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*DSGVO*
+|Art. 5(1)(e) – Speicherbegrenzung; Art. 32 – Sicherheit der Verarbeitung; Art. 44–46 – Übermittlungen in Drittländer
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; BCM-01 – Business-Continuity-Management
+
+|*EUCS (ENISA)*
+|BCR-01 – Backup-Policy; DSP-04 – Datenportabilität
+
+|*ISO 27001:2022*
+|A.8.13 – Datensicherung; A.5.29 – Informationssicherheit bei Betriebsunterbrechung
+
+|===
+
+== Anforderung
+
+* Backup-Konfigurationen MÜSSEN `location`/`region` explizit setzen
+* `backup_retention_period` MUSS mindestens 7 Tage (non-prod) und 30 Tage (prod) betragen
+* Point-in-Time Recovery (PITR) MUSS für Datenbankdienste mit PII/Finanzdaten aktiviert sein
+* Cross-Region Replikation MUSS explizit genehmigt und zu einer souveränen Zielregion gerichtet sein
+* Restore-Tests MÜSSEN mindestens jährlich (quartalsweise für kritische Daten) durchgeführt und dokumentiert werden
+* Backup-Ressourcen MÜSSEN mit `data-residency` und `data-class` konsistent mit den Quelldaten getaggt sein
+
+== Implementierungsanleitung
+
+. *Backup-Ressourcen in IaC deklarieren*: Keine impliziten Backup-Konfigurationen; alle Einstellungen explizit.
+. *Retention-Perioden* nach Datenkategorie festlegen und in IaC erzwingen.
+. *PITR aktivieren* für alle Datenbanken mit personenbezogenen oder Finanzdaten.
+. *Cross-Region-Replikation prüfen*: Zielregion in Genehmigungsliste; DPO-Review wenn ausserhalb.
+. *Immutable Backups* (Object Lock / Soft Delete) für kritische Datenkategorien konfigurieren.
+. *Restore-Drills* kalenderieren und dokumentieren: Backup-ID, Zeitstempel, erreichtes RTO, Findings.
+. *Backup Vault taggen*: `data-residency` und `data-class` konsistent mit Quelldaten.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Backups aktiviert, Standort unkontrolliert
+|Backups für kritische Datenbanken aktiviert; keine expliziten Standort-Constraints.
+
+|*2*
+|Standort und Retention in IaC definiert
+|Backup-Vault-Standort in genehmigter Region; Mindest-Retention gesetzt und erzwungen.
+
+|*3*
+|Vollständige souveräne Backup-Posture
+|Alle Backup-Ziele in genehmigten Regionen verifiziert; PITR für PII/Finanzdaten; Cross-Region-Replikation genehmigt.
+
+|*4*
+|Kontinuierliches Monitoring und getestete Restores
+|Quartalsweise Restore-Tests mit Evidenz; automatisierte Checks für Backup-Standort-Compliance; Alerts auf Backup-Jobs zu nicht-genehmigten Regionen.
+
+|*5*
+|Immutable, auditierbarer souveräner Backup-Prozess
+|Object Lock / immutable Backups erzwungen; Restore-Drills automatisiert mit RTO-Messung; Backup-Compliance-Dashboard für Auditoren.
+
+|===
+
+== Terraform Checks
+
+=== waf-sov-030.tf.aws.db-instance-backup-retention
+*Prüft:* RDS `backup_retention_period` >= 7 Tage.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  backup_retention_period = 30
+  backup_window           = "03:00-04:00"
+  # ...
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  backup_retention_period = 0
+  # ❌ Backups deaktiviert
+}
+----
+|===
+
+---
+
+=== waf-sov-030.tf.aws.dynamodb-pitr-enabled
+*Prüft:* DynamoDB PITR muss aktiviert sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_dynamodb_table" "sovereign" {
+  name = "sovereign-table"
+  point_in_time_recovery {
+    enabled = true
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_dynamodb_table" "sovereign" {
+  name = "sovereign-table"
+  # ❌ Kein PITR
+}
+----
+|===
+
+---
+
+=== waf-sov-030.tf.azurerm.recovery-vault-location
+*Prüft:* Azure Recovery Services Vault muss in genehmigter souveräner Region liegen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "azurerm_recovery_services_vault" "backup" {
+  name                = "rsv-sovereign-prod"
+  location            = "germanywestcentral"
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "Standard"
+  soft_delete_enabled = true
+}
+----
+a|[source,hcl]
+----
+resource "azurerm_recovery_services_vault" "backup" {
+  name     = "rsv-prod"
+  location = "eastus"  # ❌ Non-sovereign
+}
+----
+|===
+
+---
+
+=== waf-sov-030.tf.aws.s3-versioning-enabled
+*Prüft:* S3-Backup-Buckets müssen Versioning aktiviert haben.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_s3_bucket_versioning" "backup" {
+  bucket = aws_s3_bucket.backup.id
+  versioning_configuration {
+    status = "Enabled"  # ✅
+  }
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Backup-Ressourcen mit explizitem Location, Retention und PITR-Settings.
+
+|*Process*
+|✅ Pflicht
+|Restore-Test-Protokolle (mindestens jährlich) mit Backup-ID, Zeitstempel und erreichtem RTO.
+
+|*Config*
+|Optional
+|Cloud-Console-Export der aktiven Backup-Policy mit Location- und Retention-Einstellungen.
+
+|*Logs*
+|Optional
+|Backup-Job-Logs mit Quell- und Zielregion.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
+* xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
+* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan & Portability]
+
+== Best Practice
+
+* xref:best-practices/bp-data-residency.adoc[Data Residency Policy implementieren →]

@@ -1,0 +1,234 @@
+= Best Practice: Key Sovereignty
+:page-toc: right
+:description: WAF++ Sovereign – CMK, BYOK und HYOK Implementierung; Schlüsselhierarchie, Rotation und Deletion.
+
+== Kontext
+
+Standard-Verschlüsselung (AES256/SSE-S3) verwendet Provider-Managed Keys.
+Der Cloud-Anbieter verwaltet das Schlüsselmaterial und kann theoretisch auf verschlüsselte
+Daten zugreifen – oder gesetzlich dazu verpflichtet werden.
+
+Für sensitive Daten (PII, Finanzen, Gesundheit) ist dies *keine* Souveränitätsgarantie.
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-SOV-050[WAF-SOV-050] – Key Ownership & Management Defined
+
+== Zielbild
+
+Eine reife Key-Sovereignty-Implementierung bietet:
+
+* Klare Schlüssel-Hierarchie nach Datenkritikalität
+* Automatische Rotation für alle CMKs
+* Prozessgesteuerte Deletion mit Schutzfrist
+* Monitoring aller Schlüsselzugriffe auf Anomalien
+
+== Technische Umsetzung
+
+=== AWS KMS – Customer Managed Key
+
+[source,hcl]
+----
+# modules/kms-sovereign/main.tf
+
+resource "aws_kms_key" "sovereign_data" {
+  description             = "Sovereign data encryption key for ${var.data_class} data"
+  key_usage               = "ENCRYPT_DECRYPT"
+  customer_master_key_spec = "SYMMETRIC_DEFAULT"
+
+  # Key rotation – mandatory für alle CMKs
+  enable_key_rotation = true
+
+  # Deletion Window: Zeit für Review vor endgültiger Löschung
+  deletion_window_in_days = 30
+
+  # Restrict key usage to specific services and principals
+  policy = data.aws_iam_policy_document.kms_policy.json
+
+  tags = {
+    data-class     = var.data_class
+    data-residency = var.data_residency
+    environment    = var.environment
+    managed-by     = "terraform"
+  }
+}
+
+# Tight Key Policy
+data "aws_iam_policy_document" "kms_policy" {
+  # Root account can manage the key (required)
+  statement {
+    sid     = "Enable Root Account Management"
+    effect  = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  # Specific services can use the key for encryption
+  statement {
+    sid    = "Allow S3 Service Encryption"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["s3.amazonaws.com"]
+    }
+    actions = [
+      "kms:GenerateDataKey*",
+      "kms:Decrypt"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_kms_alias" "sovereign_data" {
+  name          = "alias/${var.environment}-${var.data_class}-sovereign"
+  target_key_id = aws_kms_key.sovereign_data.key_id
+}
+----
+
+=== S3 mit CMK
+
+[source,hcl]
+----
+resource "aws_s3_bucket_server_side_encryption_configuration" "sovereign" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.sovereign_data.arn
+    }
+    # Reduces API calls and cost by using bucket-level key wrapping
+    bucket_key_enabled = true
+  }
+}
+----
+
+=== RDS mit CMK
+
+[source,hcl]
+----
+resource "aws_db_instance" "sovereign" {
+  identifier        = "sovereign-db-${var.environment}"
+  engine            = "postgres"
+  instance_class    = "db.t3.medium"
+
+  # Mandatory: encrypted with CMK
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.sovereign_data.arn
+
+  # Backup within sovereign region
+  backup_retention_period = 30
+
+  # Prevent accidental deletion
+  deletion_protection = true
+}
+----
+
+=== Azure Key Vault mit Purge Protection
+
+[source,hcl]
+----
+resource "azurerm_key_vault" "sovereign" {
+  name                = "kv-sovereign-${var.environment}"
+  location            = var.azure_location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "premium"  # HSM-backed keys
+
+  # Required for sovereignty: prevent accidental key deletion
+  purge_protection_enabled   = true
+  soft_delete_retention_days = 90
+
+  # RBAC authorization (not access policies)
+  enable_rbac_authorization = true
+
+  network_acls {
+    default_action             = "Deny"
+    bypass                     = ["AzureServices"]
+    virtual_network_subnet_ids = [azurerm_subnet.private.id]
+  }
+
+  tags = {
+    data-class     = var.data_class
+    data-residency = "eu-only"
+    environment    = var.environment
+  }
+}
+----
+
+=== Schlüssel-Hierarchie nach Datenkritikalität
+
+[cols="1,2,2,2"]
+|===
+|Datenklasse |Key-Typ |Provider |Rotation
+
+|Public
+|PMK (AES256)
+|Cloud-Provider
+|Automatisch (Provider)
+
+|Operativ/Intern
+|CMK
+|Cloud-KMS (AWS KMS / Azure Key Vault)
+|Automatisch (jährlich)
+
+|PII / Personal
+|CMK (Minimum) oder BYOK
+|Cloud-KMS mit tight Policy
+|Automatisch + manuelles Review
+
+|Finanzen / Gesundheit
+|BYOK oder HYOK
+|CloudHSM / Azure Dedicated HSM
+|Manuell (Key Ceremony)
+
+|===
+
+=== KMS Monitoring (CloudTrail + CloudWatch)
+
+[source,hcl]
+----
+# Alarm: Key deletion scheduled
+resource "aws_cloudwatch_metric_alarm" "kms_key_deletion" {
+  alarm_name          = "kms-key-scheduled-deletion-${var.environment}"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "NumberOfKMSKeysScheduledForDeletion"
+  namespace           = "AWS/KMS"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "1"
+  alarm_description   = "KMS key scheduled for deletion – requires immediate review"
+  alarm_actions       = [aws_sns_topic.security_alerts.arn]
+}
+----
+
+== Typische Fehlmuster
+
+* **AES256 für PII**: Provider-Managed Keys für sensitive Daten – keine Souveränitätsgarantie
+* **KMS Rotation disabled**: Erhöhtes Risiko bei Key-Kompromittierung
+* **Kein Deletion Window**: Keys können sofort gelöscht werden, ohne Review
+* **Zu weite Key Policy**: Key kann von allen IAM-Prinzipalen verwendet werden
+
+== Metriken
+
+* Anteil PII/Finanzdaten-Ressourcen mit CMK (Ziel: 100%)
+* Anteil KMS Keys mit enable_key_rotation = true (Ziel: 100%)
+* Anteil Keys mit deletion_window_in_days >= 14 (Ziel: 100%)
+* Anzahl ungeplanter Key-Deletion-Events pro Quartal
+
+== Reifegrad
+
+Level 1 – Alles PMK +
+Level 2 – CMK für sensitive Daten +
+Level 3 – Kein PMK für PII/Finanzen; Rotation aktiv; Key-Policy tight +
+Level 4 – BYOK für kritische Daten; KMS Access Monitoring; Anomalie-Erkennung +
+Level 5 – HYOK mit externem HSM; Cryptographic Erasure getestet; Key Ceremonies dokumentiert

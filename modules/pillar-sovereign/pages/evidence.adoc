@@ -1,0 +1,156 @@
+= Evidenz & Audit
+:page-toc: right
+:description: WAF++ Sovereign – Anforderungen an Evidenz, Audit-Typen und Nachweisführung.
+
+Sovereign-Compliance muss *prüfbar* sein. Diese Seite beschreibt, welche Evidenztypen
+der WAF++ für die Sovereign-Säule erwartet und wie Audits strukturiert werden.
+
+== Evidenztypen
+
+[cols="1,3,2"]
+|===
+|Evidenztyp |Beschreibung |Typische Quellen
+
+|*Architecture Evidence*
+|Diagramme, Data-Flow-Diagramme, Trust-Boundary-Dokumentation, Region-Labels
+|Draw.io, C4-Diagramme, Architecture Decision Records (ADR)
+
+|*IaC Evidence*
+|Terraform-Code, Plans, State-Snapshots, CI-Logs, Policy-as-Code-Konfigurationen
+|Git-Repository, Terraform Cloud, atlantis, CI/CD-Logs
+
+|*Config Evidence*
+|Exportierte Konfigurationen, Resource-Graph, KMS-Key-Policies, Security-Group-Regeln
+|AWS Config Snapshots, Azure Resource Graph, GCP Asset Inventory
+
+|*Logging Evidence*
+|CloudTrail/Audit Logs, Admin Actions, Break-Glass-Sessions, Egress-Logs, KMS-Zugriffe
+|CloudTrail, CloudWatch, Azure Monitor, GCP Cloud Audit Logs
+
+|*Process Evidence*
+|Runbooks, Change Records, Access-Review-Protokolle, Restore-Test-Berichte, Exit-Drill-Reports
+|ITSM-System (Jira, ServiceNow), GitLab Issues, Confluence
+
+|*Contract Evidence*
+|Subprozessoren-Listen, DPA-Agreements, SLA/Compliance-Artefakte, Provider-Attestate
+|Vertragsmanagement, PDF-Archiv, Provider-Portal (BSI C5-Testate)
+
+|===
+
+== Mindestanforderungen an Evidenz
+
+Jede Evidenz im Sovereign-Kontext MUSS:
+
+* *Datiert und versioniert* sein (kein undatiertes Screenshot)
+* *Einer Control-ID zugeordnet* sein (z.B. `WAF-SOV-070` im Dateinamen/Metadaten)
+* *Nachvollziehbar* sein: Quelle, Verantwortlicher, Scope klar erkennbar
+* *Aufbewahrt* werden: Entsprechend der Retention-Policy (mindestens 3 Jahre für Compliance-Evidenz)
+
+== Audit-Struktur (Sovereign-Fokus)
+
+Ein Sovereign-Audit folgt typischerweise dieser Reihenfolge:
+
+=== Phase 1: Policy-Grundlage prüfen
+* Existiert eine Data-Residency-Policy? → xref:controls.adoc#WAF-SOV-010[WAF-SOV-010]
+* Ist sie versioniert und aktuell?
+* Deckt sie alle Datenklassen und Umgebungen ab?
+
+=== Phase 2: Technische Enforcement prüfen
+* Ist Region Pinning in IaC erzwungen? → xref:controls.adoc#WAF-SOV-020[WAF-SOV-020]
+* Gibt es SCP/Policy/Org-Policy-Guardrails?
+* Sind keine hardkodierten non-sovereign Regionen in IaC?
+
+=== Phase 3: Leak-Paths prüfen
+
+Die häufigsten Souveränitätslücken sind:
+
+. *Backup-Replication* → xref:controls.adoc#WAF-SOV-030[WAF-SOV-030]
+  - Wohin replizieren Backups? Sind Restore-Tests documented?
+. *Observability-Exporte* → xref:controls.adoc#WAF-SOV-040[WAF-SOV-040]
+  - Wohin werden Logs, Traces, Metriken gesendet?
+. *Egress-Pfade* → xref:controls.adoc#WAF-SOV-090[WAF-SOV-090]
+  - Gibt es offene Security Groups oder unüberwachte Egress-Pfade?
+
+=== Phase 4: Key-Kontrolle prüfen
+* Welche Datenkategorie nutzt welches Key-Modell? → xref:controls.adoc#WAF-SOV-050[WAF-SOV-050]
+* Ist Key Rotation aktiviert?
+* Gibt es einen Key Deletion-Prozess?
+
+=== Phase 5: Zugriffskontrolle und Betrieb
+* IAM ohne Wildcard-Permissions? → xref:controls.adoc#WAF-SOV-060[WAF-SOV-060]
+* Break-Glass Prozess dokumentiert und nachgewiesen? → xref:controls.adoc#WAF-SOV-070[WAF-SOV-070]
+* Dependency-Register aktuell? → xref:controls.adoc#WAF-SOV-080[WAF-SOV-080]
+
+=== Phase 6: Exit-Fähigkeit prüfen
+* Existiert ein Exit-Plan? → xref:controls.adoc#WAF-SOV-100[WAF-SOV-100]
+* Wann wurde der letzte Exit-Drill durchgeführt?
+* Ist das Ergebnis dokumentiert?
+
+== Evidenz-Mapping pro Control
+
+[cols="1,3,2"]
+|===
+|Control ID |Primäre Evidenz |Sekundäre Evidenz
+
+|WAF-SOV-010
+|Data-Residency-Policy (versioniert)
+|IaC-Provider-Konfigurationen
+
+|WAF-SOV-020
+|Terraform Variable-Validation, SCP/Org Policy
+|CI-Log mit blockiertem Non-Region-Deployment
+
+|WAF-SOV-030
+|Terraform Backup-Konfiguration
+|Restore-Test-Protokolle
+
+|WAF-SOV-040
+|CloudTrail-Config + Log-Group-Retention
+|Flow-Log-Konfiguration
+
+|WAF-SOV-050
+|KMS Key Policy + enable_key_rotation
+|KMS-Zugriffslogs
+
+|WAF-SOV-060
+|IAM Policy Documents (kein Wildcard)
+|Quartalsweise Access Review Protokoll
+
+|WAF-SOV-070
+|Break-Glass Runbook + CloudTrail-Alarm-Config
+|Post-Incident Review Record
+
+|WAF-SOV-080
+|Dependency-Register (Git) + terraform.lock.hcl
+|DPA-Referenzliste
+
+|WAF-SOV-090
+|Security Group Rules + VPC Endpoint Resources
+|VPC Flow Log Config
+
+|WAF-SOV-100
+|Exit-Plan-Dokument
+|Jährlicher Drill-Report
+
+|===
+
+== Automatisierte Evidenzerhebung
+
+Die WAF++ Checker-Integration ermöglicht automatisierte Evidenzerhebung:
+
+[source,yaml]
+----
+# Beispiel: WAF++ Checker Aufruf
+wafpp check \
+  --pillar sovereign \
+  --controls WAF-SOV-010,WAF-SOV-020,WAF-SOV-050 \
+  --engine terraform \
+  --path ./infrastructure/terraform \
+  --output-format sarif \
+  --evidence-export ./evidence/sovereign-$(date +%Y-%m).json
+----
+
+Der Checker erzeugt:
+* SARIF-Report für CI-Integration
+* JSON-Evidence-Artefakt mit Zeitstempel und Control-ID-Mapping
+* Markdown-Summary für Pull-Request-Kommentare
