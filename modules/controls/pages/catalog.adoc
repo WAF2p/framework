@@ -1,12 +1,80 @@
-= YAML Control Details (Sovereign)
+= YAML Control Details
 :page-toc: right
-:description: WAF++ – Referenz-Übersicht der maschinenlesbaren YAML-Controls der Sovereign-Säule.
+:description: WAF++ – Referenz-Übersicht aller maschinenlesbaren YAML-Controls (WAF-COST & WAF-SOV).
 
-Diese Seite dient als Übersicht der YAML-Kontrolldateien der Sovereign-Säule.
+Diese Seite ist die Referenz aller YAML-Kontrolldateien des WAF++ Frameworks.
 Die YAML-Dateien enthalten maschinenlesbare Checks, die vom WAF++ Checker Tool
 direkt gegen Terraform-Code ausgeführt werden können.
 
-== Übersicht
+== Säule 2 · Cost Optimization – WAF-COST
+
+[cols="1,3,1,1,1"]
+|===
+|Control ID |Titel |Severity |Provider |Kategorie
+
+|xref:#WAF-COST-010[WAF-COST-010]
+|Cost Allocation Tagging Enforced
+|🟠 High
+|AWS, Azure, GCP
+|Cost Allocation
+
+|xref:#WAF-COST-020[WAF-COST-020]
+|Cost Budgets & Alerting Configured
+|🟠 High
+|AWS, Azure, GCP
+|Budget Control
+
+|xref:#WAF-COST-030[WAF-COST-030]
+|Resource Rightsizing & Idle Detection
+|🟡 Medium
+|AWS, Azure, GCP
+|Resource Optimization
+
+|xref:#WAF-COST-040[WAF-COST-040]
+|Storage & Retention Lifecycle Defined
+|🟠 High
+|AWS, Azure, GCP
+|Retention Management
+
+|xref:#WAF-COST-050[WAF-COST-050]
+|Cost Impact Assessment in ADRs
+|🟠 High
+|Any (Governance)
+|Architectural Cost Debt
+
+|xref:#WAF-COST-060[WAF-COST-060]
+|FinOps Review Cadence
+|🟡 Medium
+|Any (Governance)
+|FinOps Governance
+
+|xref:#WAF-COST-070[WAF-COST-070]
+|Observability & Logging Cost Tiers
+|🟡 Medium
+|AWS, Azure, GCP
+|Observability Cost
+
+|xref:#WAF-COST-080[WAF-COST-080]
+|Commitment & Reserved Capacity Planning
+|🟡 Medium
+|AWS, Azure, GCP
+|Cost Optimization
+
+|xref:#WAF-COST-090[WAF-COST-090]
+|Data Transfer & Egress Cost Management
+|🟠 High
+|AWS, Azure, GCP
+|Data Transfer
+
+|xref:#WAF-COST-100[WAF-COST-100]
+|Architectural Cost Debt Register & Quarterly Review
+|🟡 Medium
+|Any (Governance)
+|Architectural Cost Debt
+
+|===
+
+== Säule 7 · Sovereign – WAF-SOV
 
 [cols="1,3,1,1,1"]
 |===
@@ -14,65 +82,157 @@ direkt gegen Terraform-Code ausgeführt werden können.
 
 |xref:#WAF-SOV-010[WAF-SOV-010]
 |Data Residency Policy Defined
-|High
+|🟠 High
 |AWS, Azure, GCP
 |4
 
 |xref:#WAF-SOV-020[WAF-SOV-020]
 |Region Pinning Enforced (IaC)
-|Critical
+|🔴 Critical
 |AWS, Azure, GCP
 |5
 
 |xref:#WAF-SOV-030[WAF-SOV-030]
 |Backup Location & Retention Controlled
-|High
+|🟠 High
 |AWS, Azure
 |6
 
 |xref:#WAF-SOV-040[WAF-SOV-040]
 |Logging & Telemetry Residency Controlled
-|High
+|🟠 High
 |AWS
 |5
 
 |xref:#WAF-SOV-050[WAF-SOV-050]
 |Key Ownership & Management Defined
-|Critical
+|🔴 Critical
 |AWS, Azure
 |6
 
 |xref:#WAF-SOV-060[WAF-SOV-060]
 |Privileged Access Controlled (Separation of Duties)
-|Critical
+|🔴 Critical
 |AWS
 |4
 
 |xref:#WAF-SOV-070[WAF-SOV-070]
 |Break-Glass Process & Logging
-|High
+|🟠 High
 |AWS
 |5
 
 |xref:#WAF-SOV-080[WAF-SOV-080]
 |Dependency & Subprocessor Inventory
-|Medium
+|🟡 Medium
 |Any
 |4
 
 |xref:#WAF-SOV-090[WAF-SOV-090]
 |Controlled Egress & Data Exfiltration Guardrails
-|High
+|🟠 High
 |AWS, Azure
 |5
 
 |xref:#WAF-SOV-100[WAF-SOV-100]
 |Exit Plan & Portability Tested
-|Medium
+|🟡 Medium
 |AWS, Any
 |5
 
 |===
+
+== WAF-COST – Details
+
+[#WAF-COST-010]
+=== WAF-COST-010 – Cost Allocation Tagging Enforced
+
+Datei: `controls/WAF-COST-010.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+
+Checks prüfen: Pflicht-Tags (`cost-center`, `owner`, `environment`, `workload`) auf Compute-, Storage-
+und Datenbankressourcen für AWS, Azure und GCP. CI-Gate blockiert Ressourcen ohne vollständiges Tagging.
+
+[#WAF-COST-020]
+=== WAF-COST-020 – Cost Budgets & Alerting Configured
+
+Datei: `controls/WAF-COST-020.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+
+Checks prüfen: `aws_budgets_budget` mit Alert-Threshold (80 %, 100 %); `azurerm_consumption_budget_resource_group`;
+`google_billing_budget` pro Billing Account. Kein Environment ohne definiertes Budget.
+
+[#WAF-COST-030]
+=== WAF-COST-030 – Resource Rightsizing & Idle Detection
+
+Datei: `controls/WAF-COST-030.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
+
+Checks prüfen: Compute-Ressourcen tragen `rightsizing-reviewed`-Tag mit Datum; kein persistentes
+Deployment ohne Rightsizing-Dokumentation. Ergänzende Automatisierung via AWS Compute Optimizer / Azure Advisor.
+
+[#WAF-COST-040]
+=== WAF-COST-040 – Storage & Retention Lifecycle Defined
+
+Datei: `controls/WAF-COST-040.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+
+Checks prüfen: S3-Buckets müssen `lifecycle_rule` definiert haben; CloudWatch Log Groups
+`retention_in_days` muss gesetzt und > 0 sein; Azure Storage Lifecycle Policy; GCP Bucket Lifecycle Rules.
+Keine Infinite-Retention ohne explizite Compliance-Begründung.
+
+[#WAF-COST-050]
+=== WAF-COST-050 – Cost Impact Assessment in ADRs
+
+Datei: `controls/WAF-COST-050.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+
+Governance-Control (prozessual). Checks prüfen: ADR-Dateien im Repository enthalten eine
+`cost-impact`-Sektion mit TCO-Schätzung, Lock-in-Score (1–5), Datentransfer-Kosten, Ops-Aufwand
+und Exit-Kosten. Fehlende Cost-Sektion = Verletzung (Architektonische Kostenschuld).
+
+[#WAF-COST-060]
+=== WAF-COST-060 – FinOps Review Cadence
+
+Datei: `controls/WAF-COST-060.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+
+Governance-Control. Checks prüfen: Monatlicher Engineering-Review und quartalsweiser Architecture-Board-Review
+sind dokumentiert (Meeting-Notes im Repository); Action Items mit Owner und Due Date nachverfolgt.
+
+[#WAF-COST-070]
+=== WAF-COST-070 – Observability & Logging Cost Tiers
+
+Datei: `controls/WAF-COST-070.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+
+Checks prüfen: CloudWatch Log Groups `retention_in_days` ≤ 365 für operative Logs (kein Infinite);
+Tiering-Tag `log-tier` (hot/warm/cold/archive) vorhanden; kein DEBUG-Level in Production
+ohne explizite Sampling-Rate.
+
+[#WAF-COST-080]
+=== WAF-COST-080 – Commitment & Reserved Capacity Planning
+
+Datei: `controls/WAF-COST-080.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+
+Checks prüfen: Baseline-Compute-Instanzen (persistenter Workload) tragen Tag `capacity-commitment`
+mit Wert `reserved` oder `savings-plan`. On-Demand-Only-Deployments ohne Commitment-Tag werden als
+Optimierungskandidat markiert.
+
+[#WAF-COST-090]
+=== WAF-COST-090 – Data Transfer & Egress Cost Management
+
+Datei: `controls/WAF-COST-090.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+
+Checks prüfen: VPC Endpoint für S3 in AWS-VPCs vorhanden; keine direkten Internet-Gateway-Routen
+für interne Compute-Ressourcen; CDN-Ressource (`aws_cloudfront_distribution` / Azure CDN /
+`google_compute_backend_bucket`) für public-facing Storage konfiguriert.
+
+[#WAF-COST-100]
+=== WAF-COST-100 – Architectural Cost Debt Register & Quarterly Review
+
+Datei: `controls/WAF-COST-100.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+
+Governance-Control. Checks prüfen: Datei `cost-debt-register.yml` im Repository vorhanden;
+jeder Eintrag enthält `owner`, `annual_impact_eur`, `status` und `resolution_date`;
+Quarterly-Review-Eintrag für das aktuelle Quartal mit Architecture-Board-Sign-off vorhanden.
+
+---
+
+== WAF-SOV – Details
 
 == Check-Operator Referenz
 

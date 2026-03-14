@@ -1,0 +1,181 @@
+id: WAF-COST-100
+title: "Architectural Cost Debt Register & Quarterly Review"
+pillar: "cost"
+status: "active"
+severity: "medium"
+category: "architectural-cost-debt"
+type: ['governance', 'process']
+tags: ['cost-debt', 'architecture', 'governance', 'quarterly-review', 'register', 'tco']
+
+description: >
+  A structured Cost Debt Register MUST exist as a version-controlled file in the repository.
+  Each entry MUST document: unique ID, title, description, owner (team), estimated annual
+  impact (EUR), detection date, target resolution date, status (monitoring/paydown/accepted),
+  and either a paydown plan or a documented acceptance rationale.
+  A quarterly Architecture Board review entry covering cost debt status MUST exist for the
+  current quarter. This control governs the ongoing management of Architectural Cost Debt.
+
+rationale: >
+  Architectural Cost Debt, like technical debt, does not manage itself. Without a structured
+  register, cost debt entries remain invisible in monthly billing data, unattributed to
+  architectural decisions, and unowned. The quarterly Architecture Board review creates
+  organizational accountability for structural cost issues that exceed individual team authority.
+  Conscious acceptance of cost debt (with documented rationale) is valid; unconscious accumulation
+  is not. The register transforms cost debt from a financial surprise into a managed risk.
+
+threat:
+  - "Architectural cost debt accumulating quarterly without governance oversight"
+  - "High-impact cost debt items without owner or paydown plan remaining unaddressed for years"
+  - "Architecture Board unaware of strategic cost debt driving significant annual spend"
+  - "Cost debt items accepted without documented rationale, creating audit and governance gaps"
+  - "New architectural decisions repeating patterns that created existing cost debt"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Operate Phase – Cost Governance and Accountability"
+      - "FinOps Principles – A FinOps Practice is About More Than Saving Money"
+  - framework: "Internal Governance"
+    controls:
+      - "Architecture Governance – Cost Debt Management"
+      - "Cloud Cost Governance Policy – Quarterly Cost Debt Review Mandatory"
+
+implementation_guidance:
+  - "Create docs/cost-debt-register.yml in the repository; version-control it alongside IaC."
+  - "Initialize with brownfield discovery findings; add new entries from ADR reviews and FinOps reviews."
+  - "Every entry must have an owner (team, not person); owners are responsible for paydown or acceptance."
+  - "Architecture Board conducts quarterly review: confirms status, validates paydown plans, signs off on accepted items."
+  - "Link cost-debt entries to their source ADR when the originating decision is known."
+  - "Track estimated annual impact in EUR for each entry; use this for prioritization (highest impact first)."
+
+maturity_levels:
+  level_1:
+    description: "No cost debt register exists"
+    criteria:
+      - "Architectural cost debt not systematically identified or tracked"
+      - "No quarterly review process for cost debt"
+  level_2:
+    description: "Informal list of known cost issues"
+    criteria:
+      - "Cost issues identified informally (e.g., in a Confluence page)"
+      - "No structured format, no owners, no estimated impact"
+  level_3:
+    description: "Structured register in repository"
+    criteria:
+      - "cost-debt-register.yml exists in repository with structured format"
+      - "Each entry has owner, status, and estimated annual impact"
+      - "Quarterly Architecture Board review documented for current quarter"
+  level_4:
+    description: "Register linked to ADRs and actuals"
+    criteria:
+      - "All cost debt entries linked to source ADRs where known"
+      - "Estimated impacts compared to actual costs quarterly"
+      - "Paydown progress tracked against baseline (measured savings)"
+  level_5:
+    description: "Automated cost debt detection feeding register"
+    criteria:
+      - "Cost anomaly detection automatically generates candidate cost debt entries"
+      - "IaC analysis tools identify high lock-in patterns and propose register entries"
+      - "Continuous cost debt paydown: reduction in register total impact tracked as KPI"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "cost-debt-register.yml file in repository (version-controlled, all entries with owner and status)."
+    - kind: "process"
+      description: "Quarterly Architecture Board review record for current and previous quarter (review notes, decisions, sign-off)."
+  optional:
+    - kind: "architecture"
+      description: "ADR links from cost-debt entries to the originating architectural decision."
+    - kind: "process"
+      description: "Paydown progress tracking: measured savings from completed paydown items."
+
+checks:
+  - id: "waf-cost-100.tf.any.cost-debt-register-file-exists"
+    engine: "terraform"
+    provider: "any"
+    automated: false
+    severity: "medium"
+    title: "Cost Debt Register file must exist in repository"
+    description: >
+      A cost-debt-register.yml (or cost-debt-register.md) file must exist in the
+      docs/ directory of the repository. This is a process control validated through
+      CI pipeline file existence check or repository audit. The file must be version-controlled.
+    scope:
+      block_type: "resource"
+      resource_types: []
+    assertions: []
+    on_fail: "violation"
+    remediation: >
+      Create docs/cost-debt-register.yml in the repository.
+      Use the format documented in bp-cost-debt.adoc.
+      Initialize with at least the brownfield discovery entries or a note that no
+      cost debt has been identified yet (with review date).
+    example:
+      compliant: |
+        # docs/cost-debt-register.yml
+        version: "1.0"
+        last_reviewed: "2025-03-01"
+        reviewed_by: "Architecture Board"
+        next_review: "2025-06-01"
+
+        entries:
+          - id: CD-2025-001
+            title: "Multi-AZ PostgreSQL without SLO basis"
+            category: "ha-over-engineering"
+            owner: "platform-team"
+            estimated_annual_impact_eur: 22000
+            status: "paydown"
+            paydown_plan: "SLO review by 2025-04-15; downgrade if SLO <= 99.5%"
+            target_resolution: "2025-06-30"
+      non_compliant: |
+        # docs/cost-debt-register.yml does not exist in repository
+        # Architectural cost debt is untracked and unmanaged
+
+  - id: "waf-cost-100.tf.any.quarterly-review-entry-current"
+    engine: "terraform"
+    provider: "any"
+    automated: false
+    severity: "medium"
+    title: "Quarterly Architecture Board review entry must exist for current quarter"
+    description: >
+      The cost-debt-register.yml must contain a quarterly review entry for the current
+      quarter (or the most recently completed quarter). An absent review entry for more
+      than one quarter indicates the mandatory quarterly review cadence is not being maintained.
+    scope:
+      block_type: "resource"
+      resource_types: []
+    assertions: []
+    on_fail: "finding"
+    remediation: >
+      After the quarterly Architecture Board review, add a review record to
+      docs/cost-debt-reviews/<YYYY-Q[1-4]>-review.yml (or equivalent location).
+      The review record must include: date, attendees, new entries, paydown updates,
+      acceptance decisions, and Architecture Board sign-off.
+    example:
+      compliant: |
+        # docs/cost-debt-reviews/2025-Q1-review.yml
+        quarter: "2025-Q1"
+        date: "2025-03-01"
+        attendees:
+          - "CTO"
+          - "Principal Engineer Platform"
+          - "FinOps Lead"
+        new_entries:
+          - id: CD-2025-003
+            decision: "Accepted with exit plan requirement by Q2 2025"
+        paydown_updates:
+          - id: CD-2025-002
+            progress: "COMPLETED. Savings: 100 EUR/month confirmed."
+        sign_off: "Architecture Board"
+        next_review: "2025-06-01"
+      non_compliant: |
+        # No quarterly review entry for 2025-Q1 exists
+        # Mandatory Architecture Board review not conducted – WAF-COST-100 violation
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-100"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-cost-debt.adoc"
+  related_controls:
+    - "WAF-COST-050"
+    - "WAF-COST-060"

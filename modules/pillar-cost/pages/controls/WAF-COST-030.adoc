@@ -1,0 +1,180 @@
+= WAF-COST-030 – Resource Rightsizing & Idle Detection
+:page-toc: right
+:control-id: WAF-COST-030
+:pillar: cost
+:severity: medium
+:category: resource-optimization
+:automated: medium
+:description: WAF++ Cost Optimization – Ressourcendimensionierung auf Basis gemessener Auslastung, nicht hypothetischer Szenarien.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Resource Optimization | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle persistenten Compute-Ressourcen (EC2-Instanzen, Azure VMs, GCP Compute Instances, RDS-Instanzen)
+MÜSSEN den Tag `rightsizing-reviewed` mit dem Datum der letzten Überprüfung tragen.
+Reviews MÜSSEN mindestens alle 90 Tage durchgeführt werden.
+Idle-Detection MUSS für alle Compute-Workloads konfiguriert sein (< 5% CPU über 7 Tage = Alert).
+
+== Rationale
+
+Überprovisionierung ist die häufigste und kostspieligste Form von Cloud-Verschwendung.
+Instanzen, die für hypothetische Peak-Szenarien oder „um sicher zu sein" überdimensioniert wurden,
+zahlen jeden Monat den Preis. Der `rightsizing-reviewed`-Tag schafft einen leichtgewichtigen
+Audit-Trail, der beweist, dass Ressourcen aktiv verwaltet werden – nicht vergessen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Dauerlaufende Idle-Ressourcen*
+|Dev/Test-Instanzen, die nach Projektabschluss nie abgeschaltet wurden, erzeugen monatliche Fixkosten ohne Wert.
+
+|*Strukturelle Überprovisionierung*
+|Für 10x Wachstum dimensionierte Instanzen, das nie eintrat – zahlen Jahre lang den Aufschlag.
+
+|*HA ohne SLO-Basis*
+|Multi-AZ-Deployment ohne SLO-Anforderung > single-AZ: klassische Architektonische Kostenschuld.
+
+|*Ungenutzte Reservierungen*
+|Reserved Instances für Workloads, die geändert oder abgeschaltet wurden, erzeugen Fixkosten.
+
+|===
+
+== Anforderung
+
+* `rightsizing-reviewed`-Tag (ISO 8601 Datum, z.B. `2025-03-01`) MUSS auf allen persistenten Compute-Ressourcen vorhanden sein
+* Tags älter als 90 Tage gelten als non-compliant
+* Cloud-Provider-Rightsizing-Empfehlungen (Compute Optimizer, Azure Advisor, GCP Recommender) MÜSSEN monatlich reviewed werden
+* Non-Production Auto-Shutdown MUSS konfiguriert sein (außerhalb Betriebszeiten)
+* Idle-Detection-Alarm: CPU < 5% über 7 Tage
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Oversight
+|Compute-Ressourcen seit Launch nie reviewed. Keine Idle-Detection.
+
+|*2*
+|Manuelle Ad-hoc-Reviews
+|Rightsizing-Reviews nur bei auffälligen Kosten. Keine Systematik.
+
+|*3*
+|Rightsizing-Tags Pflicht, Review-Zyklus
+|`rightsizing-reviewed`-Tag Pflicht im CI-Gate; monatlicher Review-Zyklus; Idle-Alerts konfiguriert.
+
+|*4*
+|Automatisierte Empfehlungen aktiv genutzt
+|Compute-Optimizer-Empfehlungen monatlich eingebracht und entschieden; RI/SP-Coverage >= 70%.
+
+|*5*
+|Auto-Rightsizing mit Guardrails
+|Automatisierte Rightsizing-Aktionen innerhalb definierter Guardrails; Idle-Auto-Termination.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-030.tf.aws.ec2-rightsizing-tag-required
+*Prüft:* EC2-Instanzen müssen `rightsizing-reviewed`-Tag haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+
+  tags = merge(module.mandatory_tags.tags, {
+    rightsizing-reviewed = "2025-03-01"
+    rightsizing-result   = "no-change"
+    capacity-commitment  = "on-demand"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags = {
+    cost-center = "fintech-platform"
+    owner       = "payments-team"
+    environment = "production"
+    workload    = "payment-service"
+    # Fehlend: rightsizing-reviewed
+    # WAF-COST-030 Violation
+  }
+}
+----
+|===
+
+*Remediation:* `rightsizing-reviewed`-Tag auf alle Compute-Ressourcen setzen.
+Format: `YYYY-MM-DD` (ISO 8601). Review alle 90 Tage wiederholen und Tag-Datum aktualisieren.
+
+---
+
+=== Idle-Detection: CloudWatch Alarm
+
+[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "idle_instance" {
+  alarm_name          = "idle-instance-${aws_instance.app.id}"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 7
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 86400
+  statistic           = "Average"
+  threshold           = 5
+  alarm_description   = "Instance appears idle (<5% CPU, 7 days). Review for shutdown."
+  alarm_actions       = [aws_sns_topic.finops_alerts.arn]
+
+  dimensions = {
+    InstanceId = aws_instance.app.id
+  }
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Compute-Ressourcen mit `rightsizing-reviewed`-Tag.
+
+|*Config*
+|✅ Pflicht
+|Idle-Detection-Alert-Konfiguration (CloudWatch/Azure Monitor/GCP Alerting).
+
+|*Process*
+|Optional
+|FinOps-Review-Protokolle mit Rightsizing-Empfehlungen und Entscheidungen.
+
+|*Config*
+|Optional
+|Non-Production Auto-Shutdown-Schedule-Konfiguration.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-080.adoc[WAF-COST-080 – Reserved Capacity Planning]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+
+== Best Practice
+
+* xref:../best-practices/bp-rightsizing.adoc[Rightsizing & Resource Optimization →]

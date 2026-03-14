@@ -1,0 +1,188 @@
+id: WAF-COST-070
+title: "Observability & Logging Cost Tiers"
+pillar: "cost"
+status: "active"
+severity: "medium"
+category: "observability-cost"
+type: ['configuration', 'governance']
+tags: ['logging', 'observability', 'retention', 'tiering', 'cloudwatch', 'cost-optimization']
+
+description: >
+  Logging and observability resources MUST be organized in explicit retention tiers:
+  Hot (7-30 days), Warm (30-90 days), Cold (90-365 days), Archive (>365 days).
+  CloudWatch Log Groups MUST NOT have retention_in_days = 0 (infinite).
+  Operational log groups MUST have retention_in_days <= 365.
+  DEBUG-level logging in production is prohibited without Architecture Board justification.
+  High-volume trace sampling MUST be configured for services with >1000 req/s.
+
+rationale: >
+  Observability costs are among the fastest-growing and hardest-to-control cloud cost
+  categories. DEBUG-level production logging generates 10-100x more log volume than INFO,
+  with correspondingly higher ingestion and storage costs. Log groups using AWS CloudWatch
+  default (infinite retention) accumulate all logs forever. As systems scale, observability
+  costs often surpass compute costs in improperly managed environments. Log tiering with
+  appropriate retention creates predictable, bounded observability costs.
+
+threat:
+  - "Observability costs exceeding compute costs due to infinite retention and DEBUG logging"
+  - "DEBUG logs in production consuming 50-100x storage of INFO-level logs"
+  - "No sampling for high-volume traces driving APM costs disproportionately"
+  - "Architectural cost debt: observability overengineering as perpetual monthly cost"
+  - "Compliance risk: retaining logs longer than necessary under GDPR storage limitation principle"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 5(1)(e) – Storage limitation (logs containing personal data must not be kept indefinitely)"
+  - framework: "FinOps Foundation"
+    controls:
+      - "Optimize Phase – Observability Cost Management"
+  - framework: "Internal Governance"
+    controls:
+      - "Retention Policy – Tiered Log Retention"
+      - "Cloud Cost Governance – Observability Cost Target < 20% of Total"
+
+implementation_guidance:
+  - "Define log tiers in IaC: operational logs = 30d, security-audit = 90-365d, compliance = up to 7yr."
+  - "Set retention_in_days on ALL CloudWatch Log Groups; never use the 0 (infinite) default."
+  - "Prohibit DEBUG logging in production environments via application-level configuration."
+  - "Enable sampling for X-Ray / Jaeger / Tempo traces at 1-10% for high-volume services."
+  - "Tag log groups with 'log-tier' (hot/warm/cold/archive) and 'log-type' for cost attribution."
+  - "Review observability cost % monthly; escalate to Architecture Board if > 20% of total cloud spend."
+
+maturity_levels:
+  level_1:
+    description: "All logs infinite, no tier strategy"
+    criteria:
+      - "All CloudWatch Log Groups use default infinite retention"
+      - "No log-level discipline (DEBUG in production common)"
+      - "No trace sampling configured"
+  level_2:
+    description: "Some retention values set"
+    criteria:
+      - "At least highest-cost log groups have retention_in_days set"
+      - "Some awareness of log volume impact on costs"
+  level_3:
+    description: "Tiered retention in IaC for all log groups"
+    criteria:
+      - "Every aws_cloudwatch_log_group has retention_in_days set in Terraform (not 0)"
+      - "Log tiers documented in retention-strategy.yml"
+      - "Log groups tagged with log-tier and log-type"
+      - "DEBUG logging in production disabled by default"
+  level_4:
+    description: "Log value analysis and intelligent tiering"
+    criteria:
+      - "Log groups analyzed for query frequency; low-use logs moved to cold tier"
+      - "Trace sampling configured and optimized based on traffic patterns"
+      - "Observability cost monitored monthly; target < 20% of cloud budget"
+  level_5:
+    description: "Automated intelligent tiering"
+    criteria:
+      - "S3 Intelligent-Tiering enabled for log archives"
+      - "ML-based log anomaly detection reduces noise requiring full log volume"
+      - "Cost per incident correlated to log volume; used to optimize tier strategy"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform CloudWatch Log Group resources with explicit retention_in_days values (not 0, not null)."
+    - kind: "governance"
+      description: "Retention strategy document showing log tier definitions and retention periods per log type."
+  optional:
+    - kind: "config"
+      description: "Trace sampling configuration for APM tools."
+    - kind: "process"
+      description: "Monthly observability cost % of total cloud budget (target: < 20%)."
+
+checks:
+  - id: "waf-cost-070.tf.aws.cloudwatch-retention-not-infinite"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "CloudWatch Log Groups must not use infinite retention (retention_in_days = 0)"
+    description: >
+      aws_cloudwatch_log_group resources must have retention_in_days set to a value > 0.
+      The value 0 means infinite retention. Omitting retention_in_days also results in
+      infinite retention. Both configurations constitute Architectural Cost Debt.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "attribute_exists"
+        message: "retention_in_days must be explicitly set. Missing value defaults to infinite retention."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "retention_in_days must be >= 1. Value 0 means infinite retention (cost debt)."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days on all aws_cloudwatch_log_group resources.
+      Recommended values by tier: operational=30, access=90, security-audit=365.
+      Compliance-driven long retention: use S3 export + lifecycle instead of CloudWatch.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "app_logs" {
+          name              = "/app/production/payment-service"
+          retention_in_days = 30
+          tags = merge(module.mandatory_tags.tags, {
+            log-tier = "hot"
+            log-type = "operational"
+          })
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "app_logs" {
+          name = "/app/production/payment-service"
+          # retention_in_days omitted = infinite retention = violation
+        }
+
+  - id: "waf-cost-070.tf.aws.cloudwatch-operational-retention-max-365"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Operational CloudWatch Log Groups should have retention <= 365 days"
+    description: >
+      CloudWatch Log Groups tagged as operational (log-type = operational or log-tier = hot/warm)
+      should have retention_in_days <= 365. Long-term compliance logs should be exported to S3
+      with lifecycle policies, not stored in CloudWatch indefinitely.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "less_than_or_equal"
+        value: 365
+        message: "Operational log groups should have retention <= 365 days. Use S3 export for long-term retention."
+    on_fail: "finding"
+    remediation: >
+      For operational logs needing > 365 days retention: configure CloudWatch Logs subscription
+      to export to S3, then apply S3 lifecycle policies for long-term archive.
+      This is significantly cheaper than retaining in CloudWatch.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "audit_logs" {
+          name              = "/app/production/audit"
+          retention_in_days = 90  # Within CloudWatch; exported to S3 via subscription for archival
+          tags = merge(module.mandatory_tags.tags, {
+            log-tier = "warm"
+            log-type = "audit"
+          })
+        }
+        # S3 export subscription configured separately with lifecycle to Glacier
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "everything" {
+          name              = "/app/production/all"
+          retention_in_days = 2555  # 7 years in CloudWatch = very expensive
+          # Should be: 90d in CloudWatch, then S3 export with Glacier lifecycle
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-070"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-retention.adoc"
+  related_controls:
+    - "WAF-COST-040"
+    - "WAF-COST-100"

@@ -1,0 +1,211 @@
+= WAF-COST-100 – Architectural Cost Debt Register & Quarterly Review
+:page-toc: right
+:control-id: WAF-COST-100
+:pillar: cost
+:severity: medium
+:category: architectural-cost-debt
+:automated: partial
+:description: WAF++ Cost Optimization – Versioniertes Cost-Debt-Register im Repository mit quartalsweisem Architecture-Board-Review.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+
+== Beschreibung
+
+Ein strukturiertes Cost-Debt-Register MUSS als versionierte Datei im Repository existieren.
+Jeder Eintrag MUSS dokumentieren: ID, Titel, Beschreibung, Owner (Team), geschätzte Jahresauswirkung (EUR),
+Erkennungsdatum, Ziel-Auflösungsdatum, Status (`monitoring`/`paydown`/`accepted`)
+sowie entweder einen Paydown-Plan oder eine dokumentierte Akzeptanz-Begründung.
+
+Ein quartalsweiser Architecture-Board-Review-Eintrag für das aktuelle Quartal MUSS vorhanden sein.
+
+== Rationale
+
+Architektonische Kostenschuld, wie technische Schuld, verwaltet sich nicht selbst.
+Ohne strukturiertes Register bleiben Cost-Debt-Einträge in monatlichen Billing-Daten versteckt,
+keiner Architekturentscheidung zugeordnet und ohne Ownership.
+
+Der quartalsweise Architecture-Board-Review schafft organisatorische Verantwortlichkeit für
+strukturelle Kostenprobleme, die die Autorität einzelner Teams überschreiten.
+Bewusste Akzeptanz von Kostenschuld (mit dokumentierter Begründung) ist valide;
+unbewusste Akkumulation ist es nicht.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unkontrollierte Kostenschuld*
+|Cost-Debt akkumuliert quartalsweise ohne Governance; Owners nicht zugeordnet.
+
+|*Architecture-Board-Blindheit*
+|Strategische Kostenschulden mit hohem Impact sind dem Architecture-Board unbekannt.
+
+|*Nicht-dokumentierte Akzeptanz*
+|Cost-Debt-Einträge als „accepted" markiert ohne Begründung – Governance-Gap.
+
+|*Wiederholte Fehlentscheidungen*
+|Ohne Register-Verlinkung zu ADRs werden Patterns, die Kostenschuld erzeugen, wiederholt.
+
+|===
+
+== Register-Format
+
+[source,yaml]
+----
+# docs/cost-debt-register.yml
+version: "1.0"
+last_reviewed: "2025-03-01"
+reviewed_by: "Architecture Board"
+next_review: "2025-06-01"
+
+entries:
+  - id: CD-2025-001
+    title: "Multi-AZ PostgreSQL ohne SLO-Grundlage"
+    category: "ha-over-engineering"
+    description: >
+      Produktionsdatenbank in 3 AZs deployed. SLO des Services ist 99.5%,
+      was auch mit Single-AZ erreichbar wäre.
+    detected: "2025-01-15"
+    owner: "platform-team"
+    estimated_annual_impact_eur: 22000
+    status: "paydown"
+    paydown_plan: >
+      SLO-Review mit Product Owner bis 2025-04-15.
+      Wenn SLO <= 99.5%: Downgrade auf Single-AZ.
+    target_resolution: "2025-06-30"
+    related_adr: "docs/adr/ADR-0038-database-ha.md"
+    related_controls: [WAF-COST-050, WAF-COST-100]
+
+  - id: CD-2025-002
+    title: "AWS Kinesis – Lock-in ohne Exit-Plan"
+    category: "lock-in"
+    detected: "2025-03-01"
+    owner: "data-team"
+    estimated_annual_impact_eur: 48000
+    status: "accepted"
+    acceptance_rationale: >
+      Kinesis optimal für AWS-Stack; Betriebsersparnis vs. Kafka überwiegt Lock-in.
+      Exit-Plan-Dokument bis Q2 2025 erforderlich als Voraussetzung.
+    target_resolution: "2025-06-30"
+    related_adr: "docs/adr/ADR-0042-streaming.md"
+----
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Register
+|Architektonische Kostenschuld nicht erfasst; kein Review-Prozess.
+
+|*2*
+|Informelle Liste
+|Kostenschulden informell in Confluence oder Tickets; kein Owner, keine Jahresauswirkung.
+
+|*3*
+|Strukturiertes Register im Repository
+|`cost-debt-register.yml` im Repository mit Owner, Status und geschätztem Impact; Quarterly-AB-Review.
+
+|*4*
+|Register mit ADRs und Actuals verknüpft
+|Alle Einträge mit ADRs verlinkt; Schätzungen mit tatsächlichen Kosten verglichen.
+
+|*5*
+|Automatisierte Cost-Debt-Detection
+|Anomalie-Detection generiert automatisch Kandidaten-Einträge; IaC-Analyse identifiziert Lock-in-Patterns.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-100.tf.any.cost-debt-register-file-exists
+*Prüft:* `cost-debt-register.yml` muss im Repository existieren.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,yaml]
+----
+# docs/cost-debt-register.yml existiert
+# im Repository mit mindestens:
+version: "1.0"
+last_reviewed: "2025-03-01"
+entries:
+  - id: CD-2025-001
+    title: "..."
+    owner: "platform-team"
+    estimated_annual_impact_eur: 22000
+    status: "paydown"
+----
+a|[source,text]
+----
+# docs/cost-debt-register.yml
+# existiert nicht im Repository.
+# Architektonische Kostenschuld
+# wird nicht getrackt.
+# WAF-COST-100 Violation
+----
+|===
+
+---
+
+=== waf-cost-100.tf.any.quarterly-review-entry-current
+*Prüft:* Quarterly-Architecture-Board-Review-Eintrag für aktuelles Quartal muss vorhanden sein.
+
+[source,yaml]
+----
+# Compliant: docs/cost-debt-reviews/2025-Q1-review.yml
+quarter: "2025-Q1"
+date: "2025-03-01"
+attendees:
+  - "CTO"
+  - "Principal Engineer"
+  - "FinOps Lead"
+new_entries:
+  - id: CD-2025-003
+    decision: "Accepted with exit plan requirement by Q2 2025"
+paydown_updates:
+  - id: CD-2025-002
+    progress: "ABGESCHLOSSEN. Einsparung: 100 EUR/Monat bestätigt."
+sign_off: "Architecture Board"
+next_review: "2025-06-01"
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|`cost-debt-register.yml` im Repository (versioniert, alle Einträge mit Owner und Status).
+
+|*Process*
+|✅ Pflicht
+|Quarterly-Architecture-Board-Review-Protokoll für aktuelles und vorheriges Quartal.
+
+|*Architecture*
+|Optional
+|ADR-Links von Cost-Debt-Einträgen zu Ursprungsentscheidungen.
+
+|*Process*
+|Optional
+|Paydown-Fortschritts-Tracking: gemessene Einsparungen aus abgeschlossenen Paydown-Items.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-050.adoc[WAF-COST-050 – Cost Impact Assessment in Architecture Decision Records]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+
+== Weitere Informationen
+
+* xref:../cost-debt.adoc[Architektonische Kostenschuld – Konzept und Governance]
+* xref:../best-practices/bp-cost-debt.adoc[Architektonische Kostenschuld managen →]

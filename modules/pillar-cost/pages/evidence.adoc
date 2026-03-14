@@ -1,0 +1,167 @@
+= Evidenz & Audit (Cost Optimization)
+:page-toc: right
+:description: WAF++ Cost Optimization – Anforderungen an Evidenz, Audit-Typen und Nachweisführung.
+
+Cost-Optimization-Compliance muss *prüfbar* sein. Diese Seite beschreibt, welche Evidenztypen
+der WAF++ für die Cost-Säule erwartet und wie Audits strukturiert werden.
+
+== Evidenztypen
+
+[cols="1,3,2"]
+|===
+|Evidenztyp |Beschreibung |Typische Quellen
+
+|*IaC Evidence*
+|Terraform-Code mit Budget-Ressourcen, Tag-Modulen, Lifecycle-Policies, VPC-Endpoints.
+CI-Gate-Logs mit Tagging-Compliance-Checks.
+|Git-Repository, CI/CD-Logs (GitHub Actions, GitLab CI, atlantis)
+
+|*Cost-Reporting Evidence*
+|Monatliche Cost-Reports, Budget-Alert-Logs, Tagging-Compliance-Reports, Anomalie-Detection-Findings.
+|AWS Cost Explorer, Azure Cost Management, GCP Billing Reports, FinOps-Dashboard
+
+|*Process Evidence*
+|Monatliche FinOps-Review-Protokolle mit Action Items. Quarterly Architecture-Board-Review-Protokolle.
+Cost-Debt-Register-Versionshistorie.
+|ITSM (Jira, ServiceNow), Confluence, Git-History des Cost-Debt-Registers
+
+|*Architecture Evidence*
+|ADR-Dokumente mit ausgefüllten Cost-Impact-Sektionen. Lock-in-Score-Bewertungen.
+Architecture-Board-Genehmigungen für Lock-in-Score >= 4.
+|Git-Repository (docs/adr/), Architecture-Board-Meeting-Notes
+
+|*Config Evidence*
+|Exportierte Lifecycle-Policies, Log-Retention-Konfigurationen, Budget-Definitionen, VPC-Endpoint-Inventar.
+|AWS Config, Azure Resource Graph, GCP Asset Inventory
+
+|*Optimization Evidence*
+|Rightsizing-Review-Protokolle. Reservierungsportfolio-Export. RI-Utilization-Reports.
+Compute-Optimizer-Empfehlungen (akzeptiert/abgelehnt mit Begründung).
+|AWS Compute Optimizer, Azure Advisor, GCP Recommender, Rightsizing-Review-Dokumente
+
+|===
+
+== Mindestanforderungen an Evidenz
+
+Jede Evidenz im Cost-Kontext MUSS:
+
+* *Datiert und versioniert* sein (kein undatierter Screenshot aus dem Console-UI)
+* *Einer Control-ID zugeordnet* sein (z.B. `WAF-COST-010` im Dateinamen oder in der Ticket-Referenz)
+* *Nachvollziehbar* sein: Quelle, Verantwortlicher, Scope klar erkennbar
+* *Aufbewahrt* werden: Mindestens 2 Jahre für operative Evidenz; 5 Jahre für Governance/ADR-Evidenz
+
+== Audit-Struktur (Cost-Fokus)
+
+Ein Cost-Optimization-Audit folgt typischerweise dieser Reihenfolge:
+
+=== Phase 1: Transparenz-Grundlage prüfen
+* Existiert eine Tagging-Taxonomie? → xref:controls.adoc#WAF-COST-010[WAF-COST-010]
+* Ist Tagging im CI-Gate erzwungen?
+* Wie hoch ist die aktuelle Tagging-Compliance-Rate?
+* Welcher Anteil der Cloud-Kosten ist Workloads zugeordnet (vs. „Untagged")?
+
+=== Phase 2: Budget-Governance prüfen
+* Sind Budget-Limits als IaC-Ressourcen definiert? → xref:controls.adoc#WAF-COST-020[WAF-COST-020]
+* Existieren Alerts bei 80% und 100% Budget-Verbrauch?
+* Wurden Alerts in den letzten 3 Monaten ausgelöst? Wie wurden sie behandelt?
+
+=== Phase 3: Waste und Rightsizing prüfen
+
+Die häufigsten Cost-Waste-Muster:
+
+. *Idle Compute* → xref:controls.adoc#WAF-COST-030[WAF-COST-030]
+  - Gibt es Ressourcen mit `rightsizing-reviewed`-Tag älter als 90 Tage?
+  - Welche Instanzen haben < 5% CPU-Auslastung über 7 Tage?
+
+. *Infinite Retention* → xref:controls.adoc#WAF-COST-040[WAF-COST-040]
+  - Haben alle S3-Buckets Lifecycle-Policies?
+  - Haben alle Log Groups `retention_in_days` != 0 gesetzt?
+
+. *Unkontrollierter Egress* → xref:controls.adoc#WAF-COST-090[WAF-COST-090]
+  - Sind VPC Endpoints für S3/KMS deployed?
+  - Gibt es öffentliche IPs auf internen Compute-Ressourcen?
+
+=== Phase 4: Architektonische Kostenschuld prüfen
+* Existiert ein Cost-Debt-Register? → xref:controls.adoc#WAF-COST-100[WAF-COST-100]
+* Hat jeder Eintrag einen Owner und einen Status?
+* Wurde quartalsweise ein Architecture-Board-Review durchgeführt?
+* Enthalten aktuelle ADRs Cost-Impact-Sektionen? → xref:controls.adoc#WAF-COST-050[WAF-COST-050]
+
+=== Phase 5: FinOps-Prozesse prüfen
+* Finden monatliche Engineering-Reviews statt? → xref:controls.adoc#WAF-COST-060[WAF-COST-060]
+* Sind Action Items dokumentiert und nachverfolgbar?
+* Ist der RI/SP-Coverage >= 70%? → xref:controls.adoc#WAF-COST-080[WAF-COST-080]
+* Sind Observability-Kosten unter 20% des Gesamt-Budgets? → xref:controls.adoc#WAF-COST-070[WAF-COST-070]
+
+== Evidenz-Mapping pro Control
+
+[cols="1,3,2"]
+|===
+|Control ID |Primäre Evidenz |Sekundäre Evidenz
+
+|WAF-COST-010
+|CI-Gate-Log mit Tagging-Compliance-Check; Terraform Mandatory-Tag-Modul
+|Monatlicher Tagging-Compliance-Report (Ziel >= 95%)
+
+|WAF-COST-020
+|Terraform Budget-Ressourcen im Repository; Alert-Notification-Konfiguration
+|Alert-Auslieferungsnachweis der letzten 3 Monate
+
+|WAF-COST-030
+|Rightsizing-Review-Protokolle; Tag `rightsizing-reviewed` mit Datum auf Compute
+|Compute-Optimizer-Export mit akzeptierten/abgelehnten Empfehlungen
+
+|WAF-COST-040
+|Terraform Lifecycle-Konfigurationen; Log-Group-Retention-Einstellungen
+|AWS Config-Report: S3 Buckets ohne Lifecycle-Policy (Ziel: 0)
+
+|WAF-COST-050
+|ADR-Dokumente mit Cost-Impact-Sektion; Lock-in-Score-Bewertungen
+|Architecture-Board-Genehmigungen für Lock-in-Score >= 4
+
+|WAF-COST-060
+|Monatliche FinOps-Review-Protokolle; Quarterly AB-Review-Protokoll
+|Action-Item-Tracker mit Erledigungsstatus
+
+|WAF-COST-070
+|Terraform Log-Retention-Konfigurationen; Log-Tiering-Strategie
+|Observability-Kostenanteil-Report (Ziel: < 20%)
+
+|WAF-COST-080
+|Reservierungsportfolio-Export; RI-Utilization-Report
+|Tag `capacity-commitment` auf Baseline-Compute-Ressourcen
+
+|WAF-COST-090
+|VPC-Endpoint-Ressourcen in Terraform; CDN-Konfiguration
+|Egress-Kostentrend-Report (monatlich)
+
+|WAF-COST-100
+|Cost-Debt-Register (Git-versioniert); AB-Review-Eintrag für aktuelles Quartal
+|ADR-Links zu Cost-Debt-Einträgen
+
+|===
+
+== Automatisierte Evidenzerhebung
+
+Die WAF++ Checker-Integration ermöglicht automatisierte Evidenzerhebung für IaC-basierte Controls:
+
+[source,yaml]
+----
+# Beispiel: WAF++ Checker Aufruf für Cost-Controls
+wafpp check \
+  --pillar cost \
+  --controls WAF-COST-010,WAF-COST-020,WAF-COST-040,WAF-COST-070,WAF-COST-090 \
+  --engine terraform \
+  --path ./infrastructure/terraform \
+  --output-format sarif \
+  --evidence-export ./evidence/cost-$(date +%Y-%m).json
+----
+
+Der Checker erzeugt:
+
+* SARIF-Report für CI-Integration und GitHub Code-Scanning
+* JSON-Evidence-Artefakt mit Zeitstempel und Control-ID-Mapping
+* Markdown-Summary für Pull-Request-Kommentare
+
+Für Prozess-Controls (WAF-COST-050, WAF-COST-060, WAF-COST-100) ist manuelle Evidenzerhebung
+erforderlich: Review-Protokolle, ADR-Dokumente, Cost-Debt-Register.

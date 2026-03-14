@@ -1,0 +1,296 @@
+= Best Practice: Cost Allocation Tagging
+:page-toc: right
+:description: WAF++ Cost Optimization – Tagging-Taxonomie definieren, IaC-seitig durchsetzen und CI-Gate absichern.
+
+== Kontext
+
+Tagging ist die Grundlage jeder Cost-Optimization-Maßnahme. Ohne konsistentes Tagging
+sind keine Kostenzuordnungen möglich – und damit keine Ownership, kein Chargeback,
+kein sinnvolles Rightsizing und keine Budget-Kontrolle auf Workload-Ebene.
+
+Häufige Probleme ohne strukturiertes Tagging:
+
+* 20–40% der Cloud-Kosten unter „Untagged" – keinem Workload zuordenbar
+* Verschiedene Teams nutzen unterschiedliche Tag-Keys für dasselbe Konzept (`Env` vs. `env` vs. `environment`)
+* Tags werden im Console-UI gesetzt und gehen beim nächsten Terraform-Apply verloren
+* Budget-Alerts treffen alle – niemand fühlt sich verantwortlich
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-COST-010[WAF-COST-010] – Cost Allocation Tagging Enforced
+
+== Zielbild
+
+Eine reife Tagging-Strategie ist:
+
+* *Zentral definiert*: Taxonomie in einem einzigen, versionierten Dokument
+* *IaC-seitig durchgesetzt*: Mandatory-Tag-Modul wird von allen Teams verwendet
+* *CI-seitig validiert*: Kein Deployment ohne vollständige Tagging-Compliance
+* *Business-zuordenbar*: Jede Ressource ist einem Cost-Center, Owner, Environment und Workload zugeordnet
+
+== Technische Umsetzung
+
+=== Schritt 1: Tagging-Taxonomie definieren
+
+[source,yaml]
+----
+# docs/tagging-taxonomy.yml
+version: "1.0"
+effective_date: "2025-01-01"
+reviewed_by: "Architecture Board"
+
+mandatory_tags:
+  cost-center:
+    description: "Organisatorische Kosteneinheit (z.B. fintech-platform, data-team)"
+    format: "lowercase-kebab-case"
+    examples: ["fintech-platform", "data-engineering", "shared-platform"]
+
+  owner:
+    description: "Verantwortliches Team (nicht Person). Format: team-name"
+    format: "lowercase-kebab-case"
+    examples: ["platform-team", "payments-team", "infrastructure"]
+
+  environment:
+    description: "Deployment-Umgebung"
+    allowed_values: ["production", "staging", "development", "testing"]
+
+  workload:
+    description: "Name des Workloads oder Produkts (z.B. payment-service, data-pipeline)"
+    format: "lowercase-kebab-case"
+    examples: ["payment-service", "analytics-pipeline", "auth-service"]
+
+recommended_tags:
+  project:
+    description: "Projektname oder JIRA-Projekt-Key (für temporäre Ressourcen)"
+  cost-tier:
+    description: "Kostenkritikalität: critical | standard | dev"
+  rightsizing-reviewed:
+    description: "Datum der letzten Rightsizing-Überprüfung (YYYY-MM-DD)"
+  capacity-commitment:
+    description: "Reservierungsstatus: reserved | spot | on-demand | reviewed"
+----
+
+=== Schritt 2: Mandatory-Tag-Modul als IaC-Standard
+
+[source,hcl]
+----
+# modules/mandatory-tags/variables.tf
+
+variable "cost_center" {
+  type        = string
+  description = "Cost center for billing allocation. See docs/tagging-taxonomy.yml."
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]+$", var.cost_center))
+    error_message = "cost-center must be lowercase kebab-case (e.g. platform-team)."
+  }
+}
+
+variable "owner" {
+  type        = string
+  description = "Owning team name. Must match a team in the org directory."
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]+$", var.owner))
+    error_message = "owner must be lowercase kebab-case."
+  }
+}
+
+variable "environment" {
+  type        = string
+  description = "Deployment environment."
+  validation {
+    condition     = contains(["production", "staging", "development", "testing"], var.environment)
+    error_message = "environment must be one of: production, staging, development, testing."
+  }
+}
+
+variable "workload" {
+  type        = string
+  description = "Workload or product name this resource belongs to."
+}
+
+variable "additional_tags" {
+  type        = map(string)
+  default     = {}
+  description = "Additional optional tags merged with mandatory tags."
+}
+----
+
+[source,hcl]
+----
+# modules/mandatory-tags/outputs.tf
+
+locals {
+  mandatory_tags = {
+    cost-center = var.cost_center
+    owner       = var.owner
+    environment = var.environment
+    workload    = var.workload
+    managed-by  = "terraform"
+  }
+}
+
+output "tags" {
+  value       = merge(local.mandatory_tags, var.additional_tags)
+  description = "Complete tag map including mandatory and additional tags."
+}
+----
+
+=== Schritt 3: Mandatory-Tag-Modul in Ressourcen verwenden
+
+[source,hcl]
+----
+# Compliant: Modul wird für alle Ressourcen verwendet
+module "tags" {
+  source = "../../modules/mandatory-tags"
+
+  cost_center = "fintech-platform"
+  owner       = "payments-team"
+  environment = var.environment
+  workload    = "payment-service"
+  additional_tags = {
+    rightsizing-reviewed = "2025-03-01"
+  }
+}
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags          = module.tags.tags
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-payment-data-${var.environment}"
+  tags   = module.tags.tags
+}
+----
+
+[source,hcl]
+----
+# Non-Compliant: Tags fehlen oder sind unvollständig
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  # Keine Tags – WAF-COST-010 Violation
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-payment-data"
+  tags = {
+    Name = "payment-data"
+    # Fehlend: cost-center, owner, environment, workload
+  }
+}
+----
+
+=== Schritt 4: CI-Gate für Tagging-Compliance
+
+[source,yaml]
+----
+# .github/workflows/cost-compliance.yml
+name: Cost Compliance Checks
+
+on: [pull_request]
+
+jobs:
+  tagging-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: WAF++ Cost Tagging Check
+        run: |
+          wafpp check \
+            --pillar cost \
+            --controls WAF-COST-010 \
+            --engine terraform \
+            --path ./infrastructure \
+            --fail-on violation
+
+      - name: Terraform Plan mit Tag-Validation
+        run: |
+          cd infrastructure
+          terraform init
+          terraform plan -out=plan.tfplan
+          # Variable-Validation in Terraform prüft Tags bei plan
+
+      - name: Tag Compliance Summary
+        if: always()
+        run: |
+          # Zähle Ressourcen ohne Pflicht-Tags
+          terraform show -json plan.tfplan | \
+            jq '[.resource_changes[] |
+              select(.change.actions != ["no-op"]) |
+              select(.change.after.tags["cost-center"] == null or
+                     .change.after.tags["owner"] == null or
+                     .change.after.tags["environment"] == null or
+                     .change.after.tags["workload"] == null)] |
+              length'
+----
+
+=== Schritt 5: Bestehende Ressourcen nachträglich taggen (Brownfield)
+
+[source,bash]
+----
+#!/bin/bash
+# scripts/backfill-tags.sh – Bestehende S3-Buckets mit Pflicht-Tags versehen
+
+BUCKETS=$(aws s3api list-buckets --query "Buckets[].Name" --output text)
+
+for BUCKET in $BUCKETS; do
+  EXISTING_TAGS=$(aws s3api get-bucket-tagging --bucket "$BUCKET" 2>/dev/null || echo "{}")
+
+  # Prüfen ob cost-center Tag fehlt
+  if ! echo "$EXISTING_TAGS" | jq -e '.TagSet[] | select(.Key == "cost-center")' > /dev/null 2>&1; then
+    echo "MISSING TAGS: $BUCKET"
+    # Manuell in Liste für Tagging-Kampagne aufnehmen
+  fi
+done
+----
+
+== Chargeback und Showback einrichten
+
+Mit vollständigem Tagging können Kosten intern verrechnet werden:
+
+[cols="1,3,2"]
+|===
+|Modell |Beschreibung |Wann geeignet
+
+|*Showback*
+|Teams sehen ihre Kosten – werden aber nicht belastet.
+Stärkt Kostenbewusstsein ohne politische Komplexität.
+|Einstieg, wenn Teams noch kein Budget-Ownership haben
+
+|*Chargeback*
+|Teams werden für ihre Cloud-Kosten tatsächlich intern belastet.
+Stärkster Anreiz für Cost-Ownership.
+|Wenn Teams eigene Budgets verwalten
+
+|*Hybrid*
+|Chargeback für Produktion, Showback für Dev/Test.
+|Häufigste Reifestufe in mittleren Organisationen
+
+|===
+
+== Typische Fehlmuster
+
+* *Case-Inkonsistenz*: `Env` vs. `env` vs. `environment` – alle drei existieren in einem Account
+* *Manuelle Tags im Console-UI*: Werden beim nächsten Terraform-Apply überschrieben
+* *Teamnamen als Person-Namen*: `owner: max.mueller@company.com` – Person verlässt Unternehmen, Tag veraltet
+* *Zu granulare Werte für cost-center*: Jedes Projekt als eigener Cost-Center macht Konsolidierung unmöglich
+
+== Metriken
+
+* Tagging-Compliance-Rate: % der Ressourcen mit allen Pflicht-Tags (Ziel: >= 95%)
+* Untagged-Cost-Anteil: % der Cloud-Kosten ohne Workload-Zuordnung (Ziel: < 5%)
+* Tag-Drift-Rate: % der Ressourcen, deren Tags in den letzten 30 Tagen verändert wurden (ohne IaC-Trigger)
+
+== Reifegrad
+
+Level 1 – Keine Tagging-Strategie, zufällige Tags +
+Level 2 – Taxonomie dokumentiert, Tags manuell gesetzt +
+Level 3 – Mandatory-Tag-Modul + CI-Gate-Pflicht +
+Level 4 – Automatische Remediation nicht-compliant getaggter Ressourcen +
+Level 5 – Vollständiges Chargeback/Showback mit Real-Time-Dashboard

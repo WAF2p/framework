@@ -1,0 +1,181 @@
+id: WAF-COST-060
+title: "FinOps Review Cadence"
+pillar: "cost"
+status: "active"
+severity: "medium"
+category: "finops-governance"
+type: ['governance', 'process']
+tags: ['finops', 'review', 'governance', 'cost-management', 'accountability']
+
+description: >
+  Monthly engineering-level FinOps reviews MUST take place for all production workloads.
+  Quarterly Architecture Board reviews covering cost debt and strategic cost decisions MUST
+  occur. Review outputs (action items with owner and due date) MUST be documented in writing
+  and accessible in the team's task tracking system. Reviews are mandatory, not optional –
+  absence of reviews is a control failure.
+
+rationale: >
+  FinOps without structured review cycles is aspiration, not practice. Cloud costs change
+  continuously: workload growth, new service adoption, pricing changes, and architectural
+  drift all affect cost structures monthly. Without regular reviews, optimizations are
+  reactive and ad-hoc. Structured reviews with action items and owners transform cost
+  management from a reactive firefighting exercise into a proactive discipline.
+  Architecture Board reviews are needed to address strategic cost debt decisions that exceed
+  individual team authority.
+
+threat:
+  - "Cost optimizations never actioned because no review process enforces them"
+  - "Cost debt accumulating quarterly without Architecture Board oversight"
+  - "FinOps recommendations from cloud providers (Compute Optimizer, Advisor) ignored"
+  - "Budget overruns repeating without root cause analysis or corrective action"
+  - "Teams unaware of their cost impact, leading to normalized overspending"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Operate Phase – Review Cadence and Continuous Improvement"
+      - "FinOps Principles – Teams Need Timely and Accurate Data"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Mandatory Review Cadence"
+      - "Architecture Governance – Quarterly Cost Debt Review"
+
+implementation_guidance:
+  - "Schedule monthly FinOps reviews in team calendars; treat as non-optional operational ritual."
+  - "Use a standard agenda: cost vs. budget, top cost drivers, rightsizing recommendations, action items."
+  - "Document all action items in the team's task tracker (Jira, Linear, etc.) with owner and due date."
+  - "Quarterly Architecture Board reviews include: cost-debt-register review, ADR cost assessment review, strategic commitment planning."
+  - "Add 'last-finops-review' tag to workload infrastructure resources as lightweight proof of review."
+  - "Track action item completion rate as a FinOps health metric (target: >= 80% on-time completion)."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc reviews only when costs spike"
+    criteria:
+      - "No scheduled review cadence"
+      - "Cost discussions triggered only by budget alerts or billing surprises"
+  level_2:
+    description: "Monthly reviews exist but informal"
+    criteria:
+      - "Monthly cost reviews happen but without structured agenda"
+      - "No documented action items or owner assignments"
+  level_3:
+    description: "Structured review cycle with owners"
+    criteria:
+      - "Monthly engineering reviews follow structured agenda"
+      - "Action items documented with owner and due date"
+      - "Quarterly Architecture Board review includes cost-debt-register sign-off"
+      - "'last-finops-review' tag updated on workload resources after each review"
+  level_4:
+    description: "Anomaly-triggered reviews and automated input"
+    criteria:
+      - "Cost anomaly alerts automatically trigger unscheduled reviews when threshold breached"
+      - "Cloud provider recommendations (Compute Optimizer, Azure Advisor) auto-imported into review agenda"
+      - "Action item completion rate tracked and reported (target: >= 80%)"
+  level_5:
+    description: "Continuous FinOps with real-time dashboards"
+    criteria:
+      - "Real-time cost dashboards embedded in team engineering portals"
+      - "Automated cost efficiency score per team updated daily"
+      - "Architecture decisions automatically routed to FinOps review based on estimated cost delta"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "Monthly FinOps review records for the last 3 months: meeting notes, action item list with owner and status."
+    - kind: "process"
+      description: "Quarterly Architecture Board cost review record with cost-debt-register sign-off."
+  optional:
+    - kind: "iac"
+      description: "Infrastructure resources tagged with 'last-finops-review' (date of last review)."
+    - kind: "config"
+      description: "Action item tracker export showing completion rate of FinOps action items."
+
+checks:
+  - id: "waf-cost-060.tf.any.finops-review-tag-current"
+    engine: "terraform"
+    provider: "any"
+    automated: true
+    severity: "medium"
+    title: "Workload resources should have current 'last-finops-review' tag"
+    description: >
+      Workload infrastructure resources should carry a 'last-finops-review' tag with the date
+      (YYYY-MM-DD) of the last FinOps review. A stale review tag (> 45 days old) indicates
+      the review cadence is not being maintained. This tag is a lightweight operational proof
+      of an active review process.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_eks_cluster"
+        - "aws_rds_cluster"
+        - "azurerm_kubernetes_cluster"
+        - "azurerm_virtual_machine_scale_set"
+        - "google_container_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "last-finops-review"
+        message: "Resource is missing 'last-finops-review' tag. Monthly FinOps reviews required."
+    on_fail: "finding"
+    remediation: >
+      After each monthly FinOps review, update the 'last-finops-review' tag on workload
+      resources to the current date. This can be automated in CI as part of the review process.
+      Value format: YYYY-MM-DD.
+    example:
+      compliant: |
+        resource "aws_eks_cluster" "main" {
+          name     = "payment-service-prod"
+          role_arn = aws_iam_role.eks.arn
+
+          tags = merge(module.mandatory_tags.tags, {
+            last-finops-review   = "2025-03-01"
+            rightsizing-reviewed = "2025-03-01"
+          })
+
+          version = "1.29"
+        }
+      non_compliant: |
+        resource "aws_eks_cluster" "main" {
+          name     = "payment-service-prod"
+          role_arn = aws_iam_role.eks.arn
+          # Missing last-finops-review tag – no evidence of review process
+        }
+
+  - id: "waf-cost-060.tf.any.cost-debt-register-exists"
+    engine: "terraform"
+    provider: "any"
+    automated: false
+    severity: "medium"
+    title: "Cost Debt Register file must exist in repository"
+    description: >
+      A cost-debt-register.yml (or equivalent) file must exist in the repository docs/ directory.
+      This is a process control validated through CI pipeline file existence check or manual audit.
+      An empty or minimal register is acceptable initially; the important requirement is that
+      the file exists and is actively updated.
+    scope:
+      block_type: "resource"
+      resource_types: []
+    assertions: []
+    on_fail: "finding"
+    remediation: >
+      Create docs/cost-debt-register.yml in the repository.
+      See WAF-COST-100 and bp-cost-debt.adoc for the required format.
+      Initialize with any known cost debt items from the brownfield discovery or recent ADR reviews.
+    example:
+      compliant: |
+        # docs/cost-debt-register.yml exists with at minimum:
+        version: "1.0"
+        last_reviewed: "2025-03-01"
+        entries: []  # Even empty is acceptable as starting point
+      non_compliant: |
+        # docs/cost-debt-register.yml does not exist in repository
+        # No structured cost debt tracking – WAF-COST-060 process violation
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-060"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-finops.adoc"
+  related_controls:
+    - "WAF-COST-100"
+    - "WAF-COST-050"
+    - "WAF-COST-010"

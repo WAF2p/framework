@@ -1,0 +1,314 @@
+= Best Practice: Greenfield FinOps by Design
+:page-toc: right
+:description: WAF++ Cost Optimization – Cost Controls von Tag 0: Tagging-Module, Budget-Ressourcen, Lifecycle-Policies und ADR-Cost-Sections als Platform-Standards.
+
+== Kontext
+
+Greenfield-Projekte haben einen einzigartigen Vorteil: Es gibt keine Kostenschuld.
+Jede Entscheidung kann von Anfang an mit vollständigem Cost-Awareness getroffen werden.
+Dieser Vorteil wird häufig verspielt, weil FinOps als „Phase 2"-Thema behandelt wird –
+nach dem Launch, wenn die Kostenstrukturen bereits eingefroren sind.
+
+FinOps by Design bedeutet: Cost Controls sind Teil des ersten Commits, nicht der zweiten Retrospektive.
+
+== Zugehörige Controls
+
+Alle WAF-COST Controls – mit Fokus auf präventive statt korrektive Maßnahmen.
+
+== Zielbild
+
+* Erster `terraform apply` enthält bereits: Mandatory-Tag-Modul, Budget-Ressource, Lifecycle-Policies
+* ADR-Template mit Cost-Impact-Sektion ist von Anfang an verfügbar und wird verwendet
+* FinOps-Review-Zyklus startet 30 Tage nach Launch (nicht „irgendwann")
+* Keine Ressource geht live ohne vollständige Tagging-Compliance
+
+== Platform-Template: Alles von Tag 0
+
+=== Repository-Grundstruktur
+
+[source,text]
+----
+new-service/
+├── docs/
+│   ├── adr/
+│   │   └── ADR-TEMPLATE.md          # Mit Cost-Impact-Sektion
+│   ├── cost-debt-register.yml        # Initialisiert, leer
+│   └── retention-strategy.yml        # Tier-Strategie dokumentiert
+├── infrastructure/
+│   ├── modules/
+│   │   ├── mandatory-tags/           # Pflicht: Cost-Center, Owner, etc.
+│   │   └── budget-alert/             # Pflicht: Budget + Alert
+│   ├── environments/
+│   │   ├── production/
+│   │   │   ├── main.tf
+│   │   │   ├── budget.tf             # Production Budget
+│   │   │   └── variables.tf
+│   │   └── staging/
+│   │       └── ...
+│   └── shared/
+│       └── lifecycle-defaults.tf     # Default-Lifecycle für Storage/Logs
+├── .github/
+│   └── workflows/
+│       ├── cost-compliance.yml       # CI-Gate: Tagging, Lifecycle, Budget
+│       └── monthly-finops-report.yml
+└── tagging-taxonomy.yml
+----
+
+=== Mandatory-Tags-Modul (vollständig)
+
+[source,hcl]
+----
+# modules/mandatory-tags/main.tf
+
+variable "cost_center" {
+  type = string
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]+$", var.cost_center))
+    error_message = "cost-center must be lowercase kebab-case."
+  }
+}
+
+variable "owner" {
+  type = string
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]+$", var.owner))
+    error_message = "owner must be lowercase kebab-case (team name, not person)."
+  }
+}
+
+variable "environment" {
+  type = string
+  validation {
+    condition     = contains(["production", "staging", "development", "testing"], var.environment)
+    error_message = "environment must be: production, staging, development, or testing."
+  }
+}
+
+variable "workload" {
+  type        = string
+  description = "Service or workload name."
+}
+
+variable "additional_tags" {
+  type    = map(string)
+  default = {}
+}
+
+locals {
+  base_tags = {
+    cost-center          = var.cost_center
+    owner                = var.owner
+    environment          = var.environment
+    workload             = var.workload
+    managed-by           = "terraform"
+    wafpp-cost-compliant = "true"
+  }
+}
+
+output "tags" {
+  value = merge(local.base_tags, var.additional_tags)
+}
+----
+
+=== Budget-Modul als Pflichtkomponente
+
+[source,hcl]
+----
+# modules/budget-alert/main.tf
+
+variable "budget_name" {
+  type = string
+}
+
+variable "monthly_limit" {
+  type        = number
+  description = "Monthly budget limit in USD."
+}
+
+variable "workload" {
+  type = string
+}
+
+variable "alert_emails" {
+  type        = list(string)
+  description = "Email addresses for budget alerts."
+}
+
+resource "aws_budgets_budget" "workload_budget" {
+  name         = "${var.budget_name}-monthly"
+  budget_type  = "COST"
+  limit_amount = tostring(var.monthly_limit)
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "TagKeyValue"
+    values = ["workload$${var.workload}"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.alert_emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.alert_emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 110
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = var.alert_emails
+  }
+}
+----
+
+=== Lifecycle-Defaults als Standard
+
+[source,hcl]
+----
+# shared/lifecycle-defaults.tf – Immer für alle Environments
+
+# CloudWatch Log Groups MÜSSEN Retention haben
+# Wird als Variable übergeben; Default je nach Environment
+
+variable "log_retention_operational" {
+  type        = number
+  default     = 30
+  description = "Retention in days for operational logs (Hot-Tier)."
+  validation {
+    condition     = var.log_retention_operational > 0
+    error_message = "Log retention must be > 0 days. 0 means infinite (not allowed)."
+  }
+}
+
+variable "log_retention_audit" {
+  type        = number
+  default     = 365
+  description = "Retention in days for audit logs (Cold-Tier)."
+}
+
+# S3 Lifecycle-Policy-Modul (verpflichtend für alle Buckets)
+module "s3_lifecycle" {
+  source  = "../../modules/s3-lifecycle"
+  bucket  = aws_s3_bucket.main.id
+
+  transition_to_ia_days       = 30
+  transition_to_glacier_days  = 90
+  expiration_days             = 365  # Anpassen je nach Datenklasse
+  delete_old_versions_after   = 30
+}
+----
+
+=== Vollständiges Production-Environment-Beispiel
+
+[source,hcl]
+----
+# environments/production/main.tf
+
+module "tags" {
+  source = "../../modules/mandatory-tags"
+
+  cost_center = "fintech-platform"
+  owner       = "payments-team"
+  environment = "production"
+  workload    = "payment-service"
+}
+
+module "budget" {
+  source = "../../modules/budget-alert"
+
+  budget_name   = "payment-service-prod"
+  monthly_limit = 5000  # USD/Monat
+  workload      = "payment-service"
+  alert_emails  = ["payments-team@company.com", "finops@company.com"]
+}
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+
+  tags = merge(module.tags.tags, {
+    rightsizing-reviewed = "2025-03-01"
+    capacity-commitment  = "on-demand"
+  })
+}
+
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/app/production/payment-service"
+  retention_in_days = 30  # Hot-Tier: 30 Tage
+  kms_key_id        = aws_kms_key.logging.arn
+  tags              = module.tags.tags
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-payment-data-prod"
+  tags   = module.tags.tags
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    id     = "default-tiering"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+}
+----
+
+== Greenfield-Checkliste: Pre-Launch Gate
+
+Bevor ein Service in Produktion geht, muss diese Checkliste erfüllt sein:
+
+=== Tagging & Budget (WAF-COST-010, WAF-COST-020)
+* [ ] Mandatory-Tag-Modul in allen Ressourcen verwendet
+* [ ] Tagging-Compliance: 100% aller Ressourcen
+* [ ] Budget-Ressource als IaC definiert
+* [ ] 80%- und 100%-Alerts konfiguriert
+* [ ] Alert-Empfänger: Team-Kanal + FinOps
+
+=== Lifecycle & Retention (WAF-COST-040, WAF-COST-070)
+* [ ] Alle S3-Buckets haben Lifecycle-Configuration
+* [ ] Alle CloudWatch Log Groups haben `retention_in_days` != 0
+* [ ] Retention-Strategie-Dokument vorhanden
+* [ ] Log-Tier dokumentiert (Hot/Warm/Cold/Archive)
+
+=== Architektur & Cost-Debt (WAF-COST-050, WAF-COST-100)
+* [ ] Initiales ADR für Infrastruktur-Entscheidungen vorhanden
+* [ ] ADR enthält Cost-Impact-Assessment
+* [ ] Cost-Debt-Register initialisiert (auch wenn leer)
+* [ ] FinOps-Review-Termin nach 30 Tagen eingetragen
+
+=== FinOps-Prozesse (WAF-COST-060)
+* [ ] FinOps-Review-Zyklus in Team-Kalender eingetragen (erster Review nach 30 Tagen)
+* [ ] Rightsizing-Review nach 90 Tagen geplant
+
+== Metriken (Greenfield-spezifisch)
+
+* Time-to-Compliance: Tage von erstem Deploy bis 100% Cost-Compliance (Ziel: 0 – von Tag 0)
+* Kostenwachstumsrate Monat 1–6: % Abweichung von initialer TCO-Schätzung (Ziel: < ±20%)
+* Erste Rightsizing-Action: Spätestens 90 Tage nach Launch
+* Erster FinOps-Review: Spätestens 30 Tage nach Launch
