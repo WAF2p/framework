@@ -1,0 +1,201 @@
+= WAF-COST-040 – Storage & Retention Lifecycle Defined
+:page-toc: right
+:control-id: WAF-COST-040
+:pillar: cost
+:severity: high
+:category: retention-management
+:automated: high
+:description: WAF++ Cost Optimization – Explizite Lifecycle-Policies für alle Storage- und Log-Ressourcen; kein Infinite Retention.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Retention Management | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Storage-Ressourcen (S3-Buckets, Azure Storage, GCS-Buckets) MÜSSEN explizite Lifecycle-Regeln haben.
+Alle Log-Gruppen MÜSSEN `retention_in_days` != 0 und != null haben.
+Kein Storage- oder Log-Ressource darf ohne explizite, endliche Retention provisioniert werden.
+
+Infinite Retention wird als Architektonische Kostenschuld klassifiziert (xref:../cost-debt.adoc[Kostenschuld]).
+
+== Rationale
+
+Storage-Kosten wachsen linear und ungebunden ohne Lifecycle-Policies.
+CloudWatch Log Groups mit `retention_in_days = 0` (der Default) speichern Logs unbegrenzt –
+ein Pattern, das in schlecht gemanagten Umgebungen dazu führt, dass Observability-Kosten
+die Compute-Kosten übersteigen.
+
+Lifecycle-Policies sind die kosteneffektivste präventive Maßnahme im Cloud-Cost-Management:
+Einmaliger IaC-Aufwand, dauerhafter und wachsender Einsparungseffekt.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unbegrenzte Storage-Kosten*
+|S3-Buckets ohne Lifecycle akkumulieren Daten über Jahre; Kosten wachsen ohne Kontrolle.
+
+|*Observability-Kostendominanz*
+|CloudWatch-Default (infinite) macht Log-Kosten zur größten Kostenposition nach Compute.
+
+|*Vergessene Snapshots*
+|EBS-Snapshots und RDS-Snapshots wachsen unbegrenzt, wenn kein Cleanup-Policy existiert.
+
+|*DSGVO-Risiko*
+|Daten, die länger als notwendig gespeichert werden, verstoßen gegen das Prinzip der Datensparsamkeit.
+
+|===
+
+== Anforderung
+
+* Jede `aws_s3_bucket`-Ressource MUSS eine `aws_s3_bucket_lifecycle_configuration` haben
+* Jede `aws_cloudwatch_log_group` MUSS `retention_in_days` mit Wert >= 1 haben
+* 4-Tier-Modell MUSS dokumentiert sein: Hot (7–30d), Warm (30–90d), Cold (90–365d), Archive (>365d)
+* Unvollständige Multipart-Uploads MÜSSEN nach <= 3 Tagen abgebrochen werden
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Lifecycle-Policies
+|S3-Buckets ohne Lifecycle; CloudWatch-Default (infinite).
+
+|*2*
+|Einige Retention-Werte gesetzt
+|Größte Kostentreiber mit Retention konfiguriert; kein systematischer Ansatz.
+
+|*3*
+|Alle Ressourcen mit Lifecycle in IaC
+|Jeder S3-Bucket hat Lifecycle-Konfiguration; jede Log Group hat `retention_in_days` != 0.
+
+|*4*
+|Tiered Storage automatisiert
+|Log-Tiering implementiert; Storage-Kostentrend monatlich überwacht.
+
+|*5*
+|Value-basiertes Intelligent Tiering
+|S3 Intelligent-Tiering; Log-Value-Analyse; automatisierte Tiering-Optimierung.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-040.tf.aws.s3-lifecycle-rule-defined
+*Prüft:* S3-Buckets müssen eine Lifecycle-Configuration haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    id     = "tiering"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+    expiration {
+      days = 365
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete"
+    status = "Enabled"
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 3
+    }
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-application-data"
+  # Keine Lifecycle-Configuration
+  # Daten akkumulieren unbegrenzt
+  # WAF-COST-040 Violation
+}
+----
+|===
+
+---
+
+=== waf-cost-040.tf.aws.cloudwatch-log-retention-not-zero
+*Prüft:* CloudWatch Log Groups müssen `retention_in_days` >= 1 haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/app/production/payment"
+  retention_in_days = 30  # Hot-Tier
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "hot"
+    log-type = "operational"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name = "/app/production/payment"
+  # retention_in_days fehlt = unbegrenzt
+  # WAF-COST-040 Violation
+}
+----
+|===
+
+*Remediation:* `retention_in_days` auf alle Log Groups setzen.
+Empfohlen: operational=30, security-audit=365. Nie 0 oder leer lassen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Storage-Ressourcen mit expliziten Lifecycle-Regeln.
+
+|*IaC*
+|✅ Pflicht
+|Terraform CloudWatch Log Group-Ressourcen mit `retention_in_days` != 0.
+
+|*Governance*
+|Optional
+|Retention-Strategie-Dokument (`docs/retention-strategy.yml`).
+
+|*Config*
+|Optional
+|AWS Config-Report: S3-Buckets ohne Lifecycle-Policy (Ziel: 0).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-070.adoc[WAF-COST-070 – Observability & Logging Cost Tiers]
+* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register]
+
+== Best Practice
+
+* xref:../best-practices/bp-retention.adoc[Retention Strategy →]

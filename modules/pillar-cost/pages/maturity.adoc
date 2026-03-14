@@ -1,0 +1,209 @@
+= Reifegrad-Modell (Cost Optimization)
+:page-toc: right
+:description: WAF++ Cost Optimization – Fünfstufiges Reifegrad-Modell für Cost-Optimization-Kompetenz.
+
+Das Cost-Optimization-Reifegrad-Modell ermöglicht eine strukturierte Selbstbewertung
+und definiert einen klaren Entwicklungspfad von reaktiver Kostensichtbarkeit
+bis zur strategischen Kostensteuerung.
+
+== Das Fünf-Stufen-Modell
+
+[cols="1,2,4"]
+|===
+|Level |Bezeichnung |Merkmale
+
+|*Level 1*
+|Reaktiv / Undokumentiert
+|Keine systematische Tagging-Strategie. Budgets fehlen oder sind im Console-UI gesetzt.
+Kosten werden erst nach dem Monat in der Rechnung entdeckt. Kein Ownership definiert.
+Ressourcen laufen dauerhaft ohne Auslastungsüberprüfung. Keine Lifecycle-Policies.
+
+|*Level 2*
+|Dokumentiert & Definiert
+|Tagging-Taxonomie existiert und ist dokumentiert, aber nicht technisch erzwungen.
+Budgets sind gesetzt (auch manuell). Erste Ownership-Zuordnungen vorhanden.
+Monatliche Ad-hoc-Reviews finden statt. Einige Lifecycle-Policies existieren.
+Kein strukturierter FinOps-Prozess. Keine ADR-Cost-Sections.
+
+|*Level 3*
+|Durchgesetzt & Monitored
+|Tagging-Pflicht im CI-Gate erzwungen. Alle Budget-Ressourcen in IaC.
+Automatisierte Alerts bei 80% und 100% Budget-Verbrauch.
+Monatliche FinOps-Reviews mit Action-Item-Tracker.
+Lifecycle-Policies für alle Storage- und Log-Ressourcen in IaC.
+Rightsizing-Tags sind Pflicht auf Compute-Ressourcen.
+Cost Impact Assessment Sektion in ADR-Template vorhanden und verwendet.
+Cost-Debt-Register existiert (auch wenn noch nicht vollständig).
+
+|*Level 4*
+|Gemessen & Automatisiert
+|Automatisierte Rightsizing-Empfehlungen werden in Reviews eingebracht und umgesetzt.
+Cost-Debt-Register aktiv geführt mit Owner und Paydown-Plänen.
+FinOps-Reviews sind obligatorisch (nicht optional).
+Quarterly Architecture-Board-Review inklusive Cost-Debt-Sign-off.
+Vollständiges TCO-Tracking für alle Produktions-Workloads.
+RI/SP-Coverage-Optimierung auf Basis von Utilization-Daten.
+Observability-Kosten durch Tiering kontrolliert.
+Anomalie-Detection für Kosten konfiguriert (AWS Cost Anomaly Detection o.ä.).
+
+|*Level 5*
+|Optimiert & Prädiktiv
+|Predictive Cost Modeling: Kosten werden für neue Features vor dem Launch modelliert.
+Auto-Remediation von Waste (Idle-Shutdown, Oversized-Flagging).
+Kontinuierlicher Cost-Debt-Paydown: Backlog enthält immer aktive Paydown-Tasks.
+FinOps als strategischer Wettbewerbsvorteil: Cost-Effizienz als Produktmerkmal.
+ML-gestützte Commitment-Optimierung.
+Open-Source-vs.-Proprietary-Entscheidungen vollständig TCO-basiert dokumentiert.
+Cost-Effizienz fließt in Engineering-Performance-Metriken ein.
+
+|===
+
+== Reifegrad je Control
+
+[cols="2,1,1,1,1,1"]
+|===
+|Control |L1 |L2 |L3 |L4 |L5
+
+|WAF-COST-010 Cost Allocation Tagging
+|Kein Tagging-Standard
+|Taxonomie dokumentiert
+|CI-Gate erzwingt Tags
+|Automatische Remediation
+|Vollständige Chargeback-Automation
+
+|WAF-COST-020 Budgets & Alerting
+|Kein Budget
+|Budget manuell gesetzt
+|Budget als IaC, Alerts konfiguriert
+|Forecasting-Alerts, Anomalie-Detection
+|Predictive Budget Management
+
+|WAF-COST-030 Rightsizing
+|Kein Oversight
+|Manuelle Ad-hoc-Reviews
+|Rightsizing-Tags Pflicht, Review-Zyklus
+|Automatisierte Empfehlungen eingebunden
+|Auto-Rightsizing mit Guardrails
+
+|WAF-COST-040 Retention Lifecycle
+|Keine Lifecycle-Policies
+|Einige Retention-Einstellungen
+|Alle Ressourcen mit Lifecycle in IaC
+|Tiered Storage automatisiert
+|Value-basierte Intelligent Tiering
+
+|WAF-COST-050 Cost Impact in ADRs
+|Kein Cost in ADRs
+|Informelle Kostennotizen
+|Strukturiertes Cost-Assessment in ADRs
+|TCO-Modell mit Actuals-Vergleich
+|Automatisiertes Cost-Impact aus IaC-Plan
+
+|WAF-COST-060 FinOps Review Cadence
+|Ad-hoc Reviews
+|Monatliche Reviews (informell)
+|Strukturierter Review-Zyklus mit Owners
+|Anomalie-getriggerte Reviews
+|Continuous FinOps mit Real-Time-Dashboard
+
+|WAF-COST-070 Observability Cost Tiers
+|Alle Logs unbegrenzt
+|Einige Retention-Werte gesetzt
+|Tiered Retention in IaC
+|Log-Value-Analyse
+|Automated Intelligent Tiering
+
+|WAF-COST-080 Reserved Capacity
+|Alles On-Demand
+|Erste Reservierungen vorhanden
+|Baseline vollständig reserviert
+|Savings Plans optimiert
+|ML-gestützte Commitment-Optimierung
+
+|WAF-COST-090 Egress Cost Management
+|Unkontrollierter Egress
+|Egress-Budget gesetzt
+|VPC Endpoints deployed, CDN konfiguriert
+|Egress-Anomalie-Detection
+|Data Gravity Optimization automatisiert
+
+|WAF-COST-100 Cost Debt Register
+|Kein Register
+|Informelle Liste
+|Strukturiertes Register im Repository
+|Register mit ADRs und Actuals verknüpft
+|Automatisierte Cost-Debt-Detection
+
+|===
+
+== Bewertung der aktuellen Reife
+
+Zur Selbstbewertung empfehlen sich folgende Fragen:
+
+=== Level 2 Check-Liste
+* [ ] Ist eine Tagging-Taxonomie mit Pflicht-Tags dokumentiert (cost-center, owner, environment, workload)?
+* [ ] Sind Budget-Limits für alle Cloud-Accounts/Subscriptions gesetzt?
+* [ ] Ist für jeden produktiven Workload ein Team als Owner zugeordnet?
+* [ ] Finden monatliche Cost-Reviews statt (auch wenn noch informell)?
+* [ ] Sind zumindest für die größten Kostentreiber Lifecycle-Policies konfiguriert?
+
+=== Level 3 Check-Liste
+* [ ] Prüft der CI-Pipeline-Gate Tagging-Compliance bei jedem Pull Request?
+* [ ] Sind alle Budget-Ressourcen als Terraform-Code verwaltet?
+* [ ] Werden Budget-Alerts automatisch an Team-Owner geroutet?
+* [ ] Haben alle CloudWatch Log Groups / Azure Log Analytics Workspaces eine `retention_in_days`-Einstellung?
+* [ ] Haben alle S3-Buckets / Azure Storage Accounts eine Lifecycle-Policy?
+* [ ] Sind Rightsizing-Tags (`rightsizing-reviewed` mit Datum) auf allen Compute-Ressourcen Pflicht?
+* [ ] Enthält das ADR-Template eine Cost-Impact-Sektion?
+* [ ] Existiert ein Cost-Debt-Register (auch wenn noch unvollständig)?
+
+=== Level 4 Check-Liste
+* [ ] Werden automatisierte Rightsizing-Empfehlungen (AWS Compute Optimizer, Azure Advisor, GCP Recommender) monatlich in Reviews eingebracht?
+* [ ] Sind alle Produktions-Workloads mit aktuellem TCO-Modell (< 12 Monate) dokumentiert?
+* [ ] Hat das Cost-Debt-Register für alle Einträge einen Owner und Status (paydown/monitoring/accepted)?
+* [ ] Findet quartalsweise ein Architecture-Board-Review des Cost-Debt-Registers statt?
+* [ ] Ist der RI/SP-Coverage >= 70% für Baseline-Workloads?
+* [ ] Sind Observability-Kosten durch Log-Level-Policies und Retention-Tiering unter 20% des Gesamt-Budgets?
+* [ ] Ist AWS Cost Anomaly Detection / Azure Cost Alerts / GCP Budget Alerts konfiguriert?
+
+== Empfohlener Einstiegspfad
+
+Für Organisationen, die noch nicht bei Level 3 sind, empfehlen wir folgende Priorisierung:
+
+[cols="1,3,2"]
+|===
+|Priorität |Maßnahme |Controls
+
+|Sofort (Level 1→2)
+|Tagging-Taxonomie dokumentieren und alle Pflicht-Tags benennen
+|WAF-COST-010
+
+|Sofort (Level 1→2)
+|Budget-Limits für alle Accounts als IaC einrichten; 80%-Alert konfigurieren
+|WAF-COST-020
+
+|Kurzfristig (Level 2→3)
+|CI-Gate für Tagging-Compliance einrichten (kein Merge ohne Pflicht-Tags)
+|WAF-COST-010
+
+|Kurzfristig (Level 2→3)
+|Lifecycle-Policies für S3/Log Groups/Azure Storage als IaC: alle Buckets/Log-Groups mit Retention
+|WAF-COST-040
+
+|Kurzfristig (Level 2→3)
+|ADR-Template um Cost-Impact-Sektion erweitern; für nächste ADRs verpflichtend
+|WAF-COST-050
+
+|Mittelfristig (Level 3→4)
+|Cost-Debt-Register anlegen; Top-5-Kostenschulden identifizieren und eintragen
+|WAF-COST-100
+
+|Mittelfristig (Level 3→4)
+|Monatliche FinOps-Reviews formalisieren; Action-Item-Tracker einrichten
+|WAF-COST-060
+
+|Langfristig (Level 4→5)
+|Predictive Cost Modeling einführen; Auto-Remediation für Idle-Resources
+|WAF-COST-030
+
+|===

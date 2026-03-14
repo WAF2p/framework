@@ -1,0 +1,211 @@
+id: WAF-COST-020
+title: "Cost Budgets & Alerting Configured"
+pillar: "cost"
+status: "active"
+severity: "high"
+category: "budget-control"
+type: ['governance', 'automation', 'monitoring']
+tags: ['budget', 'alerting', 'finops', 'cost-control', 'forecasting']
+
+description: >
+  Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each
+  cloud account, subscription, or project. Budget alerts MUST be configured at 80% and 100%
+  of the budget limit and automatically routed to the workload owner and FinOps team.
+  Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
+
+rationale: >
+  Budget overruns discovered in the monthly bill are too late. Cloud providers charge for
+  resources consumed – retroactive cost control is impossible. Budgets and alerts defined
+  as IaC resources are version-controlled, auditable, and consistently applied across
+  environments. Console-UI-defined budgets are not reproducible, may be modified without
+  change tracking, and often fail to reach the right notification recipients.
+
+threat:
+  - "Budget overruns discovered only in monthly billing statement, weeks after overspend"
+  - "Missing alerts allowing cost anomalies to compound for multiple billing cycles"
+  - "Non-reproducible budget configurations set manually in console UI"
+  - "Alert notifications routed to wrong recipients or deprecated email addresses"
+  - "Forecast-based overspends not detected before they materialize"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Inform Phase – Budget Visibility and Accountability"
+      - "Operate Phase – Budget Management and Variance Reporting"
+  - framework: "ISO 20000"
+    controls:
+      - "Service financial management – budget control"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Budget Enforcement"
+
+implementation_guidance:
+  - "Define one budget resource per workload/environment combination, not just per account."
+  - "Set alert thresholds at 80% (warning) and 100% (critical) of monthly limit."
+  - "Add a forecasted alert at 110% to detect upcoming overruns before month-end."
+  - "Route alerts to team-specific channels (Slack, PagerDuty) in addition to email."
+  - "Review budget limits quarterly; adjust based on actual spend trends."
+  - "For greenfield: define budget resource as part of the first infrastructure commit."
+
+maturity_levels:
+  level_1:
+    description: "No budgets defined"
+    criteria:
+      - "Cloud costs only reviewed post-facto in monthly billing statement"
+      - "No automated alerts for cost anomalies"
+  level_2:
+    description: "Budgets set manually in console"
+    criteria:
+      - "Budget limits exist but were set manually in cloud console UI"
+      - "At least one alert notification recipient configured"
+  level_3:
+    description: "Budgets as IaC with automated alerts"
+    criteria:
+      - "All budget resources defined in Terraform (aws_budgets_budget, azurerm_consumption_budget, google_billing_budget)"
+      - "Alerts at 80% and 100% with correct notification recipients"
+      - "Budget resources version-controlled alongside infrastructure code"
+  level_4:
+    description: "Forecasting alerts and anomaly detection"
+    criteria:
+      - "Forecasted budget alerts configured (trigger when projected spend will exceed budget)"
+      - "AWS Cost Anomaly Detection or equivalent configured"
+      - "Alerts trigger automated tickets in ITSM system"
+  level_5:
+    description: "Predictive budget management"
+    criteria:
+      - "Budgets automatically adjusted based on ML-predicted spend patterns"
+      - "Real-time cost dashboards with budget burn-rate visualization"
+      - "Automated runbook triggered on budget alert to identify top cost drivers"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform budget resource definitions for each cloud account/workload (aws_budgets_budget, azurerm_consumption_budget_*, google_billing_budget)."
+    - kind: "config"
+      description: "Alert notification configuration showing 80% and 100% thresholds with recipient addresses."
+  optional:
+    - kind: "process"
+      description: "Budget review records showing quarterly limit adjustments based on actual spend."
+    - kind: "logging"
+      description: "Alert delivery confirmation logs for the last 3 months."
+
+checks:
+  - id: "waf-cost-020.tf.aws.budgets-budget-exists"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS budget must be defined as IaC resource"
+    description: >
+      An aws_budgets_budget resource must exist in the Terraform configuration.
+      Budgets set only in the AWS Console are not version-controlled and may
+      be deleted or modified without audit trail.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_budgets_budget"
+    assertions:
+      - attribute: "budget_type"
+        op: "equals"
+        value: "COST"
+        message: "Budget must be of type COST for cloud spend tracking."
+      - attribute: "time_unit"
+        op: "in"
+        values: ["MONTHLY", "QUARTERLY"]
+        message: "Budget time unit must be MONTHLY or QUARTERLY."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_budgets_budget resource to your Terraform configuration.
+      Set budget_type = "COST", time_unit = "MONTHLY", and configure notification blocks
+      for 80% and 100% thresholds.
+    example:
+      compliant: |
+        resource "aws_budgets_budget" "workload_monthly" {
+          name         = "payment-service-prod-monthly"
+          budget_type  = "COST"
+          limit_amount = "5000"
+          limit_unit   = "USD"
+          time_unit    = "MONTHLY"
+
+          notification {
+            comparison_operator        = "GREATER_THAN"
+            threshold                  = 80
+            threshold_type             = "PERCENTAGE"
+            notification_type          = "ACTUAL"
+            subscriber_email_addresses = ["payments-team@company.com"]
+          }
+
+          notification {
+            comparison_operator        = "GREATER_THAN"
+            threshold                  = 100
+            threshold_type             = "PERCENTAGE"
+            notification_type          = "ACTUAL"
+            subscriber_email_addresses = ["payments-team@company.com", "finops@company.com"]
+          }
+        }
+      non_compliant: |
+        # No aws_budgets_budget resource defined.
+        # Budget was set manually in AWS Console – not reproducible, not version-controlled.
+
+  - id: "waf-cost-020.tf.azurerm.consumption-budget-defined"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure consumption budget must be defined as IaC resource"
+    description: >
+      An azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription
+      resource must exist in the Terraform configuration for Azure spending control.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_consumption_budget_resource_group"
+        - "azurerm_consumption_budget_subscription"
+        - "azurerm_consumption_budget_management_group"
+    assertions:
+      - attribute: "amount"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "Budget amount must be greater than 0."
+    on_fail: "violation"
+    remediation: >
+      Add an azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription
+      resource to your Terraform configuration with appropriate notification thresholds.
+    example:
+      compliant: |
+        resource "azurerm_consumption_budget_resource_group" "main" {
+          name              = "payment-service-monthly-budget"
+          resource_group_id = azurerm_resource_group.main.id
+          amount            = 5000
+          time_grain        = "Monthly"
+
+          time_period {
+            start_date = "2025-01-01T00:00:00Z"
+          }
+
+          notification {
+            enabled        = true
+            threshold      = 80
+            operator       = "GreaterThan"
+            threshold_type = "Actual"
+            contact_emails = ["payments-team@company.com"]
+          }
+
+          notification {
+            enabled        = true
+            threshold      = 100
+            operator       = "GreaterThan"
+            threshold_type = "Actual"
+            contact_emails = ["payments-team@company.com", "finops@company.com"]
+          }
+        }
+      non_compliant: |
+        # No azurerm_consumption_budget_* resource defined.
+        # No automated budget control for this Azure workload.
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-020"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-finops.adoc"
+  related_controls:
+    - "WAF-COST-010"
+    - "WAF-COST-060"

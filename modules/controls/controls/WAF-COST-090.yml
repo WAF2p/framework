@@ -1,0 +1,203 @@
+id: WAF-COST-090
+title: "Data Transfer & Egress Cost Management"
+pillar: "cost"
+status: "active"
+severity: "high"
+category: "data-transfer"
+type: ['configuration', 'network', 'governance']
+tags: ['egress', 'data-transfer', 'vpc-endpoint', 'cdn', 'network-cost', 'cost-optimization']
+
+description: >
+  VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services
+  to eliminate unnecessary internet egress costs. Public IP addresses on internal compute
+  resources (that do not serve public traffic) are prohibited. CDN MUST be configured for
+  all publicly accessible static assets. An egress cost budget alert MUST exist. Cross-region
+  data transfer MUST be minimized and documented when necessary.
+
+rationale: >
+  Data transfer and egress costs are among the most commonly underestimated cloud cost
+  categories. S3 API calls and data access from EC2 instances in the same region cost
+  nothing with VPC endpoints but accrue egress charges without them. Public IP addresses
+  on internal compute generate internet-path traffic unnecessarily. CDN eliminates repeated
+  origin egress for static content. As workloads scale, egress costs that seemed negligible
+  at small volumes can grow to represent 15-30% of total cloud spend. VPC endpoints are
+  one of the highest-ROI cost optimizations available: low implementation cost, permanent savings.
+
+threat:
+  - "S3 and KMS traffic routing through internet gateway generating unnecessary egress charges"
+  - "Internal compute with public IPs generating internet-path traffic instead of VPC-internal"
+  - "Static assets served directly from S3 origin instead of CDN, driving repeated egress"
+  - "Cross-region data replication costs not monitored until significant bill impact"
+  - "Multi-cloud data transfer costs (data gravity ignored in architecture decisions)"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Optimize Phase – Network Cost Optimization"
+      - "Optimize Phase – Data Transfer Cost Reduction"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Egress Cost Target"
+      - "Network Architecture Standard – VPC Endpoints Mandatory"
+
+implementation_guidance:
+  - "Deploy VPC endpoints for S3, KMS, ECR, STS, and any other AWS services heavily used by the workload."
+  - "Remove public IP associations from all internal EC2 instances; use NAT Gateway for outbound-only traffic."
+  - "Deploy CloudFront or Azure CDN / GCP Cloud CDN for all public-facing static assets."
+  - "Create an egress-specific budget alert alongside the general workload budget."
+  - "Tag VPC endpoints with the workload they serve to enable cost attribution."
+  - "For multi-cloud: document data flows between providers with estimated monthly transfer costs in ADRs."
+
+maturity_levels:
+  level_1:
+    description: "Unmonitored egress, no VPC endpoints"
+    criteria:
+      - "All S3/KMS traffic via internet gateway (no VPC endpoints)"
+      - "No egress cost monitoring or budget"
+      - "Static assets served from S3 origin without CDN"
+  level_2:
+    description: "Egress budget set and monitored"
+    criteria:
+      - "Egress cost is visible in cost reports (tagged or service-level)"
+      - "Budget alert for egress costs configured"
+  level_3:
+    description: "VPC endpoints deployed and CDN configured"
+    criteria:
+      - "VPC endpoints for S3 and KMS deployed in all production VPCs"
+      - "No public IP on internal compute resources"
+      - "CDN configured for all public-facing storage assets"
+      - "Egress cost budget alert active"
+  level_4:
+    description: "Egress anomaly detection and optimization"
+    criteria:
+      - "VPC Flow Logs analyzed for unexpected egress patterns"
+      - "Cross-region transfer costs tracked and minimized by architecture decisions"
+      - "Egress cost trend monitored monthly (target: declining or stable)"
+  level_5:
+    description: "Data gravity optimization automated"
+    criteria:
+      - "Data gravity analysis: workloads automatically placed near data sources"
+      - "Multi-cloud transfer costs tracked and reported to Architecture Board"
+      - "CDN cache hit ratio > 90% for static assets"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "VPC endpoint Terraform resources for S3 and KMS in production VPCs."
+    - kind: "config"
+      description: "CDN configuration for public-facing storage assets."
+  optional:
+    - kind: "config"
+      description: "VPC Flow Log configuration for egress analysis."
+    - kind: "process"
+      description: "Monthly egress cost trend report (target: < 15% of total cloud spend)."
+
+checks:
+  - id: "waf-cost-090.tf.aws.vpc-endpoint-s3-exists"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "VPC endpoint for S3 must exist in each production VPC"
+    description: >
+      An aws_vpc_endpoint resource with service_name matching S3 must exist for each
+      production VPC. Without S3 VPC endpoints, all S3 traffic from EC2 instances flows
+      through the internet gateway, generating unnecessary egress and data processing charges.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc_endpoint"
+    assertions:
+      - attribute: "service_name"
+        op: "matches"
+        pattern: ".*\\.s3$"
+        message: "VPC endpoint for S3 (service_name ending in .s3) must exist."
+      - attribute: "vpc_endpoint_type"
+        op: "in"
+        values: ["Gateway", "Interface"]
+        message: "VPC endpoint type must be Gateway or Interface."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_vpc_endpoint resource for S3 to each production VPC.
+      For S3: use vpc_endpoint_type = "Gateway" (free of charge).
+      For interface endpoints (KMS, ECR, STS): vpc_endpoint_type = "Interface" (hourly charge but
+      saves on data processing and egress from NAT gateway).
+    example:
+      compliant: |
+        resource "aws_vpc_endpoint" "s3" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.region}.s3"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+
+          tags = merge(module.mandatory_tags.tags, {
+            Name = "vpce-s3-${var.environment}"
+          })
+        }
+
+        resource "aws_vpc_endpoint" "kms" {
+          vpc_id              = aws_vpc.main.id
+          service_name        = "com.amazonaws.${var.region}.kms"
+          vpc_endpoint_type   = "Interface"
+          subnet_ids          = aws_subnet.private[*].id
+          security_group_ids  = [aws_security_group.vpc_endpoint.id]
+          private_dns_enabled = true
+
+          tags = merge(module.mandatory_tags.tags, {
+            Name = "vpce-kms-${var.environment}"
+          })
+        }
+      non_compliant: |
+        resource "aws_vpc" "main" {
+          cidr_block = "10.0.0.0/16"
+          # No VPC endpoints defined – all S3/KMS traffic via internet gateway
+          # WAF-COST-090 violation: unnecessary egress charges
+        }
+
+  - id: "waf-cost-090.tf.aws.no-public-ip-internal-compute"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Internal compute resources must not have public IPs"
+    description: >
+      EC2 instances used for internal application workloads (not serving public traffic directly)
+      must not have associate_public_ip_address = true. Internal compute should use private IPs
+      with NAT Gateway for outbound internet access where needed.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "associate_public_ip_address"
+        op: "is_false"
+        message: "Internal compute must not have public IP addresses. Use private subnets with NAT Gateway."
+    on_fail: "finding"
+    remediation: >
+      Set associate_public_ip_address = false on internal EC2 instances.
+      Place instances in private subnets. Use NAT Gateway for outbound internet access.
+      Use ALB/NLB with public IPs for load balancing inbound public traffic.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami                         = data.aws_ami.ubuntu.id
+          instance_type               = "t3.medium"
+          subnet_id                   = aws_subnet.private.id
+          associate_public_ip_address = false  # Internal compute, no public IP
+          tags                        = module.mandatory_tags.tags
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami                         = data.aws_ami.ubuntu.id
+          instance_type               = "t3.medium"
+          subnet_id                   = aws_subnet.public.id
+          associate_public_ip_address = true  # Unnecessary public IP for internal app server
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-090"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-greenfield.adoc"
+  related_controls:
+    - "WAF-COST-020"
+    - "WAF-COST-050"

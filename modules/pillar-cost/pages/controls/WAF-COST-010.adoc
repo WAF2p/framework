@@ -1,0 +1,195 @@
+= WAF-COST-010 – Cost Allocation Tagging Enforced
+:page-toc: right
+:control-id: WAF-COST-010
+:pillar: cost
+:severity: high
+:category: cost-allocation
+:automated: high
+:description: WAF++ Cost Optimization – Verpflichtende Kostenzuordnungs-Tags auf allen Cloud-Ressourcen.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Cost Allocation | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Cloud-Ressourcen MÜSSEN die Pflicht-Tags tragen: `cost-center`, `owner`, `environment`, `workload`.
+Fehlende Pflicht-Tags MÜSSEN im CI-Gate als Violation behandelt werden.
+Kein Deployment darf ohne vollständige Tagging-Compliance durchgeführt werden.
+
+Tagging-Compliance ist keine optionale Optimierungsmaßnahme – sie ist die Grundvoraussetzung
+für alle anderen Cost-Optimization-Controls. Ohne Kostenzuordnung ist keine Optimierung möglich.
+
+== Rationale
+
+Ohne konsistentes Tagging sind 20–40% der Cloud-Kosten typischerweise nicht zuordenbar.
+Costs ohne Workload-Zuordnung können nicht optimiert werden: kein Ownership, kein Chargeback,
+kein sinnvolles Rightsizing, keine workloadspezifische Budget-Kontrolle.
+
+Manuelles Tagging im Console-UI ist unzuverlässig: Tags werden beim nächsten Terraform-Apply
+überschrieben. IaC-seitig erzwungene Tags über ein gemeinsames Mandatory-Tag-Modul sind
+der einzige nachhaltige Ansatz.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Nicht zuordenbare Kosten*
+|20–40% Cloud-Kosten ohne Workload-Zuordnung machen Ownership, Rightsizing und Chargeback unmöglich.
+
+|*Fehlende Budget-Kontrolle*
+|Budget-Überschreitungen können keinem Team zugeordnet werden – niemand fühlt sich verantwortlich.
+
+|*Compliance-Gap*
+|Cost-Governance-Frameworks erfordern demonstrierbare Kostenzuordnung; fehlende Tags sind Audit-Findings.
+
+|*Drift durch Console-Tagging*
+|Im UI manuell gesetzte Tags werden bei Terraform-Runs überschrieben – kontinuierliche Inkonsistenz.
+
+|===
+
+== Anforderung
+
+Alle datenhaltenden und compute-intensiven Ressourcen MÜSSEN folgende Tags tragen:
+
+* `cost-center` – Organisatorische Kosteneinheit (lowercase-kebab-case)
+* `owner` – Verantwortliches Team (nicht Einzelperson)
+* `environment` – Umgebung: `production`, `staging`, `development`, `testing`
+* `workload` – Name des Workloads oder Produkts
+
+Die Tags MÜSSEN über ein gemeinsames Terraform-Modul gesetzt werden.
+Ein CI-Gate MUSS Tagging-Compliance bei jedem Pull Request prüfen.
+
+== Implementierungsanleitung
+
+. *Tagging-Taxonomie dokumentieren*: `docs/tagging-taxonomy.yml` mit erlaubten Werten
+. *Mandatory-Tag-Modul erstellen*: Gemeinsames Terraform-Modul für alle Teams
+. *Variable-Validation hinzufügen*: `environment` auf erlaubte Werte beschränken
+. *CI-Gate konfigurieren*: WAF++ Check oder OPA-Policy prüft Tags bei jedem PR
+. *Chargeback/Showback einrichten*: Cost-Allocation-Gruppen in Cloud-Billing-Tools
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc Tagging
+|Kein Tagging-Standard; verschiedene Teams nutzen unterschiedliche Tag-Keys.
+
+|*2*
+|Taxonomie dokumentiert
+|Pflicht-Tag-Taxonomie dokumentiert; Tags manuell gesetzt; monatliches Compliance-Review.
+
+|*3*
+|IaC-erzwungen mit CI-Gate
+|Mandatory-Tag-Modul in allen Deployments; CI-Pipeline blockiert non-compliant PRs; >= 95% Compliance.
+
+|*4*
+|Automatisierte Remediation
+|Nicht-compliant getaggte Ressourcen werden automatisch remediert; Chargeback/Showback operativ.
+
+|*5*
+|Vollständige Kostenzuordnung
+|100% Kostenzuordnung zu Workloads; Real-Time-Dashboard; automatische Tag-Enforcement via SCP/Policy.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-010.tf.aws.compute-mandatory-tags
+*Prüft:* AWS Compute-Ressourcen müssen `cost-center`, `owner`, `environment`, `workload` Tags tragen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+module "tags" {
+  source      = "../../modules/mandatory-tags"
+  cost_center = "fintech-platform"
+  owner       = "payments-team"
+  environment = "production"
+  workload    = "payment-service"
+}
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags          = module.tags.tags
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags = {
+    Name = "payment-app"
+    # Fehlend: cost-center, owner,
+    # environment, workload
+    # WAF-COST-010 Violation
+  }
+}
+----
+|===
+
+*Remediation:* Mandatory-Tag-Modul in alle Ressourcen einbinden. Werte für `environment` müssen
+aus der erlaubten Liste stammen: `production`, `staging`, `development`, `testing`.
+
+---
+
+=== waf-cost-010.tf.azurerm.resource-group-mandatory-tags
+*Prüft:* Azure Resource Groups müssen alle Pflicht-Tags tragen.
+
+[source,hcl]
+----
+# Compliant
+resource "azurerm_resource_group" "main" {
+  name     = "rg-payment-service-prod"
+  location = var.location
+  tags = {
+    cost-center = "fintech-platform"
+    owner       = "payments-team"
+    environment = "production"
+    workload    = "payment-service"
+    managed-by  = "terraform"
+  }
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Tagging-Taxonomie-Dokument (versioniert, mit erlaubten Werten und Enforcement-Regeln).
+
+|*IaC*
+|✅ Pflicht
+|Mandatory-Tags-Modul im Repository; verwendet von allen Teams.
+
+|*Process*
+|Optional
+|Monatlicher Tagging-Compliance-Report (Ziel: >= 95% Compliance).
+
+|*Config*
+|Optional
+|CI-Pipeline-Konfiguration mit Tag-Compliance-Check auf Pull Requests.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-020.adoc[WAF-COST-020 – Cost Budgets & Alerting]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+
+== Best Practice
+
+* xref:../best-practices/bp-tagging.adoc[Cost Allocation Tagging Strategy →]

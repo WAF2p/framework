@@ -1,0 +1,216 @@
+id: WAF-COST-040
+title: "Storage & Retention Lifecycle Defined"
+pillar: "cost"
+status: "active"
+severity: "high"
+category: "retention-management"
+type: ['configuration', 'automation']
+tags: ['lifecycle', 'retention', 'storage', 'logging', 'infinite-retention', 'cost-optimization']
+
+description: >
+  All storage resources (S3 buckets, Azure Storage accounts, GCS buckets) MUST have explicit
+  lifecycle rules configured. All log groups (CloudWatch, Azure Log Analytics, GCP Cloud Logging)
+  MUST have an explicit retention_in_days value that is not 0 (infinite) and not null.
+  No storage or logging resource may be provisioned without an explicit, finite retention or
+  lifecycle policy. Infinite retention is classified as Architectural Cost Debt.
+
+rationale: >
+  Storage costs grow linearly and unbounded without lifecycle policies. "It barely costs anything
+  per GB" compounds into significant cost positions as data accumulates over years. CloudWatch
+  Log Groups with retention_in_days = 0 (the default) store logs indefinitely, which commonly
+  results in observability costs exceeding compute costs. Lifecycle policies are the single most
+  cost-effective preventive measure in cloud cost management: they require one-time IaC work
+  and deliver permanent, growing savings as data accumulates.
+
+threat:
+  - "Unbounded storage cost growth from S3 buckets without lifecycle policies"
+  - "CloudWatch Log Group default retention (infinite) driving observability costs above compute"
+  - "Forgotten RDS snapshots and EBS snapshots accumulating over years"
+  - "Incomplete multipart uploads consuming S3 storage silently"
+  - "Architectural cost debt: infinite retention by default, treated as governance risk"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Optimize Phase – Storage Optimization and Lifecycle Management"
+  - framework: "GDPR"
+    controls:
+      - "Art. 5(1)(e) – Storage limitation (data not kept longer than necessary)"
+      - "Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)"
+  - framework: "Internal Governance"
+    controls:
+      - "Data Retention Policy – Explicit lifecycle for all data categories"
+      - "Cloud Cost Governance – No infinite retention defaults"
+
+implementation_guidance:
+  - "Add lifecycle_rule blocks to all S3 bucket resources; treat missing lifecycle as a violation."
+  - "Set retention_in_days > 0 on all aws_cloudwatch_log_group resources (never use default of 0)."
+  - "Apply 4-tier log retention: Hot (7-30d), Warm (30-90d), Cold (90-365d), Archive (>365d)."
+  - "For brownfield: run discovery to find S3 buckets without lifecycle and log groups with infinite retention."
+  - "Add abort_incomplete_multipart_upload rule to all S3 lifecycle configurations (3-day cleanup)."
+  - "Document retention decisions in retention-strategy.yml alongside IaC code."
+
+maturity_levels:
+  level_1:
+    description: "No lifecycle policies, all retention infinite"
+    criteria:
+      - "S3 buckets have no lifecycle rules"
+      - "CloudWatch Log Groups use default retention (infinite)"
+      - "No retention strategy document exists"
+  level_2:
+    description: "Some retention settings applied manually"
+    criteria:
+      - "At least top cost-driving buckets and log groups have retention configured"
+      - "Retention strategy exists informally"
+  level_3:
+    description: "All resources have lifecycle IaC configuration"
+    criteria:
+      - "Every S3 bucket resource in Terraform has a lifecycle_rule"
+      - "Every aws_cloudwatch_log_group has retention_in_days != 0"
+      - "CI gate prevents deploying storage/log resources without lifecycle"
+      - "Retention-strategy.yml document exists and is version-controlled"
+  level_4:
+    description: "Tiered storage automated and value-analyzed"
+    criteria:
+      - "Log tiering implemented (Hot/Warm/Cold/Archive) with automated transitions"
+      - "Storage cost trends tracked monthly; lifecycle rules adjusted based on access patterns"
+      - "Snapshot cleanup automation runs regularly"
+  level_5:
+    description: "Cost-optimized retention with value-based tiers"
+    criteria:
+      - "Intelligent tiering enabled for high-volume storage (S3 Intelligent-Tiering)"
+      - "Log value analysis: logs not referenced in alerts/incidents within 90 days moved to archive"
+      - "Automated compliance-driven retention: retention matches exactly the regulatory requirement"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform storage resources with explicit lifecycle_rule or lifecycle_configuration blocks."
+    - kind: "iac"
+      description: "Terraform CloudWatch Log Group resources with retention_in_days set (not 0, not null)."
+  optional:
+    - kind: "governance"
+      description: "Retention strategy document (docs/retention-strategy.yml) mapping data types to retention periods."
+    - kind: "config"
+      description: "AWS Config rule report showing S3 buckets without lifecycle policies (target: 0)."
+
+checks:
+  - id: "waf-cost-040.tf.aws.s3-lifecycle-rule-defined"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "S3 buckets must have explicit lifecycle configuration"
+    description: >
+      Every aws_s3_bucket resource must have an associated aws_s3_bucket_lifecycle_configuration
+      resource, or a lifecycle_rule block. S3 buckets without lifecycle rules accumulate data
+      indefinitely, driving unbounded storage costs.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_lifecycle_configuration"
+    assertions:
+      - attribute: "rule"
+        op: "not_empty"
+        message: "S3 lifecycle configuration must contain at least one rule."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_s3_bucket_lifecycle_configuration resource for every S3 bucket.
+      Include at minimum: transition to STANDARD_IA after 30 days, GLACIER after 90 days,
+      and an abort_incomplete_multipart_upload rule with days_after_initiation = 3.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_lifecycle_configuration" "data" {
+          bucket = aws_s3_bucket.data.id
+
+          rule {
+            id     = "tiering"
+            status = "Enabled"
+
+            transition {
+              days          = 30
+              storage_class = "STANDARD_IA"
+            }
+            transition {
+              days          = 90
+              storage_class = "GLACIER_IR"
+            }
+            expiration {
+              days = 365
+            }
+          }
+
+          rule {
+            id     = "abort-incomplete"
+            status = "Enabled"
+            abort_incomplete_multipart_upload {
+              days_after_initiation = 3
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "data" {
+          bucket = "acme-application-data"
+          # No lifecycle configuration – WAF-COST-040 violation
+          # Data will accumulate indefinitely
+        }
+
+  - id: "waf-cost-040.tf.aws.cloudwatch-log-retention-not-zero"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "CloudWatch Log Groups must not have infinite retention"
+    description: >
+      All aws_cloudwatch_log_group resources must have retention_in_days set to a value
+      greater than 0. The Terraform default (not setting retention_in_days) results in
+      infinite retention, which is classified as Architectural Cost Debt in WAF++.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "attribute_exists"
+        message: "CloudWatch Log Group is missing retention_in_days. Default is infinite retention (cost debt)."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "retention_in_days must be >= 1. Setting 0 means infinite retention (WAF-COST-040 violation)."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days on all aws_cloudwatch_log_group resources.
+      Use the 4-tier model: operational=30, security-audit=365, compliance=2555 (7yr).
+      Never use 0 (infinite) as this represents unconstrained cost debt.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "application" {
+          name              = "/app/production/payment-service"
+          retention_in_days = 30  # Hot-tier: operational logs
+          kms_key_id        = aws_kms_key.logging.arn
+          tags              = module.mandatory_tags.tags
+        }
+
+        resource "aws_cloudwatch_log_group" "audit" {
+          name              = "/app/production/audit"
+          retention_in_days = 365  # Cold-tier: audit logs
+          kms_key_id        = aws_kms_key.logging.arn
+          tags              = module.mandatory_tags.tags
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "application" {
+          name = "/app/production/payment-service"
+          # retention_in_days not set = infinite retention = WAF-COST-040 violation
+        }
+
+        resource "aws_cloudwatch_log_group" "debug" {
+          name              = "/app/production/debug"
+          retention_in_days = 0  # Explicit infinite – also a violation
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-040"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-retention.adoc"
+  related_controls:
+    - "WAF-COST-070"
+    - "WAF-COST-100"

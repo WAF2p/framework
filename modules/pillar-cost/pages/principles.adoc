@@ -1,13 +1,164 @@
-= Cost Optimization Principles
+= Cost-Optimization-Prinzipien
+:page-toc: right
+:description: WAF++ – Die 7 Prinzipien der Cost-Optimization-Säule inkl. Architektonischer Kostenschuld.
 
-== P1 – Transparency First
-Alle Cloud-Kosten müssen nachvollziehbar und zuordenbar sein.
+Die folgenden sieben Prinzipien bilden das Fundament der Cost-Säule im WAF++.
+Sie sind anbieter- und technologieunabhängig formuliert und gelten für Brownfield- wie Greenfield-Szenarien.
 
-== P2 – Ownership
-Jede Ressource hat einen klaren Owner.
+== CP1 – Transparency First
 
-== P3 – Automation
-Budget-Kontrollen erfolgen automatisiert.
+*Nicht sichtbare Kosten können nicht optimiert werden.*
 
-== P4 – Continuous Optimization
-Kosten werden regelmäßig überprüft und optimiert.
+Jede Cloud-Ressource muss einem Workload, einem Team und einer Umgebung eindeutig zugeordnet sein.
+Kosten-Transparenz ist keine Kür – sie ist die Grundvoraussetzung für alle anderen Cost-Controls.
+
+Transparenz bedeutet konkret:
+
+* Tagging-Taxonomie definiert und IaC-seitig durchgesetzt (kein Deployment ohne Pflicht-Tags)
+* Cost-Allocation-Gruppen in Cloud-Provider-Billing-Tools konfiguriert
+* Chargeback oder Showback-Modell für interne Kostenverteilung etabliert
+* Cost-Anomalien werden automatisiert erkannt – nicht manuell im Monats-Report entdeckt
+
+*Implikation:* „Wir sehen unsere Gesamtrechnung" ist keine Transparenz.
+Ein vollständig getaggtes, nach Workload segmentiertes Cost-Dashboard mit Alert-Schwellwerten ist Transparenz.
+
+*Zugehörige Controls:* WAF-COST-010, WAF-COST-020
+
+---
+
+== CP2 – Ownership
+
+*Jede Ressource und jeder Workload hat einen klaren Kostenverantwortlichen.*
+
+Ohne Ownership werden Kostenoptimierungen nicht umgesetzt – es ist nie klar, wer zuständig ist.
+Kostenverantwortung muss dort liegen, wo Architekturentscheidungen getroffen werden: beim Engineering-Team.
+
+Ownership bedeutet konkret:
+
+* Das `owner`-Tag auf jeder Ressource verweist auf ein konkretes Team (nicht eine Abteilung)
+* Kostenverantwortliche sind Teil der FinOps-Review-Zyklen und empfangen Budget-Alerts
+* Budget-Überschreitungen lösen eine direkte Eskalation an den Team-Owner aus
+* Ownership ist in Onboarding-Prozesse für neue Services integriert
+
+*Implikation:* „Das FinOps-Team ist für Kosten zuständig" ist ein Anti-Pattern.
+FinOps *unterstützt* Engineering-Teams – die Kostenverantwortung bleibt beim Team.
+
+*Zugehörige Controls:* WAF-COST-010, WAF-COST-060
+
+---
+
+== CP3 – Cost-Aware Architecture
+
+*Architekturentscheidungen haben wirtschaftliche Langzeitauswirkungen. Diese müssen bewertet sein.*
+
+Jede Entscheidung für eine Infrastrukturkomponente, ein Managed Service oder ein Deployment-Pattern
+bringt Kostenstruktur mit sich: Fixkosten, variable Kosten, Transferkosten, Betriebskosten, Exit-Kosten.
+Diese entstehen nicht zufällig – sie sind das Ergebnis architektonischer Entscheidungen.
+
+Wenn diese wirtschaftlichen Auswirkungen nicht bewertet werden, akkumuliert sich *Architektonische Kostenschuld*:
+Kostenstrukturen, die sich in der Architektur festsetzen und später nur mit erheblichem Aufwand geändert werden können.
+
+Cost-Aware Architecture bedeutet konkret:
+
+* Jedes ADR mit Infrastruktur-Impact enthält ein strukturiertes Cost-Impact-Assessment
+* TCO, Lock-in-Risiko, Datentransferkosten, Betriebsaufwand und Exit-Kosten werden explizit bewertet
+* HA- und Multi-Region-Entscheidungen werden SLO-getrieben getroffen – nicht hypothetisch
+* Open-Source-Alternativen werden gleichwertig evaluiert
+* Bekannte Kostenschulden sind im Cost-Debt-Register dokumentiert
+
+*Implikation:* Eine Entscheidung für einen hochpreisigen Managed Service ohne Exit-Plan ist keine
+Architekturentscheidung – es ist eine Kostenschuld, die später jemand begleichen muss.
+
+*Zugehörige Controls:* WAF-COST-050, WAF-COST-100
+
+Weitere Details: xref:cost-debt.adoc[Architektonische Kostenschuld]
+
+---
+
+== CP4 – Continuous Optimization
+
+*Kosten sind kein einmaliges Optimierungsprojekt. Sie werden kontinuierlich reviewed und reduziert.*
+
+Cloud-Infrastruktur verändert sich ständig: neue Services, wachsende Datenvolumen, geänderte
+Nutzungsmuster. Was heute optimal dimensioniert ist, ist in sechs Monaten möglicherweise überprovisioniert.
+
+Continuous Optimization bedeutet konkret:
+
+* Monatliche Engineering-Reviews mit konkreten Optimierungsmaßnahmen und Verantwortlichen
+* Quartalsweise Architecture-Board-Reviews zur Bewertung struktureller Kostentreiber
+* Rightsizing-Tags auf Compute-Ressourcen mit Datum der letzten Überprüfung
+* Cost-Debt-Register quartalsweise reviewed und aktualisiert
+* Automatisierte Idle-Detection und Rightsizing-Empfehlungen als Input für Reviews
+
+*Implikation:* Ein einmaliges Rightsizing-Projekt vor der Jahresplanung ist kein Prozess.
+Ein monatlicher Review-Zyklus mit Action-Item-Tracker ist ein Prozess.
+
+*Zugehörige Controls:* WAF-COST-030, WAF-COST-060, WAF-COST-100
+
+---
+
+== CP5 – Automation First
+
+*Budget-Controls, Alerts und Optimierungsmaßnahmen sind automatisiert – nicht manuell.*
+
+Manuelle Kostenkontrolle ist fehleranfällig und skaliert nicht. Budgets, die per Hand im
+Cloud-Console-UI gesetzt werden, sind nicht reproduzierbar, nicht versioniert und nicht überprüfbar.
+
+Automation First bedeutet konkret:
+
+* Alle Budget-Definitionen sind IaC-verwaltet (Terraform `aws_budgets_budget`, Azure `consumption_budget`, GCP `billing_budget`)
+* Alerts werden automatisch an Owner-Kanäle geroutet (Slack, E-Mail, PagerDuty)
+* CI-Gates prüfen Tagging-Compliance bei jedem Pull Request
+* Lifecycle-Policies für Storage und Logs sind automatisiert – kein manuelles Archivieren
+* Idle-Resources werden automatisch identifiziert und zur Abschaltung vorgeschlagen
+
+*Implikation:* Ein Budget, das nur im Billing-Dashboard sichtbar ist, bietet keine operative Kontrolle.
+Ein Budget als Terraform-Ressource mit Alert-Notification und automatischem Ticket-Öffner ist Kontrolle.
+
+*Zugehörige Controls:* WAF-COST-020, WAF-COST-040, WAF-COST-070
+
+---
+
+== CP6 – Right-Size, Not Over-Size
+
+*Ressourcen werden nach tatsächlichem Bedarf dimensioniert – nicht nach hypothetischen Peak-Szenarien.*
+
+Überprovisionierung ist die häufigste und kostspieligste Form von Cloud-Verschwendung.
+Systeme, die für ein 10-faches Wachstum dimensioniert wurden, das nie eintrat,
+zahlen jeden Monat den Preis dieser Entscheidung.
+
+Right-Size, Not Over-Size bedeutet konkret:
+
+* Sizing-Entscheidungen basieren auf gemessener Auslastung (P95/P99), nicht auf Schätzungen
+* SLO/SLA-Anforderungen treiben HA- und Redundanzentscheidungen – nicht Vorsicht
+* Reservierungen werden auf Basis von 70%+ Auslastung über 30 Tage getroffen – nicht als Default
+* Spot/Preemptible Instances für variable Workloads; On-Demand nur für unvorhersehbare Spitzen
+* Rightsizing-Reviews sind dokumentiert und nachvollziehbar (Tag `rightsizing-reviewed` mit Datum)
+
+*Implikation:* HA in drei Availability Zones ohne SLO-Anforderung, die mehr als eine AZ verlangt,
+ist keine Resilienz-Investition – es ist Architektonische Kostenschuld.
+
+*Zugehörige Controls:* WAF-COST-030, WAF-COST-080
+
+---
+
+== CP7 – Full Cost View
+
+*Die Gesamtkosten eines Workloads umfassen Infrastruktur, Lizenzen, Betriebsaufwand, Skills und Exit-Kosten.*
+
+Cloud-Rechnungen zeigen nur einen Bruchteil der tatsächlichen Kosten. Betriebsaufwand
+(in FTE-Stunden), Lizenzkosten, Vendor-Management, Schulungsaufwand und potenzielle Exit-Kosten
+sind in vielen Kostenvergleichen systematisch unsichtbar.
+
+Full Cost View bedeutet konkret:
+
+* TCO-Berechnungen umfassen: Infrastruktur + Lizenzen + FTE-Aufwand (Ops + Engineering) + Vendor-Management + Exit-Kosten
+* ROI-Bewertungen beziehen sich auf den *Wert des Workloads* (Revenue, Risk Reduction, Compliance), nicht nur auf Infrastrukturkosten
+* Multi-Cloud-Szenarien werden auf tatsächliche Gesamtkosten bewertet: Datentransfer zwischen Providern, duplizierte Betriebskompetenz, Enterprise-Agreement-Verluste
+* Open-Source-Alternativen werden auf Gesamtkosten bewertet: Lizenzersparnis vs. Betriebsaufwand, Support-Kosten, fehlende Managed-Service-Convenience
+* Lock-in-Kosten werden als versteckte Verbindlichkeit bilanziert: Je höher der Lock-in, desto höher die kalkulatorischen Exit-Kosten
+
+*Implikation:* „AWS ist teurer als On-Premises" ist oft falsch, wenn man Colocation, Power, Hardware-Amortisation,
+Personal und Ausfallkosten einbezieht. Ebenso: „Open Source ist kostenlos" ignoriert Betriebsaufwand.
+
+*Zugehörige Controls:* WAF-COST-050, WAF-COST-060, WAF-COST-100

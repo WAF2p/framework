@@ -1,0 +1,207 @@
+id: WAF-COST-080
+title: "Commitment & Reserved Capacity Planning"
+pillar: "cost"
+status: "active"
+severity: "medium"
+category: "cost-optimization"
+type: ['governance', 'configuration']
+tags: ['reserved-instances', 'savings-plans', 'commitment', 'capacity-planning', 'cost-optimization']
+
+description: >
+  Compute resources with sustained utilization >= 70% over 30 days MUST be covered by
+  Reserved Instances or Savings Plans. All persistent on-demand compute resources MUST
+  carry a 'capacity-commitment' tag documenting their reservation status and the date
+  of the last commitment review. Spot/Preemptible Instances are the preferred option
+  for variable and interruptible workloads.
+
+rationale: >
+  Running baseline production workloads on On-Demand pricing is a structural inefficiency.
+  Reserved Instances and Savings Plans offer 30-60% cost reduction for stable workloads
+  with minimal operational overhead. The most common commitment failure is not purchasing
+  reservations at all — treating every workload as variable when most production systems
+  have a highly predictable baseline. The capacity-commitment tag creates an audit trail
+  proving that commitment planning is actively managed, not forgotten.
+
+threat:
+  - "Paying on-demand prices for baseline production workloads consistently running > 70% utilization"
+  - "Unused Reserved Instances that no longer match current workloads (commitment waste)"
+  - "Missing Savings Plans coverage for workloads that have been rightsized but still need commitment"
+  - "Over-committing on long-term RIs for workloads that subsequently changed architecture"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Optimize Phase – Rate Optimization and Commitment Management"
+      - "Operate Phase – Commitment Planning and Renewal Management"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Minimum Reserved Instance Coverage for Baseline Workloads"
+
+implementation_guidance:
+  - "Measure utilization for 30 days before purchasing any reservations; avoid committing to unknowns."
+  - "Prefer Compute Savings Plans over EC2 Reserved Instances for flexibility during rightsizing."
+  - "Review RI portfolio quarterly: utilization, expiry dates, coverage gaps."
+  - "For Kubernetes workloads: use EKS-aware Savings Plans rather than per-instance RIs."
+  - "Tag all baseline compute with capacity-commitment status (reserved|savings-plan|spot|on-demand)."
+  - "Set target: RI/SP coverage >= 70% for all compute with >= 30-day sustained baseline."
+
+maturity_levels:
+  level_1:
+    description: "All compute on On-Demand"
+    criteria:
+      - "No Reserved Instances or Savings Plans purchased"
+      - "No utilization measurement to identify commitment candidates"
+  level_2:
+    description: "Some reservations purchased ad-hoc"
+    criteria:
+      - "Some RIs exist but were purchased without systematic utilization analysis"
+      - "No tracking of RI utilization or expiry"
+  level_3:
+    description: "Baseline workloads fully reserved"
+    criteria:
+      - "All compute with >= 70% utilization over 30 days covered by RI or Savings Plans"
+      - "'capacity-commitment' tag on all baseline compute resources"
+      - "Quarterly RI portfolio review in place"
+      - "RI utilization target >= 80%"
+  level_4:
+    description: "Savings Plans optimized and renewals managed"
+    criteria:
+      - "Compute Savings Plans cover all stable workloads (more flexible than per-instance RIs)"
+      - "RI expiry alerts configured 90 days before expiry"
+      - "RI exchange and modification used proactively when workloads change"
+  level_5:
+    description: "ML-driven commitment optimization"
+    criteria:
+      - "AWS Cost Optimizer / Azure Advisor / GCP Recommender commitment recommendations automatically processed"
+      - "Commitment portfolio automatically rebalanced based on workload change events"
+      - "Spot/Preemptible coverage maximized for CI/CD, batch, and stateless workloads"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform compute resources with 'capacity-commitment' tag documenting reservation status."
+    - kind: "config"
+      description: "RI/SP utilization report (quarterly) showing coverage >= 70% for baseline workloads."
+  optional:
+    - kind: "process"
+      description: "Quarterly RI portfolio review record: upcoming expiries, coverage gaps, purchase decisions."
+    - kind: "config"
+      description: "Savings Plans recommendations report from AWS Cost Management or equivalent."
+
+checks:
+  - id: "waf-cost-080.tf.aws.ec2-capacity-commitment-tag"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "EC2 instances must declare their capacity commitment status"
+    description: >
+      All EC2 instances must carry a 'capacity-commitment' tag documenting whether the
+      instance is covered by a reservation, savings plan, spot pricing, or on-demand.
+      This tag proves active commitment management and enables automated coverage reporting.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "capacity-commitment"
+        message: "EC2 instance missing 'capacity-commitment' tag. Reservation status must be declared."
+      - attribute: "tags.capacity-commitment"
+        op: "in"
+        values: ["reserved", "savings-plan", "spot", "on-demand", "reviewed"]
+        message: "capacity-commitment must be: reserved, savings-plan, spot, on-demand, or reviewed."
+    on_fail: "violation"
+    remediation: >
+      Add 'capacity-commitment' tag to all EC2 instances.
+      Value 'reserved' or 'savings-plan' = commitment exists.
+      Value 'on-demand' = no commitment, flagged for review.
+      Value 'reviewed' = reviewed and consciously left on-demand (needs date + justification).
+    example:
+      compliant: |
+        # Baseline instance with savings plan coverage
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "c5.2xlarge"
+          tags = merge(module.mandatory_tags.tags, {
+            rightsizing-reviewed = "2025-03-01"
+            capacity-commitment  = "savings-plan"
+            commitment-type      = "compute-savings-plan-1yr"
+            commitment-expiry    = "2026-03-01"
+          })
+        }
+
+        # Spot instance for CI/CD
+        resource "aws_instance" "ci_runner" {
+          ami                    = data.aws_ami.ubuntu.id
+          instance_type          = "c5.xlarge"
+          instance_market_options {
+            market_type = "spot"
+          }
+          tags = merge(module.mandatory_tags.tags, {
+            capacity-commitment = "spot"
+          })
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "c5.2xlarge"
+          tags = {
+            cost-center = "fintech-platform"
+            # Missing capacity-commitment – commitment status unknown
+          }
+        }
+
+  - id: "waf-cost-080.tf.azurerm.vm-commitment-tag"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure VMs must declare their capacity commitment status"
+    description: >
+      All Azure Virtual Machines must carry a 'capacity-commitment' tag documenting
+      whether the VM is covered by a Reserved VM Instance, Azure Savings Plan, Spot pricing,
+      or On-Demand. This enables automated coverage gap detection.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_linux_virtual_machine"
+        - "azurerm_windows_virtual_machine"
+        - "azurerm_virtual_machine_scale_set"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "capacity-commitment"
+        message: "Azure VM missing 'capacity-commitment' tag."
+    on_fail: "violation"
+    remediation: >
+      Add 'capacity-commitment' tag to all Azure VM resources.
+      Use Azure Advisor to identify baseline VMs that should have Reserved VM Instances.
+    example:
+      compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-payment-app"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = var.location
+          size                = "Standard_D4s_v3"
+          tags = merge(local.mandatory_tags, {
+            "capacity-commitment" = "reserved"
+            "commitment-type"     = "1yr-no-upfront"
+          })
+        }
+      non_compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name     = "vm-payment-app"
+          location = var.location
+          size     = "Standard_D8s_v3"
+          # Missing: capacity-commitment tag
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-080"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-rightsizing.adoc"
+  related_controls:
+    - "WAF-COST-030"
+    - "WAF-COST-060"

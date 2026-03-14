@@ -1,0 +1,229 @@
+id: WAF-COST-010
+title: "Cost Allocation Tagging Enforced"
+pillar: "cost"
+status: "active"
+severity: "high"
+category: "cost-allocation"
+type: ['governance', 'configuration', 'automation']
+tags: ['tagging', 'cost-allocation', 'finops', 'chargeback', 'showback', 'ownership']
+
+description: >
+  All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner,
+  environment, and workload. These tags are required on all resource types that generate
+  billable costs (compute, storage, database, network, managed services).
+  Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance
+  MUST be blocked or flagged as violations.
+
+rationale: >
+  Without consistent tagging, cloud costs cannot be allocated to workloads, teams, or
+  environments. Unallocated costs (commonly 20–40% of total cloud spend in unmanaged accounts)
+  make budget ownership, rightsizing, and chargeback models impossible.
+  Cost allocation is the prerequisite for every other cost optimization measure.
+  Manual tagging in console UIs is unreliable; IaC-enforced tags are the only sustainable approach.
+
+threat:
+  - "Unallocated cloud spend making workload cost ownership impossible"
+  - "Budget overruns not attributable to specific teams or products"
+  - "Inability to implement chargeback or showback cost models"
+  - "Rightsizing and optimization blocked by missing workload context"
+  - "Compliance gaps: cost governance frameworks require demonstrable allocation"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Inform Phase – Cost Allocation and Showback"
+      - "Operate Phase – Tagging and Cost Attribution"
+  - framework: "ISO 20000"
+    controls:
+      - "Service financial management – cost allocation"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Resource Ownership"
+      - "FinOps Charter – Accountability and Transparency"
+
+implementation_guidance:
+  - "Define a mandatory tag taxonomy: cost-center, owner, environment, workload (lowercase kebab-case)."
+  - "Create a shared Terraform module that outputs the mandatory tag map and is used by all teams."
+  - "Enforce tagging in CI/CD: add a WAF++ check or OPA policy that blocks PRs missing mandatory tags."
+  - "Restrict tag values with Terraform variable validation to prevent freeform tag pollution."
+  - "For brownfield: run discovery to identify untagged resources; assign owners before remediation."
+  - "Configure cloud-native cost allocation: AWS Cost Allocation Tags, Azure Cost Management tags, GCP Labels."
+  - "Implement showback or chargeback models once tagging compliance exceeds 95%."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc tagging, no standard taxonomy"
+    criteria:
+      - "Some resources are tagged but no consistent taxonomy exists"
+      - "Different teams use different tag keys for the same concept"
+  level_2:
+    description: "Taxonomy documented, manual tagging"
+    criteria:
+      - "Mandatory tag taxonomy is documented and version-controlled"
+      - "All new resources are tagged at creation (manually)"
+      - "Monthly tagging compliance review exists"
+  level_3:
+    description: "IaC-enforced with CI gate"
+    criteria:
+      - "Shared mandatory-tags module is used by all IaC deployments"
+      - "CI pipeline checks tag compliance on every PR"
+      - "Tag compliance rate >= 95% for all resource types"
+  level_4:
+    description: "Automated remediation and chargeback"
+    criteria:
+      - "Automated remediation tags untagged resources within 24 hours"
+      - "Chargeback or showback model operational for all teams"
+      - "Unallocated cost < 5% of total cloud spend"
+  level_5:
+    description: "Full cost allocation with automated attribution"
+    criteria:
+      - "100% cost allocation to workloads and teams"
+      - "Real-time cost dashboards per team with drill-down to resource level"
+      - "Automated tag enforcement policies at cloud org level (SCP/Policy/Org Policy)"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Tag taxonomy document (version-controlled, covering all mandatory tags, allowed values, and enforcement rules)."
+    - kind: "iac"
+      description: "Shared mandatory-tags Terraform module used in all deployments."
+  optional:
+    - kind: "process"
+      description: "Monthly tagging compliance report showing % of resources with all mandatory tags."
+    - kind: "config"
+      description: "CI pipeline configuration showing tag compliance check on pull requests."
+
+checks:
+  - id: "waf-cost-010.tf.aws.compute-mandatory-tags"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS compute resources must have all mandatory cost allocation tags"
+    description: >
+      EC2 instances, ECS services, EKS node groups, Lambda functions and other compute
+      resources must carry all mandatory cost allocation tags: cost-center, owner,
+      environment, and workload.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+        - "aws_eks_node_group"
+        - "aws_ecs_service"
+        - "aws_lambda_function"
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+        - "aws_elasticache_cluster"
+        - "aws_s3_bucket"
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "cost-center"
+        message: "Resource is missing the mandatory 'cost-center' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "owner"
+        message: "Resource is missing the mandatory 'owner' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "environment"
+        message: "Resource is missing the mandatory 'environment' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "workload"
+        message: "Resource is missing the mandatory 'workload' tag."
+    on_fail: "violation"
+    remediation: >
+      Use the shared mandatory-tags module to generate the complete tag map.
+      Add module "tags" { source = "../../modules/mandatory-tags"; cost_center = ...; owner = ...; environment = ...; workload = ...; }
+      Then set tags = module.tags.tags on every resource.
+    example:
+      compliant: |
+        module "tags" {
+          source      = "../../modules/mandatory-tags"
+          cost_center = "fintech-platform"
+          owner       = "payments-team"
+          environment = "production"
+          workload    = "payment-service"
+        }
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t3.medium"
+          tags          = module.tags.tags
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t3.medium"
+          tags = {
+            Name = "payment-app"
+            # Missing: cost-center, owner, environment, workload
+          }
+        }
+
+  - id: "waf-cost-010.tf.azurerm.resource-group-mandatory-tags"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure resource groups must have all mandatory cost allocation tags"
+    description: >
+      Azure resource groups must carry all mandatory cost allocation tags. Tags applied
+      to resource groups propagate to child resources through Azure Cost Management.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_resource_group"
+        - "azurerm_virtual_machine"
+        - "azurerm_storage_account"
+        - "azurerm_sql_database"
+        - "azurerm_kubernetes_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "cost-center"
+        message: "Azure resource is missing the mandatory 'cost-center' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "owner"
+        message: "Azure resource is missing the mandatory 'owner' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "environment"
+        message: "Azure resource is missing the mandatory 'environment' tag."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "workload"
+        message: "Azure resource is missing the mandatory 'workload' tag."
+    on_fail: "violation"
+    remediation: >
+      Add all mandatory tags to Azure resources. For resource groups, ensure tags include
+      cost-center, owner, environment, and workload. Use Azure Policy to enforce tag inheritance.
+    example:
+      compliant: |
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-payment-service-prod"
+          location = var.location
+          tags = {
+            cost-center = "fintech-platform"
+            owner       = "payments-team"
+            environment = "production"
+            workload    = "payment-service"
+            managed-by  = "terraform"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-payment-service-prod"
+          location = var.location
+          # Missing all mandatory tags – WAF-COST-010 violation
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-010"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-tagging.adoc"
+  related_controls:
+    - "WAF-COST-020"
+    - "WAF-COST-060"

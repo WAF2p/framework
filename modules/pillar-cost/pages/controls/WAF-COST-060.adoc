@@ -1,0 +1,192 @@
+= WAF-COST-060 – FinOps Review Cadence
+:page-toc: right
+:control-id: WAF-COST-060
+:pillar: cost
+:severity: medium
+:category: finops-governance
+:automated: low
+:description: WAF++ Cost Optimization – Obligatorischer monatlicher Engineering- und quartalsweiser Architecture-Board-Review-Zyklus.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* FinOps Governance | *Automatisierbar:* Niedrig–Mittel
+
+== Beschreibung
+
+Monatliche Engineering-Level-FinOps-Reviews MÜSSEN für alle Produktions-Workloads stattfinden.
+Quartalsweise Architecture-Board-Reviews mit Cost-Debt-Governance MÜSSEN durchgeführt werden.
+Review-Outputs (Action Items mit Owner und Fälligkeit) MÜSSEN schriftlich dokumentiert sein.
+Reviews sind verpflichtend – nicht optional.
+
+== Rationale
+
+FinOps ohne strukturierte Review-Zyklen ist Aspiration, keine Praxis.
+Cloud-Kosten ändern sich kontinuierlich: Workload-Wachstum, neue Services, Preisänderungen.
+Ohne regelmäßige Reviews werden Optimierungen reaktiv und ad-hoc.
+Strukturierte Reviews mit Action Items und Owners transformieren Cost-Management von reaktivem
+Firefighting zu proaktiver Disziplin.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Nicht umgesetzte Optimierungen*
+|Cloud-Provider-Empfehlungen werden nie eingebracht – weil kein Prozess existiert.
+
+|*Unbemerkte Kostenschuld*
+|Cost-Debt akkumuliert quartalsweise ohne Architecture-Board-Oversight.
+
+|*Wiederholte Budget-Überschreitungen*
+|Ohne Post-Mortem und Review werden dieselben Fehler jeden Monat wiederholt.
+
+|*Unkontrolliertes Wachstum*
+|Teams wachsen in Kosten, ohne diese zu kennen – normalisierte Kostensorglosigkeit.
+
+|===
+
+== Monatlicher Review: Pflicht-Agenda
+
+[source,text]
+----
+1. Aktueller Kostenstand vs. Budget (Δ zum Vormonat, Prognose)
+2. Top-3-Kostentreiber des Monats
+3. Anomalien und Alert-Events der letzten 30 Tage
+4. Rightsizing-Empfehlungen (Compute Optimizer / Azure Advisor / GCP Recommender)
+5. Action Items (Owner, Fälligkeitsdatum, erwartete Einsparung)
+6. Status offener Action Items aus Vormonat
+----
+
+== Quarterly Architecture Board: Pflicht-Agenda
+
+[source,text]
+----
+1. Gesamtkosten-Trend des Quartals
+2. Cost-Debt-Register: neue Einträge, Paydown-Fortschritt, Status-Updates
+3. ADR-Reviews mit Lock-in-Score >= 3 des Quartals
+4. Reservierungsstrategie (RI/SP-Portfolio)
+5. Sign-off und nächste Schritte
+----
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc-Reviews
+|Reviews nur bei Kostenspielen; keine Planung.
+
+|*2*
+|Monatliche Reviews (informell)
+|Monatliche Besprechungen, aber ohne strukturierte Agenda oder dokumentierte Action Items.
+
+|*3*
+|Strukturierter Review-Zyklus mit Owners
+|Monatliche Reviews mit Pflicht-Agenda; Action Items mit Owner und Fälligkeit; Quarterly AB-Review.
+
+|*4*
+|Anomalie-getriggerte Reviews
+|Cost-Anomalie-Alerts triggern unplante Reviews; Cloud-Provider-Empfehlungen automatisch in Agenda.
+
+|*5*
+|Continuous FinOps mit Real-Time-Dashboard
+|Real-Time-Cost-Dashboards in Engineering-Portalen; automatisierte Cost-Efficiency-Score.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-060.tf.any.finops-review-tag-current
+*Prüft:* Workload-Ressourcen sollten `last-finops-review`-Tag mit aktuellem Datum haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_eks_cluster" "main" {
+  name     = "payment-service-prod"
+  role_arn = aws_iam_role.eks.arn
+
+  tags = merge(module.mandatory_tags.tags, {
+    last-finops-review   = "2025-03-01"
+    rightsizing-reviewed = "2025-03-01"
+  })
+
+  version = "1.29"
+}
+----
+a|[source,hcl]
+----
+resource "aws_eks_cluster" "main" {
+  name     = "payment-service-prod"
+  role_arn = aws_iam_role.eks.arn
+  # Kein last-finops-review Tag
+  # Kein Nachweis des Review-Prozesses
+}
+----
+|===
+
+*Remediation:* Nach jedem monatlichen FinOps-Review `last-finops-review`-Tag
+auf Workload-Ressourcen aktualisieren. Format: `YYYY-MM-DD`.
+
+== Action-Item-Tracker Beispiel
+
+[source,yaml]
+----
+# action-items/2025-03.yml
+month: "2025-03"
+team: "platform-team"
+
+action_items:
+  - id: AI-2025-03-001
+    title: "3 idle dev-Instanzen abschalten"
+    owner: "platform-team"
+    due: "2025-03-31"
+    expected_saving_eur_month: 180
+    status: "open"
+
+  - id: AI-2025-03-002
+    title: "Log-Group-Retention von unbegrenzt auf 30d"
+    owner: "platform-team"
+    due: "2025-03-15"
+    expected_saving_eur_month: 45
+    status: "done"
+    actual_saving_eur_month: 42
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Process*
+|✅ Pflicht
+|Monatliche FinOps-Review-Protokolle der letzten 3 Monate mit Action-Item-Liste.
+
+|*Process*
+|✅ Pflicht
+|Quarterly Architecture-Board-Review-Protokoll mit Cost-Debt-Sign-off.
+
+|*IaC*
+|Optional
+|Workload-Ressourcen mit `last-finops-review`-Tag (aktuell).
+
+|*Config*
+|Optional
+|Action-Item-Tracker-Export mit Erledigungsrate.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register]
+* xref:controls/WAF-COST-050.adoc[WAF-COST-050 – Cost Impact Assessment in ADRs]
+
+== Best Practice
+
+* xref:../best-practices/bp-finops.adoc[FinOps-Prozesse implementieren →]

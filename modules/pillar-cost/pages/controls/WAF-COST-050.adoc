@@ -1,0 +1,201 @@
+= WAF-COST-050 – Cost Impact Assessment in Architecture Decision Records
+:page-toc: right
+:control-id: WAF-COST-050
+:pillar: cost
+:severity: high
+:category: architectural-cost-debt
+:automated: partial
+:description: WAF++ Cost Optimization – Wirtschaftliche Bewertung jeder Architekturentscheidung als primäre Prävention architektonischer Kostenschuld.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+
+== Beschreibung
+
+Jedes Architecture Decision Record (ADR) mit Infrastruktur-Impact MUSS eine strukturierte
+Cost-Impact-Assessment-Sektion enthalten mit: TCO-Schätzung (EUR/Jahr), Lock-in-Risiko-Score (1–5),
+Datentransfer-Kostenschätzung, Betriebsaufwand (FTE/Jahr), Exit-Kosten-Schätzung und 3-Jahres-NPV.
+
+ADRs mit Lock-in-Score >= 4 erfordern die Genehmigung des Architecture Boards vor der Implementierung.
+
+Dieser Control ist der primäre Prävention-Mechanismus für Architektonische Kostenschuld.
+
+== Rationale
+
+Architektonische Kostenschuld entsteht genau in dem Moment, in dem eine Infrastrukturentscheidung
+ohne vollständige wirtschaftliche Bewertung getroffen wird. Einmal implementiert, ist die
+Kostenstruktur für Jahre eingefroren. Cost-Impact-Assessments in ADRs erzwingen die wirtschaftliche
+Bewertung beim einzigen Zeitpunkt, zu dem die Entscheidung noch geändert werden kann.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Architektonische Kostenschuld*
+|Kostenstrukturen, die sich in der Architektur festsetzen, ohne je bewertet worden zu sein.
+
+|*Vendor Lock-in ohne Rechtfertigung*
+|Proprietäre Services ohne Exit-Plan und ohne wirtschaftliche Begründung des Lock-ins.
+
+|*HA-Over-Engineering*
+|Multi-AZ/Multi-Region ohne SLO-Anforderung, die dies begründet: versteckte monatliche Zusatzkosten.
+
+|*TCO-Unterschätzung*
+|FTE-Betriebsaufwand, Lizenzkosten und Exit-Kosten werden systematisch aus Evaluierungen ausgeblendet.
+
+|===
+
+== Lock-in-Risiko-Score
+
+[cols="1,2,3"]
+|===
+|Score |Bewertung |Beispiele
+
+|*1*
+|Kaum Lock-in
+|Standard-APIs, Open-Source, portables Datenformat, einfacher Anbieterwechsel
+
+|*2*
+|Geringer Lock-in
+|Geringe Proprietarität; Alternativen verfügbar; überschaubarer Migrationsaufwand
+
+|*3*
+|Mittlerer Lock-in
+|Proprietäre APIs, aber Alternativen vorhanden; Migration mit moderatem Aufwand
+
+|*4*
+|Hoher Lock-in ⚠️
+|Starke Proprietarität; Migration teuer; **erfordert Architecture-Board-Genehmigung**
+
+|*5*
+|Extremer Lock-in 🔴
+|Migration sehr teuer oder praktisch unmöglich; **erfordert Architecture-Board-Genehmigung**
+
+|===
+
+== ADR-Template Cost-Impact-Sektion
+
+[source,markdown]
+----
+## Cost Impact Assessment (WAF-COST-050)
+
+| Dimension            | Bewertung                          |
+|---------------------|------------------------------------|
+| Geschätzte TCO/Jahr | XX.XXX EUR                         |
+| Lock-in-Risiko      | X/5 – [Begründung]                 |
+| Datentransfer-Kosten | ~XXX EUR/Monat                    |
+| Betriebsaufwand     | X.X FTE/Jahr                       |
+| Exit-Kosten (est.)  | ~XX.XXX EUR                        |
+| 3-Jahres-NPV        | -XX.XXX EUR                        |
+
+**Kostenschuld-Risiko:** Gering / Mittel / Hoch
+
+**Begründung:** [Warum ist diese Entscheidung trotz Kosten/Lock-in die richtige?]
+
+**Cost-Debt-Register:** [CD-YYYY-XXX angelegt / Nicht erforderlich weil ...]
+
+**Architecture-Board-Genehmigung:** [Erforderlich bei Lock-in >= 4]
+----
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Kosten in ADRs
+|ADR-Template ohne Cost-Sektion; wirtschaftliche Bewertung fehlt systematisch.
+
+|*2*
+|Informelle Kostennotizen
+|Einzelne ADRs erwähnen Kosten, aber ohne strukturiertes Format oder Lock-in-Bewertung.
+
+|*3*
+|Strukturiertes Cost-Assessment in ADRs
+|ADR-Template mit Pflicht-Cost-Sektion; alle neuen ADRs vollständig ausgefüllt; AB-Review für Score >= 4.
+
+|*4*
+|TCO-Modell mit Actuals-Vergleich
+|TCO-Schätzungen aus ADRs werden nach 6 Monaten mit tatsächlichen Kosten verglichen.
+
+|*5*
+|Automatisiertes Cost-Impact aus IaC-Plan
+|Infracost o.ä. im PR-Pipeline; automatische Lock-in-Score-Ableitung aus Ressourcentypen.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-050.tf.any.high-lockin-resource-tagged
+*Prüft:* Hochpropietäre Ressourcen müssen `lock-in-risk`-Tag tragen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_kinesis_stream" "events" {
+  name        = "payment-events"
+  shard_count = 4
+
+  tags = merge(module.mandatory_tags.tags, {
+    lock-in-risk  = "4"
+    adr-reference = "ADR-0042"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_kinesis_stream" "events" {
+  name        = "payment-events"
+  shard_count = 4
+  tags = {
+    cost-center = "data-team"
+    # lock-in-risk Tag fehlt
+    # Kein Nachweis der Lock-in-Bewertung
+    # WAF-COST-050 Violation
+  }
+}
+----
+|===
+
+*Remediation:* `lock-in-risk`-Tag (Wert: 1–5) auf alle hochproprietären Ressourcen setzen.
+Bei Score 4–5: ADR mit Architecture-Board-Genehmigung erforderlich.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Architecture*
+|✅ Pflicht
+|ADR-Dokumente mit ausgefüllter Cost-Impact-Assessment-Sektion.
+
+|*Governance*
+|✅ Pflicht
+|Architecture-Board-Genehmigungen für ADRs mit Lock-in-Score >= 4.
+
+|*Architecture*
+|Optional
+|Infracost oder Cost-Estimation-Tool-Output für Infrastrukturänderungen.
+
+|*Process*
+|Optional
+|Cost-Debt-Register-Einträge verlinkt zu ADRs.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+
+== Weitere Informationen
+
+* xref:../cost-debt.adoc[Architektonische Kostenschuld – Konzept und Governance]
+* xref:../best-practices/bp-cost-debt.adoc[Architektonische Kostenschuld managen →]

@@ -1,0 +1,190 @@
+id: WAF-COST-050
+title: "Cost Impact Assessment in Architecture Decision Records"
+pillar: "cost"
+status: "active"
+severity: "high"
+category: "architectural-cost-debt"
+type: ['governance', 'process']
+tags: ['adr', 'cost-impact', 'tco', 'lock-in', 'architectural-cost-debt', 'decision-governance']
+
+description: >
+  Every Architecture Decision Record (ADR) covering infrastructure changes MUST include a
+  structured Cost Impact Assessment section. The assessment MUST cover: TCO estimate (EUR/year),
+  lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year),
+  exit cost estimate, and 3-year NPV. ADRs with lock-in risk score >= 4 require Architecture
+  Board approval before implementation. This control is the primary prevention mechanism
+  for Architectural Cost Debt.
+
+rationale: >
+  Architectural Cost Debt originates at the moment of architectural decision-making.
+  Once a high-lock-in proprietary service is chosen, multi-AZ is deployed without SLO basis,
+  or an enterprise data warehouse is adopted without exit strategy, the monthly cost structure
+  is set for years. Cost Impact Assessments in ADRs force economic evaluation at the only moment
+  when the decision can still be changed: before implementation. Lock-in risk scoring ensures
+  high-risk choices receive appropriate governance scrutiny.
+
+threat:
+  - "Architectural cost debt: cost structures locked in through unconsidered decisions"
+  - "Vendor lock-in without economic justification or awareness of exit costs"
+  - "HA over-engineering: multi-AZ or multi-region without SLO-based justification"
+  - "Proprietary managed service adoption without evaluation of alternatives"
+  - "TCO underestimation by excluding operational effort and exit costs from evaluation"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Operate Phase – Architecture and Cost Governance"
+      - "FinOps Principles – Everyone Takes Ownership of Their Cloud Usage"
+  - framework: "Internal Governance"
+    controls:
+      - "Architecture Governance – Economic Impact Documentation"
+      - "Cloud Cost Governance Policy – Lock-in Assessment Requirement"
+
+implementation_guidance:
+  - "Add a mandatory Cost Impact Assessment section to the ADR template used by all teams."
+  - "Define a lock-in risk scoring rubric (1-5) and document it in the ADR template."
+  - "Architecture Board reviews all ADRs with lock-in score >= 4 before implementation."
+  - "For brownfield: retroactively document cost assessments for top 5 cost-driving architectural choices."
+  - "Link ADRs to cost-debt-register.yml entries when Architectural Cost Debt risk is Medium or High."
+  - "Include full TCO: infrastructure + licenses + FTE operational effort + exit costs."
+
+maturity_levels:
+  level_1:
+    description: "No cost consideration in ADRs"
+    criteria:
+      - "ADR template has no cost section"
+      - "Architecture decisions made without economic evaluation"
+  level_2:
+    description: "Informal cost notes in ADRs"
+    criteria:
+      - "Some ADRs mention cost considerations informally"
+      - "No structured format; lock-in risks not systematically assessed"
+  level_3:
+    description: "Structured cost section in all ADRs"
+    criteria:
+      - "ADR template has mandatory Cost Impact Assessment section"
+      - "All new ADRs with infrastructure impact include completed cost assessment"
+      - "Lock-in scores assigned and Architecture Board notified for score >= 4"
+  level_4:
+    description: "TCO models with actuals comparison"
+    criteria:
+      - "TCO estimates from ADRs are compared to actual costs after 6 months"
+      - "Estimation accuracy is tracked and used to improve future ADR estimates"
+      - "Cost-debt-register linked to source ADRs"
+  level_5:
+    description: "Automated cost impact from IaC plan"
+    criteria:
+      - "terraform plan output is automatically analyzed to estimate cost delta"
+      - "Infracost or equivalent integrated into PR pipeline with cost diff comment"
+      - "Lock-in score automatically derived from resource type analysis"
+
+evidence:
+  required:
+    - kind: "architecture"
+      description: "ADR documents for infrastructure decisions containing completed Cost Impact Assessment sections."
+    - kind: "governance"
+      description: "Architecture Board approval records for ADRs with lock-in score >= 4."
+  optional:
+    - kind: "architecture"
+      description: "Infracost or cost estimation tool output for infrastructure changes."
+    - kind: "process"
+      description: "Cost-debt-register entries linked to source ADRs."
+
+checks:
+  - id: "waf-cost-050.tf.any.high-lockin-resource-tagged"
+    engine: "terraform"
+    provider: "any"
+    automated: true
+    severity: "high"
+    title: "High lock-in resources must be tagged with lock-in risk score"
+    description: >
+      Resources from services with inherently high vendor lock-in (proprietary streaming,
+      proprietary database services, complex managed services) should be tagged with
+      'lock-in-risk' to document that the lock-in was consciously evaluated.
+      This check validates that the tag exists on known high-lock-in resource types.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_kinesis_stream"
+        - "aws_kinesis_firehose_delivery_stream"
+        - "aws_redshift_cluster"
+        - "aws_neptune_cluster"
+        - "aws_msk_cluster"
+        - "azurerm_service_bus_namespace"
+        - "azurerm_eventhub_namespace"
+        - "azurerm_synapse_workspace"
+        - "google_spanner_instance"
+        - "google_bigquery_dataset"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "lock-in-risk"
+        message: "High lock-in resource must have 'lock-in-risk' tag (value: 1-5) documenting conscious evaluation."
+    on_fail: "violation"
+    remediation: >
+      Add 'lock-in-risk' tag (value: 1-5) to document that vendor lock-in was consciously evaluated.
+      Tag value 4 or 5 requires an ADR with Architecture Board approval.
+      See docs/adr/ for the ADR template with Cost Impact Assessment section.
+    example:
+      compliant: |
+        resource "aws_kinesis_stream" "events" {
+          name        = "payment-events"
+          shard_count = 4
+
+          tags = merge(module.mandatory_tags.tags, {
+            lock-in-risk = "4"  # High lock-in; ADR-0042 documents cost impact assessment
+            adr-reference = "ADR-0042"
+          })
+        }
+      non_compliant: |
+        resource "aws_kinesis_stream" "events" {
+          name        = "payment-events"
+          shard_count = 4
+          tags = {
+            cost-center = "data-team"
+            # Missing lock-in-risk tag – no evidence of lock-in evaluation
+          }
+        }
+
+  - id: "waf-cost-050.tf.any.adr-cost-section-present"
+    engine: "terraform"
+    provider: "any"
+    automated: false
+    severity: "high"
+    title: "ADR documents must include Cost Impact Assessment section"
+    description: >
+      This is a process control. ADR files in docs/adr/ must contain a Cost Impact Assessment
+      section with: TCO estimate, lock-in risk score, data transfer costs, operational effort,
+      exit costs, and 3-year NPV. Validated through CI pipeline ADR linting or manual audit.
+    scope:
+      block_type: "resource"
+      resource_types: []
+    assertions: []
+    on_fail: "finding"
+    remediation: >
+      Update the ADR template (docs/adr/ADR-TEMPLATE.md) to include the Cost Impact Assessment
+      section. Update all ADRs from the last 12 months that are missing this section.
+    example:
+      compliant: |
+        ## Cost Impact Assessment (WAF-COST-050)
+
+        | Dimension            | Bewertung                     |
+        |---------------------|-------------------------------|
+        | Geschätzte TCO/Jahr | 48.000 EUR                    |
+        | Lock-in-Risiko      | 4/5                           |
+        | Datentransfer-Kosten | ~400 EUR/Monat               |
+        | Betriebsaufwand     | 0.3 FTE/Jahr                  |
+        | Exit-Kosten (est.)  | ~80.000 EUR                   |
+        | 3-Jahres-NPV        | -224.000 EUR                  |
+
+        **Kostenschuld-Risiko:** Hoch
+      non_compliant: |
+        # ADR without Cost Impact Assessment section
+        # Economic evaluation missing – WAF-COST-050 process violation
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-050"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-cost-debt.adoc"
+  related_controls:
+    - "WAF-COST-100"
+    - "WAF-COST-060"

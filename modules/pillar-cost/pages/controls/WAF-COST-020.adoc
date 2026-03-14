@@ -1,0 +1,199 @@
+= WAF-COST-020 – Cost Budgets & Alerting Configured
+:page-toc: right
+:control-id: WAF-COST-020
+:pillar: cost
+:severity: high
+:category: budget-control
+:automated: high
+:description: WAF++ Cost Optimization – Budget-Limits und automatisierte Alerts als IaC-Ressourcen.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Budget Control | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Cost-Budgets MÜSSEN als IaC-Ressourcen definiert sein – nicht manuell im Cloud-Console-UI.
+Budget-Alerts MÜSSEN bei 80% und 100% des Limits automatisch ausgelöst und an den
+Workload-Owner sowie das FinOps-Team geroutet werden.
+
+Manuell im UI gesetzte Budgets sind nicht versioniert, nicht reproduzierbar und können
+ohne Audit-Trail geändert oder gelöscht werden.
+
+== Rationale
+
+Budget-Überschreitungen, die erst in der Monatsrechnung entdeckt werden, sind zu spät:
+Die Kosten sind bereits angefallen. Frühzeitige Alerts bei 80% ermöglichen proaktives Handeln,
+bevor das Budget ausgeschöpft ist. IaC-definierte Budget-Ressourcen sind versioniert,
+reviewbar und Teil des Infrastructure-as-Code-Workflows.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Späte Entdeckung*
+|Budget-Überschreitungen werden erst nach Monatsabschluss in der Abrechnung sichtbar.
+
+|*Nicht-reproduzierbare Konfiguration*
+|Im UI manuell gesetzte Budgets sind nicht versioniert; Verlust bei Account-Änderungen möglich.
+
+|*Fehlende Prognose*
+|Ohne Forecasting-Alerts werden drohende Überschreitungen nicht erkannt, bevor sie eintreten.
+
+|*Falsche Benachrichtigungsempfänger*
+|Alerts, die an veraltete E-Mail-Adressen gehen, lösen keine operative Reaktion aus.
+
+|===
+
+== Anforderung
+
+* Budget-Ressourcen MÜSSEN in Terraform definiert sein (`aws_budgets_budget`, `azurerm_consumption_budget_*`, `google_billing_budget`)
+* Alerts MÜSSEN bei 80% (ACTUAL) und 100% (ACTUAL) konfiguriert sein
+* Empfänger MÜSSEN: Team-Owner-Kanal + FinOps-Team
+* Ein Forecasting-Alert (FORECASTED, 110%) ist empfohlen
+* Budget-Ressourcen MÜSSEN quartalsweise auf Angemessenheit reviewed werden
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Budget
+|Keine Budget-Limits; Kosten nur in Monatsrechnung sichtbar.
+
+|*2*
+|Budget manuell gesetzt
+|Budget-Limits existieren, aber im Console-UI konfiguriert; nicht versioniert.
+
+|*3*
+|Budget als IaC, Alerts konfiguriert
+|`aws_budgets_budget` o.ä. in Terraform; Alerts bei 80% und 100% mit korrekten Empfängern.
+
+|*4*
+|Forecasting-Alerts und Anomalie-Detection
+|Forecasted-Alert konfiguriert; AWS Cost Anomaly Detection o.ä. aktiv; Alerts triggern Tickets.
+
+|*5*
+|Predictive Budget Management
+|Budgets automatisch auf Basis von ML-Prognosen angepasst; Real-Time-Burn-Rate-Dashboard.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-020.tf.aws.budgets-budget-exists
+*Prüft:* `aws_budgets_budget` Ressource muss als IaC existieren.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_budgets_budget" "monthly" {
+  name         = "payment-service-prod-monthly"
+  budget_type  = "COST"
+  limit_amount = "5000"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = ["payments-team@company.com"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [
+      "payments-team@company.com",
+      "finops@company.com"
+    ]
+  }
+}
+----
+a|[source,hcl]
+----
+# Kein aws_budgets_budget definiert.
+# Budget wurde manuell im AWS-Console-UI
+# gesetzt – nicht versioniert, nicht
+# reproduzierbar.
+# WAF-COST-020 Violation
+----
+|===
+
+*Remediation:* `aws_budgets_budget` Ressource in Terraform anlegen. `budget_type = "COST"`,
+`time_unit = "MONTHLY"`. Notification-Blöcke für 80% und 100% mit Team-E-Mail als Empfänger.
+
+---
+
+=== waf-cost-020.tf.azurerm.consumption-budget-defined
+*Prüft:* Azure `azurerm_consumption_budget_resource_group` muss existieren.
+
+[source,hcl]
+----
+# Compliant
+resource "azurerm_consumption_budget_resource_group" "main" {
+  name              = "payment-service-monthly-budget"
+  resource_group_id = azurerm_resource_group.main.id
+  amount            = 5000
+  time_grain        = "Monthly"
+
+  time_period {
+    start_date = "2025-01-01T00:00:00Z"
+  }
+
+  notification {
+    enabled        = true
+    threshold      = 80
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = ["payments-team@company.com"]
+  }
+
+  notification {
+    enabled        = true
+    threshold      = 100
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = ["payments-team@company.com", "finops@company.com"]
+  }
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Budget-Ressourcen im Repository für jeden Cloud-Account/Workload.
+
+|*Config*
+|✅ Pflicht
+|Alert-Notification-Konfiguration mit 80%- und 100%-Schwellwerten.
+
+|*Process*
+|Optional
+|Alert-Auslieferungsnachweis der letzten 3 Monate.
+
+|*Process*
+|Optional
+|Quartalsweise Budget-Review-Protokoll mit Anpassungsentscheidungen.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-010.adoc[WAF-COST-010 – Cost Allocation Tagging]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]

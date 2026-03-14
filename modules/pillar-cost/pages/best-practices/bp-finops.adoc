@@ -1,0 +1,239 @@
+= Best Practice: FinOps-Prozesse implementieren
+:page-toc: right
+:description: WAF++ Cost Optimization – Review-Zyklen, Rollen, Tooling und Metriken für FinOps-Prozesse.
+
+== Kontext
+
+FinOps scheitert nicht an fehlendem Tooling. Es scheitert an fehlenden Prozessen, unklaren
+Verantwortlichkeiten und mangelnder Verbindung zwischen Kostendaten und Handlungen.
+Diese Best Practice zeigt, wie strukturierte FinOps-Prozesse von Grund auf etabliert werden –
+von der ersten monatlichen Review bis zum Architecture-Board-Quartalszyklus.
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-COST-060[WAF-COST-060] – FinOps Review Cadence
+
+== Zielbild
+
+* Monatliche Engineering-Reviews laufen routinemäßig mit klaren Action Items
+* Quarterly Architecture-Board-Reviews verbinden Cost-Debt-Governance mit strategischen Entscheidungen
+* Teams empfangen aktionierbare Kostendaten – nicht rohe Billing-Reports
+* Kostenverantwortung ist klar: Engineering-Teams, unterstützt durch FinOps-Team
+
+== Monatlichen Engineering-Review aufsetzen
+
+=== Review-Format (30–45 Minuten)
+
+*Teilnehmer:* Tech Lead / Engineering Manager des Teams + FinOps-Support
+
+*Agenda:*
+
+[source,text]
+----
+1. Aktueller Kostenstand (5 Min)
+   - Gesamtkosten des Monats vs. Budget
+   - Abweichung zum Vormonat (absolut und %)
+   - Prognose für Monatsende
+
+2. Top-3-Kostentreiber (10 Min)
+   - Welche Services / Ressourcen treiben die Kosten?
+   - Anomalien und unerwartete Veränderungen
+   - Budget-Alert-Events des Monats
+
+3. Rightsizing-Empfehlungen (10 Min)
+   - Compute Optimizer / Azure Advisor / GCP Recommender: neue Empfehlungen
+   - Idle-Resource-Liste: Instanzen < 5% CPU über 7 Tage
+   - Entscheidung pro Empfehlung: Umsetzen / Ablehnen (mit Begründung)
+
+4. Action Items (10 Min)
+   - Neue Action Items aus Review
+   - Status offener Action Items aus Vormonat
+   - Owner und Fälligkeitsdatum für jeden neuen Item
+
+5. Cost-Debt-Hinweise (5 Min)
+   - Neue potenzielle Cost-Debt-Einträge identifiziert?
+   - Für Quarterly Review vormerken
+----
+
+=== Action-Item-Template
+
+[source,yaml]
+----
+# action-items/2025-03.yml
+month: "2025-03"
+team: "platform-team"
+
+action_items:
+  - id: AI-2025-03-001
+    title: "3 idle dev-Instanzen abschalten (EC2 t3.large)"
+    owner: "platform-team"
+    due: "2025-03-31"
+    expected_saving_eur_month: 180
+    status: "open"  # open | in-progress | done | cancelled
+
+  - id: AI-2025-03-002
+    title: "CloudWatch Log Group 'app-debug' Retention von unbegrenzt auf 30d setzen"
+    owner: "platform-team"
+    due: "2025-03-15"
+    expected_saving_eur_month: 45
+    status: "done"
+    completed: "2025-03-10"
+    actual_saving_eur_month: 42
+----
+
+== Quarterly Architecture-Board-Review etablieren
+
+=== Vorbereitung durch FinOps-Team
+
+2 Wochen vor Review erstellt das FinOps-Team:
+
+. Quartalskostenbericht (Gesamtkosten, Trend, Top-10-Kostentreiber)
+. Cost-Debt-Register-Update mit Vorschlägen für neue Einträge
+. ADR-Liste des Quartals mit Lock-in-Scores
+. Reservierungsportfolio-Analyse (RI/SP-Utilization, Auslaufende RIs)
+. Empfehlungsliste für strategische Maßnahmen
+
+=== Review-Agenda (75 Minuten)
+
+[source,text]
+----
+1. Quartalsbericht (15 Min)
+   - Gesamtkosten Q vs. Budget
+   - Kostentrend YoY und QoQ
+   - Größte Kostenveränderungen des Quartals
+
+2. Cost-Debt-Register (25 Min)
+   - Neue Einträge: Bestätigung, Owner, Status
+   - Bestehende Einträge: Paydown-Fortschritt, Status-Updates
+   - Acceptance-Entscheidungen mit Begründung
+
+3. ADR-Reviews (15 Min)
+   - ADRs mit Lock-in-Score >= 4: Bestätigung oder Rückweisung
+   - Kostenwirkung der letzten Quartalsentscheidungen
+
+4. Strategische Maßnahmen (15 Min)
+   - Reservierungsstrategie für nächstes Quartal
+   - Multi-Cloud/Multi-Provider-Kostenentscheidungen
+   - Open-Source-vs.-Proprietary-Entscheidungen mit Impact
+
+5. Sign-off und nächste Schritte (5 Min)
+   - Priorisierte Paydown-Maßnahmen
+   - Nächster Review-Termin bestätigen
+----
+
+== Tooling-Empfehlungen
+
+[cols="1,2,2"]
+|===
+|Bereich |AWS |Azure / GCP
+
+|*Cost-Reporting*
+|AWS Cost Explorer, Cost & Usage Report (CUR)
+|Azure Cost Management + Billing, GCP Billing
+
+|*Budget-Management*
+|AWS Budgets (IaC: `aws_budgets_budget`)
+|Azure Budgets (`azurerm_consumption_budget_*`), GCP Billing Budgets
+
+|*Rightsizing*
+|AWS Compute Optimizer, Trusted Advisor
+|Azure Advisor, GCP Recommender
+
+|*Anomalie-Detection*
+|AWS Cost Anomaly Detection
+|Azure Cost Alerts, GCP Budget Alerts
+
+|*FinOps-Plattformen (Multi-Cloud)*
+|CloudHealth, Apptio Cloudability, FOCUS-basierte Tools
+|CloudHealth, Apptio, Spot.io
+
+|*Dashboard-Integration*
+|Cost Explorer Embedded, Grafana (CUR-Data in S3)
+|Power BI + Azure Cost Management, Looker + GCP Billing
+
+|===
+
+== GitHub Actions Integration
+
+[source,yaml]
+----
+# .github/workflows/monthly-cost-report.yml
+name: Monthly FinOps Report
+
+on:
+  schedule:
+    - cron: '0 8 1 * *'  # 1. des Monats, 8 Uhr
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Cost Report
+        run: |
+          # Kosten des letzten Monats aus AWS Cost Explorer
+          aws ce get-cost-and-usage \
+            --time-period Start=$(date -d "1 month ago" +%Y-%m-01),End=$(date +%Y-%m-01) \
+            --granularity MONTHLY \
+            --metrics "BlendedCost" \
+            --group-by Type=TAG,Key=workload \
+            > /tmp/cost-report.json
+
+      - name: Check Untagged Resources
+        run: |
+          UNTAGGED=$(aws ce get-cost-and-usage \
+            --time-period Start=$(date -d "1 month ago" +%Y-%m-01),End=$(date +%Y-%m-01) \
+            --granularity MONTHLY \
+            --metrics "BlendedCost" \
+            --filter '{"Tags":{"Key":"workload","Values":[""]}}' \
+            --query "ResultsByTime[0].Total.BlendedCost.Amount" \
+            --output text)
+          echo "Untagged costs: $UNTAGGED EUR"
+
+      - name: Create FinOps Review Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `FinOps Monthly Review - ${new Date().toISOString().slice(0, 7)}`,
+              body: `Monthly FinOps review required. See cost report in workflow artifacts.`,
+              labels: ['finops-review', 'monthly']
+            });
+----
+
+== KPIs und Tracking
+
+[source,yaml]
+----
+# metrics/finops-kpis.yml – Monatliches KPI-Tracking
+month: "2025-03"
+team: "platform-team"
+
+kpis:
+  tagging_compliance_pct: 96.2        # Ziel >= 95%
+  budget_variance_pct: 4.1            # Ziel < ±10%
+  untagged_cost_pct: 3.8              # Ziel < 5%
+  rightsizing_coverage_pct: 82        # Ziel >= 80%
+  idle_resource_rate_pct: 1.9         # Ziel < 3%
+  observability_cost_pct_of_total: 17 # Ziel < 20%
+  ri_utilization_pct: 84              # Ziel >= 80%
+
+quarterly_kpis:
+  cost_debt_register_entries: 5
+  cost_debt_paydown_pct: 60           # Ziel >= 50%
+  tco_tracked_workloads_pct: 75       # Ziel >= 80%
+----
+
+== Anti-Patterns
+
+* *FinOps als Polizei*: Reviews, bei denen Teams verteidigen müssen, schaffen Widerstand
+* *Kosten ohne Kontext*: Steigende Kosten können durch wachsende Nutzung gerechtfertigt sein
+* *Action Items ohne Owner*: Unzugeordnete Items werden nicht erledigt
+* *Tooling vor Prozess*: Teure FinOps-Plattformen nützen nichts ohne Review-Zyklus
+
+== Metriken
+
+* Review-Durchführungsrate: % der geplanten Reviews, die stattgefunden haben (Ziel: 100%)
+* Action-Item-Erledigungsrate: % der Action Items, die fristgerecht erledigt wurden (Ziel: >= 80%)
+* Ø Einsparung pro Review: Summe realisierter Einsparungen ÷ Anzahl Reviews

@@ -1,0 +1,195 @@
+= WAF-COST-080 – Commitment & Reserved Capacity Planning
+:page-toc: right
+:control-id: WAF-COST-080
+:pillar: cost
+:severity: medium
+:category: cost-optimization
+:automated: medium
+:description: WAF++ Cost Optimization – Baseline-Workloads durch Reservierungen abdecken; Spot-Instances für variable Workloads.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Cost Optimization | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Compute-Ressourcen mit dauerhafter Auslastung >= 70% über 30 Tage MÜSSEN durch Reserved Instances
+oder Savings Plans abgedeckt sein. Alle persistenten On-Demand-Compute-Ressourcen MÜSSEN den Tag
+`capacity-commitment` tragen, der den Reservierungsstatus dokumentiert.
+Spot/Preemptible Instances sind für variable und unterbrechbare Workloads zu bevorzugen.
+
+== Rationale
+
+Baseline-Produktions-Workloads dauerhaft auf On-Demand zu betreiben ist eine strukturelle Ineffizienz.
+Reserved Instances und Savings Plans bieten 30–60% Kosteneinsparung für stabile Workloads.
+Der häufigste Commitment-Fehler: Keine Reservierungen, weil der Workload als variabel eingeschätzt wird –
+obwohl er in der Praxis ein stabiles Baseline-Muster hat.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*On-Demand-Aufpreis für Baseline*
+|30–60% Mehrkosten für Baseline-Workloads ohne Reservierungen – monatlich und strukturell.
+
+|*Ungenutzte Reserved Instances*
+|RIs für Workloads, die geändert oder abgeschaltet wurden, erzeugen Fixkosten ohne Wert.
+
+|*Falsches Commitment-Timing*
+|Long-Term-Reservierungen vor Stabilitätsnachweis: Wenn Workload sich ändert, ist die RI wertlos.
+
+|===
+
+== Commitment-Strategie
+
+=== Wann reservieren?
+
+* Auslastung >= 70% über 30 Tage → Reservierungskandidat
+* Erst nach 30 Tagen Baseline-Messung committed werden
+* Compute Savings Plans bevorzugen gegenüber EC2-RIs (mehr Flexibilität beim Rightsizing)
+
+=== Commitment-Typen
+
+[cols="1,2,2"]
+|===
+|Typ |Kosteneinsparung |Flexibilität
+
+|*1yr No-Upfront Reserved*
+|~30–40%
+|Kein Voraus-Commitment; monatlich kündbar innerhalb von 12 Monaten
+
+|*1yr All-Upfront Reserved*
+|~40–50%
+|Vollständige Vorauszahlung; keine Flexibilität
+
+|*3yr No-Upfront Reserved*
+|~50–60%
+|Längerer Commitment-Zeitraum; höheres Risiko bei Workload-Änderung
+
+|*Compute Savings Plan*
+|~20–40%
+|Flexibel über Instanztypen, Familien und Regionen
+
+|*Spot/Preemptible*
+|Bis zu 90%
+|Nur für unterbrechbare Workloads; kann jederzeit zurückgenommen werden
+
+|===
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Alles On-Demand
+|Keine Reservierungen; keine Auslastungsmessung.
+
+|*2*
+|Erste Reservierungen vorhanden
+|Einige RIs ohne systematische Auslastungsanalyse.
+
+|*3*
+|Baseline vollständig reserviert
+|Alle Workloads mit >= 70% Auslastung über 30d durch RI/SP abgedeckt; `capacity-commitment`-Tag Pflicht.
+
+|*4*
+|Savings Plans optimiert
+|Compute-Savings-Plans statt EC2-RIs; RI-Ablaufdaten-Alerts 90 Tage vorher.
+
+|*5*
+|ML-gestützte Commitment-Optimierung
+|Cloud-Provider-Commitment-Empfehlungen automatisch verarbeitet; Spot-Maximierung.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-080.tf.aws.ec2-capacity-commitment-tag
+*Prüft:* EC2-Instanzen müssen ihren Reservierungsstatus als Tag deklarieren.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+# Baseline-Instanz mit Savings-Plan-Coverage
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "c5.2xlarge"
+
+  tags = merge(module.mandatory_tags.tags, {
+    rightsizing-reviewed = "2025-03-01"
+    capacity-commitment  = "savings-plan"
+    commitment-type      = "compute-savings-plan-1yr"
+    commitment-expiry    = "2026-03-01"
+  })
+}
+
+# CI/CD-Runner auf Spot
+resource "aws_instance" "ci" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "c5.xlarge"
+
+  instance_market_options {
+    market_type = "spot"
+  }
+
+  tags = merge(module.mandatory_tags.tags, {
+    capacity-commitment = "spot"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "c5.2xlarge"
+  tags = {
+    cost-center = "fintech-platform"
+    # capacity-commitment Tag fehlt
+    # Reservierungsstatus unbekannt
+    # WAF-COST-080 Violation
+  }
+}
+----
+|===
+
+*Remediation:* `capacity-commitment`-Tag auf alle Compute-Ressourcen setzen.
+Erlaubte Werte: `reserved`, `savings-plan`, `spot`, `on-demand`, `reviewed`.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Compute-Ressourcen mit `capacity-commitment`-Tag.
+
+|*Config*
+|✅ Pflicht
+|RI/SP-Utilization-Report (quartalsweise, Ziel: >= 80%).
+
+|*Process*
+|Optional
+|Quarterly RI-Portfolio-Review-Protokoll mit Ablaufdaten und Coverage-Gaps.
+
+|*Config*
+|Optional
+|Savings-Plans-Empfehlungsreport aus AWS Cost Management.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-030.adoc[WAF-COST-030 – Rightsizing & Idle Detection]
+* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+
+== Best Practice
+
+* xref:../best-practices/bp-rightsizing.adoc[Rightsizing & Resource Optimization →]
