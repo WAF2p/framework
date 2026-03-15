@@ -1,0 +1,225 @@
+= WAF-SEC-040 – Encryption in Transit – TLS Enforcement
+:page-toc: right
+:control-id: WAF-SEC-040
+:pillar: security
+:severity: high
+:category: encryption
+:automated: hoch
+:description: WAF++ Security – TLS-Durchsetzung für alle Datenübertragungen: Load Balancer, Datenbanken und Suchdienste müssen HTTPS erzwingen.
+
+[.metadata]
+*Pillar:* Security | *Severity:* High | *Kategorie:* Encryption | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Datenübertragungen zwischen Clients und Services sowie zwischen Services untereinander
+MÜSSEN über TLS 1.2 oder höher verschlüsselt erfolgen.
+Load-Balancer-Listener DÜRFEN NICHT unverschlüsseltes HTTP ohne automatische HTTPS-Weiterleitung
+betreiben.
+Amazon OpenSearch / Elasticsearch-Domains MÜSSEN `enforce_https = true` und
+`tls_security_policy = "Policy-Min-TLS-1-2-2019-07"` konfiguriert haben.
+RDS-Instanzen MÜSSEN den SSL/TLS-Parameter `rds.force_ssl = 1` (PostgreSQL) bzw.
+`require_secure_transport = ON` (MySQL) gesetzt haben.
+
+== Rationale
+
+Unverschlüsselte Datenübertragungen ermöglichen Man-in-the-Middle-Angriffe, die Credentials,
+Session-Tokens und sensible Nutzdaten abfangen. In Cloud-Umgebungen passiert Datenverkehr
+häufig über geteilte Netzwerkinfrastruktur, auf der kein Verlass auf physische Isolation
+besteht. TLS-Pflicht ist die grundlegende Gegenmaßnahme und eine universelle Anforderung
+aller relevanten Compliance-Frameworks. Veraltete TLS-Versionen (1.0, 1.1) haben bekannte
+Schwachstellen (POODLE, BEAST) und sind explizit von BSI und NIST verboten.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Man-in-the-Middle*
+|Unverschlüsselter HTTP-Verkehr kann durch Netzwerkposition (DNS-Spoofing, ARP-Poisoning) abgehört und manipuliert werden.
+
+|*Credential-Interception*
+|Passwörter, API-Keys und Session-Tokens im Klartext über das Netz sind ein triviales Angriffsziel für passive Lauschende.
+
+|*Datenexfiltration im Transit*
+|Sensible Nutzerdaten (PII, Zahlungsdaten) können auf dem Transportweg abgegriffen werden, ohne Spuren in den Anwendungslogs zu hinterlassen.
+
+|*Compliance-Verletzung*
+|Unverschlüsselter Datentransport bei personenbezogenen Daten verstößt direkt gegen DSGVO Art. 32 und BSI C5.
+
+|===
+
+== Anforderung
+
+* Load-Balancer-Listener auf Port 80 (HTTP) MÜSSEN auf HTTPS (443) umleiten; direkter Betrieb ohne Weiterleitung ist VERBOTEN.
+* ALB/NLB-HTTPS-Listener MÜSSEN eine Sicherheitsrichtlinie mit mindestens TLS 1.2 verwenden.
+* OpenSearch/Elasticsearch-Domains MÜSSEN `enforce_https = true` und `tls_security_policy >= Policy-Min-TLS-1-2-2019-07` konfiguriert haben.
+* RDS-Instanzen MÜSSEN den Parameter `rds.force_ssl = 1` (PostgreSQL) oder `require_secure_transport = ON` (MySQL) in einer Parameter-Group gesetzt haben.
+* Intern verwendete APIs DÜRFEN NICHT auf `http://`-Endpoints zeigen; alle Endpunkte MÜSSEN HTTPS-only sein.
+* TLS-Zertifikate MÜSSEN gültig, nicht selbst signiert (für externe Endpunkte) und von ACM verwaltet sein.
+
+== Implementierungsanleitung
+
+. *HTTP-zu-HTTPS-Redirect konfigurieren*: `aws_lb_listener` auf Port 80 mit `redirect`-Action auf Port 443 einrichten.
+. *HTTPS-Listener mit ACM-Zertifikat aufsetzen*: `aws_lb_listener` auf Port 443 mit `ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"`.
+. *OpenSearch TLS erzwingen*: `domain_endpoint_options` Block mit `enforce_https = true` und `tls_security_policy`.
+. *RDS-Parameter-Group erstellen*: PostgreSQL: `rds.force_ssl = 1`; MySQL: `require_secure_transport = ON`.
+. *Interne Service-Kommunikation prüfen*: Service-Mesh oder API-Gateways auf TLS-Pflicht konfigurieren.
+. *Zertifikats-Lifecycle managen*: ACM-Zertifikate nutzen (automatische Erneuerung); Expiry-Alarms auf verbleibende Laufzeit < 30 Tage einrichten.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|HTTP und HTTPS gemischt
+|Viele Services auf HTTP ohne Redirect; kein einheitlicher TLS-Standard; veraltete TLS-Versionen im Einsatz.
+
+|*2*
+|HTTPS auf externen Endpunkten
+|Externe Load Balancer auf HTTPS; interne Service-Kommunikation noch unverschlüsselt; TLS 1.0/1.1 noch erlaubt.
+
+|*3*
+|TLS 1.2+ auf allen Endpunkten und HTTP-Redirect
+|HTTP-zu-HTTPS-Redirect auf allen Listenern; TLS 1.0/1.1 deaktiviert; RDS mit `force_ssl`; OpenSearch `enforce_https`.
+
+|*4*
+|TLS 1.3 bevorzugt; mTLS für interne Services
+|TLS 1.3-Sicherheitsrichtlinien auf Load Balancern; mutual TLS (mTLS) für Service-zu-Service-Kommunikation.
+
+|*5*
+|Zero-Trust-Transit mit mTLS und automatisierter Zertifikatsverwaltung
+|Service-Mesh mit automatischer mTLS-Ausstellung; Certificate Transparency Monitoring; Zertifikats-Anomalieerkennung.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-040.tf.aws.lb-listener-no-plain-http
+*Prüft:* Load-Balancer-Listener dürfen kein unverschlüsseltes HTTP ohne HTTPS-Redirect betreiben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+# HTTP-Redirect-Listener
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = "HTTP"
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# HTTPS-Listener
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.app.arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+    # Kein Redirect zu HTTPS
+    # WAF-SEC-040 Violation
+  }
+}
+----
+|===
+
+*Remediation:* HTTP-Listener auf `redirect`-Action mit `protocol = "HTTPS"` und `port = "443"` umstellen. Keinen HTTP-Listener mit direkter `forward`-Action ohne vorherigen Redirect betreiben.
+
+---
+
+=== waf-sec-040.tf.aws.opensearch-enforce-https
+*Prüft:* OpenSearch-Domains müssen HTTPS erzwingen und TLS 1.2+ als Minimalstandard vorschreiben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_opensearch_domain" "app" {
+  domain_name    = "app-search"
+  engine_version = "OpenSearch_2.11"
+
+  domain_endpoint_options {
+    enforce_https       = true
+    tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_opensearch_domain" "app" {
+  domain_name    = "app-search"
+  engine_version = "OpenSearch_2.11"
+
+  domain_endpoint_options {
+    enforce_https       = false  # WAF-SEC-040 Violation
+    tls_security_policy = "Policy-Min-TLS-1-0-2020-07"
+    # TLS 1.0 als Minimum – WAF-SEC-040 Violation
+  }
+}
+----
+|===
+
+*Remediation:* `enforce_https = true` und `tls_security_policy = "Policy-Min-TLS-1-2-2019-07"` im `domain_endpoint_options`-Block der `aws_opensearch_domain`-Ressource setzen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration aller Load-Balancer-Listener mit HTTPS-Redirect und aller OpenSearch/RDS-Ressourcen mit TLS-Erzwingung.
+
+|*Config*
+|✅ Pflicht
+|AWS Config Rule `alb-http-to-https-redirection-check` Compliance-Report.
+
+|*Process*
+|Optional
+|Zertifikats-Inventar mit Ablaufdaten und Erneuerungsverantwortlichkeiten.
+
+|*Config*
+|Optional
+|TLS-Scan-Report (z. B. SSL Labs oder testssl.sh) für alle externen Endpunkte mit Bewertung ≥ A.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
+* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050 – Network Segmentation & Security Group Hardening]
+
+== Best Practice
+
+* xref:../best-practices/bp-encryption.adoc[Verschlüsselungs-Best-Practice →]

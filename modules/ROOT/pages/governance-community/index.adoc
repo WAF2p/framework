@@ -1,41 +1,224 @@
-= Governance & Community
-:description: CNCF-inspirierte Projektstruktur
+= Governance & Contribution
+:description: Wie WAF++ gesteuert wird und wie du dich als Contributor einbringen kannst
+:toc: left
+:toclevels: 3
 
-== Governance-Modell (in Anlehnung an CNCF)
+WAF++ ist ein offenes Community-Projekt.
+Diese Seite beschreibt, wie Entscheidungen getroffen werden und wie du konkret beitragen kannst – ob als Control-Autor, Reviewer oder Pillar-Maintainer.
 
-WAF++ orientiert sich an bekannten Open-Source-Governance-Modellen:
+---
 
-*Technical Steering Committee (TSC):*::
-* Verantwortlich für die technische Ausrichtung
-* Moderiert Architekturentscheidungen und RFCs
+== Governance-Modell
 
-*Maintainer-Team:*::
-* Pflegt zentrale Repositories
-* Stellt Qualität und Konsistenz sicher
+WAF++ orientiert sich an etablierten Open-Source-Governance-Modellen (angelehnt an CNCF und OpenSSF).
 
-*Contributors:*::
-* Reichen Issues, Pull Requests und Vorschläge ein
-* Arbeiten in thematischen Working Groups
+[cols="2,4", options="header"]
+|===
+| Rolle | Verantwortung
 
-*User Advisory Group:*::
-* Bringt Perspektive aus Projekten, Betrieben und Audits ein
-* Hilft, die Praxisrelevanz hoch zu halten
+| *Technical Steering Committee (TSC)*
+| Technische Ausrichtung, Breaking Changes, Pillar-Struktur, Schema-Änderungen. Entscheidungen per Konsens, bei Uneinigkeit per Mehrheitsvotum.
 
-Transparenz ist zentral: Entscheidungen, Roadmaps und Diskussionen finden öffentlich statt (z.B. über GitHub, Mailinglisten, Chats).
+| *Pillar Maintainer*
+| Verantwortlich für alle Controls und Narrative-Seiten eines Pillars. Review und Merge von Control-PRs. Mindestens ein Maintainer pro aktivem Pillar.
 
-== Community-Anbindung
+| *Contributor*
+| Reicht Controls, Korrekturen, Narrative-Seiten oder Best Practices per Pull Request ein. Kein formaler Onboarding-Prozess erforderlich.
 
-Das Projekt startet im Rahmen der *Cloud Native Conference* und der bestehenden *CCC-Community*. Ziel ist es, vorhandene Erfahrung zu bündeln:
+| *User Advisory Group*
+| Bringt Praxisperspektive aus Projekten, Betrieben und Audits ein. Kein Merge-Recht, aber Veto-Option bei Controls mit direkten Compliance-Auswirkungen.
+|===
 
-* Sessions & BoFs auf Konferenzen
-* Gemeinsame Workshops zu Reifegradmodellen und Scoring
-* Öffentliche Roadmap- und RFC-Sessions
+Alle Entscheidungen werden öffentlich auf GitHub diskutiert und dokumentiert.
+Es gibt keine privaten Entscheidungskanäle.
 
-== Mitmachen
+---
 
-Du kannst dich u.a. so einbringen:
+== Beitragen – Schnellstart
 
-* *Use Cases teilen* – Welche Herausforderungen habt ihr in Cloud-Projekten?
-* *Fragen & Kriterien vorschlagen* – für das Reifegradmodell und die Fragebögen.
-* *Review & Feedback* – zu Architektur-Patterns und Referenzmodellen.
-* *Dokumentation & Übersetzungen* – Inhalte verbessern und erweitern.
+=== Voraussetzungen
+
+* Git und ein GitHub-Account
+* Grundkenntnisse in AsciiDoc (für Narrative-Seiten)
+* YAML-Kenntnisse (für Controls)
+* Lokal: Python 3.10+ und `wafpass` für Control-Tests
+
+=== Erste Schritte
+
+. **Repository forken** auf GitHub
+. **Branch erstellen** – Namenskonvention: `feat/WAF-COST-110`, `fix/WAF-SOV-020-typo`, `docs/pillar-cost-glossary`
+. **Änderungen vornehmen** (siehe Abschnitte unten)
+. **Lokal testen** (für Controls: `wafpass check`)
+. **Pull Request öffnen** mit dem Issue als Referenz
+
+---
+
+== Neues Control beitragen
+
+Controls sind der Kern des Frameworks. Ein gutes Control ist:
+
+* **Normativ** – sagt "MUST", nicht "sollte"
+* **Testbar** – hat mindestens einen automatisierten Check (`automated: true`)
+* **Begründet** – `rationale` erklärt das Risiko, nicht nur die Regel
+* **Praxisnah** – `example.compliant` und `example.non_compliant` sind echtes Terraform
+
+=== Ablauf
+
+. Auf GitHub prüfen, ob ein ähnliches Control bereits existiert oder diskutiert wird (Issues / Discussions).
+. Control-ID vergeben: nächste freie Nummer im Pillar (z.B. `WAF-COST-110`). Nummern werden nicht wiederverwendet.
+. YAML-Datei anlegen nach xref:resources/control-schema.adoc[Control-Schema]:
++
+[source,bash]
+----
+# Ablageort
+modules/controls/controls/WAF-COST-110.yml
+----
+. Checks lokal gegen Fixture-Terraform testen:
++
+[source,bash]
+----
+wafpass check ./tests/fixtures/ --controls WAF-COST-110 --verbose
+----
+. Narrative-Seite anlegen (Deutsch):
++
+[source,bash]
+----
+# Für Cost-Controls:
+modules/pillar-cost/pages/controls/WAF-COST-110.adoc
+
+# Für Sovereign-Controls:
+modules/pillar-sovereign/pages/controls/WAF-SOV-NNN.adoc
+----
+. Pull Request öffnen – Titel: `feat: add WAF-COST-110 – [kurzer Titel]`
+
+=== Checkliste für Control-PRs
+
+* [ ] YAML-Datei in `modules/controls/controls/` angelegt
+* [ ] Alle Pflichtfelder befüllt (`id`, `title`, `pillar`, `status`, `severity`, `category`, `description`, `rationale`, `checks`)
+* [ ] Mindestens ein Check mit `automated: true`
+* [ ] `example.compliant` und `example.non_compliant` vorhanden
+* [ ] `regulatory_mapping` sofern applicable befüllt
+* [ ] Narrative-Seite angelegt und in `references.narrative` verlinkt
+* [ ] `wafpass check` gegen Fixture läuft ohne Fehler
+* [ ] Maturity-Levels (alle 5) befüllt
+
+---
+
+== Narrative-Seiten beitragen
+
+Narrative-Seiten sind die menschenlesbare Erklärung hinter den Controls.
+Sie werden in **Deutsch** verfasst (AsciiDoc).
+
+=== Ablageorte
+
+[cols="2,3", options="header"]
+|===
+| Seitentyp | Pfad
+
+| Control-Detailseite
+| `+modules/pillar-{NAME}/pages/controls/WAF-{PILLAR}-{NNN}.adoc+`
+
+| Best Practice
+| `+modules/pillar-{NAME}/pages/best-practices/bp-{slug}.adoc+`
+
+| Fallbeispiel (Case Study)
+| `+modules/pillar-{NAME}/pages/case-studies/case-{slug}.adoc+`
+
+| Pillar-Hauptseiten (definition, scope, etc.)
+| `+modules/pillar-{NAME}/pages/{name}.adoc+`
+|===
+
+=== Konventionen
+
+* Sprache: **Deutsch**
+* Seitenattribute: immer `= Titel` und `:description:` setzen
+* Cross-References: immer als Antora-xref (`+xref:module:page.adoc[Text]+`), keine relativen Pfade
+* Code-Beispiele: immer mit `[source,lang]` und `----`-Blöcken
+* Tabellen: `[cols=..., options="header"]` für konsistentes Rendering
+
+---
+
+== Issues und Discussions
+
+[cols="2,4", options="header"]
+|===
+| Kanal | Verwendung
+
+| **GitHub Issues**
+| Konkrete Bugs, fehlerhafte Controls, broken Links, falsche Assertions. Bitte Control-ID im Titel nennen.
+
+| **GitHub Discussions**
+| Konzeptdiskussionen, neue Pillar-Ideen, Feedback zu Maturity-Levels, Fragen zur Anwendung
+
+| **Pull Requests**
+| Alle Code- und Dokumentationsänderungen. Jeder PR sollte ein Issue referenzieren.
+|===
+
+=== Issue-Vorlage für neue Controls
+
+[source,markdown]
+----
+## Control-Vorschlag: WAF-\{PILLAR}-\{NNN}
+
+**Pillar:** Cost / Sovereign / Security / ...
+**Severity:** critical / high / medium / low
+**Kategorie:** (z.B. tagging, egress, encryption)
+
+### Problem / Risiko
+[Welches Risiko wird derzeit nicht durch bestehende Controls abgedeckt?]
+
+### Vorgeschlagene Anforderung
+[Was soll das Control fordern? Normativ formulieren: "All resources MUST ..."]
+
+### Automated Check möglich?
+[ ] Ja – über Terraform-Assertions
+[ ] Nein – manueller Review erforderlich
+
+### Regulatorische Relevanz
+[GDPR / BSI C5 / ISO 27001 / FinOps / keiner]
+----
+
+---
+
+== RFC-Prozess (Schema-Änderungen)
+
+Änderungen am Control-Schema oder an Pillar-Strukturen, die Breaking Changes darstellen, durchlaufen einen RFC-Prozess:
+
+. **RFC-Issue öffnen** mit Label `rfc` – Beschreibung der Änderung und Begründung
+. **Kommentarphase** – mindestens 14 Tage offen für Community-Feedback
+. **TSC-Entscheidung** – dokumentiert im Issue-Kommentar
+. **Implementierung** – im Branch `rfc/NNN-beschreibung`, dann PR gegen `main`
+
+Breaking Changes erhalten immer eine Migrations-Notiz in der Changelog-Seite.
+
+---
+
+== Versionierung und Releases
+
+WAF++ verwendet semantische Versionierung (`MAJOR.MINOR.PATCH`):
+
+[cols="1,4", options="header"]
+|===
+| Versionstyp | Auslöser
+
+| `MAJOR`
+| Inkompatible Schema-Änderungen, Pillar-Umstrukturierung, Control-IDs werden retired
+
+| `MINOR`
+| Neue Controls, neue Narrative-Seiten, neue Best Practices
+
+| `PATCH`
+| Korrekturen in Assertions, Tipp- und Formulierungsfehler, Link-Fixes
+|===
+
+Releases werden als GitHub Releases mit Changelog veröffentlicht.
+Control-IDs sind stabil über Minor-Versionen hinweg – eine einmal vergebene ID wird nicht wiederverwendet.
+
+---
+
+== Weiterführende Seiten
+
+* xref:resources/control-schema.adoc[Control-Schema Referenz] – vollständige YAML-Dokumentation für Control-Autoren
+* xref:resources/wafpass.adoc[WAF++ PASS – CLI] – Controls lokal testen
+* xref:best-practises/index.adoc[Assessment-Methodik] – Controls im Einsatz
+* xref:roadmap/index.adoc[Roadmap] – was als nächstes kommt

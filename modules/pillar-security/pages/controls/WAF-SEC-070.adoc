@@ -1,0 +1,225 @@
+= WAF-SEC-070 – Vulnerability & Patch Management
+:page-toc: right
+:control-id: WAF-SEC-070
+:pillar: security
+:severity: medium
+:category: vulnerability-management
+:automated: mittel
+:description: WAF++ Security – Schwachstellen- und Patch-Management: Container-Image-Scans, ECR scan-on-push und SSM-gestütztes Patch-Management für EC2-Instanzen.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Vulnerability Management | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Container-Images MÜSSEN bei jedem Push auf bekannte Schwachstellen gescannt werden
+(`scan_on_push = true` in ECR-Repositories).
+EC2-Instanzen MÜSSEN über den AWS Systems Manager (SSM) verwaltet werden, um automatisches
+Patch-Management zu ermöglichen.
+Kritische und High-Severity-CVEs MÜSSEN innerhalb von 30 Tagen, Medium-CVEs innerhalb von
+90 Tagen behoben werden.
+Eine SBOM (Software Bill of Materials) SOLLTE für alle produktiven Workloads gepflegt werden.
+
+== Rationale
+
+Bekannte Schwachstellen (CVEs) in nicht gepatchten Betriebssystemen, Container-Images und
+Abhängigkeiten sind eine der häufigsten Ursachen erfolgreicher Angriffe.
+Der Zeitraum zwischen CVE-Veröffentlichung und verfügbarem Exploit ist in den letzten Jahren
+auf unter 7 Tage gesunken – Organisationen ohne systematisches Patch-Management sind
+dauerhaft gefährdet.
+Container-Images akkumulieren ohne regelmäßiges Neu-Bauen schnell hunderte bekannter
+Schwachstellen, selbst wenn sie zunächst sauber gestartet wurden.
+SSM ermöglicht agentenbasiertes Patch-Management ohne SSH-Zugang und schafft Nachvollziehbarkeit
+über den Patch-Compliance-Status aller verwalteten Instanzen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*CVE-Ausnutzung in Container-Images*
+|Container-Images mit bekannten kritischen CVEs werden aktiv von automatisierten Exploit-Frameworks angegriffen; ohne Scanning ist der Expositionszeitraum unbekannt.
+
+|*Ungepatchte EC2-Instanzen*
+|Betriebssystem-Patches mit bekannten RCE-Schwachstellen (z. B. Log4Shell, ProxyLogon) ermöglichen vollständige Instance-Kompromittierung.
+
+|*Veraltete Abhängigkeiten*
+|Transitive Abhängigkeiten in Applikationen enthalten häufig Schwachstellen, die durch Dependency-Updates geschlossen werden könnten.
+
+|*Compliance-Gap*
+|Ohne nachweisliches Patch-Management sind Audits nach BSI C5 und ISO 27001 nicht bestandsfähig.
+
+|===
+
+== Anforderung
+
+* Alle ECR-Repositories MÜSSEN `scan_on_push = true` konfiguriert haben.
+* EC2-Instanzen in Produktionsumgebungen MÜSSEN mit dem SSM-Agent verwaltet und in SSM Patch Manager eingebunden sein.
+* Kritische CVEs MÜSSEN innerhalb von 30 Tagen, High-CVEs innerhalb von 60 Tagen und Medium-CVEs innerhalb von 90 Tagen behoben werden.
+* Container-Images DÜRFEN NICHT mit kritischen CVEs in produktiven Registries verbleiben.
+* Ein SBOM-Prozess MUSS für alle produktiven Container-Images und Applikationen etabliert sein.
+* Amazon Inspector MUSS für EC2-Instanzen und ECR-Container aktiviert sein.
+
+== Implementierungsanleitung
+
+. *ECR scan_on_push aktivieren*: `image_scanning_configuration { scan_on_push = true }` in allen `aws_ecr_repository`-Ressourcen.
+. *Amazon Inspector einrichten*: `aws_inspector2_enabler` für EC2- und ECR-Ressourcen aktivieren; Findings in Security Hub aggregieren.
+. *SSM Patch Manager konfigurieren*: Patch-Baselines für alle genutzten Betriebssysteme erstellen; Maintenance-Windows für automatische Patch-Installation einrichten.
+. *SSM-Agent auf EC2-Instanzen*: IAM-Instance-Profile mit `AmazonSSMManagedInstanceCore`-Policy; kein SSH-Port erforderlich.
+. *CI/CD-Vulnerability-Gate einrichten*: Image-Scan-Ergebnisse im Build-Pipeline prüfen; Build schlägt fehl bei kritischen CVEs.
+. *SBOM-Generierung integrieren*: `syft` oder `trivy --format cyclonedx` in Pipeline-Schritte einbinden; SBOM in Artifact-Store archivieren.
+. *CVE-SLA-Tracking aufbauen*: Inspector-Findings mit Ticket-System (Jira) integrieren; SLA-Einhaltung in Security-Metriken tracken.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc Patching
+|Kein systematisches Patch-Management; keine Container-Image-Scans; Patches werden reaktiv nach Incidents eingespielt.
+
+|*2*
+|ECR-Scanning und manuelle Patch-Prozesse
+|ECR `scan_on_push` aktiviert; manuelle EC2-Patches über geplante Wartungsfenster; keine formalen CVE-SLAs.
+
+|*3*
+|Automatisiertes Patching mit definierten SLAs
+|SSM Patch Manager mit Maintenance-Windows; formale CVE-SLAs (Krit.: 30d, High: 60d); Inspector aktiv; CI-Scan-Gate vorhanden.
+
+|*4*
+|SBOM und kontinuierliches Vulnerability-Tracking
+|SBOM für alle produktiven Images; Dependency-Update-Automatisierung (Dependabot/Renovate); MTTD/MTTR für Vulnerabilities gemessen.
+
+|*5*
+|Vollautomatisiertes Vulnerability-Lifecycle-Management
+|Zero-Tolerance für kritische CVEs in Produktion; automatisches Image-Rebuild bei neuen CVEs; Real-Time-Vulnerability-Dashboard.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-070.tf.aws.ecr-scan-on-push
+*Prüft:* ECR-Repositories müssen `scan_on_push = true` aktiviert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_ecr_repository" "app" {
+  name                 = "app/backend"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.ecr.arn
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_ecr_repository" "app" {
+  name = "app/backend"
+
+  image_scanning_configuration {
+    scan_on_push = false
+    # WAF-SEC-070 Violation: Scan deaktiviert
+  }
+}
+----
+|===
+
+*Remediation:* `scan_on_push = true` im `image_scanning_configuration`-Block aller `aws_ecr_repository`-Ressourcen setzen. Zusätzlich `image_tag_mutability = "IMMUTABLE"` empfohlen, um Image-Überschreibung zu verhindern.
+
+---
+
+=== waf-sec-070.tf.aws.ec2-ssm-managed
+*Prüft:* EC2-Instanzen müssen über IAM-Instance-Profile mit SSM-Berechtigungen verwaltet werden.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_role" "ec2_ssm" {
+  name = "ec2-ssm-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ec2_ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ec2" {
+  name = "ec2-ssm-profile"
+  role = aws_iam_role.ec2_ssm.name
+}
+
+resource "aws_instance" "app" {
+  ami                  = data.aws_ami.ubuntu.id
+  instance_type        = "t3.medium"
+  iam_instance_profile = aws_iam_instance_profile.ec2.name
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  # iam_instance_profile fehlt
+  # WAF-SEC-070 Violation: Kein SSM-Management
+}
+----
+|===
+
+*Remediation:* IAM-Instance-Profile mit `AmazonSSMManagedInstanceCore`-Policy erstellen und via `iam_instance_profile` auf alle `aws_instance`-Ressourcen anwenden. SSM-Agent ist auf aktuellen Amazon-Linux-2/Ubuntu-AMIs vorinstalliert.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration aller ECR-Repositories mit `scan_on_push = true` und EC2-Instanzen mit SSM-Instance-Profile.
+
+|*Config*
+|✅ Pflicht
+|Amazon Inspector Activation Status und ECR-Scan-Findings-Report für alle produktiven Repositories.
+
+|*Process*
+|Optional
+|CVE-SLA-Tracking-Report mit Findings, Fälligkeit und Abschlussstatus der letzten 90 Tage.
+
+|*Config*
+|Optional
+|SBOM-Artefakte (CycloneDX oder SPDX) für alle produktiven Container-Images.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-090.adoc[WAF-SEC-090 – Policy-as-Code & Compliance Automation]
+* xref:controls/WAF-SEC-120.adoc[WAF-SEC-120 – Container & Runtime Security]
+
+== Best Practice
+
+* xref:../best-practices/bp-vulnerability-management.adoc[Vulnerability-Management-Best-Practice →]

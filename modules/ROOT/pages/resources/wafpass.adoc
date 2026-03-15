@@ -1,0 +1,440 @@
+= WAF++ PASS – CLI Referenz
+:description: Vollständige Referenz für das wafpass Kommandozeilenwerkzeug
+:toc: left
+:toclevels: 3
+
+`wafpass` ist das offizielle CLI-Werkzeug des WAF++ Frameworks.
+Es liest die maschinenlesbaren YAML-Controls und prüft Terraform-Konfigurationen automatisiert gegen die definierten Assertions.
+
+== Installation
+
+[source,bash]
+----
+pip install wafpass
+----
+
+Version prüfen:
+
+[source,bash]
+----
+wafpass --version
+----
+
+=== Voraussetzungen
+
+* Python 3.10+
+* Terraform-Konfiguration als `.tf`-Dateien (HCL2)
+* WAF++ YAML-Controls (standardmäßig aus dem Verzeichnis `controls/`)
+
+---
+
+== Befehle
+
+=== `wafpass check`
+
+Der einzige Befehl der aktuellen Version. Prüft Terraform-Dateien gegen WAF++ Controls.
+
+[source,bash]
+----
+wafpass check <PATH> [OPTIONEN]
+----
+
+==== Argumente
+
+[cols="2,4", options="header"]
+|===
+| Argument | Beschreibung
+
+| `PATH`
+| Pfad zu einem Terraform-Verzeichnis oder einer einzelnen `.tf`-Datei. Muss existieren.
+|===
+
+==== Optionen
+
+[cols="2,1,4", options="header"]
+|===
+| Option | Standard | Beschreibung
+
+| `--controls-dir PATH`
+| `controls/`
+| Pfad zum Verzeichnis mit den WAF++ YAML-Control-Dateien.
+
+| `--pillar NAME`
+| _(alle)_
+| Nur Controls eines bestimmten Pillars laden.
+Erlaubte Werte: `cost`, `sovereign`, `security`, `reliability`, `operations`, `architecture`, `governance`.
+
+| `--controls ID,ID,...`
+| _(alle)_
+| Kommagetrennte Liste von Control-IDs, die geprüft werden sollen.
+Beispiel: `WAF-COST-010,WAF-SOV-020`
+
+| `--severity LEVEL`
+| _(alle)_
+| Mindest-Schweregrad für die Auswertung.
+Erlaubte Werte: `low`, `medium`, `high`, `critical`.
+Checks unterhalb des Schwellenwerts werden übersprungen.
+
+| `--verbose` / `-v`
+| `false`
+| Alle Ergebnisse ausgeben, auch PASSes.
+Standard: nur FAILs und SKIPs werden angezeigt.
+
+| `--summary`
+| `false`
+| Nur die Summary-Tabelle ausgeben, keine per-Control-Details.
+
+| `--fail-on MODE`
+| `fail`
+| Bedingung für Exit Code 1 (Fehler). +
+`fail` – bei mindestens einem FAIL +
+`skip` – bei mindestens einem FAIL oder SKIP +
+`any` – wie `skip`
+
+| `--output FORMAT`
+| `console`
+| Ausgabeformat. Aktuell nur `console` unterstützt. Weitere Formate geplant.
+
+| `--version` / `-V`
+| –
+| Version ausgeben und beenden.
+|===
+
+---
+
+== Exit Codes
+
+[cols="1,3", options="header"]
+|===
+| Code | Bedeutung
+
+| `0`
+| Alle Checks bestanden (gemäß `--fail-on`-Bedingung).
+
+| `1`
+| Mindestens ein FAIL (oder SKIP bei `--fail-on skip/any`).
+
+| `2`
+| Fehler beim Laden der Controls oder Parsen der Terraform-Dateien.
+|===
+
+---
+
+== Ausgabeformat
+
+=== Standard (nur FAILs)
+
+[source]
+----
+ WAF++ PASS — Terraform Compliance Check
+ Path: ./infrastructure/   Controls: 12
+
+ WAF-SOV-010  Data Residency Policy            critical   FAIL
+   ✗ aws_db_instance.main
+     → Tag 'data-residency' not found in 'tags'.
+   ✗ aws_elasticache_cluster.session
+     → Tag 'data-class' not found in 'tags'.
+
+ WAF-COST-010  Cost Allocation Tagging         high       FAIL
+   ✗ aws_instance.web
+     → Key 'cost-center' not found in 'tags'.
+     → Key 'owner' not found in 'tags'.
+
+ WAF-COST-040  Retention Lifecycle             medium     FAIL
+   ✗ aws_cloudwatch_log_group.debug_logs
+     → 'retention_in_days' is 0, must be >= 1.
+
+────────────────────────────────────────────────────────────
+ Summary
+┌──────────────┬───────┬──────┬──────┬──────┐
+│ Pillar       │ Total │ PASS │ FAIL │ SKIP │
+├──────────────┼───────┼──────┼──────┼──────┤
+│ cost         │     6 │    4 │    2 │    0 │
+│ sovereign    │     6 │    4 │    1 │    1 │
+├──────────────┼───────┼──────┼──────┼──────┤
+│ TOTAL        │    12 │    8 │    3 │    1 │
+└──────────────┴───────┴──────┴──────┴──────┘
+----
+
+=== Verbose (`--verbose`)
+
+Mit `--verbose` werden zusätzlich PASSes und Remediation-Hinweise ausgegeben:
+
+[source]
+----
+ WAF-SOV-020  Region Pinning                  high       PASS
+   ✓ provider.aws — 'region' is not empty.
+
+ WAF-SOV-010  Data Residency Policy            critical   FAIL
+   ✗ aws_db_instance.main
+     → Tag 'data-residency' not found in 'tags'.
+     Remediation: Add 'data-residency' and 'data-class' tags to all data resources.
+----
+
+=== SKIP-Status
+
+Ein Check erhält `SKIP`, wenn:
+
+* Keine passenden Terraform-Ressourcen im Scope gefunden wurden
+* Der Check Assertion-Operatoren verwendet, die nicht automatisiert auswertbar sind (z.B. `json_not_contains_pattern`, `region_in_arn_matches`)
+
+`SKIP` ist kein Fehler — es bedeutet, dass der Check manuell geprüft werden sollte.
+
+---
+
+== Assertion-Operatoren
+
+Die folgende Tabelle listet alle Operatoren, die in WAF++ YAML-Controls verwendet werden können:
+
+=== Automatisiert auswertbar
+
+[cols="2,4,2", options="header"]
+|===
+| Operator | Beschreibung | Beispiel-Use-Case
+
+| `attribute_exists`
+| Attribut existiert und ist nicht `null`
+| `enable_key_rotation` vorhanden?
+
+| `attribute_exists_or_fallback`
+| Primär- oder Fallback-Attribut existiert
+| `kms_key_id` oder `kms_master_key_id`
+
+| `not_empty`
+| Attribut existiert und ist nicht leer (`""`, `[]`, `{}`)
+| Region nicht leer?
+
+| `equals`
+| Attributwert == erwartetem Wert
+| `budget_type == "COST"`
+
+| `not_equals`
+| Attributwert != erwartetem Wert
+| `policy_arn != AdministratorAccess`
+
+| `in`
+| Attributwert ist in erlaubter Liste
+| `sse_algorithm in ["aws:kms"]`
+
+| `not_in`
+| Attributwert ist nicht in verbotener Liste
+| `engine not_in ["mysql4"]`
+
+| `is_true`
+| Attribut ist `true` (auch als String)
+| `is_multi_region_trail = true`
+
+| `is_false`
+| Attribut ist `false`
+| `publicly_accessible = false`
+
+| `greater_than_or_equal`
+| Numerischer Wert >= Schwellenwert
+| `backup_retention_period >= 7`
+
+| `less_than_or_equal`
+| Numerischer Wert <= Schwellenwert
+| `retention_in_days <= 365`
+
+| `matches`
+| Attributwert entspricht Regex-Pattern
+| `name matches "^eu-"`
+
+| `not_matches`
+| Attributwert entspricht Regex-Pattern nicht
+| `region not_matches "us-.*"`
+
+| `key_exists`
+| Schlüssel existiert in einer Map (z.B. `tags`)
+| `tags.cost-center` vorhanden?
+
+| `block_exists`
+| Terraform-Block des angegebenen Typs existiert
+| `aws_budgets_budget` vorhanden?
+
+| `has_associated_resource`
+| Eine andere Ressource referenziert diesen Block
+| VPC hat Flow Log oder Endpoint?
+
+| `not_contains`
+| Attributwert enthält den Substring nicht
+| String enthält keine unerwünschten Muster
+|===
+
+=== Automatisiert übersprungen (SKIP)
+
+Diese Operatoren erfordern Laufzeit-Informationen oder Cross-Resource-Analyse, die über statische HCL-Auswertung hinausgehen:
+
+[cols="2,4", options="header"]
+|===
+| Operator | Grund für SKIP
+
+| `json_not_contains_pattern`
+| Erfordert JSON-Parsing des IAM-Policy-Strings zur Laufzeit
+
+| `region_in_arn_matches`
+| ARN enthält Account-ID und Region, die erst nach `terraform plan` bekannt sind
+
+| `in_variable`
+| Variablenwerte sind erst nach `terraform apply` vollständig auflösbar
+
+| `has_associated_metric_filter`
+| Erfordert Cross-Resource-Lookup zwischen CloudWatch-Log-Group und Metric-Filter
+
+| `references_cloudtrail_bucket`
+| Erfordert Cross-Resource-Auflösung von S3-Bucket-Referenzen
+
+| `not_equals_with_sibling`
+| Benötigt Kenntnis eines Geschwister-Attributs
+
+| `not_all_true_with`
+| Multi-Attribut-Bedingung
+
+| `attribute_exists_on_all_providers`
+| Mehrere Provider-Blöcke müssen gemeinsam ausgewertet werden
+
+| `attribute_exists_if`
+| Bedingte Assertion abhängig von einem anderen Attributwert
+|===
+
+---
+
+== Beispiele
+
+=== Vollständiger Check aller Controls
+
+[source,bash]
+----
+wafpass check ./infrastructure/
+----
+
+=== Nur Sovereign-Controls, kritische Severity
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --pillar sovereign --severity critical
+----
+
+=== Einzelne Controls prüfen
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
+----
+
+=== Nur Summary ausgeben
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --summary
+----
+
+=== Eigenes Controls-Verzeichnis
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --controls-dir /path/to/custom-controls/
+----
+
+=== CI/CD: Nur critical als Blocking
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --fail-on critical
+----
+
+=== CI/CD: Auch SKIPs als Fehler behandeln
+
+[source,bash]
+----
+wafpass check ./infrastructure/ --fail-on skip
+----
+
+---
+
+== CI/CD-Integration
+
+=== GitHub Actions
+
+[source,yaml]
+----
+name: WAF++ Compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+
+jobs:
+  wafpass:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install wafpass
+        run: pip install wafpass
+
+      - name: Copy WAF++ controls
+        run: cp -r path/to/wafpp-controls/ controls/
+
+      - name: Run WAF++ PASS
+        run: |
+          wafpass check infrastructure/ \
+            --pillar cost,sovereign \
+            --severity high \
+            --fail-on critical \
+            --verbose
+----
+
+=== GitLab CI
+
+[source,yaml]
+----
+wafpass:
+  stage: validate
+  image: python:3.12-slim
+  script:
+    - pip install wafpass
+    - wafpass check infrastructure/ --fail-on critical
+  rules:
+    - changes:
+        - infrastructure/**/*.tf
+----
+
+=== Pre-commit Hook
+
+[source,bash]
+----
+#!/bin/bash
+# .git/hooks/pre-commit
+
+wafpass check ./infrastructure/ --fail-on critical --severity critical,high
+if [ $? -ne 0 ]; then
+  echo "WAF++ PASS: Critical compliance findings. Commit aborted."
+  exit 1
+fi
+----
+
+---
+
+== Controls-Verzeichnis
+
+`wafpass` erwartet YAML-Dateien im Format `WAF-*.yml` im Controls-Verzeichnis.
+Standardmäßig sucht es im Unterverzeichnis `controls/` relativ zum Arbeitsverzeichnis.
+
+Jede YAML-Datei entspricht einem Control. Die vollständige Schema-Dokumentation ist unter xref:resources/control-schema.adoc[Control-Schema Referenz] verfügbar.
+
+---
+
+== Weiterführende Seiten
+
+* xref:best-practises/index.adoc[Assessment-Methodik] – wie wafpass in den Assessment-Prozess eingebettet wird
+* xref:controls:catalog.adoc[Controls-Katalog] – alle verfügbaren Controls mit Assertions
+* xref:resources/control-schema.adoc[Control-Schema Referenz] – YAML-Struktur für eigene Controls

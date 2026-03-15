@@ -1,0 +1,236 @@
+= WAF-COST-090 – Data Transfer & Egress Cost Management
+:page-toc: right
+:control-id: WAF-COST-090
+:pillar: cost
+:severity: high
+:category: data-transfer
+:automated: medium
+:description: WAF++ Cost Optimization – VPC Endpoints, kein Public IP auf internen Ressourcen, CDN für Public Assets, Egress-Budget-Alert.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Data Transfer | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+VPC Endpoints MÜSSEN für S3, KMS und andere vielgenutzte Cloud-Services deployed sein.
+Öffentliche IP-Adressen auf internen Compute-Ressourcen sind verboten.
+CDN MUSS für alle öffentlich zugänglichen statischen Assets konfiguriert sein.
+Ein Egress-Budget-Alert MUSS existieren.
+Cross-Region-Datentransfer MUSS minimiert und, wenn notwendig, dokumentiert sein.
+
+== Rationale
+
+Datentransfer- und Egress-Kosten gehören zu den am häufigsten unterschätzten Cloud-Kostenkategorien.
+S3-API-Calls und Datenzugriffe von EC2-Instanzen in derselben Region sind mit VPC Endpoints kostenfrei –
+ohne sie fallen Egress-Gebühren an. Public IPs auf internen Compute-Ressourcen erzeugen unnötig
+Internet-Pfad-Traffic. CDN eliminiert wiederholte Origin-Egress-Kosten für statische Inhalte.
+
+VPC Endpoints für S3 (Gateway-Typ) sind kostenlos und haben eines der besten ROI-Verhältnisse
+aller Cloud-Optimierungsmaßnahmen: Einmaliger Implementierungsaufwand, permanente Einsparung.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unnötige Egress-Gebühren*
+|S3/KMS-Traffic ohne VPC-Endpoint läuft über Internet-Gateway und erzeugt Egress-Kosten.
+
+|*Public IP auf internen Services*
+|Interne App-Server mit Public IP erzeugen Internet-Pfad-Traffic statt VPC-intern.
+
+|*Fehlende CDN-Nutzung*
+|Jede Anfrage an statische Assets trifft den S3-Origin; CDN würde 80–90% der Egress eliminieren.
+
+|*Multi-Cloud-Datentransferkosten*
+|Cross-Provider-Datentransfer (AWS zu Azure) ist teuer; wird in Architekturentscheidungen oft ignoriert.
+
+|===
+
+== Anforderung
+
+* VPC Endpoint für S3 MUSS in jedem genutzten AWS-VPC deployed sein (Gateway-Typ, kostenlos)
+* VPC Endpoint für KMS MUSS in Produktions-VPCs deployed sein (Interface-Typ)
+* Kein `associate_public_ip_address = true` auf internen Compute-Ressourcen
+* CloudFront / Azure CDN / GCP Cloud CDN MUSS für öffentlich zugängliche Storage-Assets konfiguriert sein
+* Egress-Budget-Alert MUSS als Teil der allgemeinen Budget-Konfiguration existieren
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Unkontrollierter Egress
+|Kein VPC-Endpoint; kein Egress-Monitoring; keine CDN.
+
+|*2*
+|Egress-Budget gesetzt
+|Egress-Kosten sichtbar; Budget-Alert konfiguriert.
+
+|*3*
+|VPC Endpoints und CDN deployed
+|S3- und KMS-VPC-Endpoints in Produktion; CDN für Public Assets; kein Public IP auf internem Compute.
+
+|*4*
+|Egress-Anomalie-Detection
+|VPC Flow Logs analysiert auf unerwartete Egress-Muster; Cross-Region-Transfer dokumentiert.
+
+|*5*
+|Data Gravity Optimization
+|Workloads automatisch nahe Datenquellen platziert; Multi-Cloud-Transfer-Kosten im Architecture-Board.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-090.tf.aws.vpc-endpoint-s3-exists
+*Prüft:* VPC Endpoint für S3 muss in jedem genutzten AWS-VPC existieren.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+
+  tags = merge(module.mandatory_tags.tags, {
+    Name = "vpce-s3-${var.environment}"
+  })
+}
+
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.kms"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(module.mandatory_tags.tags, {
+    Name = "vpce-kms-${var.environment}"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  # Keine VPC Endpoints definiert
+  # S3/KMS-Traffic über Internet-Gateway
+  # WAF-COST-090 Violation
+}
+----
+|===
+
+---
+
+=== waf-cost-090.tf.aws.no-public-ip-internal-compute
+*Prüft:* Interne Compute-Ressourcen dürfen keine Public IPs haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.private.id
+  associate_public_ip_address = false
+
+  tags = module.mandatory_tags.tags
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.public.id
+  associate_public_ip_address = true
+  # Unnötige Public IP für internen App-Server
+  # WAF-COST-090 Finding
+}
+----
+|===
+
+*Remediation:* `associate_public_ip_address = false` auf interne EC2-Instanzen.
+Private Subnetze nutzen. NAT-Gateway für ausgehenden Internet-Traffic.
+ALB/NLB mit Public IP für eingehenden öffentlichen Traffic.
+
+== CDN-Konfiguration (CloudFront)
+
+[source,hcl]
+----
+resource "aws_cloudfront_distribution" "assets" {
+  enabled         = true
+  is_ipv6_enabled = true
+
+  origin {
+    domain_name            = aws_s3_bucket.public_assets.bucket_regional_domain_name
+    origin_id              = "s3-public-assets"
+    origin_access_control_id = aws_cloudfront_origin_access_control.main.id
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "s3-public-assets"
+    viewer_protocol_policy = "redirect-to-https"
+    cached_methods         = ["GET", "HEAD"]
+    allowed_methods        = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400   # 1 Tag Cache
+    max_ttl     = 604800  # 7 Tage Cache
+  }
+
+  tags = module.mandatory_tags.tags
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|VPC-Endpoint-Ressourcen für S3 und KMS in Terraform.
+
+|*Config*
+|✅ Pflicht
+|CDN-Konfiguration für öffentlich zugängliche Storage-Assets.
+
+|*Config*
+|Optional
+|VPC-Flow-Log-Konfiguration für Egress-Analyse.
+
+|*Process*
+|Optional
+|Monatlicher Egress-Kostentrend-Report (Ziel: < 15% des Gesamt-Cloud-Budgets).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-020.adoc[WAF-COST-020 – Cost Budgets & Alerting]
+* xref:controls/WAF-COST-050.adoc[WAF-COST-050 – Cost Impact Assessment in ADRs]
+
+== Best Practice
+
+* xref:../best-practices/bp-greenfield.adoc[Greenfield FinOps by Design →]

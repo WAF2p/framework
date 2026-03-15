@@ -1,0 +1,199 @@
+= WAF-SEC-010 – Identity & Access Management Baseline
+:page-toc: right
+:control-id: WAF-SEC-010
+:pillar: security
+:severity: critical
+:category: iam
+:automated: hoch
+:description: WAF++ Security – IAM-Baseline: MFA-Pflicht, starke Passwortrichtlinie und Verbot von Root-Nutzung im Tagesbetrieb.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Critical | *Kategorie:* IAM | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle AWS-Konten MÜSSEN MFA für sämtliche IAM-Benutzer mit Console-Zugang erzwingen.
+Die Nutzung des Root-Accounts für den laufenden Betrieb ist VERBOTEN.
+Die IAM-Passwortrichtlinie MUSS mindestens folgende Anforderungen erfüllen: 14 Zeichen Mindestlänge,
+Komplexitätsvorgaben (Groß-/Kleinbuchstaben, Ziffern, Sonderzeichen), Wiederverwendungssperre
+für mindestens 5 vorherige Passwörter und ein maximales Passwortalter von 90 Tagen.
+Service-Accounts MÜSSEN IAM-Rollen mit temporären Credentials anstelle von langlebigen
+Access Keys verwenden.
+
+== Rationale
+
+Schwache Identitätskontrollen sind die häufigste Ursache von Cloud-Sicherheitsvorfällen.
+Ohne erzwungene MFA und starke Passwortrichtlinien ermöglichen kompromittierte Credentials
+sofortigen und persistenten Zugriff auf Cloud-Ressourcen.
+Root-Account-Zugriff umgeht alle Berechtigungsgrenzen – unbefugte Root-Nutzung ist
+daher besonders schwerwiegend.
+IAM-Baseline-Controls sind grundlegende Voraussetzungen für jede weitere Sicherheitsschicht:
+Alle anderen Maßnahmen werden wirkungslos, wenn die Identitätsebene nicht gehärtet ist.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Credential-Kompromittierung*
+|Phishing- oder Password-Spray-Angriffe ermöglichen persistenten Cloud-Zugriff ohne MFA als zweite Hürde.
+
+|*Root-Account-Missbrauch*
+|Unbefugte Root-Nutzung ermöglicht vollständige Account-Übernahme und Löschung aller Sicherheitskontrollen.
+
+|*Langlebige Access Keys*
+|Aus Code-Repositories oder CI/CD-Systemen extrahierte Access Keys ermöglichen dauerhaften Zugriff.
+
+|*Privilege Escalation*
+|Fehlkonfigurierte IAM-Policies erlauben seitliche Bewegung quer über Services und Konten.
+
+|===
+
+== Anforderung
+
+* MFA MUSS für alle IAM-Benutzer mit Console-Zugang aktiviert sein; Durchsetzung über Service Control Policy (SCP).
+* Die IAM-Passwortrichtlinie MUSS mindestens 14 Zeichen, alle Zeichenklassen, Wiederverwendungssperre ≥ 5 und maximales Passwortalter ≤ 90 Tage vorschreiben.
+* Der Root-Account MUSS gesperrt sein: keine Access Keys, MFA aktiviert, keine operative Nutzung.
+* Menschlicher Zugriff MUSS über IAM Identity Center (SSO) mit temporären Credentials erfolgen – nicht über langlebige IAM-User-Access-Keys.
+* Bestehende langlebige Access Keys älter als 90 Tage MÜSSEN rotiert werden; Erkennung über AWS Config.
+* Break-Glass-Verfahren für Not-Root- oder Admin-Zugriff MÜSSEN dokumentiert und mit Monitoring versehen sein.
+* IAM-Benutzer und Rollen MÜSSEN quartalsweise auditiert werden; ungenutzte Accounts und Berechtigungen sind zu entfernen.
+
+== Implementierungsanleitung
+
+. *MFA erzwingen*: SCP konfigurieren, die Console-Aktionen ohne aktive MFA-Session verweigert.
+. *Passwortrichtlinie setzen*: `aws_iam_account_password_policy` in Terraform mit allen Pflichtattributen definieren.
+. *Root-Account sichern*: Alle Access Keys im AWS-Console entfernen, MFA aktivieren, Root-Nutzung auf Ausnahmefälle beschränken.
+. *IAM Identity Center einrichten*: Menschlichen Zugriff auf SSO mit temporären Credentials migrieren.
+. *Access-Key-Rotation automatisieren*: AWS Config Rule `access-keys-rotated` aktivieren, Alarm bei Überschreitung von 90 Tagen.
+. *Break-Glass-Verfahren dokumentieren*: Prozess für Not-Admin-Zugriff mit dediziertem Monitoring und Alerting festlegen.
+. *Quartalsaudit einplanen*: IAM Access Analyzer Findings vierteljährlich reviewen und bereinigen.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc IAM
+|Passwortrichtlinie vorhanden, aber nicht konsistent durchgesetzt; MFA optional oder nur für manche Benutzer.
+
+|*2*
+|Passwortrichtlinie und MFA für Admins
+|Passwortrichtlinie erfüllt Mindestanforderungen (14 Zeichen, Komplexität); MFA für alle Admin-IAM-User; Root-MFA aktiv.
+
+|*3*
+|MFA via SCP für alle Console-Benutzer
+|SCP verweigert Console-Aktionen ohne aktive MFA-Session; menschlicher Zugriff über SSO/IAM Identity Center; Access-Key-Rotation automatisiert.
+
+|*4*
+|Zero Standing Privilege mit JIT-Zugriff
+|Kein dauerhafter Admin-Zugang; alle erhöhten Zugänge zeitlich begrenzt und just-in-time; quartalsweise Access Reviews dokumentiert.
+
+|*5*
+|Vollautomatisiertes SCIM/SSO mit kontinuierlicher Zertifizierung
+|Alle IAM-Identitäten via SCIM aus autoritativem IdP bereitgestellt und entzogen; Echtzeit-Anomalieerkennung auf Authentifizierungsereignisse.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-010.tf.aws.iam-password-policy-mfa
+*Prüft:* Die AWS-IAM-Passwortrichtlinie muss Mindestlänge 14, alle Zeichenklassen, Wiederverwendungssperre ≥ 5 und maximales Passwortalter ≤ 90 Tage vorschreiben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_account_password_policy" "strict" {
+  minimum_password_length        = 14
+  require_uppercase_characters   = true
+  require_lowercase_characters   = true
+  require_numbers                = true
+  require_symbols                = true
+  allow_users_to_change_password = true
+  max_password_age               = 90
+  password_reuse_prevention      = 5
+  hard_expiry                    = false
+}
+----
+a|[source,hcl]
+----
+resource "aws_iam_account_password_policy" "weak" {
+  minimum_password_length      = 8
+  require_uppercase_characters = false
+  require_symbols              = false
+  # Fehlt: password_reuse_prevention,
+  # max_password_age
+  # WAF-SEC-010 Violation
+}
+----
+|===
+
+*Remediation:* `aws_iam_account_password_policy` mit allen Pflichtattributen definieren: `minimum_password_length >= 14`, alle `require_*`-Flags auf `true`, `password_reuse_prevention >= 5` und `max_password_age <= 90`.
+
+---
+
+=== waf-sec-010.tf.aws.no-root-access-keys
+*Prüft:* Der Root-Account darf keine aktiven programmatischen Access Keys besitzen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+# Root-Access-Keys werden via AWS-Console
+# entfernt – nicht in Terraform darstellbar.
+# Prüfung:
+# aws iam get-account-summary \
+#   grep AccountAccessKeysPresent
+# Erwartet: "AccountAccessKeysPresent": 0
+----
+a|[source,hcl]
+----
+# Root-Account besitzt aktive Access Keys
+# in AWS IAM > Security Credentials.
+# aws iam get-account-summary zeigt:
+# "AccountAccessKeysPresent": 1
+# WAF-SEC-010 Violation
+----
+|===
+
+*Remediation:* Im AWS-Console unter IAM → Security Credentials des Root-Accounts alle Access Keys löschen. MFA für den Root-Account aktivieren. Root-Nutzung auf absolute Ausnahmefälle beschränken.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|IAM-Governance-Dokument mit Passwortrichtlinien-Standard, MFA-Anforderungen und Access-Key-Lifecycle-Regeln.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration für `aws_iam_account_password_policy` mit allen Pflichtattributen.
+
+|*Process*
+|Optional
+|Access-Review-Protokolle mit quartalsweiser IAM-Benutzer- und Rollen-Zertifizierung.
+
+|*Config*
+|Optional
+|AWS Config Conformance Pack oder Security Hub Findings-Report mit MFA-Compliance-Status.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-020.adoc[WAF-SEC-020 – Least Privilege & RBAC Enforcement]
+
+== Best Practice
+
+* xref:../best-practices/bp-iam.adoc[Identity & Access Management Best Practice →]

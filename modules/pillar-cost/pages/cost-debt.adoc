@@ -1,0 +1,255 @@
+= Architektonische Kostenschuld
+:page-toc: right
+:description: WAF++ – Architektonische Kostenschuld: Definition, Erkennung, Governance und Paydown-Strategien.
+
+Architektonische Kostenschuld ist das zentrale neue Konzept der Cost-Optimization-Säule.
+Sie bezeichnet wirtschaftliche Belastungen, die durch vergangene Architekturentscheidungen
+entstanden sind und nun monatlich Kosten verursachen – oft ohne dass die Verbindung zur
+ursprünglichen Entscheidung noch sichtbar ist.
+
+== Definition
+
+*Architektonische Kostenschuld* (Architectural Cost Debt) ist die Akkumulation von
+wirtschaftlichen Langzeitauswirkungen architektonischer Entscheidungen, die zum Zeitpunkt
+der Entscheidung nicht vollständig bewertet oder bewusst akzeptiert wurden.
+
+[source,text]
+----
+Architektonische Kostenschuld entsteht aus:
+  ├── Entscheidungen ohne Cost Impact Assessment
+  ├── HA/Multi-Region ohne SLO-Grundlage ("wir machen es mal sicher")
+  ├── Managed Services mit hohem Lock-in ohne Exit-Plan
+  ├── Infinite Retention als Default ("wir heben alles auf")
+  ├── Observability-Overengineering (DEBUG in Produktion, keine Sampling)
+  └── Fehlende Kündigung auslaufender Nutzung (vergessene Reservierungen, Snapshots, Buckets)
+----
+
+Die Analogie zur technischen Schuld (Technical Debt) ist bewusst gewählt:
+
+[cols="1,2,2"]
+|===
+|Dimension |Technische Schuld |Architektonische Kostenschuld
+
+|*Entstehung*
+|Schlechter Code, fehlende Tests, veraltete Abhängigkeiten
+|Fehlende TCO-Bewertung, Lock-in ohne Alternativplan, HA-Overengineering
+
+|*Sichtbarkeit*
+|Oft sichtbar im Code-Review, Sonar-Metriken, Incident-Patterns
+|Oft unsichtbar: in der Cloud-Rechnung vergraben, keiner Entscheidung zugeordnet
+
+|*Zinsen*
+|Verlangsamte Entwicklung, wachsende Bug-Rate, schwerere Onboarding
+|Monatliche Zusatzkosten, steigende Fixkosten ohne Geschäftswachstum
+
+|*Paydown*
+|Refactoring, Upgrades, Testabdeckung erhöhen
+|Architektur-Überarbeitungen, Exit aus Lock-in-Services, Retention-Bereinigung
+
+|*Governance*
+|Tech-Debt-Register, Sprint-Allokation für Debt-Reduction
+|Cost-Debt-Register, Quarterly Cost-Debt-Review mit Architecture Board
+
+|===
+
+== Typische Anti-Patterns (Die 5 häufigsten)
+
+=== AP1 – HA ohne SLO-Grundlage
+
+*Muster:* Multi-AZ oder Multi-Region Deployment für Services, deren SLO 99,5% oder weniger verlangt –
+was mit einer einzelnen AZ erreichbar wäre.
+
+*Kostenwirkung:* 2-3x Infrastrukturkosten für Redundanz, die kein Business-Requirement deckt.
+
+*Erkennungssignal:* Service-SLO liegt unter dem, was der Provider für eine einzelne AZ garantiert.
+Oder: SLO wurde nie dokumentiert, die HA-Architektur aber trotzdem gebaut.
+
+*Paydown:* SLO-Review → Entscheidung: SLO erhöhen (und HA behalten) oder HA reduzieren.
+Beide Optionen sind bewusste Entscheidungen, die dokumentiert werden müssen.
+
+---
+
+=== AP2 – Infinite Retention als Default
+
+*Muster:* S3-Buckets ohne Lifecycle-Policy, CloudWatch Log Groups ohne Retention, RDS-Snapshots
+ohne Ablaufdatum. „Aufheben kostet ja kaum etwas" – bis die Gesamtmenge wächst.
+
+*Kostenwirkung:* Stetig steigende Storage-Kosten ohne proportionalen Geschäftswert.
+Observability-Kosten dominieren das Cloud-Budget.
+
+*Erkennungssignal:* Storage-Kosten steigen linear oder stärker ohne proportionales Datenwachstum.
+Anteil der Observability-Kosten am Gesamtbudget > 20%.
+
+*Paydown:* Lifecycle-Policies für alle Storage- und Log-Ressourcen. Tiered Retention:
+Hot (0–30d), Warm (30–90d), Cold (90–365d), Archive (>365d). Tagging für Wert-basierte Priorisierung.
+
+---
+
+=== AP3 – Lock-in ohne Exit-Plan
+
+*Muster:* Starke Nutzung proprietärer Services (AWS Kinesis, Azure Service Bus, GCP Spanner,
+Snowflake) ohne dokumentierte Alternative oder Exit-Strategie.
+
+*Kostenwirkung:* Hohe und wachsende Lizenz/Service-Kosten ohne Verhandlungsposition.
+Preiserhöhungen des Anbieters können nicht mit Anbieterwechsel beantwortet werden.
+
+*Erkennungssignal:* Enterprise-Agreement-Verlängerung ohne Alternative-Analyse.
+Neue Services werden aus Bequemlichkeit statt aus Evaluierung gewählt.
+
+*Paydown:* Exit-Plan dokumentieren (auch ohne Migration-Absicht). Lock-in-Score in ADRs (1–5).
+Score 4–5 erfordert Genehmigung des Architecture Boards.
+
+---
+
+=== AP4 – Observability-Overengineering
+
+*Muster:* DEBUG-Level-Logging in Produktionsumgebungen, kein Tracing-Sampling,
+alle Logs in Hot-Tier ohne Tiering-Strategie.
+
+*Kostenwirkung:* Observability-Kosten übersteigen Compute-Kosten. Teure APM-Lizenzen
+für Daten, die niemand auswertet.
+
+*Erkennungssignal:* Log-Ingestion-Volumen steigt ohne proportionalen Incident-Erkennungs-Nutzen.
+DEBUG-Logs in CloudWatch Logs Insights erzeugen keine Alerts.
+
+*Paydown:* Log-Level-Review, Sampling-Konfiguration für Traces, Retention-Tiering.
+Wert-basierte Analyse: Welche Logs wurden in den letzten 90 Tagen in einem Alert oder Incident genutzt?
+
+---
+
+=== AP5 – Verwaiste Ressourcen
+
+*Muster:* Dev/Test-Ressourcen, die nach Abschluss eines Projekts nicht abgeschaltet wurden.
+Ungenutzte Reserved Instances, die nicht mehr zum aktuellen Workload passen.
+Snapshots und Backups ohne aktiven Workload.
+
+*Kostenwirkung:* Direkte Verschwendung ohne jeden Geschäftswert.
+
+*Erkennungssignal:* Ressourcen mit `environment: development` oder `environment: test` ohne
+aktive Nutzung in den letzten 7 Tagen. Keine CPU/Network-Aktivität > 5%.
+
+*Paydown:* Idle-Detection-Automatisierung. Auto-Shutdown-Policy für Non-Prod außerhalb der Arbeitszeit.
+Reservierungs-Audit quartalsweise.
+
+== Detection Signals
+
+Die folgenden Signale weisen auf akkumulierende Architektonische Kostenschuld hin:
+
+[cols="1,3,1"]
+|===
+|Signal |Beschreibung |Schwellwert (Richtwert)
+
+|*Fixkosten-Drift*
+|Fixkosten (Reservierungen, Support, Lizenzen) steigen ohne proportionales Geschäftswachstum.
+|Fixkostenanteil > 60% des Cloud-Budgets ohne Commitment-Strategie
+
+|*Observability-Dominanz*
+|Logging/Monitoring-Kosten übersteigen Compute-Kosten.
+|Observability > 20% des Gesamt-Cloud-Budgets
+
+|*HA-Kostenanteil*
+|Redundanz-Kosten (Multi-AZ, Multi-Region) ohne dokumentierten SLO-Bedarf.
+|HA-Overhead > 30% ohne SLO-Nachweis
+
+|*Egress-Dominanz*
+|Datentransferkosten wachsen schneller als Datenvolumen.
+|Egress > 15% des Gesamt-Cloud-Budgets
+
+|*Storage-Wachstum*
+|Storage-Kosten wachsen linear ohne Lifecycle-Policies.
+|Monatliches Storage-Wachstum > 5% ohne neue Workloads
+
+|*Ungenutztes Commitment*
+|Reserved Instances oder Savings Plans haben < 50% Deckungsrate.
+|RI-Utilization < 80%
+
+|===
+
+== Impact Assessment
+
+Für jeden identifizierten Cost-Debt-Eintrag wird ein Impact Assessment durchgeführt:
+
+[source,yaml]
+----
+# cost-debt-register.yml – Beispiel-Eintrag
+- id: CD-2025-003
+  title: "Multi-AZ PostgreSQL ohne SLO-Grundlage"
+  description: >
+    Produktionsdatenbank in 3 AZs deployed. SLO des Services ist 99.5%,
+    was auch mit Single-AZ erreichbar wäre. Keine dokumentierte SLO-Anforderung
+    für Multi-AZ.
+  detected: "2025-03-01"
+  owner: "platform-team"
+  estimated_annual_impact_eur: 18400
+  status: "paydown"  # monitoring | paydown | accepted
+  paydown_plan: >
+    SLO-Review mit Product Owner bis 2025-04-15.
+    Wenn SLO <= 99.5%: Downgrade auf Single-AZ mit Multi-AZ für DR-Tests only.
+    Erwartete Einsparung: ~1.530 EUR/Monat.
+  target_resolution: "2025-06-30"
+  related_adr: "docs/adr/ADR-0042-database-ha-strategy.md"
+  related_controls:
+    - WAF-COST-050
+    - WAF-COST-100
+----
+
+== Governance-Ansatz
+
+=== Cost-Debt-Register
+
+Das Cost-Debt-Register ist ein versioniertes YAML- oder Markdown-Dokument im Repository:
+
+* Jeder Eintrag hat: ID, Titel, Beschreibung, Owner, Jahres-Impact (€), Status, Paydown-Plan oder Akzeptanz-Begründung
+* Status-Optionen: `monitoring` (beobachtet), `paydown` (aktiv reduziert), `accepted` (bewusst akzeptiert mit Begründung)
+* Link zu zugehörigem ADR (wenn vorhanden)
+
+=== Quarterly Cost-Debt-Review
+
+Das Architecture Board führt quartalsweise einen Cost-Debt-Review durch:
+
+. *Neue Einträge identifizieren*: Aus FinOps-Reviews, Anomalie-Detection, ADR-Prozessen
+. *Bestandseinträge aktualisieren*: Paydown-Fortschritt, geänderter Status
+. *Priorisierung*: Nach Impact (€/Jahr) und Paydown-Aufwand
+. *Acceptance-Entscheidungen*: Bewusste Akzeptanz mit dokumentierter Begründung
+. *Sign-off*: Architecture Board bestätigt Kenntnis und Priorisierung
+
+=== ADR-Integration
+
+Jedes Architektur-Decision-Record mit Infrastruktur-Impact enthält eine Cost-Impact-Sektion:
+
+[source,markdown]
+----
+## Cost Impact Assessment (WAF-COST-050)
+
+| Dimension            | Bewertung                          |
+|---------------------|------------------------------------|
+| Geschätzte TCO/Jahr | 24.000 EUR                         |
+| Lock-in-Risiko      | 3/5 (Mittleres Lock-in)            |
+| Datentransfer-Kosten | ~200 EUR/Monat (Egress-Schätzung) |
+| Betriebsaufwand     | 0.3 FTE/Jahr                       |
+| Exit-Kosten (est.)  | ~50.000 EUR Migrationsaufwand      |
+| 3-Jahres-NPV        | -68.000 EUR (ohne Business-Value)  |
+
+**Entscheidung:** Akzeptiert wegen [Begründung].
+**Kostenschuld-Risiko:** Gering / Mittel / Hoch
+**Cost-Debt-Register:** Eintrag CD-2025-XXX angelegt (falls Risiko Mittel/Hoch).
+----
+
+== Unterschied zur technischen Schuld
+
+Architektonische Kostenschuld unterscheidet sich von technischer Schuld in wichtigen Aspekten:
+
+* *Sichtbarkeit*: Technische Schuld ist im Code sichtbar. Kostenschuld versteckt sich in Cloud-Rechnungen
+* *Messung*: Technische Schuld wird in Code-Metriken gemessen. Kostenschuld in €/Monat
+* *Ownership*: Technische Schuld gehört dem Engineering-Team. Kostenschuld erfordert Architecture-Board-Beteiligung
+* *Paydown-Komplexität*: Technische Schuld kann oft inkrementell abgebaut werden. Kostenschuld erfordert oft strukturelle Architekturänderungen
+
+== Zugehörige Controls
+
+* xref:controls/WAF-COST-050.adoc[WAF-COST-050 – Cost Impact Assessment in Architecture Decision Records]
+* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register & Quarterly Review]
+
+== Best Practices
+
+* xref:best-practices/bp-cost-debt.adoc[Architektonische Kostenschuld managen →]
+* xref:best-practices/bp-finops.adoc[FinOps-Prozesse implementieren →]

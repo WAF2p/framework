@@ -1,0 +1,206 @@
+= WAF-COST-070 – Observability & Logging Cost Tiers
+:page-toc: right
+:control-id: WAF-COST-070
+:pillar: cost
+:severity: medium
+:category: observability-cost
+:automated: high
+:description: WAF++ Cost Optimization – Log-Tiering (Hot/Warm/Cold/Archive), kein Infinite Retention, kein DEBUG in Produktion.
+
+[.metadata]
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Observability Cost | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Log-Gruppen MÜSSEN nach Retention-Tier kategorisiert sein:
+Hot (7–30 Tage), Warm (30–90 Tage), Cold (90–365 Tage), Archive (>365 Tage).
+CloudWatch Log Groups DÜRFEN NICHT `retention_in_days = 0` haben.
+DEBUG-Level-Logging in Produktion ist ohne Architecture-Board-Genehmigung verboten.
+Trace-Sampling MUSS für High-Volume-Services konfiguriert sein (>1.000 req/s).
+
+== Rationale
+
+Observability-Kosten sind einer der am schnellsten wachsenden und schwer kontrollierbaren
+Cloud-Kostenkategorien. DEBUG-Level-Logging erzeugt 10–100× mehr Log-Volumen als INFO.
+CloudWatch-Default (retention_in_days = 0 oder fehlt) akkumuliert Logs unbegrenzt.
+In schlecht gemanagten Umgebungen übersteigen Observability-Kosten regelmäßig die Compute-Kosten.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Observability-Kostendominanz*
+|Logging/Monitoring-Kosten übersteigen Compute-Kosten – klassisches Anti-Pattern ohne Tiering.
+
+|*DEBUG in Produktion*
+|10–100× höheres Log-Volumen; 95% der DEBUG-Logs werden nie gelesen.
+
+|*Unbegrenzte Trace-Speicherung*
+|Ohne Sampling sammeln APM-Tools jede einzelne Anfrage – exponentiell wachsende Kosten.
+
+|*DSGVO-Risiko*
+|Logs können personenbezogene Daten enthalten; unbegrenzte Retention = DSGVO-Verstoß.
+
+|===
+
+== Log-Tiering-Modell
+
+[cols="1,1,2,2"]
+|===
+|Tier |Retention |Typ |Kosten
+
+|*Hot*
+|7–30 Tage
+|Operational Logs (Errors, Warnings, App-Logs)
+|Höchste Kosten/GB; minimale Menge
+
+|*Warm*
+|30–90 Tage
+|Security-Logs, Audit-Trails, Access-Logs
+|Mittlere Kosten; Compliance-relevante Daten
+
+|*Cold*
+|90–365 Tage
+|Regulatory-Logs, Finanzlogs, DSGVO-relevante Logs
+|Günstig; selten abgefragt
+
+|*Archive*
+|> 365 Tage
+|Legal Hold, Langzeit-Compliance (S3 + Glacier)
+|Sehr günstig; quasi kein Zugriff
+
+|===
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Alle Logs unbegrenzt
+|CloudWatch-Default (infinite); kein Log-Level-Management; kein Sampling.
+
+|*2*
+|Einige Retention-Werte gesetzt
+|Größte Kostentreiber mit Retention konfiguriert; kein systematischer Ansatz.
+
+|*3*
+|Tiered Retention in IaC
+|Alle Log Groups mit `retention_in_days` != 0; Tier-Strategie dokumentiert; Tags gesetzt.
+
+|*4*
+|Log-Value-Analyse
+|Log Groups analysiert auf Nutzungsfrequenz; Tiering auf Basis von Access-Patterns.
+
+|*5*
+|Automated Intelligent Tiering
+|S3 Intelligent-Tiering für Log-Archive; ML-basierte Log-Anomalie-Erkennung reduziert Volumen.
+
+|===
+
+== Terraform Checks
+
+=== waf-cost-070.tf.aws.cloudwatch-retention-not-infinite
+*Prüft:* CloudWatch Log Groups dürfen keine infinite Retention haben (retention_in_days = 0 oder nicht gesetzt).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/app/production/payment"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.logging.arn
+
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "hot"
+    log-type = "operational"
+  })
+}
+
+resource "aws_cloudwatch_log_group" "audit" {
+  name              = "/app/production/audit"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.logging.arn
+
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "cold"
+    log-type = "audit"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name = "/app/production/payment"
+  # retention_in_days fehlt = unbegrenzt
+  # WAF-COST-070 Violation
+}
+
+resource "aws_cloudwatch_log_group" "debug" {
+  name              = "/app/production/debug"
+  retention_in_days = 0  # Explizit unbegrenzt
+  # WAF-COST-070 Violation
+}
+----
+|===
+
+---
+
+=== waf-cost-070.tf.aws.cloudwatch-operational-retention-max-365
+*Prüft:* Operational Log Groups sollten `retention_in_days` <= 365 haben.
+
+[source,hcl]
+----
+# Für Compliance-Logs > 365 Tage: S3-Export verwenden
+resource "aws_cloudwatch_log_subscription_filter" "compliance_export" {
+  name            = "compliance-logs-to-s3"
+  log_group_name  = aws_cloudwatch_log_group.compliance.name
+  filter_pattern  = ""
+  destination_arn = aws_kinesis_firehose_delivery_stream.s3_archive.arn
+}
+
+# CloudWatch: kurze Retention für Zugriff
+resource "aws_cloudwatch_log_group" "compliance" {
+  name              = "/app/production/compliance"
+  retention_in_days = 90  # In CloudWatch; Export nach S3 für 7 Jahre
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform Log-Group-Konfigurationen mit expliziten `retention_in_days`-Werten (nicht 0).
+
+|*Governance*
+|✅ Pflicht
+|Retention-Strategie-Dokument mit Log-Tier-Definitionen und Retention-Perioden je Log-Typ.
+
+|*Config*
+|Optional
+|Trace-Sampling-Konfiguration für APM-Tools.
+
+|*Process*
+|Optional
+|Monatlicher Observability-Kostenanteil am Gesamtbudget (Ziel: < 20%).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-COST-040.adoc[WAF-COST-040 – Storage & Retention Lifecycle Defined]
+* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register]
+
+== Best Practice
+
+* xref:../best-practices/bp-retention.adoc[Retention Strategy →]

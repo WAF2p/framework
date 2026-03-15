@@ -1,0 +1,199 @@
+= WAF-SEC-060 – Secrets Management – No Hardcoded Credentials
+:page-toc: right
+:control-id: WAF-SEC-060
+:pillar: security
+:severity: critical
+:category: secrets
+:automated: hoch
+:description: WAF++ Security – Secrets Management: Keine hartcodierten Credentials in IaC oder Code; alle Secrets in AWS Secrets Manager mit CMK-Verschlüsselung.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Critical | *Kategorie:* Secrets | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Secrets, API-Keys, Passwörter, Datenbank-Credentials und Zertifikate MÜSSEN in einer
+dedizierten Secrets-Management-Lösung (AWS Secrets Manager oder HashiCorp Vault) gespeichert sein.
+Secrets DÜRFEN NICHT hartcodiert in IaC-Code, Terraform-Variable-Dateien, Umgebungsvariablen
+in Task-Definitions, Quellcode oder CI/CD-Pipeline-Konfigurationen erscheinen.
+Secrets-Manager-Secrets MÜSSEN mit kundenverwalteten KMS-Schlüsseln verschlüsselt sein.
+Automatische Rotation MUSS für alle langlebigen Credentials konfiguriert sein, wo der Zieldienst
+dies unterstützt.
+
+== Rationale
+
+Hartcodierte Credentials in Quellcode, IaC oder CI/CD-Konfigurationen gehören zu den häufigsten
+Ursachen kritischer Sicherheitsvorfälle. Einmal in die Versionskontrolle eingecheckt, persistieren
+Secrets in der Git-Historie indefinit – auch nach Löschung aus der aktuellen Revision –
+und sind für jeden mit Lesezugriff auf das Repository zugänglich.
+Zentralisiertes Secrets Management bietet Zugriffs-Auditing, Rotations-Automatisierung,
+feingranulare Zugriffssteuerung und einen einzigen Revokationspunkt im Kompromittierungsfall.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Git-Repository-Leak*
+|In der Git-Historie persistierte Secrets sind für alle Repository-Zugreifenden zugänglich – einschließlich externer Angreifender nach einem Repository-Leak.
+
+|*CI/CD-Log-Exposition*
+|Secrets in Pipeline-Logs, Artifact-Stores oder Container-Image-Layern werden bei Build-System-Kompromittierung sofort offenbart.
+
+|*Langlebige Credentials nach Mitarbeiterwechsel*
+|Ohne Rotation bleiben Credentials nach Ausscheiden von Mitarbeitenden oder nach einer Service-Kompromittierung unbegrenzt gültig.
+
+|*Kaskadierende Breach*
+|Ein einziges geleaktes Secret, das Zugriff auf den Secrets Store gewährt, kompromittiert alle dort gespeicherten Credentials aller Services.
+
+|===
+
+== Anforderung
+
+* Alle Secrets MÜSSEN in AWS Secrets Manager mit explizitem `name`, CMK-Encryption (`kms_key_id`) und `recovery_window_in_days >= 7` gespeichert sein.
+* Kein Plaintext-Secret DARF in `.tfvars`, `terraform.tfstate`, Umgebungsvariablen oder Source-Code erscheinen.
+* Pre-Commit-Hooks oder CI-Pipeline-Scans (gitleaks, detect-secrets, truffleHog) MÜSSEN auf jedem Commit auf Secrets prüfen.
+* ECS Task Definitions, Lambda-Umgebungsvariablen und Kubernetes Pods MÜSSEN Secrets via Secrets-Manager-ARN-Referenzen einbinden – nicht als Plaintext.
+* Automatische Rotation MUSS für Datenbank-Passwörter, API-Keys und OAuth-Tokens konfiguriert sein.
+* `recovery_window_in_days = 0` (sofortige Löschung) ist in produktiven Umgebungen VERBOTEN.
+
+== Implementierungsanleitung
+
+. *Secrets Manager Terraform-Ressourcen erstellen*: `aws_secretsmanager_secret` mit `name`, `kms_key_id` und `recovery_window_in_days`.
+. *CMK-Schlüssel bereitstellen*: `aws_kms_key` mit `enable_key_rotation = true` für Secrets-Verschlüsselung.
+. *Secret-Werte sicher einbringen*: Actual Secret Values nie in Terraform-State speichern; initial via AWS CLI oder Secrets-Manager-Console setzen.
+. *Rotation aktivieren*: Secrets Manager Rotation Lambda für RDS-Datenbank-Passwörter und API-Keys konfigurieren.
+. *Pre-Commit-Hook installieren*: `gitleaks` oder `detect-secrets` als Pre-Commit-Hook; in CI-Pipeline als Pflichtschritt einbinden.
+. *ARN-Referenzen in Workloads verwenden*: ECS-Task-Definitions auf `valueFrom: secrets_arn` umstellen; keine `value: "my-password"`.
+. *CloudTrail-Audit*: `secretsmanager:GetSecretValue`-Events überwachen; Alert bei ungewöhnlichen Zugriffsmustern.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Secrets in IaC hartcodiert
+|Passwörter und API-Keys als Plaintext in `.tfvars` oder Code; kein zentraler Secrets Store; keine Rotation.
+
+|*2*
+|Secrets Manager eingesetzt; Migration laufend
+|AWS Secrets Manager für Datenbank-Credentials und API-Keys; Pre-Commit-Hooks für Neucommits; CMK-Verschlüsselung aktiv.
+
+|*3*
+|Alle Secrets zentralisiert; Rotation aktiv
+|Alle Produktions-Secrets in Secrets Manager; keine Plaintext-Secrets in IaC oder CI/CD; automatische Rotation für alle unterstützten Dienste.
+
+|*4*
+|Dynamische kurzlebige Credentials; Zugriffs-Anomalie-Alerting
+|Datenbank-Credentials dynamisch via Secrets-Manager-RDS-Integration; Alarm bei ungewöhnlichem Secret-Zugriff.
+
+|*5*
+|Zero-Secret-Workloads via IAM-Rollen
+|Alle Service-zu-Service-Authentifizierung via IAM-Rollen mit temporären Credentials; Secrets Manager nur noch für Drittanbieter-Integrationen.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-060.tf.aws.secrets-manager-exists
+*Prüft:* Secrets-Manager-Secrets müssen mit Namen und Recovery-Window konfiguriert sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_secretsmanager_secret" "db_password" {
+  name                    = "prod/app/db-password"
+  description             = "RDS-Masterpasswort für Produktionsdatenbank"
+  kms_key_id              = aws_kms_key.secrets.arn
+  recovery_window_in_days = 30
+  tags = {
+    owner       = "platform-team"
+    environment = "production"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_secretsmanager_secret" "db_password" {
+  # name fehlt             – WAF-SEC-060 Violation
+  recovery_window_in_days = 0
+  # recovery_window = 0   – WAF-SEC-060 Violation
+  # kms_key_id fehlt       – WAF-SEC-060 Violation
+}
+----
+|===
+
+*Remediation:* Allen `aws_secretsmanager_secret`-Ressourcen `name` und `recovery_window_in_days = 30` hinzufügen. `force_overwrite_replica_secret = true` und `recovery_window_in_days = 0` nur in kontrollierten Testumgebungen verwenden.
+
+---
+
+=== waf-sec-060.tf.aws.secrets-encrypted-with-cmk
+*Prüft:* Secrets-Manager-Secrets müssen mit einem kundenverwalteten KMS-Schlüssel verschlüsselt sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_kms_key" "secrets" {
+  description         = "CMK für Secrets Manager"
+  enable_key_rotation = true
+}
+
+resource "aws_secretsmanager_secret" "api_key" {
+  name       = "prod/app/external-api-key"
+  kms_key_id = aws_kms_key.secrets.arn
+}
+----
+a|[source,hcl]
+----
+resource "aws_secretsmanager_secret" "api_key" {
+  name = "prod/app/external-api-key"
+  # kms_key_id fehlt – Standard-AWS-Schlüssel
+  # aws/secretsmanager wird verwendet
+  # WAF-SEC-060 Violation: CMK erforderlich
+}
+----
+|===
+
+*Remediation:* `aws_kms_key`-Ressource mit `enable_key_rotation = true` erstellen und deren ARN via `kms_key_id = aws_kms_key.secrets.arn` in der `aws_secretsmanager_secret`-Ressource referenzieren. Die KMS-Key-Policy muss dem Secrets-Manager-Service-Principal Encrypt/Decrypt-Berechtigungen gewähren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit `aws_secretsmanager_secret`-Ressourcen mit `kms_key_id` und `recovery_window_in_days`; kein Plaintext-Secret in `.tfvars` oder Ressourcen-Attributen.
+
+|*Config*
+|✅ Pflicht
+|Pre-Commit- oder CI-Pipeline-Secret-Scanning-Konfiguration (gitleaks, detect-secrets) mit Ergebnissen ohne erkannte Secrets.
+
+|*Process*
+|Optional
+|Secret-Rotations-Zeitplan-Dokumentation mit Angabe, welche Secrets, in welchem Intervall und durch welche Automation rotiert werden.
+
+|*Config*
+|Optional
+|CloudTrail-Log-Sample mit `secretsmanager:GetSecretValue`-API-Aufrufen nur durch autorisierte IAM-Principals.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010 – Identity & Access Management Baseline]
+* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
+
+== Best Practice
+
+* xref:../best-practices/bp-secrets.adoc[Secrets-Management-Best-Practice →]

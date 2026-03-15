@@ -1,0 +1,222 @@
+id: WAF-SEC-120
+title: "Container & Runtime Security"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "container-security"
+type: ['configuration', 'automation']
+tags: ['container', 'runtime-security', 'kubernetes', 'eks', 'non-root', 'privileged', 'distroless', 'falco']
+
+description: >
+  Container workloads MUST run as non-root users (UID != 0) with explicit user and group
+  IDs set in Dockerfile or Kubernetes security context. Privileged container mode MUST be
+  disabled for all production workloads. Container images MUST originate from registries
+  with image scanning enabled (ECR or equivalent) and MUST NOT be pulled directly from
+  unauthenticated public registries at runtime. EKS clusters MUST have the API server
+  endpoint restricted; public access MUST be disabled or limited to known CIDR ranges.
+  Container runtime security monitoring MUST be implemented to detect and alert on
+  anomalous container behaviors at runtime.
+
+rationale: >
+  Containers running as root (UID 0) mean any container escape vulnerability immediately
+  grants the attacker root-level access on the host node, compromising all other containers
+  on the same node. Privileged mode disables virtually all Linux namespace and capability
+  isolation, making it functionally equivalent to running directly on the host. Public EKS
+  API server endpoints expose Kubernetes control plane to internet-based exploitation of
+  API vulnerabilities or credential-stuffing attacks. Static vulnerability scanning at build
+  time is insufficient because new CVEs are continuously disclosed; runtime security
+  monitoring detects exploitation attempts, unexpected network connections, and privilege
+  escalation even from vulnerabilities that were unknown at build time.
+
+threat:
+  - "Container escape from a root-running container granting host-level access to all workloads on the node"
+  - "Privileged container exploitation enabling host filesystem access, kernel module loading, and network interface manipulation"
+  - "EKS API server exploitation via public endpoint targeting Kubernetes vulnerabilities or misconfigured RBAC"
+  - "Runtime injection of malicious code into a running container via exec or mounted volumes bypassing image scanning"
+
+regulatory_mapping:
+  - framework: "BSI C5:2020"
+    controls:
+      - "OPS-01 – Operational security baseline"
+      - "OPS-02 – Change and configuration management"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.8 – Management of technical vulnerabilities"
+      - "A.8.19 – Installation of software on operational systems"
+      - "A.8.22 – Segregation of networks"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "OPS-01 – Operations and service management"
+      - "IVS-09 – Network security controls"
+  - framework: "SLSA"
+    controls:
+      - "L2 – Build provenance for deployed container images"
+
+implementation_guidance:
+  - "Set a non-root USER instruction in all Dockerfiles (e.g., USER 10001:10001); validate this in CI/CD using container linting tools such as Hadolint or Dockle."
+  - "Define Kubernetes Pod Security Standards (PSS) at the 'restricted' level for all production namespaces via PodSecurity admission controller or OPA/Kyverno policies rejecting privileged containers."
+  - "Restrict EKS cluster endpoint access: disable public access or limit it to specific CIDR ranges using endpoint_public_access = false or endpoint_public_access_cidrs in vpc_config."
+  - "Enable Kubernetes audit logging for the EKS cluster and ship audit logs to CloudWatch or S3 for monitoring and forensics."
+  - "Deploy a runtime security tool such as Falco, AWS GuardDuty ECS/EKS Runtime Monitoring, or Aqua to detect anomalous container behaviors including privilege escalation, unexpected outbound connections, and crypto-mining activity."
+  - "Use distroless or minimal base images (e.g., gcr.io/distroless, Alpine) to reduce the attack surface of containers; avoid full OS base images with shell access in production."
+  - "Implement read-only root filesystems for containers where possible; use explicit volume mounts only for directories requiring write access."
+
+maturity_levels:
+  level_1:
+    description: "Containers run as root; no runtime security controls; public EKS endpoint"
+    criteria:
+      - "Containers run with default root user; no non-root user defined in Dockerfile"
+      - "EKS API server endpoint is publicly accessible without CIDR restriction"
+  level_2:
+    description: "Non-root containers enforced; EKS endpoint access restricted by CIDR"
+    criteria:
+      - "All production containers run as non-root with explicit UID/GID defined"
+      - "EKS cluster API endpoint restricted to organization VPN or office CIDR ranges"
+      - "Privileged mode prohibited via Kubernetes PodSecurity admission or namespace policy"
+  level_3:
+    description: "Runtime security monitoring deployed; private ECR for all base images"
+    criteria:
+      - "Runtime security monitoring (Falco, GuardDuty Runtime) active in all production namespaces"
+      - "All container images sourced from ECR or authenticated registry with scan-on-push enabled"
+      - "Kubernetes audit logging enabled with logs shipped to centralized SIEM"
+  level_4:
+    description: "Read-only root filesystem; distroless or minimal base images; automated policy enforcement"
+    criteria:
+      - "Read-only root filesystems enforced for all production containers"
+      - "Distroless or minimal base images used; full OS base images prohibited in production"
+      - "Kyverno or OPA Gatekeeper policies enforce all container security standards with automated CI/CD validation"
+  level_5:
+    description: "Zero-trust workload identity with eBPF-based runtime security and continuous posture assessment"
+    criteria:
+      - "Workload identity implemented (IRSA or SPIFFE/SPIRE) eliminating node-level credential sharing"
+      - "eBPF-based runtime security with kernel-level visibility providing zero-false-negative threat detection"
+      - "Continuous container posture scanning with automatic quarantine of non-compliant or newly-vulnerable workloads"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration for aws_eks_cluster showing vpc_config with endpoint access restrictions, and aws_ecr_repository with scan-on-push enabled."
+    - kind: "config"
+      description: "Kubernetes PodSecurity admission configuration or Kyverno/OPA policies enforcing non-root containers and prohibiting privileged mode in production namespaces."
+  optional:
+    - kind: "config"
+      description: "Falco or GuardDuty Runtime Monitoring configuration and sample alert output demonstrating runtime threat detection capability."
+    - kind: "process"
+      description: "Container image build pipeline configuration showing Hadolint or Dockle linting enforcing non-root USER and read-only filesystem requirements."
+
+checks:
+  - id: "waf-sec-120.tf.aws.eks-private-endpoint"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "EKS cluster API server endpoint must not be publicly accessible"
+    description: >
+      The aws_eks_cluster vpc_config block must be present. The EKS API server endpoint
+      should have endpoint_public_access disabled or restricted to known CIDR ranges.
+      Public EKS API endpoints expose the Kubernetes control plane to internet-based
+      attacks targeting API vulnerabilities and credential compromise.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_eks_cluster"
+    assertions:
+      - attribute: "vpc_config"
+        op: "attribute_exists"
+        message: "EKS cluster must have a vpc_config block defined to configure endpoint access restrictions."
+    on_fail: "violation"
+    remediation: >
+      Add a vpc_config block to the aws_eks_cluster resource. Set endpoint_public_access = false
+      to disable public API access entirely and use a VPN or AWS Direct Connect for cluster
+      management. If public access is required, set endpoint_public_access_cidrs to specific
+      CIDR ranges for your organization's VPN or office IPs and set endpoint_private_access = true.
+      Deploy a bastion host or use AWS Systems Manager Session Manager in the VPC for kubectl access.
+    example:
+      compliant: |
+        resource "aws_eks_cluster" "main" {
+          name     = "production-cluster"
+          role_arn = aws_iam_role.eks_cluster.arn
+          version  = "1.30"
+
+          vpc_config {
+            subnet_ids              = aws_subnet.private[*].id
+            endpoint_private_access = true
+            endpoint_public_access  = false
+            security_group_ids      = [aws_security_group.eks_cluster.id]
+          }
+
+          enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+          tags = {
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "aws_eks_cluster" "main" {
+          name     = "production-cluster"
+          role_arn = aws_iam_role.eks_cluster.arn
+          version  = "1.30"
+
+          vpc_config {
+            subnet_ids             = aws_subnet.public[*].id
+            endpoint_public_access = true   # WAF-SEC-120 violation: public API server endpoint
+            # endpoint_private_access not set – defaults to false
+          }
+          # enabled_cluster_log_types not set – audit logging disabled
+        }
+
+  - id: "waf-sec-120.tf.aws.ecr-scan-on-push"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Container images must be sourced from ECR repositories with scanning enabled"
+    description: >
+      All aws_ecr_repository resources supplying container images to production EKS or ECS
+      workloads must have image_scanning_configuration with scan_on_push = true. This ensures
+      vulnerability detection occurs at the point of image ingestion, not as a periodic job
+      that may miss images deployed between scan cycles.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ecr_repository"
+    assertions:
+      - attribute: "image_scanning_configuration"
+        op: "attribute_exists"
+        message: "ECR repository must have image_scanning_configuration defined to ensure all pushed images are scanned for vulnerabilities."
+    on_fail: "violation"
+    remediation: >
+      Add an image_scanning_configuration block with scan_on_push = true to all
+      aws_ecr_repository resources. Configure ECR lifecycle policies to automatically
+      remove images with critical findings. Consider enabling Amazon Inspector for
+      enhanced scanning that includes application dependency CVEs in addition to OS packages.
+    example:
+      compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "production-app"
+          image_tag_mutability = "IMMUTABLE"
+
+          image_scanning_configuration {
+            scan_on_push = true
+          }
+
+          encryption_configuration {
+            encryption_type = "KMS"
+            kms_key         = aws_kms_key.ecr.arn
+          }
+        }
+      non_compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "production-app"
+          image_tag_mutability = "MUTABLE"
+          # No image_scanning_configuration – WAF-SEC-120 violation
+          # Vulnerability scanning not enforced at push time
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-120"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-container-security.adoc"
+  related_controls:
+    - "WAF-SEC-070"
+    - "WAF-SEC-110"
+    - "WAF-SEC-050"

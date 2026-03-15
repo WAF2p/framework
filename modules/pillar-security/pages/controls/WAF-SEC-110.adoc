@@ -1,0 +1,158 @@
+= WAF-SEC-110 – Supply Chain Security
+:page-toc: right
+:control-id: WAF-SEC-110
+:pillar: security
+:severity: high
+:category: supply-chain
+:automated: mittel
+:description: WAF++ Security – Software-Lieferkettensicherheit: SBOM, Image-Signing, Dependency-Scanning, gepinnte Provider.
+
+[.metadata]
+*Pillar:* Security | *Severity:* High | *Kategorie:* Supply Chain | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Container-Images MÜSSEN vor dem Deployment in produktive Umgebungen gescannt worden sein.
+ECR-Repositories MÜSSEN `image_tag_mutability = "IMMUTABLE"` konfiguriert haben, um Tag-Override-Angriffe
+zu verhindern. Terraform-Provider MÜSSEN in `required_providers` mit exakten Versionen und
+`.terraform.lock.hcl` im Repository versioniert sein. Dependency-Scanning (Dependabot, Renovate oder
+äquivalent) MUSS für alle Repositories konfiguriert sein.
+
+== Rationale
+
+Software-Lieferketten sind ein wachsender Angriffsvektor: Angreifende kompromittieren Dependencies,
+Basis-Images oder Build-Tools, um Schadcode in Produktionssysteme einzuschleusen – ohne direkten
+Angriff auf das Ziel. Immutable Image-Tags verhindern, dass ein deployed Image heimlich ersetzt wird.
+Gepinnte Provider-Versionen mit Lock-File stellen sicher, dass `terraform init` deterministisch ist
+und kein kompromittiertes Provider-Update unbemerkt eingezogen wird. SBOM ermöglicht die schnelle
+Bewertung des Impacts neuer CVEs auf alle produktiven Artefakte.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Kompromittierte Dependencies*
+|Eine schadhafte Version eines npm/pip/go-Moduls kann Backdoors oder Cryptominer einschleusen.
+
+|*Typosquatting*
+|Paketnamen mit ähnlichem Tippfehler (z. B. `reqests` statt `requests`) enthalten oft Malware.
+
+|*Mutable Image-Tags*
+|`latest`-Tags können überschrieben werden; deployed Images entsprechen nicht mehr dem, was im CI geprüft wurde.
+
+|*Transitive Vulnerabilities*
+|Kritische CVEs in transitiven Abhängigkeiten bleiben ohne SBOM und Dependency-Tracking unsichtbar.
+
+|===
+
+== Anforderung
+
+* ECR-Repositories MÜSSEN `image_tag_mutability = "IMMUTABLE"` konfiguriert haben.
+* ECR-Repositories MÜSSEN Image-Scanning aktiviert haben (`image_scanning_configuration.scan_on_push = true`).
+* Terraform-Provider MÜSSEN mit exakten Versionen in `required_providers` gepinnt sein; `.terraform.lock.hcl` MUSS ins Repository eingecheckt sein.
+* Dependency-Scanning MUSS für alle Repositories konfiguriert sein (Dependabot, Renovate oder äquivalent).
+* Kritische und High-CVEs mit verfügbarem Fix MÜSSEN innerhalb der definierten Patch-SLA behoben sein (Critical: 24h, High: 7d).
+
+== Implementierungsanleitung
+
+. *ECR Immutable Tags*: `image_tag_mutability = "IMMUTABLE"` in allen `aws_ecr_repository`-Ressourcen setzen.
+. *ECR Image Scanning*: `image_scanning_configuration { scan_on_push = true }` aktivieren oder Trivy/Grype im CI-Build verwenden.
+. *Provider-Versionen pinnen*: In `required_providers` exakte Versionen verwenden (z. B. `version = "5.31.0"` statt `>= 5.0`).
+. *Lock-File committen*: `.terraform.lock.hcl` nach `terraform providers lock` ins Repository einchecken; `.gitignore` darf es nicht ausschließen.
+. *Dependabot konfigurieren*: `.github/dependabot.yml` mit `package-ecosystem: terraform` und `package-ecosystem: docker` einrichten.
+. *SBOM generieren*: `trivy image --format spdx-json` oder `syft` im CI für alle Production-Images ausführen und als CI-Artifact speichern.
+. *CVE-Triage-Prozess*: CVSS-basierte Patch-SLA definieren und in einem Tracking-System (Jira, GitHub Issues) dokumentieren.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Lieferkettensicherheit
+|Mutable Tags; keine Image-Scans; Provider-Versionen nicht gepinnt; kein Dependency-Scanning.
+
+|*2*
+|Grundlegendes Scanning
+|CI-Image-Scan vorhanden; einige Actions/Provider gepinnt; kein SBOM; kein Dependabot.
+
+|*3*
+|Immutable Tags + gepinnte Versionen
+|ECR Immutable Tags; alle Provider gepinnt mit Lock-File; Dependabot konfiguriert; Critical-CVEs blockieren Deployment.
+
+|*4*
+|SBOM und automatisiertes Dependency-Update
+|SBOM für alle Production-Container; automatische Dependency-PRs via Dependabot; Image-Signing mit cosign.
+
+|*5*
+|SLSA Level 3+ Provenance
+|Vollständige Build-Provenance-Attestierungen; hermetic Builds; kontinuierliches CVE-Monitoring aller deployed Artefakte.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-110.tf.aws.ecr-immutable-tags
+*Prüft:* ECR-Repositories müssen unveränderliche Image-Tags konfiguriert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_ecr_repository" "app" {
+  name                 = "myapp/backend"
+  image_tag_mutability = "IMMUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_ecr_repository" "app" {
+  name = "myapp/backend"
+  # image_tag_mutability = "MUTABLE" (default)
+  # WAF-SEC-110 Violation: Tags können überschrieben werden
+}
+----
+|===
+
+*Remediation:* `image_tag_mutability = "IMMUTABLE"` zu allen `aws_ecr_repository`-Ressourcen hinzufügen. Deployment-Prozesse müssen auf eindeutige Tags (z. B. Git-SHA) statt `latest` umgestellt werden.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration von ECR-Repositories mit `image_tag_mutability = "IMMUTABLE"` und `scan_on_push = true`.
+
+|*Config*
+|✅ Pflicht
+|`.terraform.lock.hcl` im Repository; Dependabot/Renovate-Konfigurationsdatei.
+
+|*Config*
+|Optional
+|SBOM-Artefakt (SPDX oder CycloneDX) für mindestens ein Produktions-Container-Image.
+
+|*Process*
+|Optional
+|Trivy/Grype-Scan-Report der letzten CI-Pipeline für ein Produktions-Image.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-070.adoc[WAF-SEC-070 – Vulnerability & Patch Management]
+* xref:controls/WAF-SEC-120.adoc[WAF-SEC-120 – Container & Runtime Security]
+
+== Best Practice
+
+* xref:../best-practices/bp-vulnerability-management.adoc[Vulnerability Management Best Practice →]

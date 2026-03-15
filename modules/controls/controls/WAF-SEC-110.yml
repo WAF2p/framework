@@ -1,0 +1,210 @@
+id: WAF-SEC-110
+title: "Supply Chain Security & SBOM"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "supply-chain"
+type: ['configuration', 'governance', 'automation']
+tags: ['supply-chain', 'sbom', 'container-signing', 'slsa', 'dependency-scanning', 'sigstore', 'cosign']
+
+description: >
+  All container images deployed to production MUST use immutable tags to prevent post-push
+  tampering. A Software Bill of Materials (SBOM) MUST be generated for all production container
+  images and stored alongside the image in the registry. Third-party dependencies MUST be
+  scanned for known CVEs before deployment using automated tooling in CI/CD pipelines.
+  Container image signing MUST be implemented using Sigstore/Cosign or equivalent to verify
+  image provenance and prevent deployment of unsigned or tampered images.
+
+rationale: >
+  Supply chain attacks (SolarWinds, Log4Shell, XZ Utils) demonstrate that third-party code
+  and dependencies introduce risk that cannot be mitigated by application-layer security
+  controls alone. The attack surface of a modern containerized application includes every
+  transitive dependency in its base image and all direct library dependencies. SBOM provides
+  complete, machine-readable visibility into the software supply chain, enabling rapid impact
+  assessment when new CVEs are disclosed. Immutable container tags prevent mutable-tag attacks
+  where a tag like 'latest' is updated after a security scan to point to a malicious image.
+  Image signing provides cryptographic proof that an image was built by an authorized CI/CD
+  pipeline and has not been tampered with between build and deployment.
+
+threat:
+  - "Dependency confusion and typosquatting attacks injecting malicious packages into build pipelines through public registries"
+  - "Mutable tag exploitation where an attacker updates a container tag post-scan to point to a backdoored image"
+  - "Zero-day exploitation via unpatched transitive dependencies with no visibility into which workloads are affected"
+  - "Unsigned image deployment from untrusted or compromised registries bypassing CI/CD security controls"
+
+regulatory_mapping:
+  - framework: "BSI C5:2020"
+    controls:
+      - "SCA-01 – Software supply chain management"
+      - "OPS-01 – Operational security procedures"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.5.19 – Information security in supplier relationships"
+      - "A.5.20 – Addressing information security within supplier agreements"
+      - "A.5.21 – Managing information security in the ICT supply chain"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "SCA-01 – Supply chain assurance"
+  - framework: "SLSA"
+    controls:
+      - "L2 – Build provenance available for artifact verification"
+      - "L3 – Hardened build platform with non-falsifiable provenance"
+  - framework: "GAIA-X"
+    controls:
+      - "Sovereign Cloud Supply Chain – Verifiable provenance for all deployed software components"
+
+implementation_guidance:
+  - "Configure all aws_ecr_repository resources with image_tag_mutability = 'IMMUTABLE' to prevent post-push tag updates; use semantic versioning or Git SHA-based tags rather than mutable tags like 'latest'."
+  - "Enable scan-on-push for all ECR repositories and configure enhanced scanning (Inspector) for continuous vulnerability detection including OS packages and programming language libraries."
+  - "Generate SBOMs in CycloneDX or SPDX format as part of the container build process using tools such as Syft, Trivy, or docker sbom; attach the SBOM as an OCI artifact to the image in the registry."
+  - "Implement container image signing with Cosign (Sigstore) in CI/CD pipelines; configure deployment admission controllers (OPA, Kyverno, or ECR policy) to reject unsigned images."
+  - "Integrate dependency scanning (OWASP Dependency-Check, Grype, Trivy) into CI/CD pipelines with defined SLAs: block deployment on critical CVEs, require remediation plan for high CVEs within 7 days."
+  - "Use private ECR repositories as internal mirrors for base images rather than pulling directly from Docker Hub or other public registries at runtime, reducing exposure to registry availability and supply chain risks."
+  - "Achieve SLSA Level 2 by generating build provenance attestations in CI/CD and publishing them with the image; progress to SLSA Level 3 by using a hardened, isolated build environment."
+
+maturity_levels:
+  level_1:
+    description: "Mutable image tags in use; no dependency scanning; no SBOM"
+    criteria:
+      - "Container images use mutable tags such as 'latest' with no version pinning"
+      - "No automated dependency or container vulnerability scanning in CI/CD"
+  level_2:
+    description: "ECR scan-on-push enabled; immutable tags configured for production repositories"
+    criteria:
+      - "All production ECR repositories set to IMMUTABLE tag mutability"
+      - "ECR scan-on-push enabled; critical CVE findings reviewed before deployment"
+      - "Dependency scanning integrated into CI/CD pipelines with manual review gate"
+  level_3:
+    description: "SBOM generation integrated; automated CVE blocking in CI/CD"
+    criteria:
+      - "SBOMs generated for all production container images and stored in registry"
+      - "CI/CD pipeline blocks deployment automatically on critical CVE detection"
+      - "Private base image mirrors in ECR to reduce public registry dependency"
+  level_4:
+    description: "Container image signing implemented; admission controller enforces signature verification"
+    criteria:
+      - "All production images signed with Cosign; unsigned images rejected at deployment"
+      - "SLSA Level 2 achieved: build provenance attestations generated and published"
+      - "CVE impact assessment automated via SBOM lookup when new CVEs are disclosed"
+  level_5:
+    description: "SLSA Level 3 with hardened build platform and continuous provenance verification"
+    criteria:
+      - "SLSA Level 3 achieved with hermetic, reproducible builds on hardened CI infrastructure"
+      - "All deployed images continuously monitored for newly disclosed CVEs with automated alert and patch workflow"
+      - "Third-party vendor SBOM requirements contractually mandated and validated on ingestion"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration for aws_ecr_repository resources showing image_tag_mutability = 'IMMUTABLE' and image_scanning_configuration with scan_on_push = true."
+    - kind: "config"
+      description: "SBOM artifact samples (CycloneDX or SPDX format) stored in ECR or artifact repository, demonstrating supply chain visibility for production images."
+  optional:
+    - kind: "config"
+      description: "Cosign signing configuration and verification policy enforced at deployment (Kyverno/OPA policy or ECR repository policy requiring signed images)."
+    - kind: "process"
+      description: "CI/CD pipeline definition showing dependency scanning step with CVE blocking thresholds and build provenance attestation generation."
+
+checks:
+  - id: "waf-sec-110.tf.aws.ecr-immutable-tags"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "ECR repositories must enforce immutable image tags"
+    description: >
+      All aws_ecr_repository resources must have image_tag_mutability set to 'IMMUTABLE'.
+      Mutable tags allow a tag to be overwritten with a different image after a security scan
+      has passed, creating a window for supply chain injection that bypasses pre-deployment controls.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ecr_repository"
+    assertions:
+      - attribute: "image_tag_mutability"
+        op: "equals"
+        expected: "IMMUTABLE"
+        message: "ECR repository must use IMMUTABLE tag mutability to prevent post-push tag updates."
+    on_fail: "violation"
+    remediation: >
+      Set image_tag_mutability = "IMMUTABLE" on all aws_ecr_repository resources.
+      Update CI/CD pipelines to tag images with unique identifiers such as the Git commit SHA
+      or a semantic version (e.g., v1.2.3-sha-abc1234) rather than mutable tags like 'latest'.
+      Existing pipelines using 'latest' must be updated to use versioned tags before enabling immutability.
+    example:
+      compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "IMMUTABLE"
+
+          image_scanning_configuration {
+            scan_on_push = true
+          }
+
+          encryption_configuration {
+            encryption_type = "KMS"
+            kms_key         = aws_kms_key.ecr.arn
+          }
+
+          tags = {
+            environment = "production"
+            owner       = "platform-team"
+          }
+        }
+      non_compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "MUTABLE"  # WAF-SEC-110 violation: allows tag overwrite
+          # No image_scanning_configuration    # WAF-SEC-110 violation: scan-on-push required
+        }
+
+  - id: "waf-sec-110.tf.aws.ecr-scan-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "ECR repositories must have image scanning enabled on push"
+    description: >
+      All aws_ecr_repository resources must include an image_scanning_configuration block
+      with scan_on_push = true to ensure every image pushed to the registry is automatically
+      scanned for known CVEs before it can be deployed to production workloads.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ecr_repository"
+    assertions:
+      - attribute: "image_scanning_configuration"
+        op: "attribute_exists"
+        message: "ECR repository must have image_scanning_configuration defined with scan_on_push enabled."
+    on_fail: "violation"
+    remediation: >
+      Add an image_scanning_configuration block with scan_on_push = true to all
+      aws_ecr_repository resources. For enhanced scanning including programming language
+      libraries (not just OS packages), enable Amazon Inspector integration at the account
+      level and configure ECR enhanced scanning via the AWS Inspector console or API.
+      Integrate ECR scan result checks into CI/CD deployment gates.
+    example:
+      compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "IMMUTABLE"
+
+          image_scanning_configuration {
+            scan_on_push = true
+          }
+        }
+      non_compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "IMMUTABLE"
+          # Missing image_scanning_configuration – WAF-SEC-110 violation
+          # Images pushed to this repository are not scanned for CVEs
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-110"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-supply-chain.adoc"
+  related_controls:
+    - "WAF-SEC-070"
+    - "WAF-SEC-120"
+    - "WAF-SOV-080"

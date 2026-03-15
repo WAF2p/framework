@@ -1,0 +1,246 @@
+= Best Practice: Zero Trust Architecture
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – Zero Trust Architecture: Identity-first statt Perimeter-Vertrauen, die fünf Säulen, mTLS zwischen Services und schrittweise Migration.
+
+== Kontext
+
+Zero Trust ist ein Paradigmenwechsel von perimeterbasierter zu identitätsbasierter Sicherheit.
+Das klassische Modell – „intern ist vertrauenswürdig" – versagt in Cloud-Umgebungen:
+
+* Entwickler greifen von verschiedenen Standorten und Geräten zu
+* CI/CD-Systeme führen Code mit Service-Accounts aus
+* Cloud-Workloads kommunizieren über API-Calls, nicht über physische Netzwerke
+* Lateral Movement nach einem Einbruch ist in flachen Netzwerken trivial
+
+Zero Trust ersetzt diese Annahmen durch: *Jede Anfrage wird explizit verifiziert,
+unabhängig von ihrem Ursprung.*
+
+== Die fünf Säulen von Zero Trust
+
+=== Säule 1: Identity (Identität)
+
+Jede Entität – Nutzer, Service, Workload – hat eine kryptographisch nachweisbare Identität.
+Vertrauen basiert auf Identität, nicht auf Netzwerkstandort.
+
+*AWS-Umsetzung:*
+
+* IAM Identity Center mit SAML/OIDC-Federation für Nutzer
+* IAM Roles für Services (IRSA für Kubernetes, Task Roles für ECS)
+* OIDC für CI/CD-Pipelines (kein statischer Access Key)
+* Kontinuierliche Session-Überprüfung (kurze Session-Lifetime)
+
+=== Säule 2: Device (Gerät)
+
+Zugriff wird nur von vertrauenswürdigen Geräten gewährt. Nicht-verwaltete Geräte erhalten
+keinen Zugriff auf sensible Systeme.
+
+*AWS-Umsetzung:*
+
+* AWS Client VPN mit gegenseitiger Zertifikatsauthentifizierung
+* AWS Verified Access für Web-Anwendungen (kein VPN nötig)
+* Hardware-MFA (YubiKey) für privilegierte Aktionen
+
+=== Säule 3: Network (Netzwerk)
+
+Das Netzwerk ist nicht vertrauenswürdig. Alle Verbindungen werden verschlüsselt, auch intern.
+
+*AWS-Umsetzung:*
+
+* TLS 1.2+ für alle inter-Service-Kommunikation
+* mTLS für kritische Service-to-Service-Verbindungen
+* VPC Segmentierung mit Security Groups (nicht ein flaches Netzwerk)
+* PrivateLink für Service-Isolation
+
+=== Säule 4: Application (Anwendung)
+
+Jede Anwendung authentifiziert und autorisiert jede Anfrage individuell.
+Keine Anfrage wird basierend auf Netzwerkherkunft vertraut.
+
+*AWS-Umsetzung:*
+
+* API Gateway mit IAM-Autorisierung oder Cognito JWT
+* Service Mesh (AWS App Mesh, Istio) für inter-Service-Auth
+* OAuth 2.0 / OpenID Connect für Nutzer-Authentifizierung
+* JWT Token-Validierung in jedem Service
+
+=== Säule 5: Data (Daten)
+
+Datenzugriff wird granular kontrolliert. Daten sind verschlüsselt, auch im internen Netzwerk.
+
+*AWS-Umsetzung:*
+
+* S3 Bucket Policies mit expliziter IAM-Kontrolle
+* KMS CMK mit granularer Key Policy
+* Macie für sensitive Daten-Discovery
+* DLP für ausgehende Datenflows
+
+== Umsetzung in AWS: Von Perimeter zu Zero Trust
+
+=== Schritt 1: Identity als Fundament
+
+[source,hcl]
+----
+# AWS IAM Identity Center mit OIDC-Federation (z.B. Okta)
+resource "aws_ssoadmin_permission_set" "developer" {
+  instance_arn     = tolist(data.aws_ssoadmin_instances.main.arns)[0]
+  name             = "Developer"
+  session_duration = "PT8H"  # 8 Stunden maximale Session
+
+  tags = {
+    role = "developer"
+  }
+}
+
+# Minimale Berechtigungen für Developer-Rolle
+resource "aws_ssoadmin_managed_policy_attachment" "developer_readonly" {
+  instance_arn       = tolist(data.aws_ssoadmin_instances.main.arns)[0]
+  permission_set_arn = aws_ssoadmin_permission_set.developer.arn
+  managed_policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+----
+
+=== Schritt 2: Netzwerk-Segmentierung (nie explizit vertrauen)
+
+[source,hcl]
+----
+# Service A darf nur mit Service B auf Port 8080 kommunizieren
+resource "aws_security_group" "service_a" {
+  name = "service-a"
+
+  # Egress: Nur zu Service B
+  egress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.service_b.id]
+    description     = "To Service B only"
+  }
+  # Kein offener Egress zu 0.0.0.0/0!
+}
+----
+
+=== Schritt 3: mTLS zwischen Services
+
+mTLS (Mutual TLS) erzwingt gegenseitige Zertifikatsauthentifizierung:
+Nicht nur der Client verifiziert den Server – auch der Server verifiziert den Client.
+
+[source,yaml]
+----
+# Kubernetes: Istio Service Mesh für mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: production
+spec:
+  mtls:
+    mode: STRICT  # mTLS erzwungen für gesamten Namespace
+---
+# AuthorizationPolicy: Service A darf Service B nur via GET aufrufen
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: service-b-policy
+  namespace: production
+spec:
+  selector:
+    matchLabels:
+      app: service-b
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/production/sa/service-a"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/api/v1/data/*"]
+----
+
+=== Schritt 4: Kontinuierliche Authentifizierung statt Perimeter-Vertrauen
+
+[cols="2,2"]
+|===
+|Perimeter-basiertes Modell |Zero Trust Modell
+
+|Einmalige VPN-Authentifizierung beim Login
+|Kontinuierliche Re-Authentifizierung (kurze Token-Lifetime)
+
+|Alle Ressourcen im VPN sind vertrauenswürdig
+|Jede Ressource erfordert explizite Autorisierung
+
+|Netzwerkstandort = Vertrauen
+|Identität + Kontext = Vertrauen
+
+|Lange Session-Laufzeiten
+|Kurze Sessions (1-8 Stunden), automatischer Ablauf
+
+|Einheitliche Zugriffsebene für alle Ressourcen
+|Granulare Zugriffsebenen pro Ressource
+
+|===
+
+== AWS Verified Access: Kein VPN, trotzdem Zero Trust
+
+AWS Verified Access ermöglicht sicheren Anwendungszugriff ohne VPN:
+
+[source,hcl]
+----
+resource "aws_verifiedaccess_instance" "main" {
+  description = "Zero Trust Access für interne Anwendungen"
+
+  logging_configurations {
+    access_logs {
+      cloudwatch_logs {
+        enabled   = true
+        log_group = aws_cloudwatch_log_group.verified_access.name
+      }
+    }
+  }
+}
+
+resource "aws_verifiedaccess_trust_provider" "okta" {
+  description              = "Okta als Identity Provider"
+  policy_reference_name    = "okta"
+  trust_provider_type      = "user"
+  user_trust_provider_type = "oidc"
+
+  oidc_options {
+    authorization_endpoint = "https://okta.example.com/oauth2/v1/authorize"
+    client_id              = var.okta_client_id
+    client_secret          = var.okta_client_secret
+    issuer                 = "https://okta.example.com"
+    scope                  = "openid email groups"
+    token_endpoint         = "https://okta.example.com/oauth2/v1/token"
+    user_info_endpoint     = "https://okta.example.com/oauth2/v1/userinfo"
+  }
+}
+
+# Policy: Nur Nutzer mit "platform-engineers" Gruppe dürfen zugreifen
+resource "aws_verifiedaccess_endpoint" "internal_app" {
+  application_domain     = "internal-app.example.com"
+  endpoint_domain_prefix = "internal-app"
+  endpoint_type          = "load-balancer"
+  attachment_type        = "vpc"
+
+  policy_document = <<-EOT
+    permit(principal, action, resource)
+    when {
+      principal["groups"] contains "platform-engineers"
+    };
+  EOT
+}
+----
+
+== Typische Migrationsschritte (VPN → Zero Trust)
+
+. *Identität stärken*: MFA für alle, SSO einführen, kurze Session-Lifetimes
+. *Sichtbarkeit schaffen*: VPC Flow Logs, CloudTrail, IAM Access Analyzer
+. *Netzwerk segmentieren*: Security Groups nach Anwendungslogik, kein offener Egress
+. *Service-Identitäten einführen*: IRSA, Task Roles, OIDC für CI/CD
+. *TLS intern erzwingen*: Service-to-Service-Verschlüsselung (Istio/App Mesh)
+. *Perimeter-Zugriff reduzieren*: VPN durch Verified Access oder PrivateLink ersetzen
+. *Kontinuierliche Verifizierung*: Zero Trust Network Access (ZTNA) vollständig eingeführt
+
+NOTE: Zero Trust ist eine Reise, kein Produkt. Die Migration dauert typischerweise
+12-24 Monate für mittlere Organisationen. Beginne mit Identität und Sichtbarkeit.

@@ -1,0 +1,263 @@
+= Glossar (Security)
+:page-toc: right
+:toclevels: 2
+:description: WAF++ Security – Glossar der wichtigsten Sicherheitsbegriffe im Cloud-Infrastruktur-Kontext.
+
+Dieses Glossar definiert Begriffe, die in der Security-Säule des WAF++ verwendet werden.
+Die Definitionen sind auf den IaC- und Cloud-Infrastruktur-Kontext ausgerichtet.
+
+---
+
+== A
+
+=== Assume Breach
+
+Sicherheitsparadigma, das davon ausgeht, dass ein Angreifer bereits in das System eingedrungen
+sein könnte. Konsequenz: Investitionen in Detection und Response, nicht nur in Prävention.
+Verwandt mit: xref:principles.adoc#SP-7[SP-7 – Assume Breach].
+
+---
+
+== B
+
+=== Break-Glass
+
+Notfallzugriffsverfahren für hochprivilegierte Aktionen, die im normalen Betrieb nicht
+erlaubt sind (z.B. Root-Account-Zugriff). Break-Glass-Zugriffe sind zeitlich begrenzt,
+vollständig geloggt, erfordern eine zweite Person und lösen automatisch einen Post-Incident-Review aus.
+Verwandt: xref:pillar-sovereign:best-practices/bp-break-glass.adoc[Sovereign – Break-Glass BP].
+
+=== BSI C5
+
+„Cloud Computing Compliance Criteria Catalogue" des Deutschen Bundesamts für Sicherheit in der
+Informationstechnik (BSI). Definiert Anforderungen für sichere Cloud-Dienste. Wird für den
+deutschen Behördenmarkt und KRITIS-Betreiber relevant. WAF-SEC Controls sind auf BSI C5
+gemappt.
+
+---
+
+== C
+
+=== CMK (Customer Managed Key)
+
+Vom Kunden verwalteter Verschlüsselungsschlüssel in AWS KMS (oder Azure Key Vault, GCP Cloud KMS).
+Im Gegensatz zu AWS Managed Keys kontrolliert der Kunde bei CMK: Schlüssel-Rotation,
+Schlüssel-Policy (wer darf nutzen?), Schlüssel-Löschung. Für PII, Finanzdaten und Gesundheitsdaten
+empfiehlt WAF++ zwingend CMK.
+Verwandt: xref:controls/WAF-SEC-030.adoc[WAF-SEC-030].
+
+=== CSPM (Cloud Security Posture Management)
+
+Tool-Kategorie für die kontinuierliche Bewertung der Security-Konfiguration von Cloud-Ressourcen.
+Beispiele: AWS Security Hub, Prisma Cloud, Wiz, Lacework. CSPM-Tools scannen Konfigurationen
+auf Abweichungen von Best Practices und erzeugen priorisierte Findings.
+
+=== CVE (Common Vulnerabilities and Exposures)
+
+Öffentlich bekannte Sicherheitsschwachstellen in Software, identifiziert durch eine eindeutige
+CVE-ID (z.B. CVE-2021-44228 für Log4Shell). CVEs werden vom National Vulnerability Database
+(NVD) mit einem CVSS-Score bewertet.
+
+=== CVSS (Common Vulnerability Scoring System)
+
+Standardisiertes System zur Bewertung der Schwere von Sicherheitsschwachstellen auf einer Skala
+von 0 bis 10. WAF++ definiert Patch-SLAs basierend auf CVSS-Scores:
+Critical (9.0-10.0): < 24 Stunden; High (7.0-8.9): < 7 Tage; Medium (4.0-6.9): < 30 Tage.
+
+---
+
+== D
+
+=== Defense in Depth
+
+Sicherheitskonzept, das mehrere unabhängige Schutzmechanismen übereinanderlegt. Wenn ein
+Layer versagt (z.B. eine Firewall), schützen weitere Schichten (Verschlüsselung, IAM, Monitoring).
+Verwandt: xref:principles.adoc#SP-3[SP-3 – Defense in Depth].
+
+=== Dynamic Secrets
+
+Credentials, die dynamisch generiert und nach einer kurzen Nutzungsperiode automatisch widerrufen
+werden. HashiCorp Vault kann z.B. temporäre Datenbankpasswörter erzeugen, die nach 1 Stunde
+automatisch ungültig sind. Eliminiert das Risiko von langlebigen, stehenden Credentials.
+
+---
+
+== I
+
+=== IAM (Identity and Access Management)
+
+System zur Verwaltung von Identitäten und deren Zugriffsberechtigungen auf Cloud-Ressourcen.
+Umfasst: User, Groups, Roles, Policies, Permissions. In AWS: AWS Identity and Access Management.
+Verwandt: xref:controls/WAF-SEC-010.adoc[WAF-SEC-010], xref:controls/WAF-SEC-020.adoc[WAF-SEC-020].
+
+=== Immutable Infrastructure
+
+Architekturprinzip: Infrastrukturkomponenten werden nicht modifiziert, sondern durch neue
+Versionen ersetzt. Vorteile: Kein Config Drift, forensisch auswertbar, kein SSH-Zugriff notwendig.
+Verwandt: xref:principles.adoc#SP-6[SP-6 – Immutability].
+
+=== IRSA (IAM Roles for Service Accounts)
+
+AWS-Mechanismus, der Kubernetes-Pods in EKS erlaubt, temporäre AWS-Credentials via IAM-Rollen
+zu beziehen, ohne statische Access Keys. Funktioniert über OIDC-Token-Austausch.
+Alternative zu Instance Profiles für Container-Workloads.
+
+---
+
+== J
+
+=== JIT Access (Just-in-Time Access)
+
+Zugriffsmodell, bei dem erhöhte Berechtigungen nur für den Zeitraum einer konkreten Aufgabe
+gewährt werden, nicht dauerhaft vorhanden sind. Nach Ablauf des Zeitraums werden die Berechtigungen
+automatisch widerrufen. Verwandt: xref:design-patterns.adoc#Pattern-2[Pattern 2 – JIT Privileged Access].
+
+---
+
+== K
+
+=== KMS (Key Management Service)
+
+Verwalteter Schlüsselmanagedienst in Cloud-Umgebungen (AWS KMS, Azure Key Vault, GCP Cloud KMS).
+Ermöglicht die Erstellung, Verwaltung und Verwendung von Verschlüsselungsschlüsseln (CMK).
+Alle KMS-Operationen werden in CloudTrail geloggt.
+
+---
+
+== L
+
+=== Least Privilege
+
+Sicherheitsprinzip: Jede Identität erhält nur die minimalen Berechtigungen, die für ihre
+konkrete Aufgabe notwendig sind. Reduziert den Blast Radius bei Kompromittierung.
+Verwandt: xref:principles.adoc#SP-2[SP-2 – Least Privilege], xref:controls/WAF-SEC-020.adoc[WAF-SEC-020].
+
+---
+
+== M
+
+=== MFA (Multi-Factor Authentication)
+
+Authentifizierungsverfahren, das mindestens zwei unabhängige Faktoren erfordert:
+„Wissen" (Passwort), „Besitz" (TOTP-App, Hardware-Token) oder „Biometrie" (Fingerabdruck).
+WAF++ erzwingt MFA für alle IAM-User mit Konsolen-Zugriff.
+Verwandt: xref:controls/WAF-SEC-010.adoc[WAF-SEC-010].
+
+=== mTLS (Mutual TLS)
+
+Gegenseitige TLS-Authentifizierung: Nicht nur der Server, sondern auch der Client präsentiert
+ein Zertifikat. Ermöglicht Zero-Trust-Service-to-Service-Kommunikation, da jeder Service
+seine Identität kryptographisch nachweist.
+
+---
+
+== O
+
+=== OPA (Open Policy Agent)
+
+Open-Source-Policy-Engine, die Policy-as-Code ermöglicht. OPA-Policies werden in der Sprache
+Rego geschrieben und können in CI/CD-Pipelines, API-Gateways und Kubernetes-Admission-Controllern
+eingesetzt werden. Verwandt: xref:controls/WAF-SEC-090.adoc[WAF-SEC-090].
+
+---
+
+== P
+
+=== PKI (Public Key Infrastructure)
+
+System zur Ausstellung, Verwaltung und Widerruf von digitalen Zertifikaten. In Cloud-Umgebungen
+relevant für TLS-Zertifikate (ACM, Let's Encrypt), Client-Zertifikate (mTLS) und Code-Signing.
+
+=== Policy-as-Code
+
+Ansatz, Sicherheits- und Compliance-Policies als maschinenlesbaren Code zu definieren, der
+automatisch geprüft werden kann. Verwandt: xref:controls/WAF-SEC-090.adoc[WAF-SEC-090],
+xref:design-patterns.adoc#Pattern-6[Pattern 6 – Policy-as-Code Gateway].
+
+---
+
+== R
+
+=== RBAC (Role-Based Access Control)
+
+Zugriffskontrollmodell, bei dem Berechtigungen nicht direkt Nutzern zugewiesen werden,
+sondern Rollen, die Nutzer annehmen. Ermöglicht zentrale Berechtigungsverwaltung und
+einfachere Access Reviews. In AWS über IAM Roles implementiert.
+
+---
+
+== S
+
+=== SBOM (Software Bill of Materials)
+
+Maschinenlesbare Liste aller Softwarekomponenten in einem Software-Artefakt (Container-Image,
+Bibliothek, Anwendung). Ermöglicht die Identifikation bekannter CVEs in allen abhängigen
+Paketen. Standardformate: SPDX, CycloneDX.
+
+=== Secret Rotation
+
+Regelmäßiger automatischer Austausch von Credentials und API-Keys, um das Risiko kompromittierter
+langlebiger Credentials zu minimieren. AWS Secrets Manager unterstützt automatische Rotation
+für RDS-Passwörter und andere Secrets via Lambda-Funktionen.
+
+=== Security by Design
+
+Sicherheitsprinzip, das Security-Anforderungen in der Entwurfsphase berücksichtigt statt
+nachträglich. Verwandt: xref:principles.adoc#SP-1[SP-1 – Security by Design].
+
+=== Sentinel
+
+HashiCorp Sentinels Policy-as-Code-Framework für Terraform Cloud/Enterprise. Ermöglicht
+Policies, die Terraform-Runs vor dem Apply stoppen können (Hard Mandatory Policies).
+Alternative zu OPA für Terraform-spezifische Governance.
+
+=== Shift Left Security
+
+Verlagung von Security-Prüfungen an frühere Stellen im Entwicklungsprozess (von rechts nach links
+im SDLC-Diagramm). Pre-Commit-Hooks, CI-Gates und Entwickler-Schulungen sind Shift-Left-Maßnahmen.
+Verwandt: xref:principles.adoc#SP-5[SP-5 – Shift Left].
+
+=== SIEM (Security Information and Event Management)
+
+Plattform für die Aggregation, Korrelation und Analyse von Security-Events aus verschiedenen Quellen.
+Ermöglicht die Erkennung komplexer Angriffsmuster, die aus einzelnen Events nicht erkennbar sind.
+Beispiele: Splunk, Elastic SIEM, Microsoft Sentinel, Datadog Security.
+
+=== SLSA (Supply Chain Levels for Software Artifacts)
+
+Framework des Open Source Security Foundation (OSSF) zur Sicherung der Software-Supply-Chain.
+Definiert vier Reifegradstufen (SLSA 1-4) mit zunehmenden Anforderungen an Build-Prozess,
+Herkunftsnachweis und Manipulationsschutz.
+
+=== SOC (Security Operations Center)
+
+Organisationseinheit oder Funktion, die Security-Monitoring, Incident Detection und Response
+betreibt. Ein SOC ist 24/7 besetzt und nutzt SIEM, Threat Intelligence und automatisierte
+Playbooks für die Security-Überwachung.
+
+---
+
+== T
+
+=== Threat Modeling
+
+Strukturierter Prozess zur Identifikation von Bedrohungen für ein System. Gängige Methoden:
+STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege),
+PASTA, LINDDUN. Ergebnis: Bedrohungsliste mit priorisierten Gegemaßnahmen.
+
+=== TLS (Transport Layer Security)
+
+Kryptographisches Protokoll zur sicheren Übertragung von Daten über Netzwerke. WAF++ fordert
+TLS 1.2 als Minimum, TLS 1.3 als Ziel. Veraltete Protokolle (SSL, TLS 1.0, TLS 1.1) sind verboten.
+Verwandt: xref:controls/WAF-SEC-040.adoc[WAF-SEC-040].
+
+---
+
+== Z
+
+=== Zero Trust
+
+Sicherheitsarchitektur, die kein implizites Vertrauen auf Basis des Netzwerkstandorts gewährt.
+Jede Anfrage wird explizit authentifiziert und autorisiert. Kernprinzip: „Never trust, always verify".
+Verwandt: xref:principles.adoc#SP-4[SP-4 – Zero Trust],
+xref:best-practices/bp-zero-trust.adoc[BP Zero Trust Architecture].

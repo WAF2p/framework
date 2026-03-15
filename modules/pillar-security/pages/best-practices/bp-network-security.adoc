@@ -1,0 +1,334 @@
+= Best Practice: Netzwerksicherheit & Segmentierung
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – VPC-Design, Security Group Strategie, NACLs, VPC Flow Logs und Private Endpoints für vertiefte Netzwerkverteidigung ohne Flat-Network-Risiken.
+
+== Kontext
+
+Netzwerksegmentierung ist die technische Umsetzung des Defense-in-Depth-Prinzips auf Netzwerkebene.
+Ohne Segmentierung kann ein kompromittiertes System alle anderen Systeme im selben Netzwerk erreichen.
+
+Typische Fehlkonfigurationen:
+
+* Flaches Netzwerk: Alle Ressourcen in einem VPC ohne Subnetz-Trennung
+* Security Groups mit `0.0.0.0/0` auf Management-Ports (SSH 22, RDP 3389)
+* Datenbanken in öffentlichen Subnetzen mit `publicly_accessible = true`
+* Fehlende VPC Flow Logs (keine Netzwerkforensik möglich)
+* S3, KMS, SQS über Internet statt VPC Endpoints
+
+== Zugehörige Controls
+
+* xref:../controls/WAF-SEC-050.adoc[WAF-SEC-050] – Network Segmentation & Security Group Hardening
+
+== VPC-Design: Private by Default
+
+=== Empfohlene Subnetzstruktur
+
+[source,hcl]
+----
+# Drei-Schichten-VPC-Design für Produktionsworkloads
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "prod-vpc"
+  }
+}
+
+# Öffentliche Subnetze: NUR für Load Balancer und NAT Gateways
+resource "aws_subnet" "public" {
+  for_each = {
+    "a" = "10.0.0.0/24"
+    "b" = "10.0.1.0/24"
+  }
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = each.value
+  availability_zone       = "eu-central-1${each.key}"
+  map_public_ip_on_launch = false  # Keine automatischen Public IPs!
+
+  tags = { Name = "public-${each.key}" }
+}
+
+# Private Subnetze: Application Tier
+resource "aws_subnet" "private_app" {
+  for_each = {
+    "a" = "10.0.10.0/24"
+    "b" = "10.0.11.0/24"
+  }
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value
+  availability_zone = "eu-central-1${each.key}"
+
+  tags = { Name = "private-app-${each.key}" }
+}
+
+# Private Subnetze: Data Tier (isoliert!)
+resource "aws_subnet" "private_data" {
+  for_each = {
+    "a" = "10.0.20.0/24"
+    "b" = "10.0.21.0/24"
+  }
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value
+  availability_zone = "eu-central-1${each.key}"
+
+  tags = { Name = "private-data-${each.key}" }
+}
+----
+
+== Security Group Strategie: Application-First
+
+Security Groups werden nach *Anwendungslogik* strukturiert, nicht nach Port-Nummern:
+
+[source,hcl]
+----
+# ALB Security Group: Nur HTTPS von Internet
+resource "aws_security_group" "alb" {
+  name        = "alb-public"
+  description = "Allow HTTPS inbound from internet to ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS from internet"
+  }
+
+  # Kein offener Egress – nur zum App-Tier
+  egress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    description     = "Forward to application tier"
+  }
+}
+
+# Application Security Group: Nur von ALB
+resource "aws_security_group" "app" {
+  name        = "app-tier"
+  description = "Application tier: only from ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+    description     = "From ALB only"
+  }
+
+  # Egress: Nur zur Datenbank und AWS-Services (via VPC Endpoint)
+  egress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.db.id]
+    description     = "To PostgreSQL"
+  }
+}
+
+# Database Security Group: Nur von Application Tier
+resource "aws_security_group" "db" {
+  name        = "db-tier"
+  description = "Database tier: only from app tier"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    description     = "From application tier only"
+  }
+  # Kein Egress für Datenbank-Tier nötig
+}
+----
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+# SSH nur via SSM (kein Port 22 offen)
+# Kein SSH-Port in Security Group
+resource "aws_security_group" "app" {
+  ingress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+}
+----
+
+a|[source,hcl]
+----
+# VERBOTEN: SSH von Internet
+resource "aws_security_group" "app" {
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Kritisch!
+  }
+}
+----
+
+|===
+
+== NACLs als zweite Verteidigungsschicht
+
+Network ACLs (NACLs) operieren auf Subnetz-Ebene und ergänzen Security Groups:
+
+[source,hcl]
+----
+# NACL für Data-Tier Subnetze: Nur von App-Tier
+resource "aws_network_acl" "data_tier" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = [for subnet in aws_subnet.private_data : subnet.id]
+
+  # Eingehend: Nur von App-Tier CIDR
+  ingress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    from_port  = 5432
+    to_port    = 5432
+    cidr_block = "10.0.10.0/23"  # App-Tier Subnetze
+  }
+
+  # Alle anderen eingehenden Verbindungen ablehnen
+  ingress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    from_port  = 0
+    to_port    = 0
+    cidr_block = "0.0.0.0/0"
+  }
+
+  # Ausgehend: Nur Antwortverkehr (Ephemeral Ports)
+  egress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    from_port  = 1024
+    to_port    = 65535
+    cidr_block = "10.0.10.0/23"
+  }
+
+  egress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    from_port  = 0
+    to_port    = 0
+    cidr_block = "0.0.0.0/0"
+  }
+}
+----
+
+== VPC Flow Logs: Netzwerkforensik
+
+VPC Flow Logs zeichnen alle Netzwerkverbindungen auf und sind unverzichtbar für
+Sicherheitsforensik und Anomalieerkennung:
+
+[source,hcl]
+----
+# CloudWatch Log Group für VPC Flow Logs
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs/prod"
+  retention_in_days = 90
+  kms_key_id        = aws_kms_key.logs.arn  # Mit CMK verschlüsseln
+}
+
+# IAM-Rolle für Flow Logs
+resource "aws_iam_role" "flow_logs" {
+  name = "vpc-flow-logs-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+# VPC Flow Logs aktivieren (alle Traffic-Typen)
+resource "aws_flow_log" "main" {
+  vpc_id          = aws_vpc.main.id
+  traffic_type    = "ALL"  # ACCEPT, REJECT oder ALL
+  iam_role_arn    = aws_iam_role.flow_logs.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_logs.arn
+
+  # Erweiterte Felder für bessere Forensik
+  log_format = "$${version} $${account-id} $${interface-id} $${srcaddr} $${dstaddr} $${srcport} $${dstport} $${protocol} $${packets} $${bytes} $${start} $${end} $${action} $${log-status} $${vpc-id} $${subnet-id} $${instance-id} $${tcp-flags}"
+}
+----
+
+== VPC Endpoints: Egress über AWS-Backbone
+
+Statt S3, KMS, SQS über das öffentliche Internet anzusprechen, werden VPC Endpoints genutzt:
+
+[source,hcl]
+----
+# Gateway Endpoint für S3 (kostenlos, kein NAT Gateway nötig)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.eu-central-1.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+
+# Interface Endpoint für Secrets Manager
+resource "aws_vpc_endpoint" "secrets_manager" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-central-1.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for subnet in aws_subnet.private_app : subnet.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+# Interface Endpoint für KMS
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.eu-central-1.kms"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for subnet in aws_subnet.private_app : subnet.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+----
+
+*Vorteile von VPC Endpoints:*
+
+* Kein NAT Gateway Traffic → direkte Kosteneinsparung
+* Traffic verlässt nie das AWS-Netzwerk → bessere Datensouveränität
+* Restriktive Egress-Policies möglich (Security Groups ohne Internet-Egress)
+
+== Anti-Patterns
+
+* *Flaches Netzwerk*: Ein Subnetz für alles – keine Isolierung möglich.
+* *Open Security Groups*: `0.0.0.0/0` auf SSH, RDP oder Admin-Ports.
+* *Fehlende VPC Flow Logs*: Keine Netzwerkforensik nach Incidents möglich.
+* *Datenbanken ohne `publicly_accessible = false`*: Öffentlich erreichbare DBs sind inakzeptabel.
+* *Kein NAT Gateway für Private Subnets*: Workaround über öffentliche IPs ist schlechter.
+* *Zu weit gefasste Security Group Egress*: `0.0.0.0/0` Egress öffnet unnötige Angriffsfläche.
+
+== Metriken
+
+* Security Groups mit `0.0.0.0/0` auf Management-Ports: Ziel: 0
+* VPCs ohne Flow Logs: Ziel: 0
+* Öffentlich erreichbare Datenbanken (`publicly_accessible = true`): Ziel: 0
+* VPC-Endpoints für genuzte AWS-Services: Ziel: 100% (S3, KMS, Secrets Manager)

@@ -1,0 +1,338 @@
+id: WAF-SEC-130
+title: "Data Classification & Sensitive Data Protection"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "data-protection"
+type: ['configuration', 'governance', 'automation']
+tags: ['data-classification', 'pii', 'data-protection', 'tagging', 'sensitive-data', 'gdpr', 'publicly-accessible']
+
+description: >
+  All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters)
+  MUST carry a 'data-class' tag indicating the sensitivity level (e.g., public, internal,
+  confidential, pii, health, financial). Resources classified as 'pii', 'health', or 'financial'
+  MUST be encrypted with a customer-managed KMS key (CMK). Database instances MUST have
+  publicly_accessible set to false. S3 buckets MUST have public access blocked via
+  aws_s3_bucket_public_access_block with all four block settings enabled. No data store
+  containing personal data under GDPR scope MUST be directly reachable from the internet.
+
+rationale: >
+  Data classification is the foundation of proportionate security controls under GDPR's
+  data minimisation and integrity principles. Without knowing which resources contain
+  sensitive or personal data, it is impossible to apply appropriate encryption, access
+  controls, and residency requirements. Publicly accessible databases are consistently
+  among the top root causes of major data breaches—accidental public exposure of an RDS
+  instance has led to breaches affecting millions of individuals. Tagging-based
+  classification enables automated policy enforcement (via AWS Config, SCP, or OPA)
+  and provides an auditable data inventory required by GDPR Art. 30 (Records of processing
+  activities). CMK encryption for sensitive-data stores ensures data is protected even
+  in the event of a cloud provider infrastructure compromise.
+
+threat:
+  - "Unintentionally public-facing database instances exposing PII or financial records directly to the internet"
+  - "Absence of data classification enabling misconfigured access policies on sensitive resources to go undetected"
+  - "S3 bucket misconfiguration causing inadvertent public read access to data stores containing personal data"
+  - "Inability to perform GDPR breach impact scoping due to unknown data classification across cloud resources"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 5(1)(c) – Data minimisation principle"
+      - "Art. 5(1)(f) – Integrity and confidentiality principle"
+      - "Art. 9 – Processing of special categories of personal data"
+      - "Art. 25 – Data protection by design and by default"
+      - "Art. 32 – Security of processing: appropriate technical measures"
+  - framework: "BSI C5:2020"
+    controls:
+      - "OPS-04 – Data classification and handling"
+      - "CRY-01 – Use of cryptography"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.5.12 – Classification of information"
+      - "A.8.10 – Information deletion"
+      - "A.8.24 – Use of cryptography"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "DSP-01 – Data classification and handling policy"
+      - "CRY-01 – Cryptography policy and key management"
+
+implementation_guidance:
+  - "Define and document a data classification taxonomy with at minimum four levels: public, internal, confidential, and restricted (PII/health/financial); publish this taxonomy as organizational policy and tag standards."
+  - "Enforce mandatory 'data-class' tagging for all data-storing resources using AWS Config rules or SCPs that deny resource creation without required tags."
+  - "For all resources tagged with data-class = 'pii', 'health', or 'financial', require a separate KMS CMK per data classification tier; never share CMKs across classification boundaries."
+  - "Apply aws_s3_bucket_public_access_block with all four settings (block_public_acls, block_public_policy, ignore_public_acls, restrict_public_buckets) set to true at both bucket and account level."
+  - "Set publicly_accessible = false on all aws_db_instance and aws_rds_cluster resources; place database instances in isolated private subnets with no internet route."
+  - "Implement AWS Macie for automated sensitive data discovery in S3 to identify PII in buckets that may be misclassified or unclassified."
+  - "Establish a data inventory process mapping each data-class tag value to GDPR processing purpose and legal basis, satisfying Art. 30 Records of Processing Activities requirements."
+
+maturity_levels:
+  level_1:
+    description: "No data classification; databases may be publicly accessible; no CMK encryption"
+    criteria:
+      - "No data-class tagging applied to data-storing resources"
+      - "Database instances may have publicly_accessible = true or no explicit setting"
+      - "S3 bucket public access blocks not consistently configured"
+  level_2:
+    description: "Data classification policy defined; tagging partially applied; databases in private subnets"
+    criteria:
+      - "Data classification taxonomy documented and communicated to engineering teams"
+      - "All database instances set to publicly_accessible = false in private subnets"
+      - "S3 public access blocks enabled at account level"
+  level_3:
+    description: "Mandatory tagging enforced; sensitive data resources encrypted with CMK; S3 public access blocked"
+    criteria:
+      - "data-class tag required and enforced on all data-storing resources via AWS Config or SCP"
+      - "All PII/health/financial classified resources encrypted with CMK"
+      - "All aws_s3_bucket_public_access_block resources configured with all four settings true"
+  level_4:
+    description: "Automated sensitive data discovery; data inventory linked to GDPR processing records"
+    criteria:
+      - "AWS Macie enabled with automated sensitive data discovery across all production S3 buckets"
+      - "Data inventory mapped to GDPR Art. 30 Records of Processing Activities"
+      - "Automated alerts on newly unclassified data-storing resources or classification downgrades"
+  level_5:
+    description: "Dynamic data protection with automated DLP, classification-aware access control, and continuous compliance"
+    criteria:
+      - "Data Loss Prevention (DLP) controls implemented at network egress and API layer for PII"
+      - "Classification-aware access control automatically adjusts permissions based on data-class tag changes"
+      - "Continuous GDPR compliance posture with automated generation of Art. 30 records from resource tags and policies"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Data classification policy document defining the classification taxonomy, tag standards, and mandatory controls per classification level."
+    - kind: "iac"
+      description: "Terraform configuration showing aws_s3_bucket_public_access_block, aws_db_instance with publicly_accessible = false, and data-class tags on data-storing resources."
+  optional:
+    - kind: "config"
+      description: "AWS Macie sensitive data discovery job results or AWS Config rule compliance report showing data-class tag coverage across data stores."
+    - kind: "process"
+      description: "Data inventory export demonstrating linkage between resource data-class tags and GDPR Art. 30 Records of Processing Activities."
+
+checks:
+  - id: "waf-sec-130.tf.aws.data-class-tag-required"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Data-storing resources must carry a data-class tag"
+    description: >
+      All data-storing resources (S3 buckets, RDS instances, RDS clusters, DynamoDB tables,
+      ElastiCache clusters) must carry a 'data-class' tag indicating the sensitivity level
+      of data stored in the resource. This tag enables automated policy enforcement, access
+      control decisions, and GDPR Art. 30 data inventory generation.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket"
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+        - "aws_dynamodb_table"
+        - "aws_elasticache_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        expected: "data-class"
+        message: "Data-storing resource MUST carry a 'data-class' tag (e.g., public, internal, confidential, pii, health, financial)."
+    on_fail: "violation"
+    remediation: >
+      Add a 'data-class' tag to all data-storing resources with a value from the approved
+      classification taxonomy (e.g., "public", "internal", "confidential", "pii", "health", "financial").
+      Enforce mandatory tagging via an AWS Config rule (required-tags) or an SCP denying
+      CreateBucket, CreateDBInstance, CreateTable API calls without the required tag.
+      Implement a tagging standard in your Terraform module library to make compliant
+      resource creation the default path.
+    example:
+      compliant: |
+        resource "aws_db_instance" "app_db" {
+          identifier        = "prod-application-db"
+          engine            = "postgres"
+          engine_version    = "16.1"
+          instance_class    = "db.t3.medium"
+          allocated_storage = 100
+          storage_encrypted = true
+          kms_key_id        = aws_kms_key.rds_pii.arn
+          publicly_accessible = false
+          db_subnet_group_name = aws_db_subnet_group.private.name
+
+          tags = {
+            environment = "production"
+            owner       = "application-team"
+            data-class  = "pii"       # Required data classification tag
+          }
+        }
+
+        resource "aws_dynamodb_table" "sessions" {
+          name         = "user-sessions"
+          billing_mode = "PAY_PER_REQUEST"
+          hash_key     = "session_id"
+
+          attribute {
+            name = "session_id"
+            type = "S"
+          }
+
+          server_side_encryption {
+            enabled     = true
+            kms_key_arn = aws_kms_key.dynamodb_internal.arn
+          }
+
+          tags = {
+            environment = "production"
+            data-class  = "internal"
+          }
+        }
+      non_compliant: |
+        resource "aws_db_instance" "app_db" {
+          identifier        = "prod-application-db"
+          engine            = "postgres"
+          instance_class    = "db.t3.medium"
+          allocated_storage = 100
+          # No tags at all – WAF-SEC-130 violation: data-class tag required
+          # No storage_encrypted – encryption required for classified data
+          # No publicly_accessible = false – WAF-SEC-130 violation (check 2)
+        }
+
+  - id: "waf-sec-130.tf.aws.db-not-publicly-accessible"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "Database instances and clusters must not be publicly accessible"
+    description: >
+      All aws_db_instance and aws_rds_cluster resources must have publicly_accessible set to
+      false to prevent direct database access from the internet. Publicly accessible databases
+      expose authentication endpoints to brute-force attacks and vulnerability exploitation
+      and are among the most common causes of catastrophic data breaches.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+    assertions:
+      - attribute: "publicly_accessible"
+        op: "is_false"
+        message: "Database instance or cluster MUST NOT be publicly accessible. Set publicly_accessible = false and place in private subnet."
+    on_fail: "violation"
+    remediation: >
+      Set publicly_accessible = false on all aws_db_instance and aws_rds_cluster resources.
+      Place database resources in a private subnet group (aws_db_subnet_group) using
+      subnets with no route to an Internet Gateway. Applications must connect to databases
+      via private VPC networking; use AWS Systems Manager Session Manager port forwarding
+      or a bastion host with restricted access for administrative database connections.
+    example:
+      compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "prod-db"
+          engine                 = "postgres"
+          engine_version         = "16.1"
+          instance_class         = "db.t3.medium"
+          allocated_storage      = 100
+          storage_encrypted      = true
+          kms_key_id             = aws_kms_key.rds.arn
+          db_subnet_group_name   = aws_db_subnet_group.private.name
+          vpc_security_group_ids = [aws_security_group.rds.id]
+          publicly_accessible    = false
+          deletion_protection    = true
+
+          tags = {
+            environment = "production"
+            data-class  = "confidential"
+          }
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier          = "prod-db"
+          engine              = "postgres"
+          instance_class      = "db.t3.medium"
+          allocated_storage   = 100
+          publicly_accessible = true   # WAF-SEC-130 critical violation: database exposed to internet
+          # No subnet group specified – may default to public subnets
+          # No storage_encrypted – encryption not configured
+        }
+
+  - id: "waf-sec-130.tf.aws.s3-public-access-blocked"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "S3 buckets must have all public access block settings enabled"
+    description: >
+      All aws_s3_bucket_public_access_block resources must have block_public_acls,
+      block_public_policy, ignore_public_acls, and restrict_public_buckets all set to true.
+      All four settings are required to fully prevent S3 buckets from being made public
+      through any mechanism including ACLs, bucket policies, or presigned URL configurations.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_public_access_block"
+    assertions:
+      - attribute: "block_public_acls"
+        op: "is_true"
+        message: "S3 public access block: block_public_acls must be true."
+      - attribute: "block_public_policy"
+        op: "is_true"
+        message: "S3 public access block: block_public_policy must be true."
+      - attribute: "ignore_public_acls"
+        op: "is_true"
+        message: "S3 public access block: ignore_public_acls must be true."
+      - attribute: "restrict_public_buckets"
+        op: "is_true"
+        message: "S3 public access block: restrict_public_buckets must be true."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_s3_bucket_public_access_block resource for every aws_s3_bucket resource
+      with all four settings set to true. Additionally, enable the S3 account-level block
+      public access setting via the AWS Console or CLI to provide a safety net for any
+      buckets created outside of Terraform. Use aws_s3_bucket_ownership_controls with
+      object_ownership = "BucketOwnerEnforced" to disable ACL-based access entirely.
+    example:
+      compliant: |
+        resource "aws_s3_bucket" "data" {
+          bucket = "company-application-data-prod"
+          tags = {
+            environment = "production"
+            data-class  = "confidential"
+          }
+        }
+
+        resource "aws_s3_bucket_public_access_block" "data" {
+          bucket                  = aws_s3_bucket.data.id
+          block_public_acls       = true
+          block_public_policy     = true
+          ignore_public_acls      = true
+          restrict_public_buckets = true
+        }
+
+        resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
+          bucket = aws_s3_bucket.data.id
+          rule {
+            apply_server_side_encryption_by_default {
+              sse_algorithm     = "aws:kms"
+              kms_master_key_id = aws_kms_key.s3.arn
+            }
+            bucket_key_enabled = true
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "data" {
+          bucket = "company-application-data-prod"
+          # No aws_s3_bucket_public_access_block – WAF-SEC-130 critical violation
+          # Bucket defaults may allow public access via ACL or bucket policy
+        }
+
+        resource "aws_s3_bucket_public_access_block" "data_partial" {
+          bucket                  = aws_s3_bucket.data.id
+          block_public_acls       = true
+          block_public_policy     = false   # WAF-SEC-130 violation: bucket policy can make bucket public
+          ignore_public_acls      = true
+          restrict_public_buckets = false   # WAF-SEC-130 violation: public bucket access not restricted
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-130"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-encryption.adoc"
+  related_controls:
+    - "WAF-SEC-030"
+    - "WAF-SOV-010"
+    - "WAF-SOV-050"

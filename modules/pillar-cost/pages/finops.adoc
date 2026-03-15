@@ -1,0 +1,260 @@
+= FinOps-Integration
+:page-toc: right
+:description: WAF++ – FinOps-Framework-Integration: Rollen, Review-Zyklen, KPIs und Open-Source-Bewertung.
+
+FinOps (Financial Operations) ist die operative Disziplin, die Engineering-Teams befähigt,
+fundierte wirtschaftliche Entscheidungen über Cloud-Ressourcen zu treffen.
+WAF++ integriert FinOps als strukturellen Bestandteil des Architekturprozesses – nicht als
+nachgelagerte Finanzfunktion.
+
+== FinOps-Framework: Inform → Optimize → Operate
+
+Das FinOps-Framework der FinOps Foundation definiert drei Phasen, die iterativ durchlaufen werden:
+
+[cols="1,3,2"]
+|===
+|Phase |Beschreibung |WAF++-Integration
+
+|*Inform*
+|Transparenz schaffen: Kosten sichtbar, zuordenbar und verständlich machen.
+Cost-Reports, Dashboards, Anomalie-Alerts, Tagging-Compliance.
+|WAF-COST-010 (Tagging), WAF-COST-020 (Budgets & Alerts)
+
+|*Optimize*
+|Effizienz steigern: Idle Resources, Rightsizing, Commitment-Optimierung,
+Lifecycle-Policies, Architektur-Verbesserungen.
+|WAF-COST-030, WAF-COST-040, WAF-COST-070, WAF-COST-080, WAF-COST-090
+
+|*Operate*
+|Kontinuierlicher Betrieb: Review-Zyklen, Ownership, Cost-Debt-Governance,
+ADR-Integration, Kulturwandel.
+|WAF-COST-050, WAF-COST-060, WAF-COST-100
+
+|===
+
+NOTE: Die drei Phasen sind keine sequenzielle Abfolge. Mature Organisationen durchlaufen alle
+drei kontinuierlich – Inform und Optimize laufen parallel, während Operate die Governance-Basis bildet.
+
+== Integration in Architekturprozesse
+
+=== FinOps früh, nicht nachgelagert
+
+Der häufigste Fehler: FinOps wird nach der Architekturentscheidung einbezogen –
+wenn die Kostenschuld bereits feststeht.
+
+WAF++ verlangt FinOps-Einbindung *während* des Designprozesses:
+
+----
+Architektur-Designprozess mit FinOps-Integration:
+
+  1. Anforderungsaufnahme
+     └── Cost-Awareness-Check: Welche Kostenkategorie betrifft das Feature?
+
+  2. Lösungsoptionen bewerten
+     └── Cost Impact Assessment: TCO, Lock-in, Egress, Betriebsaufwand pro Option
+
+  3. ADR schreiben
+     └── Pflichtsektion: Cost Impact Assessment (WAF-COST-050)
+     └── Lock-in-Score dokumentieren (1-5)
+
+  4. Architecture Board Review
+     └── Quarterly: Cost-Debt-Review (WAF-COST-100)
+     └── Bei Lock-in-Score >= 4: Mandatory Cost Review vor Genehmigung
+
+  5. Implementierung
+     └── IaC mit Pflicht-Tags, Budget-Ressource, Lifecycle-Policies
+
+  6. Post-Launch
+     └── Erste FinOps-Review nach 30 Tagen Produktionsbetrieb
+     └── Rightsizing-Review nach 90 Tagen
+----
+
+=== FinOps als Architecture-Board-Tagesordnungspunkt
+
+Das Architecture Board ist für die strategische Kostengouvernanz verantwortlich:
+
+* *Monatlich:* Kosten-Anomalien und Budget-Status aller Workloads
+* *Quartalsweise:* Cost-Debt-Register-Review, Priorisierung Paydown-Maßnahmen
+* *Jährlich:* TCO-Review aller kritischen Workloads, Commitment-Strategie für folgendes Jahr
+
+== Rollen und Verantwortlichkeiten
+
+[cols="1,3,2"]
+|===
+|Rolle |Verantwortung |Typischer Hintergrund
+
+|*Architecture Board*
+|Strategische Kostenstrategie, Cost-Debt-Acceptance-Entscheidungen, ADR-Genehmigungen mit Lock-in-Score >= 4, Quarterly Cost-Debt-Review-Sign-off.
+|CTO, Principal Engineers, Enterprise Architects
+
+|*FinOps Team*
+|Betrieb von Cost-Dashboards, Anomalie-Erkennung, Rightsizing-Empfehlungen, monatliche Review-Moderation, Tagging-Compliance-Reporting.
+|Cloud Engineers, Finance-Partner, Platform Team
+
+|*Engineering Teams*
+|Cost-Ownership für ihre Workloads. Tagging-Compliance. Umsetzung von Rightsizing-Maßnahmen.
+ADR-Cost-Sections ausfüllen. Teilnahme an monatlichen FinOps-Reviews.
+|Software-Engineers, SREs
+
+|*Product Owner*
+|SLO-Entscheidungen (die HA-Anforderungen treiben). Business-Value-Kontext für Cost-Trade-off-Entscheidungen.
+|Product Manager, Business Analysts
+
+|*Finance / Controlling*
+|Chargeback/Showback-Modelle, Budget-Freigaben, Enterprise-Agreement-Verhandlungen.
+|Controller, Finance Business Partner
+
+|===
+
+=== Anti-Pattern: FinOps als Kostenwächter
+
+FinOps-Teams scheitern häufig, wenn sie als *Kostenkontrollinstanz* wahrgenommen werden,
+die Engineering-Entscheidungen blockiert. Das führt zu:
+
+* Engineering-Teams verstecken Kosten statt sie zu optimieren
+* FinOps-Empfehlungen werden als extern und störend wahrgenommen
+* Kultureller Widerstand statt Zusammenarbeit
+
+WAF++-Empfehlung: FinOps-Teams sind *Enabler und Berater* – die Kostenverantwortung bleibt beim Engineering-Team.
+
+== Obligatorischer Review-Zyklus
+
+=== Monatlicher Engineering-Review (WAF-COST-060)
+
+Format: 30-60 Minuten, pro Team oder Workload-Cluster.
+
+Agenda:
+. Aktueller Kostenstand vs. Budget (Δ zum Vormonat, Prognose)
+. Top-3-Kostentreiber des Monats
+. Anomalien und Alerts der letzten 30 Tage
+. Rightsizing-Empfehlungen der Optimierungstools
+. Action Items (Owner, Fälligkeitsdatum, erwartete Einsparung)
+. Status offener Action Items aus Vormonat
+
+Output: Action-Item-Liste mit Owner und Fälligkeit. Schriftlich in Ticket-System erfasst.
+
+=== Quartalsweiser Architecture-Board-Review (WAF-COST-060, WAF-COST-100)
+
+Format: 60-90 Minuten, mit Architecture Board.
+
+Agenda:
+. Gesamtkosten-Trend des Quartals
+. Cost-Debt-Register: neue Einträge, Paydown-Fortschritt, Status-Updates
+. ADR-Cost-Impact-Assessments des Quartals (Review)
+. Commitment-Strategie: Reserved Instances, Savings Plans
+. Strategische Entscheidungen: Lock-in-Score-4/5-Services
+. Genehmigungen und Sign-off
+
+Output: Aktualisiertes Cost-Debt-Register, dokumentierte Architecture-Board-Entscheidungen.
+
+== KPIs und Messbarkeit
+
+=== Operative KPIs (monatlich)
+
+[cols="1,3,1"]
+|===
+|KPI |Beschreibung |Zielwert
+
+|*Tagging-Compliance-Rate*
+|Anteil der Ressourcen mit allen Pflicht-Tags (cost-center, owner, environment, workload)
+|≥ 95%
+
+|*Budget-Abweichung*
+|Abweichung tatsächlicher Kosten von Budget (absolut und %)
+|< ±10%
+
+|*Untagged-Cost-Anteil*
+|Anteil der Cloud-Kosten ohne Workload-Zuordnung
+|< 5%
+
+|*Rightsizing-Coverage*
+|Anteil der Compute-Ressourcen mit `rightsizing-reviewed`-Tag (< 90 Tage alt)
+|≥ 80%
+
+|*Idle-Resource-Rate*
+|Anteil der Compute-Ressourcen mit < 5% CPU-Auslastung über 7 Tage
+|< 3%
+
+|===
+
+=== Strategische KPIs (quartalsweise)
+
+[cols="1,3,1"]
+|===
+|KPI |Beschreibung |Zielwert
+
+|*Cost-Debt-Register-Vollständigkeit*
+|Alle bekannten Kostenschulden erfasst mit Owner und Status
+|100%
+
+|*Cost-Debt-Paydown-Rate*
+|Anteil der Cost-Debt-Einträge mit aktivem Paydown-Plan
+|≥ 50% (nicht accepted)
+
+|*RI/SP-Coverage*
+|Anteil der Baseline-Compute-Kosten durch Reservierungen gedeckt
+|≥ 70%
+
+|*Observability-Kostenanteil*
+|Observability-Kosten (Logging, Monitoring, APM) als % des Gesamt-Cloud-Budgets
+|< 20%
+
+|*TCO-Tracking-Coverage*
+|Anteil der Produktions-Workloads mit aktuellem TCO-Modell (< 12 Monate alt)
+|≥ 80%
+
+|===
+
+=== Full Cost View: Was gehört in den TCO?
+
+WAF++ fordert TCO-Bewertungen, die über die reine Cloud-Rechnung hinausgehen:
+
+[source,text]
+----
+TCO = Infrastrukturkosten
+    + Lizenzkosten (Betriebssystem, Middleware, APM, Security-Tools)
+    + FTE-Betriebsaufwand (Ops, Monitoring, Incident Response, Patching)
+    + FTE-Entwicklungsaufwand für Wartung und Feature-Entwicklung
+    + Vendor-Management (EA-Verhandlung, Provider-Meetings, Zertifizierungen)
+    + Exit-Kosten (kalkulatorisch: Migrationsaufwand, Re-Zertifizierung)
+    + Opportunitätskosten (was könnte das Team sonst tun?)
+----
+
+== Open Source vs. Proprietary
+
+Open Source und proprietäre Lösungen werden im WAF++ als *strategisch gleichwertig* behandelt.
+Die Entscheidung basiert ausschließlich auf Funktion und Wirtschaftlichkeit.
+
+[cols="1,3,3"]
+|===
+|Dimension |Open Source |Proprietär / Managed Service
+
+|*Direktkosten*
+|Oft keine Lizenzkosten (Ausnahme: Support-Subscriptions, Enterprise-Editions)
+|Lizenz-/Servicegebühren, oft skalierend mit Volumen
+
+|*Betriebskosten*
+|Höher: Betrieb, Updates, Monitoring, HA-Konfiguration erfordert FTE-Aufwand
+|Niedriger: Provider übernimmt Betrieb, Updates, Monitoring
+
+|*Skills*
+|Breitere Verfügbarkeit am Markt, Community-Support kostenlos
+|Oft vendor-spezifische Zertifizierungen, teurere Spezialisten
+
+|*Lock-in-Risiko*
+|Niedrig: Standard-APIs, portabel, keine Vendor-Abhängigkeit
+|Mittel–Hoch: Proprietäre APIs, datenformatabhängig, schwerer Exit
+
+|*Innovation*
+|Community-getrieben, oft schneller bei neuen Features
+|Provider-getrieben, oft besser in Cloud-nativer Integration
+
+|*Total Cost*
+|Oft höher als gedacht (Betriebsaufwand wird unterschätzt)
+|Oft niedriger als gefürchtet (Betriebsersparnis wird unterschätzt)
+
+|===
+
+NOTE: Die Entscheidung Open Source vs. Proprietär ist keine ideologische Frage.
+Sie ist eine TCO-Frage. Weder ist Open Source automatisch günstiger noch Proprietary automatisch schlechter.
+Jede Entscheidung wird mit dem Cost-Impact-Assessment in ADR-Kontext dokumentiert.

@@ -1,0 +1,195 @@
+id: WAF-SEC-060
+title: "Secrets Management – No Hardcoded Credentials"
+pillar: "security"
+status: "active"
+severity: "critical"
+category: "secrets"
+type: ['configuration', 'automation']
+tags: ['secrets', 'credentials', 'aws-secrets-manager', 'vault', 'hardcoded']
+
+description: >
+  All secrets, API keys, passwords, database credentials, and certificates MUST be stored
+  in a dedicated secrets management solution (AWS Secrets Manager or HashiCorp Vault).
+  Secrets MUST NOT be hardcoded in IaC code, Terraform variable files, environment variables
+  in task definitions, source code, or CI/CD pipeline configuration. Secrets Manager secrets
+  MUST be encrypted with customer-managed KMS keys. Automatic rotation MUST be configured
+  for all long-lived credentials where the target service supports it.
+
+rationale: >
+  Hardcoded credentials in source code, IaC, or CI/CD configuration are among the most
+  common causes of critical security breaches. Once committed to version control, secrets
+  persist in git history indefinitely even after deletion from the latest revision, and are
+  accessible to anyone with read access to the repository. Centralized secrets management
+  provides access auditing, rotation automation, fine-grained access control, and a single
+  revocation point in the event of compromise. Encryption with CMKs ensures secrets cannot
+  be accessed even by cloud provider employees or through provider-layer breaches.
+
+threat:
+  - "Secret exfiltration from source code repositories (public or private) including historical git commits"
+  - "Credential exposure via CI/CD pipeline logs, artifact stores, or container image layers"
+  - "Long-lived credentials used indefinitely after an employee departure or a service compromise"
+  - "Cascading breach: one leaked secret granting access to secrets store credentials for all other services"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: protection of authentication credentials"
+  - framework: "BSI C5:2020"
+    controls:
+      - "CRY-01 – Use of cryptography for secret storage"
+      - "IAM-01 – Identity and access management policy"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.24 – Use of cryptography"
+      - "A.5.14 – Information transfer"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "CRY-01 – Cryptography policy"
+      - "IAM-01 – Identity and access management"
+
+implementation_guidance:
+  - "Store all secrets in AWS Secrets Manager; use aws_secretsmanager_secret and aws_secretsmanager_secret_version resources in Terraform with the actual secret values sourced from a secure pipeline, never from Terraform state."
+  - "Encrypt all Secrets Manager secrets with a customer-managed KMS key via the kms_key_id attribute."
+  - "Configure automatic rotation for database passwords, API keys, and OAuth tokens using Secrets Manager rotation Lambda functions."
+  - "Scan IaC, application code, and CI/CD configuration for hardcoded secrets using pre-commit hooks (e.g., detect-secrets, gitleaks, truffleHog) and block commits containing secrets."
+  - "Reference secrets in ECS task definitions, Lambda environment variables, and Kubernetes pods via secretsmanager ARN references rather than plaintext values."
+  - "Set recovery_window_in_days >= 7 on all Secrets Manager secrets to prevent accidental deletion from disrupting production workloads."
+  - "Audit Secrets Manager access logs via CloudTrail and alert on unexpected secret access patterns or failed access attempts."
+
+maturity_levels:
+  level_1:
+    description: "Secrets hardcoded in IaC or environment variables; no centralized store"
+    criteria:
+      - "Passwords and API keys present as plaintext in Terraform .tfvars files or code"
+      - "No secrets scanning in place; no secrets rotation process"
+  level_2:
+    description: "Secrets Manager deployed; most secrets migrated from code"
+    criteria:
+      - "AWS Secrets Manager used for at minimum database credentials and API keys"
+      - "No new secrets committed to source code (enforced by pre-commit hooks)"
+      - "Secrets Manager secrets encrypted with CMK"
+  level_3:
+    description: "All secrets centralized; rotation enabled; IaC references secrets by ARN"
+    criteria:
+      - "All production secrets stored in Secrets Manager; no plaintext secrets in IaC or CI/CD"
+      - "Automatic rotation configured for all long-lived credentials supporting rotation"
+      - "Secret scanning runs on every commit in CI pipeline"
+  level_4:
+    description: "Dynamic short-lived credentials; secret access anomaly alerting"
+    criteria:
+      - "Database credentials generated dynamically via Secrets Manager RDS integration"
+      - "Alerts configured for unusual secret access patterns (off-hours access, mass retrieval)"
+      - "Quarterly secret inventory review with ownership validation"
+  level_5:
+    description: "Zero-secret workloads using IAM roles and dynamic credentials exclusively"
+    criteria:
+      - "All service-to-service authentication uses IAM roles with temporary credentials; zero long-lived secrets"
+      - "Secrets Manager used only as a fallback for third-party integrations that do not support IAM"
+      - "Full automated audit trail of all secret access integrated into SIEM with real-time response"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing aws_secretsmanager_secret resources with kms_key_id and recovery_window_in_days set; no plaintext secrets in .tfvars or resource attributes."
+    - kind: "config"
+      description: "Pre-commit or CI pipeline secret scanning configuration (gitleaks, detect-secrets) with results showing no secrets detected."
+  optional:
+    - kind: "process"
+      description: "Secret rotation schedule documentation showing which secrets are rotated, at what interval, and by which automation."
+    - kind: "config"
+      description: "CloudTrail log sample showing Secrets Manager GetSecretValue API calls with authorized IAM principals only."
+
+checks:
+  - id: "waf-sec-060.tf.aws.secrets-manager-exists"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "Secrets Manager secrets must be defined with a recovery window"
+    description: >
+      All aws_secretsmanager_secret resources must have a name attribute set and
+      recovery_window_in_days >= 7 to prevent accidental deletion from causing
+      immediate and irrecoverable data access loss.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_secretsmanager_secret"
+    assertions:
+      - attribute: "name"
+        op: "attribute_exists"
+        message: "Secrets Manager secret must have an explicit name attribute."
+      - attribute: "recovery_window_in_days"
+        op: "greater_than_or_equal"
+        expected: 7
+        message: "Secrets Manager secret recovery window must be at least 7 days to allow recovery from accidental deletion."
+    on_fail: "violation"
+    remediation: >
+      Add name and recovery_window_in_days = 30 to all aws_secretsmanager_secret resources.
+      Do not set force_overwrite_replica_secret = true or recovery_window_in_days = 0
+      unless in a controlled testing environment.
+    example:
+      compliant: |
+        resource "aws_secretsmanager_secret" "db_password" {
+          name                    = "prod/app/db-password"
+          description             = "RDS master password for production application database"
+          kms_key_id              = aws_kms_key.secrets.arn
+          recovery_window_in_days = 30
+          tags = {
+            owner       = "platform-team"
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "aws_secretsmanager_secret" "db_password" {
+          # name not set                           – WAF-SEC-060 violation
+          recovery_window_in_days = 0              # WAF-SEC-060 violation: no recovery window
+          # kms_key_id not set                     – WAF-SEC-060 violation (check 2)
+        }
+
+  - id: "waf-sec-060.tf.aws.secrets-encrypted-with-cmk"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Secrets Manager secrets must be encrypted with a customer-managed KMS key"
+    description: >
+      All aws_secretsmanager_secret resources must have a kms_key_id attribute referencing
+      a customer-managed KMS key. Using the default AWS-managed key (aws/secretsmanager)
+      is not acceptable for production workloads containing sensitive credentials.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_secretsmanager_secret"
+    assertions:
+      - attribute: "kms_key_id"
+        op: "attribute_exists"
+        message: "Secrets Manager secret MUST be encrypted with a customer-managed KMS key (kms_key_id must be set)."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_kms_key resource with enable_key_rotation = true and reference its ARN
+      via kms_key_id = aws_kms_key.secrets.arn in the aws_secretsmanager_secret resource.
+      Ensure the KMS key policy grants the Secrets Manager service principal permission to
+      use the key for encryption and decryption.
+    example:
+      compliant: |
+        resource "aws_kms_key" "secrets" {
+          description         = "CMK for Secrets Manager encryption"
+          enable_key_rotation = true
+        }
+        resource "aws_secretsmanager_secret" "api_key" {
+          name       = "prod/app/external-api-key"
+          kms_key_id = aws_kms_key.secrets.arn
+        }
+      non_compliant: |
+        resource "aws_secretsmanager_secret" "api_key" {
+          name = "prod/app/external-api-key"
+          # kms_key_id not set – using default aws/secretsmanager key
+          # WAF-SEC-060 violation: CMK encryption required for production secrets
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-060"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-secrets-management.adoc"
+  related_controls:
+    - "WAF-SEC-030"
+    - "WAF-SOV-050"

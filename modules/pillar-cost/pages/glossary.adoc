@@ -1,0 +1,128 @@
+= Glossar (Cost Optimization)
+:page-toc: right
+:description: WAF++ Cost Optimization – Begriffsdefinitionen für die Cost-Optimization-Säule.
+
+*FinOps (Financial Operations)*::
+Operative Disziplin und Kulturpraktik, die Engineering, Finance und Business zusammenbringt,
+um fundierte wirtschaftliche Entscheidungen über Cloud-Ressourcen zu treffen.
+FinOps-Foundation: „FinOps is a portmanteau of 'Finance' and 'DevOps'. It's the practice of bringing
+financial accountability to the variable-spend model of cloud."
+
+*TCO (Total Cost of Ownership)*::
+Gesamtkosten über den vollständigen Lebenszyklus einer Infrastruktur oder eines Workloads.
+Umfasst: Infrastrukturkosten, Lizenzkosten, FTE-Betriebsaufwand, FTE-Entwicklungsaufwand,
+Vendor-Management, Exit-Kosten und Opportunitätskosten.
+Im WAF++-Kontext ist TCO die Pflichtbasis für jedes Cost-Impact-Assessment in ADRs.
+
+*Architektonische Kostenschuld (Architectural Cost Debt)*::
+Wirtschaftliche Langzeitbelastungen, die durch vergangene Architekturentscheidungen entstanden sind,
+die zum Zeitpunkt der Entscheidung nicht vollständig bewertet wurden.
+Analog zu technischer Schuld, aber in monatlichen Cloud-Kosten messbar.
+Beispiele: HA ohne SLO-Grundlage, Infinite Retention, Lock-in ohne Exit-Plan.
+Wird im Cost-Debt-Register dokumentiert und quartalsweise mit dem Architecture Board reviewed.
+
+*Cost Debt Register*::
+Versioniertes Dokument (YAML oder Markdown) im Repository, das alle bekannten architektonischen
+Kostenschulden erfasst. Pflichtfelder je Eintrag: ID, Beschreibung, Owner, geschätzter Jahresauswirkung (€),
+Status (monitoring/paydown/accepted), Paydown-Plan oder Akzeptanz-Begründung.
+
+*Cost Allocation*::
+Prozess der eindeutigen Zuordnung von Cloud-Kosten zu Workloads, Teams, Projekten und Umgebungen.
+Grundvoraussetzung für alle Optimierungsmaßnahmen. Technisch umgesetzt durch Tagging und
+Cloud-Provider-Billing-Tools (AWS Cost Allocation Tags, Azure Cost Management, GCP Labels + Billing).
+
+*Cost Center*::
+Organisatorische Einheit, der Cloud-Kosten zugeordnet werden. Typischerweise ein Team, eine Abteilung
+oder ein Produktbereich. Im WAF++ Pflicht-Tag auf allen Cloud-Ressourcen.
+
+*Rightsizing*::
+Anpassung der Ressourcendimensionierung (CPU, RAM, Instanztyp, Storage-Tier) an den tatsächlichen
+Bedarf auf Basis gemessener Auslastungsdaten (P95/P99). Ziel: Eliminierung von Überprovisionierung
+ohne Verletzung von SLO-Anforderungen.
+
+*Reserved Instances (RI)*::
+Vorab-Commitment für Cloud-Ressourcen (typischerweise 1 oder 3 Jahre) im Austausch gegen Preisrabatte
+von 20–60% gegenüber On-Demand-Preisen. Geeignet für Baseline-Workloads mit >= 70% Auslastung.
+Risiko: Ungenutzte RIs verursachen trotzdem Kosten.
+
+*Savings Plans*::
+Flexiblere Alternative zu Reserved Instances (AWS): Commitment auf Ausgabenbetrag/Stunde statt
+auf spezifische Instanztypen. Ermöglicht Rightsizing ohne RI-Verlust.
+
+*Spot Instances / Preemptible VMs*::
+Günstige Cloud-Kapazität (bis zu 90% Rabatt) aus ungenutztem Provider-Pool, die jederzeit
+zurückgenommen werden kann. Geeignet für unterbrechbare Workloads (Batch, CI/CD-Jobs, Stateless-Services).
+
+*On-Demand*::
+Standardpreismodell ohne Commitment. Höchster Preis, maximale Flexibilität.
+Für variable und unvorhersehbare Workloads; nicht für Baseline-Produktion ohne RI/SP.
+
+*Egress*::
+Ausgehender Netzwerkverkehr aus einem Cloud-Kontext in das öffentliche Internet oder zu anderen
+Cloud-Providern. Wird von Cloud-Providern typischerweise pro GB abgerechnet; kann signifikante
+Kostenposition werden bei datenintensiven Workloads.
+
+*Data Gravity*::
+Phänomen, dass große Datenmengen "schwer" werden – Workloads tendieren dazu, sich in der Nähe
+der Daten zu entwickeln, weil Datentransfer teuer und langsam ist. Wichtige strategische
+Überlegung in Multi-Cloud- und Migrations-Entscheidungen.
+
+*VPC Endpoint*::
+Netzwerkverbindung, die den Zugriff auf Cloud-Dienste (S3, KMS, etc.) über das interne
+Cloud-Netzwerk ermöglicht, ohne Internet-Gateway. Eliminiert Internet-Egress-Kosten für
+Cloud-zu-Cloud-Kommunikation innerhalb desselben Providers.
+
+*CDN (Content Delivery Network)*::
+Verteiltes Netzwerk von Edge-Servern, das statische Inhalte (Bilder, CSS, JS, Videos)
+näher am Endnutzer zwischenspeichert. Reduziert Egress-Kosten vom Origin und verbessert Latenz.
+
+*Chargeback*::
+Interne Kostenumlageverfahren, bei dem Cloud-Kosten den verursachenden Teams/Projekten
+tatsächlich in Rechnung gestellt werden. Starker Anreiz für Cost-Ownership.
+
+*Showback*::
+Wie Chargeback, aber nur informativer Art – die Teams sehen ihre Kosten, werden aber nicht
+tatsächlich belastet. Erster Schritt zur Cost-Awareness-Kultur.
+
+*Lifecycle Policy*::
+Automatisierungsregel für Cloud-Storage-Ressourcen, die Objekte nach definierten Zeiträumen
+in günstigere Storage-Tiers verschiebt (z.B. S3 Standard → S3 Infrequent Access → S3 Glacier)
+oder nach Ablauf löscht. Wesentliches Werkzeug gegen Infinite-Retention-Kostenschuld.
+
+*Hot / Warm / Cold / Archive Tier*::
+Storage- und Log-Tiering-Konzept: Hot (häufiger Zugriff, höchste Kosten), Warm (seltener Zugriff),
+Cold (sehr selten, günstig), Archive (Compliance-Langzeitarchivierung, geringstes Zugriffsbedürfnis).
+Im WAF++ obligatorisches Konzept für Log-Retention (WAF-COST-070).
+
+*Lock-in-Risiko-Score*::
+Im WAF++-ADR-Prozess verwendete Bewertung (1–5) des Vendor-Lock-in-Risikos einer
+Architekturentscheidung. Score >= 4 erfordert Architecture-Board-Genehmigung.
+Score 1 = kaum Lock-in (Standard-APIs, open formats). Score 5 = starkes Lock-in (proprietäres Format,
+keine standardisierten Alternativen, hohe Exit-Kosten).
+
+*ADR (Architecture Decision Record)*::
+Versioniertes Dokument, das eine Architekturentscheidung mit Kontext, Optionen, Entscheidung
+und Konsequenzen dokumentiert. Im WAF++ enthält jedes ADR mit Infrastruktur-Impact eine
+Pflichtsektion für das Cost-Impact-Assessment (WAF-COST-050).
+
+*Cost Impact Assessment*::
+Strukturierte wirtschaftliche Bewertung einer Architekturentscheidung. Pflichtbestandteil des
+WAF++-ADR-Prozesses. Enthält: TCO-Schätzung, Lock-in-Risiko-Score, Datentransfer-Kostenschätzung,
+Betriebsaufwand (FTE), Exit-Kosten-Schätzung, 3-Jahres-NPV.
+
+*RI-Utilization*::
+Auslastungsgrad der erworbenen Reserved Instances. Unter 80% bedeutet: bezahlte Kapazität wird
+nicht genutzt – klassische Architektonische Kostenschuld aus falscher Commitment-Planung.
+
+*Compute Optimizer / Azure Advisor / GCP Recommender*::
+Automatisierte Cloud-Provider-Tools, die auf Basis von Auslastungsdaten Rightsizing-Empfehlungen
+für Compute-Ressourcen generieren. Input für monatliche FinOps-Reviews (WAF-COST-030).
+
+*FinOps Foundation*::
+Non-Profit-Organisation, die das FinOps-Framework, Zertifizierungen und Best Practices
+für Cloud-Financial-Management standardisiert. Website: https://www.finops.org
+
+*NPV (Net Present Value / Kapitalwert)*::
+Barwert-Berechnung zukünftiger Cashflows. Im Cost-Impact-Assessment der WAF++ wird ein
+3-Jahres-NPV berechnet, der die Zeitwert-Komponente von Infrastrukturkosten berücksichtigt.
+Negative NPVs ohne entsprechenden Business-Value sind Kennzeichen hoher Architektonischer Kostenschuld.

@@ -1,0 +1,240 @@
+= Best Practice: Rightsizing & Resource Optimization
+:page-toc: right
+:description: WAF++ Cost Optimization – Idle-Detection, Rightsizing-Regeln, Reservierungsoptimierung und Automatisierung.
+
+== Kontext
+
+Überprovisionierung ist die häufigste und oft größte Quelle von Cloud-Verschwendung.
+Instanzen, die für „zukünftiges Wachstum" oder „um sicher zu sein" überdimensioniert wurden,
+zahlen jeden Monat den Preis dieser Entscheidung – oft über Jahre ohne Review.
+
+Gleichzeitig ist schlechtes Rightsizing selten böse Absicht: Sizing-Entscheidungen werden
+früh im Designprozess getroffen, wenn Nutzungsdaten fehlen. Ohne strukturierten Review-Zyklus
+ändert sich daran nichts.
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-COST-030[WAF-COST-030] – Resource Rightsizing & Idle Detection
+* xref:../controls.adoc#WAF-COST-080[WAF-COST-080] – Commitment & Reserved Capacity Planning
+
+== Zielbild
+
+* Alle Compute-Ressourcen mit `rightsizing-reviewed`-Tag (< 90 Tage alt)
+* Idle-Detection konfiguriert: Ressourcen < 5% CPU über 7 Tage werden automatisch identifiziert
+* Baseline-Workloads (>= 70% Auslastung über 30 Tage) durch Reservierungen abgedeckt
+* Variable Workloads auf Spot/Preemptible-Instances
+
+== Rightsizing-Tags einführen
+
+[source,hcl]
+----
+# Compliant: Rightsizing-Tag mit Datum vorhanden
+resource "aws_instance" "app_server" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+
+  tags = merge(module.mandatory_tags.tags, {
+    rightsizing-reviewed  = "2025-03-01"
+    rightsizing-result    = "no-change"  # no-change | downsize | upsize | pending
+    capacity-commitment   = "on-demand"  # on-demand | reserved | spot
+  })
+}
+
+# Non-Compliant: Kein Rightsizing-Tag
+resource "aws_instance" "app_server" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags = {
+    Name = "app-server"
+    # Fehlend: rightsizing-reviewed – WAF-COST-030 Violation
+  }
+}
+----
+
+== Idle-Detection konfigurieren
+
+=== AWS: CloudWatch Alarm für Idle Instances
+
+[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "idle_instance" {
+  for_each = toset(var.monitored_instance_ids)
+
+  alarm_name          = "idle-instance-${each.value}"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 7    # 7 Datenpunkte
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 86400  # 1 Tag in Sekunden
+  statistic           = "Average"
+  threshold           = 5      # < 5% CPU = idle
+  alarm_description   = "Instance ${each.value} appears idle. Review for shutdown/rightsizing."
+
+  dimensions = {
+    InstanceId = each.value
+  }
+
+  alarm_actions = [aws_sns_topic.finops_alerts.arn]
+}
+
+resource "aws_sns_topic" "finops_alerts" {
+  name = "finops-rightsizing-alerts"
+}
+
+resource "aws_sns_topic_subscription" "finops_email" {
+  topic_arn = aws_sns_topic.finops_alerts.arn
+  protocol  = "email"
+  endpoint  = var.finops_team_email
+}
+----
+
+=== Automated Idle-Discovery Script
+
+[source,bash]
+----
+#!/bin/bash
+# scripts/idle-discovery.sh
+
+echo "=== Idle EC2 Instances (< 5% CPU, 7 days) ==="
+
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/EC2 \
+  --metric-name CPUUtilization \
+  --statistics Average \
+  --start-time $(date -d '7 days ago' --iso-8601=seconds) \
+  --end-time $(date --iso-8601=seconds) \
+  --period 604800 \
+  --dimensions Name=InstanceId,Value="$1" \
+  --query 'Datapoints[0].Average'
+
+# Alle Instanzen mit < 5% CPU-Auslastung über 7 Tage finden
+aws ec2 describe-instances \
+  --query 'Reservations[].Instances[?State.Name==`running`].InstanceId' \
+  --output text | tr '\t' '\n' | while read INSTANCE_ID; do
+
+  AVG_CPU=$(aws cloudwatch get-metric-statistics \
+    --namespace AWS/EC2 \
+    --metric-name CPUUtilization \
+    --statistics Average \
+    --start-time $(date -d '7 days ago' --iso-8601=seconds) \
+    --end-time $(date --iso-8601=seconds) \
+    --period 604800 \
+    --dimensions Name=InstanceId,Value="$INSTANCE_ID" \
+    --query 'Datapoints[0].Average' \
+    --output text 2>/dev/null)
+
+  if (( $(echo "$AVG_CPU < 5" | bc -l) )); then
+    echo "IDLE: $INSTANCE_ID (CPU: ${AVG_CPU}%)"
+  fi
+done
+----
+
+== Rightsizing-Regeln
+
+[cols="1,3,2"]
+|===
+|Situation |Empfehlung |Vorgehen
+
+|*CPU-Auslastung P95 < 20%*
+|Downsize um 1 Instanzfamilienstufe prüfen
+|Teste kleinere Instanz in Staging; messe P95 neu
+
+|*CPU-Auslastung P95 > 80%*
+|Upsize prüfen oder Auto-Scaling einführen
+|Auslastungsmuster analysieren: konstant oder Spitzen?
+
+|*Idle (< 5% CPU, 7 Tage)*
+|Herunterfahren oder in Non-Prod-Pause-Policy aufnehmen
+|Owner kontaktieren; Shutdown binnen 14 Tagen
+
+|*Speicher-Auslastung < 30%*
+|Memory-optimierte Instanz durch Standard ersetzen
+|Nur sinnvoll wenn kein Memory-Caching-Workload
+
+|*Dev/Test läuft 24/7*
+|Auto-Shutdown außerhalb Arbeitszeiten
+|Schedule: Mo–Fr 8–20 Uhr; Rest aus
+
+|===
+
+== Auto-Shutdown für Non-Production
+
+[source,hcl]
+----
+# Non-Production Auto-Shutdown mit AWS Instance Scheduler
+resource "aws_cloudwatch_event_rule" "stop_dev_instances" {
+  name                = "stop-dev-instances-evening"
+  description         = "Stop development instances outside business hours"
+  schedule_expression = "cron(0 20 ? * MON-FRI *)"  # 20 Uhr Mo-Fr
+}
+
+resource "aws_cloudwatch_event_rule" "start_dev_instances" {
+  name                = "start-dev-instances-morning"
+  description         = "Start development instances at beginning of business hours"
+  schedule_expression = "cron(0 8 ? * MON-FRI *)"  # 8 Uhr Mo-Fr
+}
+
+resource "aws_cloudwatch_event_target" "stop_dev" {
+  rule = aws_cloudwatch_event_rule.stop_dev_instances.name
+  arn  = "arn:aws:ssm:${var.region}::automation-definition/AWS-StopEC2Instance"
+  role_arn = aws_iam_role.scheduler.arn
+
+  input = jsonencode({
+    InstanceId = [for id in aws_instance.dev[*].id : id]
+    AutomationAssumeRole = [aws_iam_role.scheduler.arn]
+  })
+}
+----
+
+== Reservierungsoptimierung
+
+=== Wann reservieren?
+
+Faustregel: Ressourcen mit >= 70% Auslastung über 30 Tage sind Reservierungskandidaten.
+
+[source,hcl]
+----
+# Tag für Commitment-Tracking
+resource "aws_instance" "baseline_app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "c5.2xlarge"
+
+  tags = merge(module.mandatory_tags.tags, {
+    rightsizing-reviewed = "2025-03-01"
+    capacity-commitment  = "reserved"        # Status: reserved
+    commitment-type      = "1yr-no-upfront"  # Dokumentiere den Reservierungstyp
+    commitment-expiry    = "2026-03-01"      # Ablaufdatum der Reservierung
+  })
+}
+----
+
+=== Savings Plans vs. Reserved Instances
+
+[cols="1,2,2"]
+|===
+|Kriterium |Reserved Instances |Savings Plans
+
+|*Flexibilität*
+|Gebunden an Instanztyp/Region
+|Gebunden an Ausgabenbetrag/Stunde (flexibler)
+
+|*Rabatt*
+|Bis zu 60% (No-Upfront 3yr)
+|Bis zu 66% (Compute Savings Plan)
+
+|*Risiko bei Rightsizing*
+|Ungenutzte RIs kosten trotzdem
+|Savings Plans gelten für jeden Compute-Typ
+
+|*Empfehlung*
+|Für sehr stabile Workloads mit bekanntem Instanztyp
+|Für Workloads mit variablem Instanztyp oder Rightsizing-Aktivität
+
+|===
+
+== Metriken
+
+* Idle-Instance-Rate: % der Instanzen mit < 5% CPU über 7 Tage (Ziel: < 3%)
+* Rightsizing-Coverage: % der Instanzen mit `rightsizing-reviewed`-Tag < 90 Tage (Ziel: >= 80%)
+* RI-Utilization: Auslastungsgrad der Reservierungen (Ziel: >= 80%)
+* Ø Instanz-Auslastung P95: Über alle Compute-Ressourcen (Richtwert: 40–70%)

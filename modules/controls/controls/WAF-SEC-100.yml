@@ -1,0 +1,240 @@
+id: WAF-SEC-100
+title: "Incident Response Readiness"
+pillar: "security"
+status: "active"
+severity: "medium"
+category: "incident-response"
+type: ['governance', 'process']
+tags: ['incident-response', 'forensics', 'runbook', 'alerting', 'sns', 'playbook']
+
+description: >
+  An incident response (IR) plan MUST exist, be documented, version-controlled, and
+  tested at least annually via tabletop exercises or simulated incident drills. SNS topics
+  or equivalent alerting channels MUST be configured to receive security findings from
+  GuardDuty, Security Hub, and CloudTrail metric alarms. Security-relevant CloudWatch log
+  groups MUST retain logs for a minimum of 365 days. S3-based CloudTrail and VPC Flow Log
+  archives MUST be retained for at least 12 months. The incident response plan MUST define
+  roles and responsibilities, escalation paths, communication templates, and steps for
+  evidence preservation, containment, eradication, and recovery.
+
+rationale: >
+  Security incidents are inevitable; the difference between a manageable incident and a
+  catastrophic breach lies in preparation and response speed. An untested IR plan is as
+  dangerous as no plan—processes that look good on paper often fail in practice. Without
+  pre-configured alerting infrastructure (SNS topics, on-call routes, runbooks), responders
+  lose critical minutes to setup tasks during an active incident. Insufficient log retention
+  prevents forensic investigation that determines the scope of a breach and satisfies GDPR
+  Art. 33 breach notification requirements. Regulators expect evidence that IR procedures
+  exist, are tested, and are effective.
+
+threat:
+  - "Extended attacker dwell time due to delayed detection and no pre-defined response playbooks"
+  - "Loss of forensic evidence due to insufficient log retention preventing breach scope determination"
+  - "Failed GDPR breach notification within the 72-hour regulatory window due to unclear IR ownership"
+  - "Uncoordinated response leading to evidence destruction, extended downtime, and reputational damage"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 33 – Notification of a personal data breach to the supervisory authority within 72 hours"
+      - "Art. 34 – Communication of a personal data breach to the data subject"
+  - framework: "BSI C5:2020"
+    controls:
+      - "SIM-01 – Security incident management"
+      - "SIM-02 – Security information and event management"
+      - "BCM-02 – Business continuity and disaster recovery"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.5.26 – Response to information security incidents"
+      - "A.5.27 – Learning from information security incidents"
+      - "A.5.28 – Collection of evidence"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "LOG-01 – Audit logging and retention"
+      - "BCR-01 – Business continuity requirements"
+  - framework: "SOC 2"
+    controls:
+      - "CC7.4 – Detection and monitoring of security events"
+      - "CC7.5 – Response to identified security incidents"
+
+implementation_guidance:
+  - "Document the incident response plan with clearly defined phases: Preparation, Detection & Analysis, Containment, Eradication, Recovery, Post-Incident Activity."
+  - "Define explicit RACI for each IR phase: who declares an incident, who leads technical response, who handles external communication (customers, regulators, DPA)."
+  - "Create and maintain runbooks (playbooks) for the top 10 most likely incident types: credential compromise, data exfiltration, ransomware, cryptomining, insider threat, DDoS, supply chain compromise."
+  - "Configure SNS topics with subscriptions to on-call systems (PagerDuty, OpsGenie) for GuardDuty HIGH/CRITICAL findings and Security Hub CRITICAL controls."
+  - "Set CloudWatch Log Group retention to a minimum of 365 days for all security-relevant log groups; configure S3 lifecycle policies to retain CloudTrail and VPC Flow Logs for 12 months in standard storage and 7 years in Glacier for regulated industries."
+  - "Pre-provision forensic EC2 instances or use AWS Detective to accelerate forensic investigation; maintain snapshots of known-good AMIs for rapid reimaging."
+  - "Conduct tabletop exercises at least annually and after any major infrastructure change; document results, lessons learned, and action items."
+
+maturity_levels:
+  level_1:
+    description: "No formal IR plan; response is ad-hoc and reactive"
+    criteria:
+      - "No documented incident response procedures; response relies on individual knowledge"
+      - "No pre-configured alerting channels; alerts discovered manually or by users"
+  level_2:
+    description: "IR plan documented; basic alerting configured"
+    criteria:
+      - "Incident response plan exists and is version-controlled"
+      - "SNS topics configured for critical GuardDuty and Security Hub findings"
+      - "CloudWatch Log Group retention set to at least 90 days"
+  level_3:
+    description: "IR plan tested; runbooks for top incident types; 365-day log retention"
+    criteria:
+      - "IR plan tested via tabletop exercise at least annually"
+      - "Runbooks exist for at least 5 high-probability incident types"
+      - "Log retention at 365 days for all security-relevant log groups"
+  level_4:
+    description: "Automated response playbooks; defined GDPR breach notification workflow"
+    criteria:
+      - "Automated response actions triggered for at least 3 incident types (isolate, snapshot, revoke)"
+      - "GDPR breach notification workflow documented with DPA contact and 72-hour SLA"
+      - "Post-incident reviews conducted and findings tracked to closure"
+  level_5:
+    description: "Continuous IR improvement with metrics, simulations, and automated forensics"
+    criteria:
+      - "Regular red team exercises (at least annually) with formal lessons-learned integration"
+      - "MTTD and MTTR tracked per incident type with continuous improvement targets"
+      - "Automated forensic evidence collection triggered on incident declaration"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Incident response plan document (version-controlled, covering all IR phases, roles, escalation paths, and GDPR notification workflow)."
+    - kind: "iac"
+      description: "Terraform configuration showing SNS topics for security alerts and CloudWatch log group resources with retention_in_days >= 365."
+  optional:
+    - kind: "process"
+      description: "Most recent tabletop exercise or IR drill report with participants, scenarios, findings, and action items."
+    - kind: "config"
+      description: "GuardDuty and Security Hub EventBridge rule configuration routing HIGH/CRITICAL findings to SNS topics."
+
+checks:
+  - id: "waf-sec-100.tf.aws.sns-security-alerts"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "SNS topic for security alerts must be provisioned"
+    description: >
+      An aws_sns_topic resource for security alerting must exist in the account.
+      This topic should be subscribed to GuardDuty and Security Hub EventBridge rules,
+      and must have at least one active subscription routing to an on-call system.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_sns_topic"
+    assertions:
+      - attribute: "name"
+        op: "attribute_exists"
+        message: "An SNS topic for security alerts must be provisioned with a defined name."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_sns_topic resource named 'security-alerts' or similar.
+      Add subscriptions (aws_sns_topic_subscription) pointing to PagerDuty, OpsGenie,
+      or a Slack webhook endpoint. Configure EventBridge rules targeting this topic
+      for GuardDuty findings with severity >= 7 and Security Hub CRITICAL findings.
+    example:
+      compliant: |
+        resource "aws_sns_topic" "security_alerts" {
+          name              = "security-alerts"
+          kms_master_key_id = aws_kms_key.sns.id
+          tags = {
+            owner       = "security-team"
+            environment = "production"
+          }
+        }
+        resource "aws_sns_topic_subscription" "pagerduty" {
+          topic_arn = aws_sns_topic.security_alerts.arn
+          protocol  = "https"
+          endpoint  = var.pagerduty_endpoint
+        }
+      non_compliant: |
+        # No aws_sns_topic resource for security alerts present
+        # WAF-SEC-100 violation: security alerting channel not provisioned in IaC
+
+  - id: "waf-sec-100.tf.aws.cloudwatch-log-retention-security"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Security-relevant CloudWatch log groups must retain logs for at least 365 days"
+    description: >
+      CloudWatch log groups used for security-relevant data (application logs, VPC flow logs
+      ingested into CloudWatch, Lambda security function logs) must have retention_in_days
+      set to at least 365 to satisfy forensic and regulatory retention requirements.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        expected: 365
+        message: "Security-relevant log groups MUST retain logs for at least 365 days to support forensic investigation and regulatory compliance."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days = 365 (or higher) on all security-relevant aws_cloudwatch_log_group
+      resources. For CloudTrail and VPC Flow Logs with higher volume, consider using S3-based
+      retention with lifecycle policies (Standard for 12 months, Glacier for 7 years)
+      rather than CloudWatch to optimize cost.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "app_security" {
+          name              = "/security/application-events"
+          retention_in_days = 365
+          kms_key_id        = aws_kms_key.logs.arn
+          tags = {
+            owner       = "security-team"
+            data-class  = "operational"
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "app_security" {
+          name              = "/security/application-events"
+          retention_in_days = 30  # WAF-SEC-100 violation: below 365-day minimum
+        }
+
+  - id: "waf-sec-100.manual.incident-response-plan"
+    engine: "manual"
+    provider: "any"
+    automated: false
+    severity: "medium"
+    title: "Incident response plan must exist, be version-controlled, and tested annually"
+    description: >
+      A formal incident response plan must be documented, stored in version control, and
+      tested via tabletop exercise or live drill at least once per year. The plan must
+      cover roles, escalation paths, GDPR breach notification workflow, and playbooks for
+      the top incident types relevant to the workload.
+    scope:
+      block_type: "terraform"
+    assertions:
+      - attribute: "ir_plan_version_controlled"
+        op: "is_true"
+        message: "Incident response plan must be stored in version control (e.g., Git repository under /docs/security/ir-plan.md)."
+    on_fail: "violation"
+    remediation: >
+      1. Draft an incident response plan covering: Preparation, Detection & Analysis,
+         Containment, Eradication, Recovery, and Post-Incident Review phases.
+      2. Define RACI matrix for each phase including external communication and
+         GDPR DPA notification responsibility.
+      3. Create runbooks for top 5-10 incident types (credential compromise, data exfiltration,
+         ransomware, privilege escalation, supply chain attack).
+      4. Store the IR plan in a version-controlled repository with mandatory review.
+      5. Schedule annual tabletop exercise; document results and track action items.
+    example:
+      compliant: |
+        # IR plan stored at: docs/security/incident-response-plan.md (version-controlled)
+        # Last tested: 2025-11-15 via tabletop exercise (ref: IR-DRILL-2025-001)
+        # Runbooks available at: docs/security/runbooks/
+        # GDPR DPA notification workflow: docs/security/gdpr-breach-notification.md
+      non_compliant: |
+        # No incident response plan exists in the repository.
+        # WAF-SEC-100 violation: IR plan is a mandatory governance artifact.
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-100"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-incident-response.adoc"
+  related_controls:
+    - "WAF-SEC-080"
+    - "WAF-SOV-070"

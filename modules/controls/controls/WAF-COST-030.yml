@@ -1,0 +1,195 @@
+id: WAF-COST-030
+title: "Resource Rightsizing & Idle Detection"
+pillar: "cost"
+status: "active"
+severity: "medium"
+category: "resource-optimization"
+type: ['configuration', 'monitoring', 'governance']
+tags: ['rightsizing', 'idle-detection', 'compute-optimization', 'cost-optimization', 'waste-reduction']
+
+description: >
+  All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups)
+  MUST carry a 'rightsizing-reviewed' tag with the date of the last review (ISO 8601, YYYY-MM-DD).
+  Reviews must be performed at least every 90 days. Resources tagged with a review date older
+  than 90 days are considered non-compliant. Idle detection must be configured for all compute
+  workloads (CPU utilization < 5% over 7 days triggers an alert).
+
+rationale: >
+  Overprovisioning is the most common form of cloud waste. Instances sized for hypothetical
+  peak loads or "to be safe" pay a perpetual premium for unused capacity. Without a structured
+  review cycle, sizing decisions made at launch remain unchanged for years. The rightsizing-reviewed
+  tag creates a lightweight audit trail proving that resources are actively managed rather than
+  forgotten. Cloud provider tools (Compute Optimizer, Azure Advisor, GCP Recommender) generate
+  actionable recommendations but only have impact when integrated into a review process.
+
+threat:
+  - "Persistent idle compute resources consuming budget without delivering business value"
+  - "Oversized baseline instances paying for 3x required capacity without SLO justification"
+  - "Dev/Test environments running 24/7 without auto-shutdown policies"
+  - "Architecture cost debt: HA/multi-AZ deployments without SLO basis accumulate monthly"
+  - "Reserved instances purchased for workloads that have since been rightsized or decommissioned"
+
+regulatory_mapping:
+  - framework: "FinOps Foundation"
+    controls:
+      - "Optimize Phase – Rightsizing and Resource Optimization"
+      - "Operate Phase – Continuous Resource Review"
+  - framework: "Internal Governance"
+    controls:
+      - "Cloud Cost Governance Policy – Resource Efficiency"
+      - "Engineering Excellence – No Persistent Waste"
+
+implementation_guidance:
+  - "Add 'rightsizing-reviewed' tag to all compute resources at provisioning time with current date."
+  - "Set up CloudWatch Alarms (or Azure Monitor / GCP Alerting) for CPU < 5% over 7 days."
+  - "Integrate AWS Compute Optimizer, Azure Advisor, or GCP Recommender recommendations into monthly FinOps reviews."
+  - "Implement auto-shutdown for non-production environments during off-hours (e.g., evenings and weekends)."
+  - "For resources using Spot/Preemptible: tag with capacity-commitment = spot; exclude from on-demand rightsizing rules."
+  - "Document rightsizing decisions: tag 'rightsizing-result' with no-change|downsize|upsize and date."
+
+maturity_levels:
+  level_1:
+    description: "No rightsizing oversight"
+    criteria:
+      - "Compute resources sized at launch and never reviewed"
+      - "No idle detection configured"
+  level_2:
+    description: "Manual ad-hoc reviews"
+    criteria:
+      - "Rightsizing reviews happen informally when costs spike"
+      - "Some idle resources identified and addressed manually"
+  level_3:
+    description: "Rightsizing tags mandatory and review cycle defined"
+    criteria:
+      - "'rightsizing-reviewed' tag is mandatory on all compute resources (CI gate)"
+      - "Monthly FinOps review incorporates cloud provider rightsizing recommendations"
+      - "Idle detection alerts configured for all compute workloads"
+      - "Non-production auto-shutdown policy in place"
+  level_4:
+    description: "Automated recommendations actively managed"
+    criteria:
+      - "Compute Optimizer / Azure Advisor recommendations are acted upon each sprint cycle"
+      - "Decisions to accept or reject recommendations are documented in FinOps review records"
+      - "RI/SP coverage >= 70% for baseline workloads"
+  level_5:
+    description: "Auto-rightsizing with guardrails"
+    criteria:
+      - "Automated rightsizing actions within defined guardrails (CPU/memory headroom rules)"
+      - "ML-driven commitment optimization for Reserved Instances and Savings Plans"
+      - "Idle resource auto-termination policy with owner notification"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform compute resources with 'rightsizing-reviewed' tag set at provisioning."
+    - kind: "config"
+      description: "Idle detection alert configuration (CloudWatch Alarms, Azure Monitor Alerts, GCP Alerting Policies)."
+  optional:
+    - kind: "process"
+      description: "FinOps review records showing rightsizing recommendations and decisions (accepted/rejected with rationale)."
+    - kind: "config"
+      description: "Non-production auto-shutdown schedule configuration."
+
+checks:
+  - id: "waf-cost-030.tf.aws.ec2-rightsizing-tag-required"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "EC2 instances must have 'rightsizing-reviewed' tag"
+    description: >
+      All EC2 instances must carry a 'rightsizing-reviewed' tag with the date (YYYY-MM-DD)
+      of the last rightsizing review. This tag proves active resource management and enables
+      automated detection of resources that have not been reviewed within 90 days.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "rightsizing-reviewed"
+        message: "EC2 instance is missing the 'rightsizing-reviewed' tag. All compute resources must be actively reviewed."
+    on_fail: "violation"
+    remediation: >
+      Add 'rightsizing-reviewed' tag to all EC2 instances and launch templates.
+      Value format: YYYY-MM-DD (ISO 8601 date of last review).
+      Example: rightsizing-reviewed = "2025-03-01"
+      Schedule the next review within 90 days.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t3.medium"
+          tags = merge(module.mandatory_tags.tags, {
+            rightsizing-reviewed = "2025-03-01"
+            rightsizing-result   = "no-change"
+            capacity-commitment  = "on-demand"
+          })
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t3.medium"
+          tags = {
+            cost-center = "fintech-platform"
+            owner       = "payments-team"
+            environment = "production"
+            workload    = "payment-service"
+            # Missing: rightsizing-reviewed – WAF-COST-030 violation
+          }
+        }
+
+  - id: "waf-cost-030.tf.azurerm.vm-rightsizing-tag"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure VMs must have 'rightsizing-reviewed' tag"
+    description: >
+      All Azure Virtual Machines must carry a 'rightsizing-reviewed' tag with the ISO 8601
+      date of the last rightsizing review, proving active management of compute costs.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_virtual_machine"
+        - "azurerm_linux_virtual_machine"
+        - "azurerm_windows_virtual_machine"
+        - "azurerm_kubernetes_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "rightsizing-reviewed"
+        message: "Azure VM is missing 'rightsizing-reviewed' tag."
+    on_fail: "violation"
+    remediation: >
+      Add 'rightsizing-reviewed' tag to all Azure compute resources.
+      Use Azure Advisor recommendations to inform the rightsizing review.
+    example:
+      compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-payment-app-prod"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = var.location
+          size                = "Standard_D2s_v3"
+          tags = merge(local.mandatory_tags, {
+            "rightsizing-reviewed" = "2025-03-01"
+            "rightsizing-result"   = "no-change"
+          })
+        }
+      non_compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-payment-app-prod"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = var.location
+          size                = "Standard_D8s_v3"  # May be oversized; no review proof
+          # Missing: rightsizing-reviewed tag
+        }
+
+references:
+  narrative: "modules/pillar-cost/pages/controls.adoc#WAF-COST-030"
+  best_practice: "modules/pillar-cost/pages/best-practices/bp-rightsizing.adoc"
+  related_controls:
+    - "WAF-COST-080"
+    - "WAF-COST-060"

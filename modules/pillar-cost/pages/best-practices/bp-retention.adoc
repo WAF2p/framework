@@ -1,0 +1,372 @@
+= Best Practice: Retention Strategy
+:page-toc: right
+:description: WAF++ Cost Optimization – Storage-Lifecycle-Policies, Log-Retention-Tiering und Infinite-Retention als Kostenschuld behandeln.
+
+== Kontext
+
+„Aufheben kostet ja kaum etwas" – dieser Satz ist der häufigste Auslöser von Infinite-Retention-Kostenschuld.
+Storage ist pro GB günstiger als Compute. Aber Storage-Kosten wachsen linear und unbegrenzt,
+während Compute-Kosten durch Rightsizing und Abschaltung kontrollierbar sind.
+
+Ohne Lifecycle-Policies akkumulieren sich S3-Buckets, Log-Groups und Snapshots über Jahre
+und werden zur unsichtbaren, aber signifikanten Kostenlast.
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-COST-040[WAF-COST-040] – Storage & Retention Lifecycle Defined
+* xref:../controls.adoc#WAF-COST-070[WAF-COST-070] – Observability & Logging Cost Tiers
+
+== Zielbild
+
+* Kein S3-Bucket, keine Log-Group, kein Azure Storage, kein GCS-Bucket ohne Lifecycle-Policy
+* Log-Tiering: Hot (7–30d), Warm (30–90d), Cold (90–365d), Archive (>365d)
+* Kein DEBUG-Level-Logging in Produktion ohne explizite Justification
+* Retention-Strategie dokumentiert und versioniert
+
+== Log-Retention-Tiering
+
+=== Das 4-Tier-Modell
+
+[cols="1,2,2,2"]
+|===
+|Tier |Retention |Typ |Kosten
+
+|*Hot*
+|0–30 Tage
+|Operational Logs (Errors, Warnings, App-Logs)
+|Höchste Kosten/GB – minimale Menge
+
+|*Warm*
+|30–90 Tage
+|Security-Logs, Audit-Trails, Access-Logs
+|Mittlere Kosten – Compliance-relevante Daten
+
+|*Cold*
+|90–365 Tage
+|Regulatory-Logs, Finanzlogs, DSGVO-relevante Logs
+|Günstig – selten abgefragt
+
+|*Archive*
+|> 365 Tage
+|Legal Hold, Langzeit-Compliance
+|Sehr günstig – Glacier/Cool/Coldline
+
+|===
+
+=== CloudWatch Logs Retention konfigurieren
+
+[source,hcl]
+----
+# Compliant: Retention explizit gesetzt (30 Tage = Hot-Tier)
+resource "aws_cloudwatch_log_group" "application" {
+  name              = "/app/${var.environment}/application"
+  retention_in_days = 30  # Hot-Tier: Operational Logs
+  kms_key_id        = aws_kms_key.logging.arn
+
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "hot"
+    log-type = "operational"
+  })
+}
+
+resource "aws_cloudwatch_log_group" "audit" {
+  name              = "/app/${var.environment}/audit"
+  retention_in_days = 365  # Cold/Archive: Audit-Logs (regulatorisch)
+  kms_key_id        = aws_kms_key.logging.arn
+
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "cold"
+    log-type = "audit"
+  })
+}
+
+# Non-Compliant: Keine Retention gesetzt (= unbegrenzt)
+resource "aws_cloudwatch_log_group" "application" {
+  name = "/app/production/application"
+  # retention_in_days nicht gesetzt = 0 = unbegrenzt
+  # WAF-COST-040 und WAF-COST-070 Violation
+}
+----
+
+== S3 Lifecycle-Policies
+
+=== Standard-Lifecycle für Daten-Buckets
+
+[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "data_lifecycle" {
+  bucket = aws_s3_bucket.application_data.id
+
+  rule {
+    id     = "transition-to-ia"
+    status = "Enabled"
+
+    filter {
+      prefix = "data/"
+    }
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"  # Nach 30 Tagen → Infrequent Access
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"   # Nach 90 Tagen → Glacier Instant Retrieval
+    }
+
+    transition {
+      days          = 365
+      storage_class = "DEEP_ARCHIVE"  # Nach 1 Jahr → Glacier Deep Archive
+    }
+  }
+
+  rule {
+    id     = "delete-temp-files"
+    status = "Enabled"
+
+    filter {
+      prefix = "tmp/"
+    }
+
+    expiration {
+      days = 7  # Temporäre Dateien nach 7 Tagen löschen
+    }
+  }
+
+  rule {
+    id     = "delete-old-versions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30  # Alte Versionen nach 30 Tagen löschen
+    }
+
+    noncurrent_version_transition {
+      noncurrent_days = 7
+      storage_class   = "GLACIER_IR"
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 3  # Unvollständige Uploads nach 3 Tagen bereinigen
+    }
+  }
+}
+
+# Non-Compliant: Kein Lifecycle definiert
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-application-data"
+  # Kein lifecycle_configuration – WAF-COST-040 Violation
+}
+----
+
+=== Lifecycle für Log-Buckets
+
+[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "logs_lifecycle" {
+  bucket = aws_s3_bucket.application_logs.id
+
+  rule {
+    id     = "log-tiering"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+
+    expiration {
+      days = 365  # Operational Logs nach 1 Jahr löschen (je nach Compliance-Anforderung anpassen)
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}
+----
+
+== Azure Storage Lifecycle
+
+[source,hcl]
+----
+resource "azurerm_storage_management_policy" "lifecycle" {
+  storage_account_id = azurerm_storage_account.main.id
+
+  rule {
+    name    = "tiering-rule"
+    enabled = true
+
+    filters {
+      blob_types   = ["blockBlob"]
+      prefix_match = ["data/"]
+    }
+
+    actions {
+      base_blob {
+        tier_to_cool_after_days_since_modification_greater_than    = 30
+        tier_to_archive_after_days_since_modification_greater_than = 90
+        delete_after_days_since_modification_greater_than          = 365
+      }
+      snapshot {
+        delete_after_days_since_creation_greater_than = 30
+      }
+    }
+  }
+}
+----
+
+== GCP Cloud Storage Lifecycle
+
+[source,hcl]
+----
+resource "google_storage_bucket" "data" {
+  name          = "acme-data-${var.environment}"
+  location      = var.gcp_region
+  force_destroy = false
+
+  lifecycle_rule {
+    condition {
+      age = 30
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "COLDLINE"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 365
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "ARCHIVE"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age                   = 30
+      with_state            = "ARCHIVED"
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+----
+
+== Snapshot-Management
+
+[source,hcl]
+----
+# AWS: Automatisiertes EBS-Snapshot-Management mit AWS Backup
+resource "aws_backup_plan" "main" {
+  name = "main-backup-plan"
+
+  rule {
+    rule_name         = "daily-backup"
+    target_vault_name = aws_backup_vault.main.name
+    schedule          = "cron(0 2 * * ? *)"  # Täglich 2 Uhr
+
+    lifecycle {
+      cold_storage_after = 30   # Nach 30 Tagen → Cold Storage
+      delete_after       = 90   # Nach 90 Tagen → Löschen
+    }
+  }
+
+  rule {
+    rule_name         = "weekly-backup"
+    target_vault_name = aws_backup_vault.main.name
+    schedule          = "cron(0 2 ? * SUN *)"  # Sonntags
+
+    lifecycle {
+      cold_storage_after = 60
+      delete_after       = 365
+    }
+  }
+}
+----
+
+== Retention-Strategie-Dokument
+
+[source,yaml]
+----
+# docs/retention-strategy.yml
+version: "1.0"
+effective_date: "2025-01-01"
+
+log_retention:
+  operational_logs:
+    description: "Application logs (INFO, WARN, ERROR)"
+    hot_tier_days: 30
+    archive_after_days: null  # Kein Archiv – nach Hot-Tier löschen
+    regulatory_basis: "Operational requirement only"
+
+  security_audit_logs:
+    description: "CloudTrail, Security Group Changes, IAM Events"
+    hot_tier_days: 90
+    cold_tier_days: 365
+    archive_after_days: 2555  # 7 Jahre – BSI C5 Anforderung
+    regulatory_basis: "BSI C5, ISO 27001"
+
+  application_access_logs:
+    description: "HTTP Access Logs, API Gateway Logs"
+    hot_tier_days: 30
+    cold_tier_days: 365
+    archive_after_days: null
+    regulatory_basis: "Internal policy"
+
+storage_retention:
+  customer_data:
+    description: "Kundendaten (personenbezogen)"
+    deletion_policy: "On account deletion + 30 days"
+    regulatory_basis: "DSGVO Art. 17"
+
+  backups:
+    daily: 7
+    weekly: 4
+    monthly: 12
+    regulatory_basis: "Business continuity requirement"
+----
+
+== Typische Fehlmuster
+
+* *retention_in_days = 0* in CloudWatch: Bedeutet unbegrenzt, nicht „kein Log"
+* *Buckets ohne Lifecycle vergessen*: Besonders in alten Accounts
+* *Snapshots ohne Ablaufdatum*: Wachsen unbemerkt auf TB-Niveau
+* *Compliance als Freifahrtschein*: „Wir müssen alles aufheben" – meist stimmt das so pauschal nicht
+
+== Metriken
+
+* Storage-Wachstumsrate: % Monat-über-Monat (Ziel: < 5% ohne neue Workloads)
+* Log-Gruppen ohne Retention: Anzahl (Ziel: 0)
+* S3-Buckets ohne Lifecycle-Policy: Anzahl (Ziel: 0)
+* Observability-Kostenanteil: % des Gesamt-Cloud-Budgets (Ziel: < 20%)

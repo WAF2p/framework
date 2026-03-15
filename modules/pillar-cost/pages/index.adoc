@@ -1,29 +1,156 @@
-= Säule 2 - Cost Optimization
+= Cost Optimization (Säule: Cost)
+:page-navtitle: Cost Optimization
+:page-toc: right
+:description: WAF++ Säule Cost Optimization – Wirtschaftliche Steuerung von Cloud-Kosten als eigenständige Architekturdisziplin mit Transparenz, Ownership und FinOps-Integration.
 
-== Worum geht es?
+Die Säule *Cost Optimization* des WAF++ definiert Anforderungen, Prinzipien und messbare Controls,
+um Cloud-Kosten transparent, zuordenbar und kontinuierlich optimiert zu betreiben.
 
-Cost Optimization im WAF++ bedeutet, die Kosten für Infrastruktur, Anwendungen und Services effizient zu steuern, ohne die Qualität oder Sicherheit zu gefährden. Ziel ist es, Transparenz zu schaffen, unnötige Ausgaben zu vermeiden und Investitionen so zu lenken, dass sie den größten Mehrwert bringen.
+Kosten sind keine Nebenerscheinung der Architektur.
+Sie sind ein *Architekturergebnis*, das aktiv gesteuert werden muss – nicht post-facto beobachtet.
 
-== Was wird gemacht?
+== Was bedeutet Cost Optimization im WAF++?
 
-* *Kostenanalyse & Monitoring:* Nutzung von Tools zur Kostenüberwachung und -prognose.
-* *Ressourcenoptimierung:* Abschalten ungenutzter Ressourcen, Rightsizing von Instanzen.
-* *Automatisierung:* Skalierung nach Bedarf, um Überprovisionierung zu vermeiden.
-* *Budgetierung & Forecasting:* Planung und Kontrolle von Budgets für Projekte und Teams.
-* *Nutzung von Reservierungen & Rabatten:* Einsatz von Reserved Instances, Spot-Instanzen und Lizenzoptimierung.
+Cost Optimization bedeutet, dass eine Organisation *nachweisbare Kontrolle* über folgende Dimensionen hat:
 
-== Was ist zu beachten?
+[cols="1,3,2"]
+|===
+|Dimension |Was wird kontrolliert? |WAF-COST Control
 
-* *Transparenz:* Klare Zuordnung von Kosten zu Projekten und Verantwortlichkeiten.
-* *Governance:* Richtlinien für Ausgaben und Genehmigungsprozesse.
-* *Trade-offs:* Kostenoptimierung darf nicht zu Lasten von Performance oder Sicherheit gehen.
-* *Regelmäßige Reviews:* Kostenstrukturen müssen kontinuierlich überprüft und angepasst werden.
+|*Cost Allocation*
+|Sind alle Kosten eindeutig Workloads, Teams und Umgebungen zugeordnet?
+|WAF-COST-010
 
-== Wo soll es hingehen?
+|*Budget & Alerting*
+|Gibt es Budget-Limits und automatisierte Alerts bei Überschreitung?
+|WAF-COST-020
 
-Langfristig soll Cost Optimization als Teil des WAF++ folgende Ziele erreichen:
+|*Rightsizing*
+|Sind Ressourcen bedarfsgerecht dimensioniert – nicht hypothetisch überprovisioniert?
+|WAF-COST-030
 
-* *FinOps-Kultur:* Kostenbewusstsein in allen Teams verankern.
-* *Automatisierte Kostenkontrolle:* Dynamische Anpassung von Ressourcen basierend auf Nutzungsmustern.
-* *Predictive Analytics:* Einsatz von KI zur Vorhersage von Kosten und Optimierungspotenzialen.
-* *Kosten als KPI:* Kostenoptimierung wird ein strategischer Faktor für Architekturentscheidungen.
+|*Retention & Lifecycle*
+|Haben alle Speicher- und Log-Ressourcen definierte Lebenszyklen? Kein Infinite Retention?
+|WAF-COST-040
+
+|*Architektonische Kostenschuld*
+|Sind wirtschaftliche Auswirkungen von Architekturentscheidungen dokumentiert und reviewed?
+|WAF-COST-050, WAF-COST-100
+
+|*FinOps-Governance*
+|Gibt es einen strukturierten Review-Zyklus mit klaren Verantwortlichkeiten?
+|WAF-COST-060
+
+|*Observability-Kosten*
+|Sind Logging- und Monitoring-Kosten durch Tiering und Retention aktiv gesteuert?
+|WAF-COST-070
+
+|*Commitment-Optimierung*
+|Werden Baseline-Workloads durch Reservierungen kostenoptimiert betrieben?
+|WAF-COST-080
+
+|*Egress & Datentransfer*
+|Sind Datentransferkosten kontrolliert, VPC Endpoints genutzt, CDN eingesetzt?
+|WAF-COST-090
+
+|*Cost-Debt-Register*
+|Sind bekannte Kostenschulden dokumentiert, bewertet und einem Paydown-Plan zugeordnet?
+|WAF-COST-100
+
+|===
+
+== Warum ist Cost Optimization eine eigene Säule?
+
+Kosten sind *cross-cutting*: Sie entstehen in Security, Reliability, Operations und Governance.
+Dennoch ist Cost Optimization eine eigenständige Disziplin, weil:
+
+* Sie eine eigene *Governance-Dimension* hat: FinOps, TCO-Bewertung, Chargeback-Modelle
+* Sie *spezifische technische Controls* erfordert, die keine andere Säule abdeckt
+* Sie *Architektonische Kostenschuld* als strukturelles Risiko adressiert – analog zu technischer Schuld
+* Kosten als *strategische Entscheidungsgrundlage* in Architekturprozessen verankert sein müssen
+* Brownfield- und Greenfield-Szenarien *fundamental unterschiedliche* Ansätze erfordern
+
+WARNING: Cost Optimization ohne technische Enforcement ist Wunschdenken. Budgets ohne Tagging sind Schätzungen. Rightsizing ohne Monitoring ist Raten.
+
+== Abgrenzung zu anderen Säulen
+
+* *Operations* adressiert: Monitoring, Incident Response, Change Management.
+* *Governance* adressiert: Policies, Entscheidungsprozesse, Compliance-Rahmen.
+* *Architecture* adressiert: Designprinzipien, Patterns, technische Entscheidungen.
+* *Cost Optimization* adressiert: Wirtschaftliche Steuerung, TCO, FinOps, Kostenschuld, Budget-Governance.
+
+Cost Optimization setzt voraus, dass Ressourcen tagged, Budgets definiert und Architekturen dokumentiert
+sind, und erweitert dies um wirtschaftliche Messung, Optimierungszyklen und strategische Kostenkontrolle.
+
+== Controls-Überblick
+
+Die Säule Cost wird durch 10 messbare Controls operationalisiert (`WAF-COST-010` bis `WAF-COST-100`).
+
+[cols="1,3,1,1"]
+|===
+|Control ID |Titel |Severity |Automatisierbar
+
+|xref:controls.adoc#WAF-COST-010[WAF-COST-010]
+|Cost Allocation Tagging Enforced
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-COST-020[WAF-COST-020]
+|Cost Budgets & Alerting Configured
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-COST-030[WAF-COST-030]
+|Resource Rightsizing & Idle Detection
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-COST-040[WAF-COST-040]
+|Storage & Retention Lifecycle Defined
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-COST-050[WAF-COST-050]
+|Cost Impact Assessment in ADRs
+|High
+|Teilweise
+
+|xref:controls.adoc#WAF-COST-060[WAF-COST-060]
+|FinOps Review Cadence
+|Medium
+|Niedrig–Mittel
+
+|xref:controls.adoc#WAF-COST-070[WAF-COST-070]
+|Observability & Logging Cost Tiers
+|Medium
+|Hoch
+
+|xref:controls.adoc#WAF-COST-080[WAF-COST-080]
+|Commitment & Reserved Capacity Planning
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-COST-090[WAF-COST-090]
+|Data Transfer & Egress Cost Management
+|High
+|Mittel
+
+|xref:controls.adoc#WAF-COST-100[WAF-COST-100]
+|Architectural Cost Debt Register & Quarterly Review
+|Medium
+|Teilweise
+
+|===
+
+== Schnelleinstieg
+
+Neu in der Cost-Säule? Empfohlene Lesereihenfolge:
+
+. xref:definition.adoc[Definition] – Was ist Cost Optimization als Disziplin?
+. xref:scope.adoc[Geltungsbereich] – Brownfield vs. Greenfield, was ist im Scope?
+. xref:principles.adoc[Cost-Prinzipien] – 7 Grundprinzipien inkl. Architektonischer Kostenschuld
+. xref:cost-debt.adoc[Architektonische Kostenschuld] – Das zentrale Konzept dieser Säule
+. xref:controls.adoc[Controls] – Die 10 messbaren Controls
+. xref:maturity.adoc[Reifegrad-Modell] – Wo steht meine Organisation?
+. xref:finops.adoc[FinOps-Integration] – Prozesse, Rollen und Review-Zyklen
+. xref:best-practices/index.adoc[Best Practices] – Wie setzt man es konkret um?

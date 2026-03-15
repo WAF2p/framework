@@ -1,0 +1,361 @@
+= Best Practice: Encryption Strategy
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – Ganzheitliche Verschlüsselungsstrategie: KMS-Key-Hierarchie, Envelope Encryption, TLS-Konfiguration und automatische Zertifikatsverwaltung.
+
+== Kontext
+
+Verschlüsselung ist die letzte Verteidigungslinie: Selbst wenn Zugangskontrolle, Netzwerk und
+alle anderen Schichten versagen, schützt Verschlüsselung die Daten.
+
+Häufige Verschlüsselungsfehler:
+
+* S3-Buckets mit SSE-S3 (AES256) statt CMK – AWS verwaltet den Schlüssel, kein echter Schlüsselbesitz
+* EBS-Volumes ohne Encryption-by-Default-Konfiguration
+* Load Balancer, die TLS 1.0 und 1.1 noch akzeptieren
+* Selbstsignierte Zertifikate in Produktion ohne Rotation
+* Keine Unterscheidung zwischen Datenkategorien (PII vs. Operational)
+
+== Zugehörige Controls
+
+* xref:../controls/WAF-SEC-030.adoc[WAF-SEC-030] – Encryption at Rest with CMK
+* xref:../controls/WAF-SEC-040.adoc[WAF-SEC-040] – Encryption in Transit – TLS Enforcement
+
+== Verschlüsselungsstrategie: Welche Daten brauchen CMK?
+
+[cols="2,1,1,2"]
+|===
+|Datenkategorie |Mindestanforderung |Empfehlung |Beispiele
+
+|PII (personenbezogene Daten)
+|CMK
+|CMK mit Key Policy
+|Kundendaten, User-Profile, E-Mail-Adressen
+
+|Finanzdaten
+|CMK
+|CMK oder BYOK
+|Transaktionen, Kontodaten, Zahlungsinformationen
+
+|Gesundheitsdaten
+|CMK
+|CMK mit HSM-Backing
+|Patientendaten, Diagnoseinformationen
+
+|Interne Audit-Logs
+|CMK
+|CMK
+|CloudTrail, Anwendungslogs
+
+|Betriebsdaten
+|SSE-KMS (CMK empfohlen)
+|CMK
+|Metriken, Monitoring-Daten
+
+|Öffentliche Assets
+|SSE-S3 akzeptabel
+|SSE-S3
+|Statische Webseiten-Assets, öffentliche Dokumente
+
+|===
+
+== KMS-Schlüssel-Hierarchie
+
+[source,text]
+----
+KMS Key Hierarchy:
+
+Master Keys (CMK) – einer pro Datenkategorie:
+├── cmk-pii           → RDS Kundendatenbank, S3 PII-Bucket
+├── cmk-financial     → RDS Finanzdaten, DynamoDB Transaktionen
+├── cmk-logs          → CloudTrail S3, CloudWatch Log Groups
+├── cmk-secrets       → Secrets Manager Keys
+├── cmk-backup        → AWS Backup Vault
+└── cmk-general       → Alle anderen Produktionsressourcen
+
+Envelope Encryption (automatisch durch AWS):
+  CMK (KMS)
+  └── verschlüsselt: Data Encryption Key (DEK, 256-bit AES)
+      └── DEK verschlüsselt: eigentliche Daten in S3/RDS/EBS
+----
+
+=== Envelope Encryption erklärt
+
+Envelope Encryption ist das Konzept, bei dem ein Datenverschlüsselungsschlüssel (DEK)
+mit einem weiteren Schlüssel (CMK) verschlüsselt wird:
+
+. Anwendung fordert DEK von KMS an
+. KMS erzeugt DEK und eine verschlüsselte Kopie (DEK encrypted with CMK)
+. Anwendung verschlüsselt Daten mit DEK
+. Verschlüsselter DEK wird zusammen mit den Daten gespeichert
+. CMK verlässt niemals KMS – nur DEKs werden an Anwendungen übergeben
+
+*Vorteil:* Wenn der CMK rotiert, werden nur DEKs neu verschlüsselt – nicht alle Daten.
+Wenn der CMK gelöscht wird, sind alle damit geschützten Daten sofort nicht mehr entschlüsselbar
+(Cryptographic Erasure).
+
+== Technische Umsetzung
+
+=== KMS CMK mit korrekter Key Policy
+
+[source,hcl]
+----
+# CMK für PII-Daten
+resource "aws_kms_key" "pii" {
+  description             = "CMK für PII-Daten (Kundendaten, Authentifizierung)"
+  deletion_window_in_days = 30   # Mindestens 14 Tage
+
+  # Automatische jährliche Rotation des Key Materials
+  enable_key_rotation = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableIAMUserPermissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowAppUsage"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.app.arn
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudTrailUsage"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    data-class  = "pii"
+    pillar      = "security"
+    managed-by  = "terraform"
+  }
+}
+
+resource "aws_kms_alias" "pii" {
+  name          = "alias/cmk-pii"
+  target_key_id = aws_kms_key.pii.key_id
+}
+----
+
+=== S3 mit CMK (SSE-KMS)
+
+[source,hcl]
+----
+resource "aws_s3_bucket" "customer_data" {
+  bucket = "myorg-customer-data-prod"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "customer_data" {
+  bucket = aws_s3_bucket.customer_data.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.pii.arn  # CMK, nicht AES256
+    }
+    bucket_key_enabled = true  # Reduziert KMS-API-Calls und Kosten
+  }
+}
+
+# Non-Compliant: SSE-S3 (AES256) für PII-Daten
+# resource "aws_s3_bucket_server_side_encryption_configuration" "bad" {
+#   rule {
+#     apply_server_side_encryption_by_default {
+#       sse_algorithm = "AES256"  # AWS-verwalteter Schlüssel – kein CMK!
+#     }
+#   }
+# }
+----
+
+=== RDS mit Encryption at Rest
+
+[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier        = "prod-db"
+  engine            = "postgres"
+  engine_version    = "15.4"
+  instance_class    = "db.t3.medium"
+  storage_encrypted = true              # Verschlüsselung aktiviert
+  kms_key_id        = aws_kms_key.pii.arn  # CMK (nicht default KMS)
+
+  # Weitere Security-Einstellungen
+  publicly_accessible    = false        # Nie öffentlich
+  deletion_protection    = true         # Schutz vor versehentlichem Löschen
+  backup_retention_period = 7           # 7-Tage-Backup-Retention
+
+  # IAM-Authentifizierung statt Passwort (für Apps)
+  iam_database_authentication_enabled = true
+}
+----
+
+=== EBS Encryption by Default
+
+[source,hcl]
+----
+# EBS Encryption by Default für den gesamten Account
+resource "aws_ebs_encryption_by_default" "enabled" {
+  enabled = true
+}
+
+# Default KMS Key für EBS auf CMK setzen
+resource "aws_ebs_default_kms_key" "main" {
+  key_arn = aws_kms_key.general.arn
+}
+----
+
+== TLS-Konfiguration
+
+=== ALB: Moderne TLS Security Policy
+
+[source,hcl]
+----
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "443"
+  protocol          = "HTTPS"
+
+  # Moderne TLS Policy: TLS 1.2 und 1.3, starke Cipher Suites
+  ssl_policy      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn = aws_acm_certificate.main.arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+
+# HTTP → HTTPS Redirect (kein reines HTTP!)
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+----
+
+=== CloudFront: Minimum TLS Policy
+
+[source,hcl]
+----
+resource "aws_cloudfront_distribution" "main" {
+  viewer_certificate {
+    acm_certificate_arn      = aws_acm_certificate.cdn.arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"  # Kein TLS 1.0 oder 1.1
+  }
+}
+----
+
+=== Empfohlene Cipher Suites
+
+Für ALB Security Policies gilt (Stand 2025):
+
+* *Empfohlen:* `ELBSecurityPolicy-TLS13-1-2-2021-06` (TLS 1.2 und 1.3)
+* *Minimum:* `ELBSecurityPolicy-2016-08` (nur TLS 1.2)
+* *Verboten:* Policies, die TLS 1.0 oder 1.1 erlauben
+
+TLS 1.3 Cipher Suites (automatisch ausgehandelt):
+* `TLS_AES_128_GCM_SHA256`
+* `TLS_AES_256_GCM_SHA384`
+* `TLS_CHACHA20_POLY1305_SHA256`
+
+== Zertifikatsverwaltung
+
+=== AWS Certificate Manager (ACM)
+
+ACM verwaltet TLS-Zertifikate vollautomatisch (Ausstellung, Renewal, Deployment auf ALB/CloudFront):
+
+[source,hcl]
+----
+# ACM-Zertifikat mit automatischer Renewal
+resource "aws_acm_certificate" "main" {
+  domain_name               = "*.example.com"
+  subject_alternative_names = ["example.com"]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true  # Zero-Downtime Renewal
+  }
+}
+
+# DNS-Validierung via Route 53
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id = aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
+}
+----
+
+=== Let's Encrypt (für interne Endpoints)
+
+Für interne Services, die kein ACM nutzen (z.B. HashiCorp Vault, interne APIs):
+
+* Certbot oder cert-manager (Kubernetes) für automatische Let's Encrypt Zertifikate
+* Wildcard-Zertifikate via DNS-01 Challenge (für interne Domains)
+* ACME-Protokoll für automatisches Renewal
+
+== Anti-Patterns
+
+* *AES256 für PII*: SSE-S3 (AES256) bedeutet, AWS verwaltet den Schlüssel – kein CMK-Besitz.
+* *Einziger KMS-Key für alles*: Verlust eines Keys sollte nicht alle Datenkategorien betreffen.
+* *Kein `bucket_key_enabled`*: Ohne Bucket Key entstehen hohe KMS-API-Kosten.
+* *Zertifikate manuell verwalten*: ACM für alle AWS-Services; kein manueller Upload ohne Rotation.
+* *TLS 1.0/1.1 für "Kompatibilität"*: TLS 1.2+ ist seit 2022 durchgängig unterstützt.
+
+== Metriken
+
+* Anteil der PII/Finanzdaten-Speicher mit CMK: Ziel 100%
+* KMS-Key-Rotation aktiviert: Ziel 100% aller CMKs
+* TLS 1.2+ auf allen externen Endpoints: Ziel 100%
+* ACM-Zertifikate mit Ablauf > 30 Tage: Ziel 100% (ACM erneuert automatisch)
+* EBS Encryption by Default: Ziel: In allen Accounts aktiviert
+
+== Reifegrad
+
+Level 1 – Keine oder minimale Verschlüsselung (AES256 für manche S3-Buckets) +
+Level 2 – SSE für alle Produktionsdaten, keine CMKs, TLS auf externe Endpoints +
+Level 3 – CMK für PII und Finanzdaten, KMS-Rotation aktiv, TLS 1.2+ erzwungen +
+Level 4 – CMK überall, Key-Policy-Reviews, Key-Nutzungs-Monitoring in CloudTrail +
+Level 5 – BYOK für kritische Daten, Cryptographic Erasure getestet, HSM-Backing
