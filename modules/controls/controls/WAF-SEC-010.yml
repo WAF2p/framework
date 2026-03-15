@@ -1,0 +1,207 @@
+id: WAF-SEC-010
+title: "Identity & Access Management Baseline"
+pillar: "security"
+status: "active"
+severity: "critical"
+category: "iam"
+type: ['governance', 'configuration', 'automation']
+tags: ['iam', 'identity', 'access-management', 'mfa', 'least-privilege']
+
+description: >
+  All AWS accounts MUST enforce MFA for all IAM users with console access. Root account
+  usage MUST be prohibited for day-to-day operations. IAM password policy MUST meet minimum
+  security requirements: minimum length of 14 characters, complexity requirements, password
+  reuse prevention of at least 5 prior passwords, and maximum password age of 90 days.
+  Service accounts MUST use IAM roles with temporary credentials rather than long-lived
+  access keys wherever possible.
+
+rationale: >
+  Weak identity controls are the leading cause of cloud security incidents. Without enforced
+  MFA and strong password policies, compromised credentials grant immediate, persistent access
+  to cloud resources. Root account access bypasses all permission boundaries, making unauthorized
+  root usage catastrophically dangerous. IAM baseline controls are foundational prerequisites
+  for every other security control layer; all other measures are rendered ineffective if the
+  identity plane is not hardened.
+
+threat:
+  - "Credential compromise via phishing or password spray attacks granting persistent cloud access"
+  - "Root account abuse enabling complete account takeover and deletion of all security controls"
+  - "Long-lived access keys exfiltrated from code repositories or CI/CD systems"
+  - "Privilege escalation through misconfigured IAM policies allowing lateral movement across services"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: appropriate technical and organisational measures"
+      - "Art. 5(1)(f) – Integrity and confidentiality principle"
+  - framework: "BSI C5:2020"
+    controls:
+      - "IAM-01 – Identity and access management policy"
+      - "IAM-02 – Authentication of users"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.2 – Privileged access rights"
+      - "A.8.5 – Secure authentication"
+      - "A.5.17 – Authentication information"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "IAM-01 – Identity and access management"
+      - "IAM-02 – Authentication controls"
+
+implementation_guidance:
+  - "Enable MFA for all IAM users with AWS Console access; enforce via Service Control Policy (SCP) denying console actions without MFA."
+  - "Configure the account-level IAM password policy via aws_iam_account_password_policy with at minimum 14 characters, all complexity flags enabled, 5 reuse prevention, 90-day max age."
+  - "Lock down the AWS root account: remove all access keys, enable MFA, do not use root for any operational task."
+  - "Migrate from long-lived IAM user access keys to IAM roles and short-lived credentials using AWS SSO / IAM Identity Center for all human access."
+  - "Rotate all existing long-lived access keys older than 90 days; automate detection using AWS Config rule access-keys-rotated."
+  - "Implement break-glass procedures for emergency root or admin access with dedicated monitoring and alerting on use."
+  - "Audit IAM users and roles quarterly; remove unused accounts and permissions using IAM Access Analyzer findings."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc IAM with manual password policy"
+    criteria:
+      - "IAM password policy exists but is not consistently enforced"
+      - "MFA is optional or only enabled for some users"
+  level_2:
+    description: "Password policy enforced, MFA required for privileged users"
+    criteria:
+      - "IAM account password policy meets minimum requirements (14 chars, complexity)"
+      - "MFA required for all IAM users with admin permissions"
+      - "Root account MFA enabled and access keys removed"
+  level_3:
+    description: "MFA enforced for all console users via SCP"
+    criteria:
+      - "SCP denies console actions for all users without active MFA session"
+      - "All human access uses SSO/IAM Identity Center rather than IAM users"
+      - "Access key rotation enforced automatically with alerts at 90 days"
+  level_4:
+    description: "Zero standing privilege with JIT access"
+    criteria:
+      - "No standing admin access; all elevated access is time-bound and just-in-time"
+      - "Quarterly IAM access reviews completed and documented"
+      - "IAM Access Analyzer findings remediated within defined SLA"
+  level_5:
+    description: "Fully automated SCIM/SSO with zero standing privilege and continuous certification"
+    criteria:
+      - "All IAM identities provisioned and deprovisioned via SCIM from authoritative IdP"
+      - "Continuous access certification with automatic revocation on inactivity"
+      - "Real-time anomaly detection on authentication events with automated response"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "IAM governance document defining password policy standards, MFA requirements, and access key lifecycle rules."
+    - kind: "iac"
+      description: "Terraform configuration for aws_iam_account_password_policy showing all required attributes."
+  optional:
+    - kind: "process"
+      description: "Access review logs showing quarterly IAM user and role certification."
+    - kind: "config"
+      description: "AWS Config conformance pack or Security Hub findings report showing MFA compliance status."
+
+checks:
+  - id: "waf-sec-010.tf.aws.iam-password-policy-mfa"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS IAM account password policy must meet minimum security requirements"
+    description: >
+      The aws_iam_account_password_policy resource must enforce a minimum password length of 14,
+      all character class requirements, a minimum of 5 passwords in reuse prevention history,
+      and a maximum password age of 90 days.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_account_password_policy"
+    assertions:
+      - attribute: "minimum_password_length"
+        op: "greater_than_or_equal"
+        expected: 14
+        message: "IAM password policy must require a minimum of 14 characters."
+      - attribute: "require_uppercase_characters"
+        op: "is_true"
+        message: "IAM password policy must require uppercase characters."
+      - attribute: "require_lowercase_characters"
+        op: "is_true"
+        message: "IAM password policy must require lowercase characters."
+      - attribute: "require_numbers"
+        op: "is_true"
+        message: "IAM password policy must require numbers."
+      - attribute: "require_symbols"
+        op: "is_true"
+        message: "IAM password policy must require symbols."
+      - attribute: "password_reuse_prevention"
+        op: "greater_than_or_equal"
+        expected: 5
+        message: "IAM password policy must prevent reuse of at least 5 prior passwords."
+      - attribute: "max_password_age"
+        op: "less_than_or_equal"
+        expected: 90
+        message: "IAM password policy must set maximum password age to 90 days or less."
+    on_fail: "violation"
+    remediation: >
+      Define an aws_iam_account_password_policy resource with all required attributes set.
+      Ensure minimum_password_length >= 14, all require_* flags are true,
+      password_reuse_prevention >= 5, and max_password_age <= 90.
+    example:
+      compliant: |
+        resource "aws_iam_account_password_policy" "strict" {
+          minimum_password_length        = 14
+          require_uppercase_characters   = true
+          require_lowercase_characters   = true
+          require_numbers                = true
+          require_symbols                = true
+          allow_users_to_change_password = true
+          max_password_age               = 90
+          password_reuse_prevention      = 5
+          hard_expiry                    = false
+        }
+      non_compliant: |
+        resource "aws_iam_account_password_policy" "weak" {
+          minimum_password_length      = 8
+          require_uppercase_characters = false
+          require_symbols              = false
+          # Missing password_reuse_prevention and max_password_age
+        }
+
+  - id: "waf-sec-010.tf.aws.no-root-access-keys"
+    engine: "terraform"
+    provider: "aws"
+    automated: false
+    severity: "critical"
+    title: "Root account must not have active access keys"
+    description: >
+      The AWS root account must not have active programmatic access keys. This cannot be
+      fully checked in Terraform state but must be validated via AWS IAM credential report
+      or Security Hub control IAM.4.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_user"
+    assertions:
+      - attribute: "name"
+        op: "not_equals"
+        expected: "root"
+        message: "Root account must not be managed as a regular IAM user resource. Remove root access keys via AWS Console."
+    on_fail: "violation"
+    remediation: >
+      Navigate to AWS IAM > Security Credentials for the root account and delete all access keys.
+      Enable MFA on the root account. Restrict root account usage to only tasks that absolutely
+      require it (e.g., account closure, enabling MFA for the first time).
+    example:
+      compliant: |
+        # Root access keys are removed via AWS Console – not representable in Terraform.
+        # Verify with: aws iam get-account-summary | grep AccountAccessKeysPresent
+        # Expected: "AccountAccessKeysPresent": 0
+      non_compliant: |
+        # Root account has active access keys visible in AWS IAM > Security Credentials.
+        # aws iam get-account-summary output shows "AccountAccessKeysPresent": 1
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-010"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-iam.adoc"
+  related_controls:
+    - "WAF-SEC-020"
+    - "WAF-SOV-060"

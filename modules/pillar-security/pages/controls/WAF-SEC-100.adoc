@@ -1,0 +1,162 @@
+= WAF-SEC-100 – Incident Response Readiness
+:page-toc: right
+:control-id: WAF-SEC-100
+:pillar: security
+:severity: medium
+:category: incident-response
+:automated: gering
+:description: WAF++ Security – Incident Response Bereitschaft: Runbooks, Alerting, Drills und dokumentierte Eskalationswege.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Incident Response | *Automatisierbar:* Gering
+
+== Beschreibung
+
+Jede Organisation, die produktive Cloud-Workloads betreibt, MUSS über dokumentierte Incident-Response-Prozesse
+verfügen. Ein Incident-Response-Runbook MUSS für mindestens die Szenarien „Kompromittierte IAM-Credentials",
+„Datenleck / öffentlich zugänglicher S3-Bucket" und „GuardDuty HIGH/CRITICAL Finding" existieren.
+GuardDuty-Findings MÜSSEN via SNS-Alerting an einen definierten On-Call-Kanal (PagerDuty, Opsgenie, Slack)
+weitergeleitet werden. Incident-Response-Drills MÜSSEN mindestens einmal jährlich durchgeführt und dokumentiert werden.
+
+== Rationale
+
+Incident Response planen zu müssen, während ein Incident aktiv ist, führt zu langsamen Reaktionen,
+Entscheidungsfehlern und erhöhtem Schaden. Dokumentierte Runbooks ermöglichen es auch unerfahrenen
+On-Call-Personen, strukturiert zu reagieren. GuardDuty-Alerting ohne definierten Eskalationsweg ist
+wertlos – Findings müssen einen menschlichen Entscheider erreichen, nicht nur einen Log-Stream.
+Drills testen die Realitätsnähe der Runbooks und identifizieren Lücken, bevor ein echter Incident eintritt.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Langsame MTTR durch fehlende Runbooks*
+|Ohne vordefinierte Prozesse verbringen On-Call-Teams Zeit mit Planung statt Reaktion – die MTTR steigt dramatisch.
+
+|*Nicht erreichbare Alerts*
+|GuardDuty-Findings, die nur in der Konsole landen, werden außerhalb der Bürozeiten nicht bemerkt.
+
+|*Beweisverlust durch falsche Containment-Reihenfolge*
+|Falsches Vorgehen (z. B. sofortiges Löschen kompromittierter Ressourcen) kann forensische Beweise vernichten.
+
+|*DSGVO-Meldepflicht verfehlt*
+|Ohne klaren Eskalationsprozess wird die 72-Stunden-Meldefrist nach Art. 33 DSGVO nicht eingehalten.
+
+|===
+
+== Anforderung
+
+* Ein Incident-Response-Runbook MUSS im Repository (oder verknüpftem Wiki) versioniert verfügbar sein.
+* GuardDuty-Findings der Severity >= HIGH MÜSSEN via EventBridge + SNS an einen On-Call-Kanal weitergeleitet werden.
+* Das Runbook MUSS mindestens abdecken: Kompromittierte IAM-Credentials, S3-Public-Access-Breach, CRITICAL GuardDuty Finding.
+* Incident-Response-Drills (Tabletop oder Live) MÜSSEN mindestens einmal jährlich durchgeführt und dokumentiert werden.
+* Klare Eskalationswege (wer wird wann informiert) MÜSSEN dokumentiert sein.
+* Post-Incident-Reviews (PIR) MÜSSEN nach jedem HIGH/CRITICAL-Incident mit Blameless-Ansatz durchgeführt werden.
+
+== Implementierungsanleitung
+
+. *EventBridge-Regel für GuardDuty*: `aws_cloudwatch_event_rule` auf Source `aws.guardduty` mit Detail-Type `GuardDuty Finding` und Severity-Filter >= 4.0.
+. *SNS-Topic konfigurieren*: `aws_sns_topic` mit E-Mail- oder HTTPS-Subscriptions zu PagerDuty/Opsgenie-Endpoint.
+. *Runbook erstellen*: Mindestens 3 Szenarien mit Detect → Contain → Eradicate → Recover → Post-Mortem Struktur.
+. *Eskalationsmatrix dokumentieren*: Wer ist First Responder? Wer ist Incident Commander? Wer informiert Datenschutzbeauftragten?
+. *Drills planen*: Quartalsweise Tabletop-Übung für On-Call-Team; jährlicher Live-Drill mit simulierten GuardDuty-Findings.
+. *Post-Incident-Review-Template*: 5-Why-Analyse + Lessons-Learned + konkrete Action Items mit Owner und Datum.
+. *Run-Log einführen*: Jeder Incident bekommt ein Ticket mit Zeitstempel jeder Aktion (für DSGVO-Dokumentation).
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Incident-Response-Prozess
+|Kein Runbook; GuardDuty-Findings werden nicht weitergeleitet; Incidents ad-hoc behandelt.
+
+|*2*
+|Rudimentäre Dokumentation
+|Einfaches Runbook existiert; GuardDuty-Alerts per E-Mail; kein strukturierter Eskalationsweg; keine Drills.
+
+|*3*
+|Definierter IR-Prozess mit Alerting
+|Mindestens 3 Runbooks; GuardDuty → EventBridge → PagerDuty/On-Call; jährlicher Drill; Post-Incident-Reviews.
+
+|*4*
+|Proaktive IR-Vorbereitung
+|Alle CRITICAL-Szenarien mit Runbooks abgedeckt; SOAR-Automation für erste Containment-Schritte; monatliche Drills.
+
+|*5*
+|Vollautomatisierter Response mit SOAR
+|Automatisierte Playbooks für bekannte Incident-Typen; MTTR < 1h; vollständige DSGVO-Incident-Dokumentation automatisiert.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-100.tf.aws.guardduty-sns-alerting
+*Prüft:* EventBridge-Regel für GuardDuty-Findings muss mit SNS-Target konfiguriert sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_event_rule" "guardduty_alerts" {
+  name        = "guardduty-high-severity"
+  description = "Alert on HIGH/CRITICAL GuardDuty findings"
+  event_pattern = jsonencode({
+    source      = ["aws.guardduty"]
+    detail-type = ["GuardDuty Finding"]
+    detail = {
+      severity = [{ numeric = [">=", 4] }]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "guardduty_sns" {
+  rule      = aws_cloudwatch_event_rule.guardduty_alerts.name
+  target_id = "guardduty-sns"
+  arn       = aws_sns_topic.security_alerts.arn
+}
+----
+a|[source,hcl]
+----
+# Kein EventBridge-Target für GuardDuty
+# Findings landen nur in der Console
+# WAF-SEC-100 Violation: kein On-Call-Alerting
+----
+|===
+
+*Remediation:* `aws_cloudwatch_event_rule` auf GuardDuty-Source mit Severity-Filter und `aws_cloudwatch_event_target` auf einen SNS-Topic mit On-Call-Subscription erstellen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Incident-Response-Runbook (versioniert) mit mindestens 3 Szenarien und Eskalationsmatrix.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration von EventBridge-Regel und SNS-Topic für GuardDuty-Alerting.
+
+|*Process*
+|✅ Pflicht
+|Nachweis mindestens eines Incident-Response-Drills pro Jahr (Protokoll oder Ticket).
+
+|*Process*
+|Optional
+|Post-Incident-Review-Dokumentation für aufgetretene HIGH/CRITICAL-Incidents.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-080.adoc[WAF-SEC-080 – Security Monitoring & Threat Detection]
+* xref:controls/WAF-SEC-090.adoc[WAF-SEC-090 – Policy-as-Code & Compliance Automation]

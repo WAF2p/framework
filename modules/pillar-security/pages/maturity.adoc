@@ -1,0 +1,243 @@
+= Reifegrad-Modell (Security)
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – Fünfstufiges Reifegrad-Modell für Cloud-Security-Kompetenz mit Bewertungsfragen und Organisationsprofilen.
+
+Das Security-Reifegrad-Modell ermöglicht eine strukturierte Selbstbewertung der Security-Kompetenz
+und definiert einen klaren Entwicklungspfad von Ad-hoc-Security bis zur vollständig optimierten,
+kontinuierlich verbesserten Sicherheitsplattform.
+
+== Das Fünf-Stufen-Modell
+
+[cols="1,2,4"]
+|===
+|Level |Bezeichnung |Merkmale
+
+|*Level 1*
+|Ad-hoc / Undocumented
+|Security nicht systematisch adressiert. Keine IAM-Policies jenseits von Root-Nutzung.
+Passwörter in Code oder ENV-Variablen. Keine Verschlüsselung konfiguriert. Kein Monitoring.
+Kein Incident-Response-Plan. Manuelle, reaktive Security.
+
+|*Level 2*
+|Documented & Defined
+|Security-Richtlinien existieren und sind dokumentiert. MFA für Admins konfiguriert.
+Grundlegende Verschlüsselung aktiv (SSE, nicht unbedingt CMK). Security Groups grob konfiguriert.
+Secrets teilweise in Secrets Manager. CloudTrail aktiviert. Kein systematisches Vulnerability Management.
+
+|*Level 3*
+|Enforced & Monitored
+|IAM Least Privilege durchgesetzt (keine Wildcards). CMK für sensitive Daten.
+TLS 1.2+ überall erzwungen. Security Groups granular. Secrets-Rotation aktiv.
+Vulnerability-Scanning in CI/CD. WAF++ Checker im CI. Monitoring mit Alerting.
+Incident Response Playbooks vorhanden.
+
+|*Level 4*
+|Measured & Automated
+|Security-Metriken kontinuierlich erfasst und gemeldet. Automatisierte Threat Detection (GuardDuty).
+SIEM im Einsatz. Policy-as-Code Gate im CI. Automatisierte Remediation für häufige Findings.
+JIT-Zugriff eingeführt. SBOM-Generierung. IR-Playbooks regelmäßig geübt.
+
+|*Level 5*
+|Optimized & Continuously Improved
+|Threat Modeling für jeden neuen Service. Zero Trust vollständig implementiert.
+Automatische Security-Policy-Aktualisierung bei neuen Bedrohungen. Red-Team-Übungen.
+Continuous Compliance Evidence Pipeline. Auto-Remediation für alle bekannten Findings.
+Security Chaos Engineering. SLSA Level 3 für Supply Chain.
+
+|===
+
+== Reifegrad je Control
+
+[cols="2,1,1,1,1,1"]
+|===
+|Control |L1 |L2 |L3 |L4 |L5
+
+|WAF-SEC-010 IAM Baseline
+|Root-Nutzung täglich
+|MFA für Admins
+|Keine Root-Nutzung, IAM-Policy erzwungen
+|Automatisiertes IAM-Assessment
+|Continuous Access Review
+
+|WAF-SEC-020 Least Privilege
+|AdministratorAccess überall
+|Grobe Rollentrennung
+|Keine Wildcards, JIT eingeführt
+|IAM Access Analyzer aktiv
+|Zero Standing Privilege
+
+|WAF-SEC-030 Encryption at Rest
+|Keine Verschlüsselung
+|SSE aktiviert (Provider-Schlüssel)
+|CMK für PII/Finanzen
+|CMK überall, Key Monitoring
+|BYOK/HYOK für kritische Daten
+
+|WAF-SEC-040 TLS in Transit
+|HTTP erlaubt
+|HTTPS für externe Endpoints
+|TLS 1.2+ erzwungen, mTLS intern
+|TLS-Zertifikat-Monitoring
+|mTLS überall, SPIFFE/SVID
+
+|WAF-SEC-050 Network Segmentation
+|Flaches Netzwerk
+|Grundlegende VPC-Trennung
+|Granulare SGs, kein 0.0.0.0/0
+|Hub-and-Spoke, Network Firewall
+|Zero-Trust-Netzwerk, Mikrosegmentierung
+
+|WAF-SEC-060 Secrets Management
+|Secrets in Code
+|Teils in Secrets Manager
+|Keine Hardcodes, Rotation aktiv
+|Automatische Rotation, Dynamic Secrets
+|Vault mit dynamischen Credentials
+
+|WAF-SEC-070 Vulnerability Management
+|Keine Scans
+|Manuelles Scanning
+|CI-integriertes Scanning, SLA definiert
+|Automatisierte Remediation-Tickets
+|SBOM, SLSA, Continuous Scanning
+
+|WAF-SEC-080 Security Monitoring
+|Kein Monitoring
+|CloudTrail aktiv
+|GuardDuty, Alerting, CloudWatch Alarms
+|SIEM, korrelierte Bedrohungserkennung
+|ML-basierte Anomalieerkennung
+
+|WAF-SEC-090 Policy-as-Code
+|Keine automatisierten Checks
+|Manuelle Security-Reviews
+|WAF++ Checker im CI (blocking)
+|Vollständige OPA-Policy-Suite
+|Policy-Simulation und Auto-Update
+
+|WAF-SEC-100 Incident Response
+|Kein IR-Plan
+|IR-Plan existiert, nie geübt
+|Playbooks vorhanden, jährliche Übung
+|Automatisierte IR-Workflows, Postmortems
+|Continuous IR-Readiness, Red Team
+
+|===
+
+== Selbstbewertung: Check-Listen
+
+=== Level 2 Check-Liste
+
+* [ ] Ist MFA für alle IAM-User mit Konsolen-Zugriff aktiviert?
+* [ ] Sind Terraform-Provider-Versionen in `required_providers` gepinnt?
+* [ ] Ist CloudTrail in allen verwendeten Regionen aktiv?
+* [ ] Sind die kritischsten S3-Buckets serverseitig verschlüsselt?
+* [ ] Existieren Security-Richtlinien-Dokumente (auch wenn nur informell)?
+* [ ] Sind Produktions-Datenbanken nicht öffentlich erreichbar?
+
+=== Level 3 Check-Liste
+
+* [ ] Haben alle IAM-Rollen spezifische, minimale Berechtigungen (keine `Action: *` ohne `Resource`)?
+* [ ] Nutzen alle PII- und Finanzdaten-Speicher CMK (nicht SSE-S3/AES256)?
+* [ ] Ist TLS 1.2 als Minimum für alle Load Balancer und APIs konfiguriert?
+* [ ] Haben alle Security Groups keine `0.0.0.0/0`-Egress-Regeln?
+* [ ] Sind alle Secrets in AWS Secrets Manager oder Parameter Store (SecureString)?
+* [ ] Ist Container-Image-Scanning in der CI/CD-Pipeline aktiv?
+* [ ] Gibt es CloudWatch-Alarme für Root-Account-Aktivität?
+* [ ] Gibt es ein Incident Response Playbook (versioniert)?
+* [ ] Ist WAF++ Checker oder äquivalentes Tool im PR-Prozess integriert?
+
+=== Level 4 Check-Liste
+
+* [ ] Ist AWS GuardDuty in allen Produktions-Accounts aktiviert?
+* [ ] Werden GuardDuty-Findings automatisch in einen Workflow geleitet?
+* [ ] Ist IAM Access Analyzer aktiv und werden Findings regelmäßig reviewed?
+* [ ] Werden Security-Metriken (MTTD, MTTR, Patch Compliance) erfasst?
+* [ ] Gibt es JIT-Zugriff für privilegierte Aktionen?
+* [ ] Werden SBOM-Dateien für Container-Images generiert und archiviert?
+* [ ] Werden Incident Response Playbooks mindestens jährlich geübt (Tabletop Exercises)?
+* [ ] Gibt es automatisierte Responses auf bekannte GuardDuty-Findings?
+
+=== Level 5 Check-Liste
+
+* [ ] Findet Threat Modeling für alle neuen Features und Services statt?
+* [ ] Ist Zero Trust vollständig implementiert (mTLS intern, keine impliziten Vertrauensbeziehungen)?
+* [ ] Wird Red Teaming oder Purple Teaming durchgeführt?
+* [ ] Gibt es eine Continuous Compliance Evidence Pipeline (automatische Evidenzgenerierung)?
+* [ ] Erreicht die Supply Chain SLSA Level 3 oder höher?
+* [ ] Werden Security Chaos Engineering Experimente durchgeführt?
+
+== Typische Organisationsprofile
+
+=== Profil: Startup / Early Stage
+
+*Typisches Level: 1-2*
+
+Merkmale:
+
+* Kleines Team, Security nicht primäres Fokusthema
+* AWS-Root-Account wird täglich genutzt
+* Secrets in `.env`-Dateien oder GitHub Secrets (statische Keys)
+* Kein dedizierter Security-Experte
+
+Empfohlene Prioritäten für schnellen Fortschritt (→ Level 2-3):
+
+. IAM-Baseline: Root-Account sichern, MFA erzwingen (1-2 Tage)
+. Secrets aus Code entfernen: AWS Secrets Manager einrichten (2-3 Tage)
+. Container-Image-Scanning aktivieren: ECR Scanning oder Trivy in CI (1 Tag)
+. CloudTrail multi-region aktivieren (1-2 Stunden)
+
+=== Profil: Wachsendes Unternehmen (Mid-size)
+
+*Typisches Level: 2-3*
+
+Merkmale:
+
+* Dediziertes Platform Team vorhanden
+* Mehrere Produktteams mit eigenem IaC
+* Grundlegende Security-Maßnahmen vorhanden, aber inkonsistent
+* Beginn der Compliance-Anforderungen (ISO 27001, SOC 2)
+
+Empfohlene Prioritäten (→ Level 3-4):
+
+. Least Privilege: IAM-Policies systematisch bereinigen (4-8 Wochen)
+. CMK: Sensitive Daten auf Customer Managed Keys migrieren (2-4 Wochen)
+. Policy-as-Code Gate: WAF++ Checker im CI/CD einführen (1-2 Wochen)
+. GuardDuty: Alle Accounts aktivieren und Findings-Workflow einrichten (1 Woche)
+
+=== Profil: Enterprise
+
+*Typisches Level: 3-4*
+
+Merkmale:
+
+* Dediziertes Security Team (CISO, Cloud Security Engineers)
+* Formale ISMS-Zertifizierung vorhanden (ISO 27001)
+* Multi-Account Landing Zone
+* Regelmäßige externe Audits
+
+Empfohlene Prioritäten (→ Level 4-5):
+
+. JIT-Zugriff: Permanente Admin-Rollen durch JIT-System ersetzen
+. Zero Trust Netzwerk: Hub-and-Spoke mit Network Firewall
+. Threat Modeling: Formaler Prozess für neue Features
+. Red Team: Jährliche Red-Team-Übungen
+
+=== Profil: Reguliertes Unternehmen (Finanzsektor, Gesundheit, KRITIS)
+
+*Anforderungen: Level 3 Minimum, Ziel Level 4-5*
+
+Merkmale:
+
+* BSI C5, DSGVO, BAFIN-Anforderungen oder NIS2 Scope
+* Externe Audits mit Nachweispflicht
+* Sehr strenge Anforderungen an Zugangskontrolle und Monitoring
+
+Spezifische Empfehlungen:
+
+* CMK/BYOK für alle Daten (nicht nur PII)
+* Vollständige Audit-Log-Retention (7 Jahre für Finanzdaten)
+* Break-Glass-Prozess dokumentiert und jährlich getestet
+* Separate Logging-Account (Log-Archive) außerhalb der Produktions-Accounts
+* Continuous Compliance Evidence Pipeline für Audit-Vorbereitung

@@ -1,0 +1,203 @@
+= WAF-SEC-130 – Data Classification & Protection by Category
+:page-toc: right
+:control-id: WAF-SEC-130
+:pillar: security
+:severity: medium
+:category: data-governance
+:automated: mittel
+:description: WAF++ Security – Datenklassifizierung und kategoriengerechter Schutz: Tags, Verschlüsselung und Zugriffskontrolle nach Schutzstufe.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Data Governance | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Cloud-Datenspeicher (S3-Buckets, RDS-Instanzen, DynamoDB-Tabellen, ElastiCache-Cluster)
+MÜSSEN mit einem `data-classification`-Tag versehen sein, der die Datenschutzstufe angibt:
+`public`, `internal`, `confidential` oder `restricted`.
+Ressourcen mit Klassifizierung `confidential` oder `restricted` MÜSSEN mit kundenverwalteten
+KMS-Schlüsseln (CMK) verschlüsselt sein – AWS-verwaltete Standardschlüssel sind nicht ausreichend.
+S3-Buckets MÜSSEN Block-Public-Access konfiguriert haben (`block_public_acls` und `block_public_policy = true`).
+Ein organisationales Data-Classification-Register MUSS im Repository verfügbar sein.
+
+== Rationale
+
+Ohne Datenklassifizierung werden alle Daten identisch behandelt – entweder alles maximal abgesichert
+(unnötig teuer und friction-intensiv) oder alle Daten mit demselben niedrigen Schutzniveau (zu wenig
+für sensible Daten). Klassifizierung ermöglicht proportionalen, nachweisbaren Schutz: Öffentliche Daten
+benötigen keine CMK-Verschlüsselung; personenbezogene oder Geschäftsgeheimnisse benötigen die stärksten
+Schutzmaßnahmen. Tags als Klassifizierungsmechanismus ermöglichen automatische Compliance-Prüfungen.
+Der `data-classification`-Tag ist der Startpunkt für alle datenschutzbezogenen Sicherheitsentscheidungen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Versehentliche Exposition sensibler Daten*
+|Ohne Klassifizierung sind S3-Buckets mit PII oder Geschäftsgeheimnissen von öffentlich zugänglichen Buckets nicht zu unterscheiden.
+
+|*Falsche Verschlüsselungsstufe*
+|Hochsensible Daten mit AWS-Default-Keys haben schwächere Zugangskontrolle als mit CMK; der Cloud-Provider kann theoretisch zugreifen.
+
+|*DSGVO-Verstoß durch fehlende Differenzierung*
+|Art. 25 DSGVO erfordert Privacy by Design; ohne Klassifizierung ist Data Protection by Design nicht umsetzbar.
+
+|*Audit-Failure durch mangelnde Nachvollziehbarkeit*
+|Auditoren erwarten eine nachvollziehbare Zuordnung von Schutzmaßnahmen zu Datenkategorien; ohne Klassifizierung ist das nicht möglich.
+
+|===
+
+== Anforderung
+
+* Alle Datenspeicher-Ressourcen MÜSSEN einen `data-classification`-Tag mit einem der erlaubten Werte haben: `public`, `internal`, `confidential`, `restricted`.
+* Ressourcen mit `confidential` oder `restricted` MÜSSEN einen `kms_key_id`-Verweis auf einen CMK haben.
+* Alle S3-Buckets MÜSSEN `block_public_acls = true` und `block_public_policy = true` konfiguriert haben (via `aws_s3_bucket_public_access_block`).
+* RDS-Instanzen DÜRFEN NICHT `publicly_accessible = true` sein.
+* Ein Data-Classification-Register (`data-classification-register.yml` oder äquivalent) MUSS im Repository verfügbar und aktuell gehalten werden.
+
+== Implementierungsanleitung
+
+. *Klassifizierungsschema definieren*: Vier Stufen (public/internal/confidential/restricted) mit konkreten Beispieldaten und Schutzanforderungen pro Stufe dokumentieren.
+. *Data-Classification-Register erstellen*: YAML-Datei im Repository mit Mapping: Datentyp → Klassifizierung → Storage-Ressource → verantwortliches Team.
+. *Tags in Terraform setzen*: `data-classification`-Tag zu allen `aws_s3_bucket`, `aws_db_instance`, `aws_dynamodb_table`, `aws_elasticache_cluster`-Ressourcen.
+. *S3 Block Public Access*: `aws_s3_bucket_public_access_block`-Ressource für alle Buckets mit allen vier Flags auf `true`.
+. *RDS public access deaktivieren*: `publicly_accessible = false` in allen `aws_db_instance`-Ressourcen.
+. *CMK für confidential/restricted*: In Terraform-Variable-Validation oder CI-Check prüfen, dass Ressourcen mit diesen Tags einen CMK-ARN haben.
+. *Amazon Macie aktivieren* (optional): Automatisierte PII-Discovery für S3-Buckets via `aws_macie2_account`.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Datenklassifizierung
+|Keine Klassifizierungsrichtlinie; alle Daten gleich behandelt; keine Data-Classification-Tags; öffentliche S3-Buckets ohne Kontrolle.
+
+|*2*
+|Klassifizierungsrichtlinie dokumentiert
+|Klassifizierungsschema dokumentiert; manuelle Umsetzung; keine technische Durchsetzung.
+
+|*3*
+|Tags erzwungen; grundlegender Schutz implementiert
+|`data-classification`-Tags auf allen Datenspeichern CI-seitig erzwungen; S3 Block Public Access überall aktiv; RDS nicht öffentlich.
+
+|*4*
+|Automatisierte Compliance nach Klassifizierung
+|CMK-Prüfung für confidential/restricted automatisiert; Data-Classification-Register gepflegt; Amazon Macie aktiv.
+
+|*5*
+|Dynamisches DLP und DSGVO-Art.-30-Dokumentation*
+|Echtzeitbasierte DLP-Erkennung; automatisch generiertes Art.-30-Verarbeitungsverzeichnis aus Data-Classification-Register; vollständige Datenherkunft.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-130.tf.aws.s3-block-public-access
+*Prüft:* Alle S3-Buckets müssen Block-Public-Access aktiviert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "data" {
+  bucket = "myapp-prod-data"
+  tags = {
+    "data-classification" = "confidential"
+    owner                 = "platform-team"
+    environment           = "production"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket                  = aws_s3_bucket.data.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "data" {
+  bucket = "myapp-prod-data"
+  # data-classification Tag fehlt – WAF-SEC-130 Violation
+}
+# aws_s3_bucket_public_access_block fehlt
+# WAF-SEC-130 Violation: kein Public-Access-Block
+----
+|===
+
+*Remediation:* `aws_s3_bucket_public_access_block`-Ressource mit allen vier Flags auf `true` für jeden S3-Bucket erstellen. Alle Datenspeicher-Ressourcen mit `data-classification`-Tag versehen.
+
+---
+
+=== waf-sec-130.tf.aws.rds-not-publicly-accessible
+*Prüft:* RDS-Instanzen dürfen nicht öffentlich zugänglich sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "app" {
+  identifier         = "app-prod-db"
+  engine             = "postgres"
+  instance_class     = "db.t3.medium"
+  allocated_storage  = 100
+  publicly_accessible = false
+  tags = {
+    "data-classification" = "confidential"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "app" {
+  identifier          = "app-prod-db"
+  engine              = "postgres"
+  instance_class      = "db.t3.medium"
+  allocated_storage   = 100
+  publicly_accessible = true
+  # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
+}
+----
+|===
+
+*Remediation:* `publicly_accessible = false` zu allen `aws_db_instance`- und `aws_rds_cluster`-Ressourcen setzen. Zugriff aus Anwendungen erfolgt über private VPC-Netzwerke.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Data-Classification-Register mit Zuordnung Datentyp → Klassifizierung → Storage-Ressource.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration aller Datenspeicher mit `data-classification`-Tag und `aws_s3_bucket_public_access_block`.
+
+|*Config*
+|Optional
+|Amazon Macie Aktivierungs-Screenshot und aktueller Findings-Bericht für S3-Buckets.
+
+|*Process*
+|Optional
+|Jährlicher Data-Classification-Review mit Nachweis, dass Register aktuell ist.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
+* xref:controls/WAF-SEC-060.adoc[WAF-SEC-060 – Secrets Management]

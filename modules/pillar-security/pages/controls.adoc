@@ -1,0 +1,510 @@
+= Controls – Security (WAF-SEC)
+:toc: left
+:toclevels: 3
+:description: WAF++ – Vollständiger Controls-Katalog der Security-Säule (WAF-SEC-010 bis WAF-SEC-130) mit allen 13 Controls, Übersichtstabelle und Beschreibungen.
+
+Security-Controls übersetzen die xref:principles.adoc[Security-Prinzipien] in messbare,
+prüfbare Anforderungen an IaC-verwaltete Cloud-Infrastruktur.
+Sie sind das Herzstück des WAF++ Frameworks: maschinenlesbar, automatisch prüfbar und
+mit konkreten Evidenzanforderungen versehen.
+
+Jeder Control hat eine eindeutige ID im Format `WAF-SEC-NNN`, eine Severity-Einstufung,
+maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-SEC-*.yml`
+und können vom WAF++ Checker Tool direkt ausgeführt werden.
+
+Die 13 Controls sind als Mindestanforderungen formuliert: wer alle 13 erfüllt,
+hat eine solide Security-Grundlage – kein vollständiges Security-Programm,
+aber eine nachweisbar gehärtete Cloud-Infrastruktur, die Audits standhält.
+
+Vollständiger Controls-Katalog über alle Säulen: xref:controls:catalog.adoc[Controls-Katalog].
+
+== Controls-Übersicht
+
+[cols="1,3,1,2,1,3"]
+|===
+|Control-ID |Titel |Schweregrad |Kategorie |Automatisiert |Kurzbeschreibung
+
+|xref:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+|Identity & Access Management Baseline
+|Kritisch
+|IAM
+|Ja
+|Root-Account-Schutz, MFA-Enforcement, OIDC statt statischer Keys
+
+|xref:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+|Least Privilege & RBAC Enforcement
+|Kritisch
+|IAM
+|Ja
+|Keine Wildcard-Policies, Permission Boundaries, quartalsweise Access Reviews
+
+|xref:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+|Encryption at Rest with CMK
+|Hoch
+|Verschlüsselung
+|Ja
+|CMK für PII/Finanzdaten, KMS-Rotation, Verschlüsselung aller Datenspeicher
+
+|xref:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+|Encryption in Transit – TLS Enforcement
+|Hoch
+|Verschlüsselung
+|Ja
+|TLS 1.2+ Minimum, kein HTTP ohne Redirect, sichere Cipher Suites
+
+|xref:controls/WAF-SEC-050.adoc[WAF-SEC-050]
+|Network Segmentation & Security Group Hardening
+|Hoch
+|Netzwerksicherheit
+|Ja
+|Private-by-Default, kein 0.0.0.0/0 auf Management-Ports, VPC Flow Logs
+
+|xref:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+|Secrets Management – No Hardcoded Credentials
+|Kritisch
+|Secrets
+|Ja
+|Keine Plaintext-Secrets in Code/ENV, automatische Rotation, Secrets Manager
+
+|xref:controls/WAF-SEC-070.adoc[WAF-SEC-070]
+|Vulnerability & Patch Management
+|Mittel
+|Vulnerability Management
+|Partiell
+|Container-Scanning im CI, SBOM-Generierung, Patch-SLA nach CVSS
+
+|xref:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+|Security Monitoring & Threat Detection
+|Hoch
+|Monitoring
+|Ja
+|GuardDuty, CloudTrail multi-region, CloudWatch Alarme für kritische Events
+
+|xref:controls/WAF-SEC-090.adoc[WAF-SEC-090]
+|Policy-as-Code & Compliance Automation
+|Mittel
+|Policy-as-Code
+|Ja
+|wafpass/OPA als blockierendes CI-Gate, SCPs für Org-Guardrails
+
+|xref:controls/WAF-SEC-100.adoc[WAF-SEC-100]
+|Incident Response Readiness
+|Mittel
+|Incident Response
+|Niedrig
+|Versionierte IR-Playbooks, jährliche Übungen, definierte Eskalationspfade
+
+|xref:controls/WAF-SEC-110.adoc[WAF-SEC-110]
+|Supply Chain Security & SBOM
+|Hoch
+|Supply Chain
+|Partiell
+|SBOM-Pflicht, Image-Signierung (Cosign), SLSA-Anforderungen, Dependency-Scanning
+
+|xref:controls/WAF-SEC-120.adoc[WAF-SEC-120]
+|Container & Runtime Security
+|Hoch
+|Container-Security
+|Ja
+|Non-root, Read-only FS, kein Privileged Mode, Distroless Images, Admission Control
+
+|xref:controls/WAF-SEC-130.adoc[WAF-SEC-130]
+|Data Classification & Sensitive Data Protection
+|Hoch
+|Data Protection
+|Partiell
+|Datenklassifizierungs-Schema, Tagging-Policy, Macie-Scan, Datenzugriffskontrollen
+
+|===
+
+---
+
+[#WAF-SEC-010]
+== WAF-SEC-010 – Identity & Access Management Baseline
+
+*Severity:* Kritisch | *Kategorie:* IAM | *Automatisierbar:* Hoch
+
+*Intent:* Ohne eine solide IAM-Basis können alle anderen Security-Controls durch einen
+einzigen kompromittierten Account ausgehebelt werden.
+
+*Anforderung:* Eine IAM-Baseline MUSS implementiert sein:
+Root-Account mit MFA gesichert und nicht für tägliche Operationen genutzt;
+IAM-Passwort-Policy mit Komplexitätsanforderungen; IMDSv2 für EC2-Instanzen erzwungen;
+keine langlebigen Access Keys für IAM-User in Produktion.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-010.tf.aws.iam-password-policy` – IAM-Passwort-Policy mit Mindestlänge, Komplexität
+* `waf-sec-010.tf.aws.no-root-access-key` – Kein aktiver Root-Access-Key
+* `waf-sec-010.tf.aws.ec2-imdsv2-required` – EC2 Instanzen mit `http_tokens = "required"`
+* `waf-sec-010.tf.aws.no-iam-user-access-keys-in-production` – Keine langlebigen Access Keys
+
+*Evidenz:*
+
+* Terraform IAM-Policy-Konfiguration ohne Root-Access-Keys
+* CloudTrail-Export: Kein Root-ConsoleLogin in den letzten 90 Tagen
+
+*Best Practice:* xref:best-practices/bp-iam.adoc[IAM Best Practice →]
+
+---
+
+[#WAF-SEC-020]
+== WAF-SEC-020 – Least Privilege & RBAC Enforcement
+
+*Severity:* Kritisch | *Kategorie:* IAM | *Automatisierbar:* Hoch
+
+*Intent:* Übermäßige IAM-Berechtigungen sind der häufigste Verstärker von Cloud-Security-Incidents.
+
+*Anforderung:* Keine IAM-Policy DARF `Action: *` mit `Resource: *` kombinieren.
+IAM-Rollen MÜSSEN nach dem Prinzip des minimalen Privilegs konfiguriert sein.
+Produktions-Ressourcen MÜSSEN Berechtigungen auf konkrete Actions und ARNs beschränken.
+Quartalsweise IAM Access Reviews MÜSSEN dokumentiert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-020.tf.aws.no-wildcard-iam-policy` – Keine `Action: *` mit `Resource: *`
+* `waf-sec-020.tf.aws.no-administrator-access-policy` – Kein `AdministratorAccess` für App-Rollen
+* `waf-sec-020.tf.aws.iam-role-boundary-policy` – Permission Boundaries für Dev-Rollen
+* `waf-sec-020.tf.aws.no-inline-admin-policy` – Keine Inline-Policies mit Admin-Umfang
+
+*Evidenz:*
+
+* Terraform IAM-Rollen ohne Wildcard-Policies
+* IAM Access Analyzer Findings-Report (keine öffentlich zugänglichen Ressourcen)
+
+---
+
+[#WAF-SEC-030]
+== WAF-SEC-030 – Encryption at Rest with CMK
+
+*Severity:* Hoch | *Kategorie:* Verschlüsselung | *Automatisierbar:* Hoch
+
+*Intent:* Verschlüsselung schützt Daten, selbst wenn Zugangskontrolle versagt.
+Provider-verwaltete Schlüssel sind kein Datenkontrolle – CMK ist die Mindestanforderung.
+
+*Anforderung:* Alle Datenspeicher für PII, Finanz- und Gesundheitsdaten MÜSSEN mit
+Customer Managed Keys (CMK) via KMS verschlüsselt sein. KMS-Schlüsselrotation MUSS aktiviert
+sein. Unverschlüsselte EBS-Volumes, S3-Buckets und RDS-Instanzen in Produktionsumgebungen
+sind nicht zulässig.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-030.tf.aws.s3-bucket-kms-encryption` – S3 nutzt `aws:kms` (CMK, nicht AES256)
+* `waf-sec-030.tf.aws.ebs-volume-encrypted` – EBS Volumes verschlüsselt
+* `waf-sec-030.tf.aws.rds-storage-encrypted` – RDS Storage-Verschlüsselung aktiviert
+* `waf-sec-030.tf.aws.kms-key-rotation-enabled` – KMS Key Rotation aktiv
+* `waf-sec-030.tf.aws.dynamodb-table-encrypted` – DynamoDB Table mit CMK
+
+*Evidenz:*
+
+* Terraform KMS-CMK-Ressourcen mit `enable_key_rotation = true`
+* S3, RDS, EBS-Ressourcen mit explizitem KMS-Key-ARN
+
+*Best Practice:* xref:best-practices/bp-encryption.adoc[Encryption Strategy →]
+
+---
+
+[#WAF-SEC-040]
+== WAF-SEC-040 – Encryption in Transit – TLS Enforcement
+
+*Severity:* Hoch | *Kategorie:* Verschlüsselung | *Automatisierbar:* Hoch
+
+*Intent:* Unverschlüsselte Verbindungen sind in der Produktion inakzeptabel –
+unabhängig davon, ob der Traffic intern oder extern ist.
+
+*Anforderung:* Alle externen und internen API-Endpunkte MÜSSEN TLS 1.2 oder höher erzwingen.
+HTTP-Verbindungen MÜSSEN zu HTTPS umgeleitet werden. Veraltete Protokolle (SSL, TLS 1.0/1.1)
+MÜSSEN deaktiviert sein. Load Balancer MÜSSEN eine sichere TLS Security Policy nutzen.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-040.tf.aws.alb-https-only` – ALB-Listener erzwingt HTTPS (kein reines HTTP)
+* `waf-sec-040.tf.aws.alb-tls-policy-modern` – ALB TLS Policy >= ELBSecurityPolicy-TLS13-1-2
+* `waf-sec-040.tf.aws.cloudfront-minimum-protocol-tls12` – CloudFront Minimum Protocol TLSv1.2
+* `waf-sec-040.tf.aws.api-gateway-tls` – API Gateway mit TLS
+* `waf-sec-040.tf.aws.rds-no-plaintext-endpoint` – RDS-Verbindungen mit TLS
+
+*Evidenz:*
+
+* Terraform ALB/NLB-Konfiguration mit TLS Security Policy
+* SSL Labs Report für öffentliche Endpunkte (Grade A oder besser)
+
+---
+
+[#WAF-SEC-050]
+== WAF-SEC-050 – Network Segmentation & Security Group Hardening
+
+*Severity:* Hoch | *Kategorie:* Netzwerksicherheit | *Automatisierbar:* Hoch
+
+*Intent:* Netzwerksegmentierung begrenzt laterale Bewegung von Angreifern.
+Ohne Segmentierung können kompromittierte Systeme alle anderen Systeme im selben Netzwerk erreichen.
+
+*Anforderung:* Produktions-VPCs MÜSSEN private und öffentliche Subnetze trennen.
+Datenbank-Ressourcen MÜSSEN in dedizierten privaten Subnetzen sein.
+Security Groups DÜRFEN NICHT `0.0.0.0/0` für Management-Ports (SSH 22, RDP 3389) erlauben.
+Offene `0.0.0.0/0`-Egress-Regeln sind ohne explizite Ausnahmen verboten.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-050.tf.aws.no-public-ssh` – Keine Security Group mit Port 22 offen zu 0.0.0.0/0
+* `waf-sec-050.tf.aws.no-public-rdp` – Keine Security Group mit Port 3389 offen zu 0.0.0.0/0
+* `waf-sec-050.tf.aws.no-unrestricted-ingress` – Keine unbeschränkten Ingress-Regeln
+* `waf-sec-050.tf.aws.rds-not-public` – RDS-Instanz mit `publicly_accessible = false`
+* `waf-sec-050.tf.aws.vpc-flow-logs-enabled` – VPC Flow Logs aktiviert
+
+*Evidenz:*
+
+* Terraform Security Group-Konfigurationen ohne Management-Port-Exposures
+* VPC-Architekturdiagramm mit Subnetz-Trennung
+
+*Best Practice:* xref:best-practices/bp-network-security.adoc[Network Security →]
+
+---
+
+[#WAF-SEC-060]
+== WAF-SEC-060 – Secrets Management – No Hardcoded Credentials
+
+*Severity:* Kritisch | *Kategorie:* Secrets | *Automatisierbar:* Hoch
+
+*Intent:* Hardcodierte Credentials sind der direkteste Weg zu einem kompromittierten System.
+Git-History ist permanent – ein einmal committetes Passwort muss als kompromittiert gelten.
+
+*Anforderung:* Kein Secret (Passwort, API-Key, Private Key, Token) DARF in Terraform-Code,
+Variablen-Defaults, Container-Definitions als Plaintext-ENV oder im Git-Repository existieren.
+Alle Secrets MÜSSEN in einem dediziertem Secret-Store (AWS Secrets Manager, Parameter Store,
+HashiCorp Vault) verwaltet werden. Rotation MUSS für alle Secrets konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-060.tf.any.no-plaintext-password-in-defaults` – Keine Passwort-ähnlichen Werte in Defaults
+* `waf-sec-060.tf.aws.ecs-no-plaintext-secrets-env` – ECS Task Definitions nutzen `secrets`, nicht `environment`
+* `waf-sec-060.tf.aws.secrets-manager-rotation-enabled` – Secrets Manager Rotation konfiguriert
+* `waf-sec-060.tf.any.no-private-key-in-terraform` – Keine PEM-Keys in Terraform-Code
+
+*Evidenz:*
+
+* Terraform-Code ohne Plaintext-Secrets
+* git-secrets oder trufflehog Scan-Report (keine Findings in Git-History)
+
+*Best Practice:* xref:best-practices/bp-secrets.adoc[Secrets Management →]
+
+---
+
+[#WAF-SEC-070]
+== WAF-SEC-070 – Vulnerability & Patch Management
+
+*Severity:* Mittel | *Kategorie:* Vulnerability Management | *Automatisierbar:* Mittel
+
+*Intent:* Ungepatchte Software ist die häufigste Quelle für erfolgreiche Angriffe.
+Vulnerability Management ist kein einmaliges Projekt – es ist ein kontinuierlicher Prozess.
+
+*Anforderung:* Container-Images MÜSSEN vor dem Deployment auf kritische CVEs gescannt werden.
+Ein Patch-SLA-Dokument MUSS definiert sein (Critical: < 24h, High: < 7d, Medium: < 30d).
+ECR Image Scanning MUSS für alle Produktions-Repositories aktiviert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-070.tf.aws.ecr-image-scanning-on-push` – ECR Repository mit `scan_on_push = true`
+* `waf-sec-070.tf.aws.ecr-image-tag-immutability` – ECR mit `image_tag_mutability = "IMMUTABLE"`
+* `waf-sec-070.tf.aws.inspector-enabled` – AWS Inspector für EC2/Container aktiviert (optional)
+
+*Evidenz:*
+
+* Terraform ECR-Konfiguration mit Scan-on-Push
+* Letzter Vulnerability-Scan-Report: 0 kritische ungepatchte CVEs
+
+*Best Practice:* xref:best-practices/bp-vulnerability-management.adoc[Vulnerability Management →]
+
+---
+
+[#WAF-SEC-080]
+== WAF-SEC-080 – Security Monitoring & Threat Detection
+
+*Severity:* Hoch | *Kategorie:* Monitoring | *Automatisierbar:* Hoch
+
+*Intent:* Angriffe, die Prävention überwinden, müssen erkannt werden. Ohne Monitoring bleiben
+Breaches Monate oder Jahre unentdeckt.
+
+*Anforderung:* AWS GuardDuty MUSS in allen Produktions-Accounts aktiviert sein.
+CloudTrail MUSS multi-region mit Log-File-Validation und ohne öffentlichen S3-Bucket sein.
+CloudWatch-Alarme MÜSSEN für kritische Ereignisse (Root-Login, IAM-Policy-Änderungen,
+Security Group-Änderungen) konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-080.tf.aws.guardduty-enabled` – GuardDuty aktiviert
+* `waf-sec-080.tf.aws.cloudtrail-multi-region` – CloudTrail multi-region mit Log Validation
+* `waf-sec-080.tf.aws.cloudtrail-s3-not-public` – CloudTrail S3-Bucket nicht öffentlich
+* `waf-sec-080.tf.aws.cloudwatch-alarm-root-login` – Alarm bei Root-Account-Aktivität
+* `waf-sec-080.tf.aws.cloudwatch-alarm-iam-changes` – Alarm bei IAM-Policy-Änderungen
+* `waf-sec-080.tf.aws.security-hub-enabled` – Security Hub aktiviert
+
+*Evidenz:*
+
+* Terraform GuardDuty und CloudTrail-Konfiguration
+* CloudWatch-Alarm-Konfigurationen für kritische Ereignisse
+
+---
+
+[#WAF-SEC-090]
+== WAF-SEC-090 – Policy-as-Code & Compliance Automation
+
+*Severity:* Mittel | *Kategorie:* Compliance | *Automatisierbar:* Hoch
+
+*Intent:* Manuelle Security-Reviews skalieren nicht. Policy-as-Code ist die einzige Möglichkeit,
+konsistente Security-Standards über viele Teams und Repositories durchzusetzen.
+
+*Anforderung:* Ein automatisierter Security-Check (WAF++ Checker, OPA/Conftest, tfsec, checkov)
+MUSS in der CI/CD-Pipeline aktiv sein und kritische Findings blockieren.
+SCPs (Service Control Policies) oder Azure Policies SOLLEN für Organisationsweite Guardrails genutzt werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-090.tf.aws.organizations-scp-exists` – SCP für kritische Aktionen vorhanden (optional)
+* `waf-sec-090.tf.any.required-terraform-version` – Terraform Version gepinnt
+* `waf-sec-090.tf.any.required-providers-version-pinned` – Provider-Versionen gepinnt
+
+*Evidenz:*
+
+* CI/CD-Pipeline-Logs mit WAF++ Checker-Runs (alle PRs gescannt)
+* OPA-Policy-Dateien im Repository
+
+*Best Practice:* xref:design-patterns.adoc#Pattern-6[Pattern 6 – Policy-as-Code Gateway →]
+
+---
+
+[#WAF-SEC-100]
+== WAF-SEC-100 – Incident Response Readiness
+
+*Severity:* Mittel | *Kategorie:* Incident Response | *Automatisierbar:* Niedrig
+
+*Intent:* Ein Incident Response Plan, der nie geübt wurde, ist ein Wunsch, kein Plan.
+Readiness bedeutet: getestete Prozesse, klare Verantwortlichkeiten, funktionierende Tools.
+
+*Anforderung:* Ein Incident Response Playbook MUSS existieren (versioniert, reviewed).
+Es MUSS Eskalationspfade, Kommunikationsprotokolle und technische Schritte für häufige
+Szenarien (Data Breach, Ransomware, Account Compromise) enthalten.
+Playbooks MÜSSEN mindestens jährlich durch Tabletop-Exercises geübt werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-sec-100.tf.aws.config-recorder-enabled` – AWS Config Recorder aktiv (für Forensik)
+* `waf-sec-100.tf.aws.s3-access-logging-enabled` – S3 Access Logging für kritische Buckets
+* `waf-sec-100.tf.aws.cloudtrail-enabled-all-regions` – CloudTrail für vollständige Forensik
+
+*Evidenz:*
+
+* Incident Response Playbook (versioniert, mit Review-Datum)
+* Protokoll der letzten IR-Übung (Tabletop-Exercise)
+
+---
+
+[#WAF-SEC-110]
+== WAF-SEC-110 – Supply Chain Security & SBOM
+
+*Severity:* Hoch | *Kategorie:* Supply Chain | *Automatisierbar:* Partiell
+
+WAF-SEC-110 stellt sicher, dass alle Software-Artefakte aus verifizierbaren, manipulationssicheren
+Quellen stammen und vollständig dokumentiert sind.
+Moderne Supply-Chain-Angriffe (SolarWinds, XZ Utils) zeigen, dass nicht die Anwendung selbst,
+sondern ihre Abhängigkeiten der Angriffsvektor sind.
+Dieser Control fordert SBOM-Generierung, Image-Signierung und Anforderungen an Build-Provenance –
+die Grundlage für Softwarevertrauensketten in regulierten Umgebungen.
+
+*Schlüsselanforderungen:*
+
+* Für alle Produktions-Container-Images MUSS ein SBOM (Software Bill of Materials) im Format CycloneDX oder SPDX generiert und archiviert werden
+* Container-Images MÜSSEN kryptographisch signiert werden (Cosign/Notary); die Signatur MUSS vor dem Deployment verifiziert werden
+* CI/CD-Pipelines MÜSSEN OIDC-basierte Identitäten nutzen (keine statischen Pipeline-Credentials); Dependency-Scanning MUSS für alle Abhängigkeiten aktiv sein
+
+*Was wafpass automatisch prüft:*
+
+* `waf-sec-110.tf.aws.ecr-image-scanning-on-push` – ECR Scan-on-Push für alle Repositories
+* `waf-sec-110.tf.aws.ecr-tag-immutability` – ECR Image Tag Immutability aktiviert
+* `waf-sec-110.tf.any.lockfile-present` – `.terraform.lock.hcl` im Repository vorhanden
+* `waf-sec-110.ci.any.sbom-generation-step` – CI/CD-Pipeline enthält SBOM-Generierungsschritt
+* `waf-sec-110.ci.any.image-signing-step` – CI/CD-Pipeline enthält Image-Signing-Schritt (Cosign)
+
+*Evidenz:*
+
+* SBOM-Artefakte (CycloneDX JSON) im CI/CD-Artefakt-Speicher, mindestens pro Release
+* Cosign-Signatur-Verifikation in der Deployment-Pipeline
+
+xref:controls/WAF-SEC-110.adoc[Details →]
+
+---
+
+[#WAF-SEC-120]
+== WAF-SEC-120 – Container & Runtime Security
+
+*Severity:* Hoch | *Kategorie:* Container-Security | *Automatisierbar:* Ja
+
+WAF-SEC-120 adressiert die spezifischen Sicherheitsrisiken von Container-Workloads.
+Container-Images, die als root laufen, privilegierten Zugriff haben oder beschreibbare Dateisysteme nutzen,
+sind eine erhebliche Angriffsfläche – auch wenn das darunter liegende Kubernetes-Cluster gut konfiguriert ist.
+Ein kompromittierter privilegierter Container entspricht einer Host-Kompromittierung;
+dieser Control zieht die Grenze zwischen Workload-Isolation und Host-Zugriff.
+
+*Schlüsselanforderungen:*
+
+* Alle Container MÜSSEN als non-root User laufen (`runAsNonRoot: true`, `runAsUser` nicht 0); privileged Mode ist in Produktionsumgebungen verboten
+* Container-Dateisysteme MÜSSEN read-only gemountet sein (`readOnlyRootFilesystem: true`) mit expliziten tmpfs-Mounts für Schreibzugriffe
+* Kubernetes Admission Control (OPA Gatekeeper oder Kyverno) MUSS Container-Security-Anforderungen als Pflichtregeln erzwingen; Distroless oder minimale Base Images sind vorgeschrieben
+
+*Was wafpass automatisch prüft:*
+
+* `waf-sec-120.tf.aws.ecs-no-privileged-containers` – ECS Task Definition: kein `privileged = true`
+* `waf-sec-120.tf.aws.ecs-no-root-user` – ECS Task Definition: `user` nicht `"root"` oder `"0"`
+* `waf-sec-120.tf.aws.ecs-readonly-root-filesystem` – ECS Task Definition: `readonlyRootFilesystem = true`
+* `waf-sec-120.k8s.any.no-privileged-containers` – Keine privilegierten Container in Kubernetes-Workloads
+* `waf-sec-120.k8s.any.run-as-non-root` – `securityContext.runAsNonRoot: true` gesetzt
+* `waf-sec-120.tf.aws.eks-control-plane-logging` – EKS Control-Plane-Logging aktiviert
+
+*Evidenz:*
+
+* Kubernetes-Manifest-Exports mit `securityContext`-Konfigurationen für alle Produktions-Workloads
+* OPA Gatekeeper / Kyverno Policy-Listing aus dem Cluster
+
+xref:controls/WAF-SEC-120.adoc[Details →]
+
+---
+
+[#WAF-SEC-130]
+== WAF-SEC-130 – Data Classification & Sensitive Data Protection
+
+*Severity:* Hoch | *Kategorie:* Data Protection | *Automatisierbar:* Partiell
+
+WAF-SEC-130 stellt sicher, dass alle Cloud-Ressourcen mit einer Datenklassifizierung versehen sind
+und dass Ressourcen mit sensitiven Daten entsprechend ihrer Klassifizierung geschützt werden.
+Ohne Datenklassifizierung werden alle Daten gleich behandelt: entweder alles überschützt (teuer)
+oder alles unterschützt (Compliance-Risiko).
+Klassifizierung ermöglicht proportionale, nachweisbare Schutzmaßnahmen und ist Basis für
+DSGVO-Rechenschaftspflicht und Audit-Nachweise.
+
+*Schlüsselanforderungen:*
+
+* Alle Produktions-Ressourcen (S3, RDS, DynamoDB, EFS) MÜSSEN ein `DataClassification`-Tag tragen (`public`, `internal`, `confidential`, `restricted`)
+* Ressourcen mit `confidential` oder `restricted` Klassifizierung MÜSSEN CMK-verschlüsselt sein und dürfen keinen öffentlichen Zugriff erlauben
+* Amazon Macie (oder ein äquivalentes Sensitive-Data-Discovery-Tool) MUSS für alle S3-Buckets mit `internal` oder höherer Klassifizierung aktiv sein
+
+*Was wafpass automatisch prüft:*
+
+* `waf-sec-130.tf.any.data-classification-tag-required` – `DataClassification`-Tag auf allen Storage-Ressourcen
+* `waf-sec-130.tf.aws.confidential-restricted-cmk-encryption` – CMK-Pflicht für `confidential`/`restricted` Ressourcen
+* `waf-sec-130.tf.aws.macie-enabled` – Amazon Macie aktiviert
+* `waf-sec-130.tf.aws.s3-no-public-access-confidential` – Öffentlicher Zugriff auf klassifizierte Buckets blockiert
+* `waf-sec-130.tf.any.tag-policy-enforced` – AWS Tag Policy oder Azure Policy für Tag-Enforcement aktiv
+
+*Evidenz:*
+
+* Tag-Compliance-Report: `aws resourcegroupstaggingapi get-resources` mit `DataClassification`-Filter
+* Amazon Macie Finding Summary der letzten 30 Tage (JSON-Export)
+
+xref:controls/WAF-SEC-130.adoc[Details →]
+
+---
+
+== Vollständiger Controls-Katalog
+
+Alle Controls über alle Säulen: xref:controls:catalog.adoc[Controls-Katalog →]

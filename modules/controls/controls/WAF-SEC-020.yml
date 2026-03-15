@@ -1,0 +1,216 @@
+id: WAF-SEC-020
+title: "Least Privilege & RBAC Enforcement"
+pillar: "security"
+status: "active"
+severity: "critical"
+category: "iam"
+type: ['configuration', 'automation']
+tags: ['least-privilege', 'rbac', 'iam-policy', 'wildcard', 'privilege-escalation']
+
+description: >
+  IAM policies MUST NOT grant wildcard actions (Action: "*") combined with wildcard
+  resources (Resource: "*"). The AWS-managed AdministratorAccess policy MUST NOT be
+  attached to roles used for automated workloads, CI/CD pipelines, or application
+  service accounts. All IAM permissions MUST follow the principle of least privilege,
+  granting only the minimum rights required for the intended function. Privilege escalation
+  paths MUST be identified and eliminated using IAM Access Analyzer.
+
+rationale: >
+  Overly permissive IAM policies are the most exploited misconfiguration in cloud environments.
+  A single compromised workload identity with admin-level permissions can result in full account
+  takeover, data exfiltration, and destruction of all resources. Wildcard policies negate all
+  other security controls by providing an attacker with unlimited blast radius. Enforcing least
+  privilege through RBAC limits the impact of any individual compromise to the minimal set of
+  permissions required for that specific workload component.
+
+threat:
+  - "Privilege escalation via overly broad IAM roles allowing attackers to create new admin users"
+  - "Lateral movement through wildcard policies granting access to all services across all regions"
+  - "Data exfiltration by compromised workload identities with s3:* or dynamodb:* permissions"
+  - "Resource destruction or ransomware attacks enabled by unrestricted write and delete permissions"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: appropriate technical measures"
+      - "Art. 5(1)(f) – Integrity and confidentiality of personal data"
+  - framework: "BSI C5:2020"
+    controls:
+      - "IAM-01 – Identity and access management policy"
+      - "IAM-03 – Access control and authorisation"
+      - "IAM-05 – Privileged access management"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.2 – Privileged access rights"
+      - "A.8.3 – Information access restriction"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "IAM-01 – Identity and access management"
+      - "IAM-03 – Least privilege access control"
+  - framework: "SOC 2"
+    controls:
+      - "CC6.3 – Logical access security measures"
+
+implementation_guidance:
+  - "Audit all existing IAM roles and policies using IAM Access Analyzer to identify overly permissive policies and privilege escalation paths."
+  - "Replace all uses of AdministratorAccess managed policy on workload roles with scoped custom policies granting only required actions on required resources."
+  - "Use IAM policy conditions (aws:RequestedRegion, aws:ResourceTag) to further restrict what resources a policy applies to."
+  - "Implement permission boundaries on all developer-created IAM roles to cap the maximum permission set regardless of what is attached."
+  - "Use Service Control Policies (SCPs) at the organization or OU level to enforce hard guardrails that cannot be overridden by individual account administrators."
+  - "Regularly review unused permissions with IAM Access Analyzer's unused access findings and remove permissions not used within 90 days."
+  - "Automate least-privilege policy generation using tools such as AWS IAM Access Advisor, aws-policy-generator, or Cloudsplaining."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc permissions, many wildcard policies in use"
+    criteria:
+      - "IAM policies are created manually without a least-privilege review process"
+      - "Multiple roles or users have AdministratorAccess or Action:*/Resource:* policies"
+  level_2:
+    description: "Wildcard policies identified and reduction plan in place"
+    criteria:
+      - "Full inventory of all IAM roles and their effective permissions exists"
+      - "AdministratorAccess is removed from all non-break-glass roles"
+      - "New policies reviewed for wildcard usage before deployment"
+  level_3:
+    description: "Least-privilege enforced via CI gate and permission boundaries"
+    criteria:
+      - "CI pipeline rejects IAM policies with Action:*/Resource:* combinations"
+      - "Permission boundaries applied to all developer-created IAM roles"
+      - "SCPs restrict creation of overly permissive policies at org level"
+  level_4:
+    description: "Continuous access analysis with unused permission removal"
+    criteria:
+      - "IAM Access Analyzer unused access findings reviewed monthly"
+      - "Permissions unused for 90+ days are automatically revoked"
+      - "All privilege escalation paths identified and remediated"
+  level_5:
+    description: "Just-in-time permissions with automated right-sizing and continuous attestation"
+    criteria:
+      - "All elevated permissions are just-in-time with automated expiration"
+      - "Automated policy right-sizing generates least-privilege replacements for existing policies"
+      - "Continuous attestation ensures permission sets remain justified and documented"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform IAM role and policy resources showing scoped, least-privilege permissions without wildcard action/resource combinations."
+    - kind: "config"
+      description: "IAM Access Analyzer report or Security Hub findings confirming no critical privilege escalation paths in active roles."
+  optional:
+    - kind: "process"
+      description: "Quarterly IAM access review records showing sign-off on all active role permissions."
+    - kind: "config"
+      description: "SCP policy document denying attachment of AdministratorAccess and creation of wildcard policies."
+
+checks:
+  - id: "waf-sec-020.tf.aws.no-admin-policy-attachment"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AdministratorAccess managed policy must not be attached to workload IAM principals"
+    description: >
+      The AWS-managed AdministratorAccess policy (arn:aws:iam::aws:policy/AdministratorAccess)
+      must not be attached to any IAM role, user, or group used for automated workloads,
+      applications, or CI/CD pipelines.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_role_policy_attachment"
+        - "aws_iam_user_policy_attachment"
+        - "aws_iam_group_policy_attachment"
+    assertions:
+      - attribute: "policy_arn"
+        op: "not_equals"
+        expected: "arn:aws:iam::aws:policy/AdministratorAccess"
+        message: "AdministratorAccess managed policy MUST NOT be attached to any IAM principal."
+    on_fail: "violation"
+    remediation: >
+      Remove the AdministratorAccess attachment and replace it with a scoped IAM policy that
+      grants only the specific actions and resources required for the workload. Use IAM Access
+      Advisor to identify which permissions were actually used in the last 90 days as a baseline.
+    example:
+      compliant: |
+        resource "aws_iam_role_policy_attachment" "app_policy" {
+          role       = aws_iam_role.app_role.name
+          policy_arn = aws_iam_policy.app_scoped_policy.arn  # custom, least-privilege policy
+        }
+        resource "aws_iam_policy" "app_scoped_policy" {
+          name = "app-scoped-policy"
+          policy = jsonencode({
+            Version = "2012-10-17"
+            Statement = [{
+              Effect   = "Allow"
+              Action   = ["s3:GetObject", "s3:PutObject"]
+              Resource = "arn:aws:s3:::my-app-bucket/*"
+            }]
+          })
+        }
+      non_compliant: |
+        resource "aws_iam_role_policy_attachment" "bad" {
+          role       = aws_iam_role.app_role.name
+          policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+          # WAF-SEC-020 violation: AdministratorAccess must not be attached to workload roles
+        }
+
+  - id: "waf-sec-020.tf.aws.no-inline-wildcard-policy"
+    engine: "terraform"
+    provider: "aws"
+    automated: false
+    severity: "critical"
+    title: "IAM policies must not combine wildcard actions with wildcard resources"
+    description: >
+      Inline and managed IAM policies must not contain statements with Action: '*' combined
+      with Resource: '*'. This check requires manual review or a supplementary static analysis
+      tool (e.g., Cloudsplaining, Checkov) as Terraform plan output must be parsed for policy
+      document content.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_iam_policy"
+        - "aws_iam_role_policy"
+        - "aws_iam_user_policy"
+        - "aws_iam_group_policy"
+    assertions:
+      - attribute: "policy"
+        op: "json_not_contains_pattern"
+        pattern: "\"Action\":\\s*\"\\*\""
+        message: "IAM policy must not use wildcard Action '*'. Use scoped actions instead."
+    on_fail: "violation"
+    remediation: >
+      Replace wildcard actions with a specific list of required API actions.
+      Replace wildcard resources with specific ARNs or ARN patterns.
+      Use IAM Access Advisor to determine which actions are actually used by the role.
+    example:
+      compliant: |
+        resource "aws_iam_policy" "scoped" {
+          name = "scoped-s3-policy"
+          policy = jsonencode({
+            Version = "2012-10-17"
+            Statement = [{
+              Effect   = "Allow"
+              Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+              Resource = "arn:aws:s3:::my-bucket/*"
+            }]
+          })
+        }
+      non_compliant: |
+        resource "aws_iam_policy" "wildcard" {
+          name = "bad-wildcard-policy"
+          policy = jsonencode({
+            Version = "2012-10-17"
+            Statement = [{
+              Effect   = "Allow"
+              Action   = "*"          # WAF-SEC-020 violation
+              Resource = "*"          # Combined wildcard = full admin
+            }]
+          })
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-020"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-iam.adoc"
+  related_controls:
+    - "WAF-SEC-010"
+    - "WAF-SOV-060"

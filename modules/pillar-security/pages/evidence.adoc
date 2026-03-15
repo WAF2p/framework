@@ -1,0 +1,304 @@
+= Evidenz & Audit (Security)
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – Evidenzanforderungen für Audits, Nachweisformate, Retention-Perioden und häufige Audit-Findings mit WAF++-Lösungsansätzen.
+
+== Überblick: Evidenz im WAF++-Kontext
+
+Evidenz ist der *Nachweis*, dass ein Security-Control nicht nur dokumentiert, sondern tatsächlich
+implementiert und wirksam ist. WAF++ unterscheidet zwei Evidenzklassen:
+
+* *Pflicht-Evidenz (Required)*: Muss für jeden Control vorhanden sein; Fehlen ist ein Audit-Finding
+* *Optionale Evidenz (Optional)*: Empfohlen für höhere Reifegrade und regulierte Umgebungen
+
+Evidenz wird idealerweise *automatisch generiert* – durch den WAF++ Checker, Terraform-Outputs,
+CloudWatch-Exports oder SIEM-Berichte.
+
+== Evidenztabelle: Alle WAF-SEC Controls
+
+[cols="1,2,3,1"]
+|===
+|Control |Evidenztyp |Beschreibung |Format
+
+|WAF-SEC-010
+|IaC
+|Terraform-Konfiguration: IAM-Passwort-Policy, MFA-Enforcement, kein Root-Access-Key
+|HCL-Dateien, Terraform Plan Output
+
+|WAF-SEC-010
+|Audit-Log
+|CloudTrail: Kein Root-ConsoleLogin-Event in den letzten 90 Tagen
+|CloudTrail JSON-Export / CloudWatch Insight Query
+
+|WAF-SEC-010
+|Screenshot (optional)
+|AWS IAM Konsole: MFA-Status für alle IAM-User
+|PNG/PDF Screenshot
+
+|WAF-SEC-020
+|IaC
+|Terraform IAM-Policies: Keine `Action: *` mit `Resource: *` Kombination
+|HCL-Dateien, WAF++ Checker-Report
+
+|WAF-SEC-020
+|Review-Protokoll
+|Quartalsweise IAM Access Review (wer hat Zugriff auf was?)
+|Signiertes PDF / Git-versioniertes Markdown
+
+|WAF-SEC-020
+|IAM Access Analyzer
+|IAM Access Analyzer Findings: Keine öffentlich zugänglichen Ressourcen
+|Access Analyzer JSON-Report
+
+|WAF-SEC-030
+|IaC
+|Terraform: KMS CMK-Konfiguration, Rotation aktiviert, alle Storage-Ressourcen mit KMS
+|HCL-Dateien, WAF++ Checker-Report
+
+|WAF-SEC-030
+|KMS-Export (optional)
+|KMS-Key-Policy-Dokument für kritische CMKs
+|JSON (via `aws kms get-key-policy`)
+
+|WAF-SEC-040
+|IaC
+|Terraform: ALB/NLB Security Policy, API Gateway TLS, CloudFront TLS Policy
+|HCL-Dateien, WAF++ Checker-Report
+
+|WAF-SEC-040
+|SSL-Test (optional)
+|SSL Labs oder testssl.sh-Bericht für öffentliche Endpoints
+|HTML/JSON-Report
+
+|WAF-SEC-050
+|IaC
+|Terraform: VPC-Design, Security Group-Konfigurationen, kein 0.0.0.0/0
+|HCL-Dateien, WAF++ Checker-Report
+
+|WAF-SEC-050
+|Netzwerkdiagramm (optional)
+|Architekturdiagramm: VPC-Layout, Subnet-Struktur, Security Group-Beziehungen
+|PNG/DrawIO
+
+|WAF-SEC-060
+|IaC
+|Terraform: Keine Secrets in Variablen oder Outputs; Secrets Manager-Referenzen
+|HCL-Dateien, Secret-Scan-Report (git-secrets, trufflehog)
+
+|WAF-SEC-060
+|Secret-Scan-Report
+|git-secrets oder trufflehog Scan: Keine hardcodierten Credentials in Git-History
+|JSON/Text Report
+
+|WAF-SEC-070
+|Scan-Report
+|Container-Image-Scan-Reports (Trivy, Grype, ECR Scanning): kritische CVEs = 0
+|JSON/HTML Report
+
+|WAF-SEC-070
+|SBOM (optional)
+|Software Bill of Materials für Container-Images
+|SPDX oder CycloneDX JSON
+
+|WAF-SEC-080
+|IaC
+|Terraform: GuardDuty aktiviert, CloudTrail multi-region, CloudWatch Alarms
+|HCL-Dateien, WAF++ Checker-Report
+
+|WAF-SEC-080
+|GuardDuty-Report (optional)
+|GuardDuty Findings Summary der letzten 90 Tage
+|JSON-Export / Security Hub Dashboard Screenshot
+
+|WAF-SEC-090
+|CI/CD-Log
+|Pipeline-Runs: WAF++ Checker, tfsec, checkov – alle bestanden oder Findings adressiert
+|GitHub Actions Log-Export / Artifact
+
+|WAF-SEC-090
+|OPA-Policy-Dokument (optional)
+|Dokumentierte OPA/Conftest-Policies im Repository
+|Rego-Dateien
+
+|WAF-SEC-100
+|Playbook
+|Incident Response Playbook (versioniert, reviewed)
+|Markdown oder PDF im Repository
+
+|WAF-SEC-100
+|Übungsprotokoll (optional)
+|Protokoll der letzten IR-Übung (Tabletop oder Simulation)
+|Signiertes PDF / Git-versioniertes Markdown
+
+|===
+
+== Audit-Vorbereitung: Checkliste
+
+=== Vor dem Audit (4-6 Wochen vorher)
+
+* [ ] WAF++ Checker gegen alle Produktions-IaC ausführen und alle Findings adressieren
+* [ ] CloudTrail-Konfiguration prüfen: Multi-Region, Log-File-Validation, kein öffentlicher S3-Bucket
+* [ ] GuardDuty-Findings der letzten 90 Tage reviewed und geschlossen
+* [ ] IAM Access Review durchführen und dokumentieren
+* [ ] Secret-Scan (trufflehog) über gesamte Git-History laufen lassen
+* [ ] Container-Image-Scan-Reports für alle Produktions-Images generieren
+* [ ] Incident Response Playbooks auf Aktualität prüfen
+
+=== Evidenz-Sammlung
+
+* [ ] Terraform-Code aus dem Repository exportieren (Commit-Hash dokumentieren)
+* [ ] WAF++ Checker-Report als PDF exportieren
+* [ ] CloudTrail: Query für Root-Login-Events der letzten 12 Monate
+* [ ] GuardDuty: Findings-Export für letzten Audit-Zeitraum
+* [ ] IAM Access Analyzer: Report für alle Accounts
+* [ ] Vulnerability-Scan-Reports: Alle Container-Images der letzten 90 Tage
+* [ ] CI/CD Pipeline-Logs: Nachweis, dass Security-Gates aktiv sind
+
+=== Häufige Auditor-Fragen und WAF++-Antworten
+
+[cols="2,3"]
+|===
+|Auditor-Frage |WAF++-Nachweis
+
+|„Wie stellen Sie sicher, dass MFA für alle Nutzer aktiviert ist?"
+|IAM-Passwort-Policy in Terraform (WAF-SEC-010); CloudTrail-Export ohne MFA-freie Consolen-Logins
+
+|„Wie verhindern Sie Privilege Escalation?"
+|IAM-Policies ohne Wildcards (WAF-SEC-020); IAM Access Analyzer Findings-Report; SCPs für kritische Aktionen
+
+|„Wie werden sensitive Daten verschlüsselt?"
+|Terraform-Code mit CMK-Referenzen (WAF-SEC-030); KMS-Key-Policy-Dokument; Encryption-by-Default-Konfiguration
+
+|„Wie werden Secrets verwaltet?"
+|Terraform ohne Secrets in Variablen (WAF-SEC-060); Secrets Manager Konfiguration; Secret-Scan-Report
+
+|„Wie reagieren Sie auf Sicherheitsvorfälle?"
+|Incident Response Playbook (WAF-SEC-100); Übungsprotokoll; GuardDuty-Workflow-Dokumentation
+
+|„Wie erkennen Sie Sicherheitsvorfälle?"
+|GuardDuty-Konfiguration (WAF-SEC-080); CloudWatch Alarms; SIEM-Integration
+
+|„Wie stellen Sie sicher, dass nur genehmigter Code deployed wird?"
+|CI/CD mit WAF++ Security Gate (WAF-SEC-090); Pipeline-Logs als Nachweis
+
+|===
+
+== Evidenz-Retention-Perioden
+
+[cols="2,1,1,2"]
+|===
+|Evidenztyp |Mindest-Retention |Regulatorische Anforderung |Empfehlung
+
+|CloudTrail API-Logs
+|1 Jahr (hot)
+|SOC 2, ISO 27001
+|1 Jahr hot (S3 Standard), 6 Jahre cold (Glacier Deep Archive)
+
+|Audit-Review-Protokolle
+|3 Jahre
+|ISO 27001, BSI C5
+|Versioniert im Git-Repository
+
+|Vulnerability-Scan-Reports
+|1 Jahr
+|SOC 2 CC7
+|Archiviert in S3 mit Lifecycle Policy
+
+|IAM Access Reviews
+|3 Jahre
+|ISO 27001 A.9.2
+|Git-Repository oder ITSM
+
+|Incident Response Protokolle
+|5 Jahre
+|DSGVO (Meldepflicht), ISO 27001
+|Verschlüsselt in S3, Zugriff auf Security Team begrenzt
+
+|CI/CD Pipeline-Logs
+|90 Tage
+|SOC 2
+|Pipeline-Plattform (GitHub Actions Artifacts)
+
+|Penetrationstest-Berichte
+|5 Jahre
+|ISO 27001, BSI C5
+|Klassifiziert, verschlüsselt, beschränkter Zugriff
+
+|Zertifikate und Schlüssel-Inventar
+|Laufzeit + 3 Jahre
+|PCI DSS, ISO 27001
+|ACM Console Export oder Terraform State
+
+|===
+
+== Evidenz aus wafpass generieren
+
+Der WAF++ Checker (`wafpass`) kann Evidenz direkt für Audits exportieren:
+
+[source,bash]
+----
+# Alle Security-Controls prüfen und PDF-Report generieren
+wafpass check \
+  --pillar security \
+  --path ./infrastructure \
+  --format pdf \
+  --output audit-evidence/wafpass-security-$(date +%Y%m%d).pdf
+
+# Nur Compliance-relevante Felder (für ISO 27001)
+wafpass check \
+  --pillar security \
+  --framework iso27001 \
+  --path ./infrastructure \
+  --format json \
+  --output audit-evidence/iso27001-mapping-$(date +%Y%m%d).json
+
+# Einzelnen Control prüfen
+wafpass check \
+  --control WAF-SEC-010 \
+  --path ./infrastructure \
+  --format github-annotations
+----
+
+== Häufige Audit-Findings und WAF++-Lösungen
+
+[cols="2,1,3"]
+|===
+|Audit-Finding |Betroffener Control |WAF++-Lösung
+
+|Root-Account wird für tägliche Operationen genutzt
+|WAF-SEC-010
+|IAM-Passwort-Policy + MFA für Root; Workflow auf IAM-Rollen umstellen; CloudWatch-Alarm
+
+|IAM-Policies mit `Action: *` und `Resource: *`
+|WAF-SEC-020
+|Policy-Refactoring; WAF++ Checker-Gate im CI verhindert Rückfälle
+
+|EBS-Volumes, RDS-Instanzen ohne Verschlüsselung
+|WAF-SEC-030
+|Terraform-Migration auf verschlüsselte Ressourcen; CMK via KMS
+
+|HTTP (Port 80) ohne Redirect zu HTTPS
+|WAF-SEC-040
+|ALB-Listener-Rule: Redirect 301 von Port 80 auf 443
+
+|Security Groups mit 0.0.0.0/0 Ingress auf Port 22 (SSH)
+|WAF-SEC-050
+|SSH-Port entfernen; SSM Session Manager als Ersatz
+
+|API-Keys im Git-Repository (auch in der History)
+|WAF-SEC-060
+|BFG Repo Cleaner für History; Rotation der exponierten Keys; Secrets Manager einführen
+
+|Ungepatchte Container-Images (CVEs > 90 Tage alt)
+|WAF-SEC-070
+|ECR Scanning aktivieren; Renovate/Dependabot für Base-Image-Updates; SLA im Policy-Dokument
+
+|CloudTrail nicht in allen Regionen aktiv
+|WAF-SEC-080
+|Terraform: `is_multi_region_trail = true`; SCP gegen CloudTrail-Deaktivierung
+
+|Kein dokumentierter Incident Response Prozess
+|WAF-SEC-100
+|Incident Response Playbook erstellen; Tabletop Exercise durchführen und dokumentieren
+
+|===

@@ -1,0 +1,491 @@
+= Security Design Patterns
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – 6 bewährte Sicherheitsarchitekturpatterns: Hub-and-Spoke, JIT-Zugriff, Secrets Injection, Immutable Infrastructure, Security Event Pipeline, Policy-as-Code Gateway.
+
+Die folgenden sechs Design Patterns sind bewährte Lösungsarchitekturen für häufige
+Security-Herausforderungen in Cloud-Umgebungen. Jedes Pattern ist direkt mit WAF-SEC Controls verknüpft.
+
+---
+
+== Pattern 1: Hub-and-Spoke Network
+
+*Zentrale Firewall und Kontrolle, gespräche VPCs für einzelne Workloads.*
+
+=== Problem
+
+In Multi-Account- oder Multi-VPC-Umgebungen ohne zentrale Netzwerkarchitektur entstehen:
+
+* Inkonsistente Security-Group-Konfigurationen in jedem VPC
+* Unkontrollierter ost-west Traffic zwischen Workloads
+* Keine zentrale Visibility in Netzwerkflüsse
+* Schwierige Umsetzung von Egress-Kontrolle
+
+=== Lösung
+
+[source,text]
+----
+Hub VPC (Shared Services / Transit)
+├── AWS Network Firewall (oder Palo Alto / Fortinet)
+├── NAT Gateway (zentraler Internet-Egress)
+├── VPN Gateway / Direct Connect
+├── DNS (Route 53 Resolver)
+└── Transit Gateway
+
+    Spoke VPC 1 (Produktion)         Spoke VPC 2 (Staging)
+    ├── App Tier (private)           ├── App Tier (private)
+    └── Data Tier (private)          └── Data Tier (private)
+
+Traffic-Flow:
+  Spoke VPC → Transit Gateway → Hub VPC (Firewall) → Internet
+  Spoke VPC ← Transit Gateway ← Hub VPC (Firewall) ← Internet
+----
+
+=== Implementierung (AWS)
+
+* *Transit Gateway*: Verbindet alle VPCs mit dem Hub
+* *AWS Network Firewall*: Im Hub für zentralisierte L7-Filterung
+* *VPC Endpoints*: In jedem Spoke-VPC für AWS-Services (kein Internet-Route notwendig)
+* *RAM (Resource Access Manager)*: Für Shared Subnets zwischen Accounts
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050] – Network Segmentation & Security Group Hardening
+
+=== Wann anwenden?
+
+* Organisationen mit mehreren AWS-Accounts (Landing Zone)
+* Workloads mit unterschiedlichen Compliance-Anforderungen
+* Wenn zentrale Egress-Kontrolle und Firewall-Policy erforderlich sind
+
+---
+
+== Pattern 2: Just-in-Time (JIT) Privileged Access
+
+*Keine permanenten Admin-Rechte. Erhöhte Berechtigungen werden nur für die Dauer einer konkreten Aufgabe gewährt.*
+
+=== Problem
+
+Permanente Admin-Rollen sind ein permanentes Angriffsrisiko:
+
+* Kompromittierte Admin-Credentials ermöglichen vollständige Kontoübernahme
+* Administratoren führen versehentlich destruktive Aktionen durch
+* Access-Review ist schwierig: „Braucht diese Person wirklich Admin-Zugriff?"
+
+=== Lösung
+
+[source,text]
+----
+Normaler Zustand:
+  Nutzer → IAM-Rolle mit minimalen Leserechten (ReadOnly)
+
+JIT-Anfrage:
+  Nutzer → JIT-System → Anfrage (Begründung, Zeitraum, Umfang)
+                      → Genehmigung durch zweite Person
+                      → Temporäre Rollenerweiterung (1-4 Stunden)
+                      → Automatische Revokation nach Ablauf
+                      → Audit-Log des gesamten Vorgangs
+
+Technische Umsetzung:
+  ├── AWS IAM Identity Center mit Permission Set Elevation
+  ├── HashiCorp Boundary + Vault für JIT-Credentials
+  ├── Custom Lambda + SNS für Approval-Workflow
+  └── CyberArk / BeyondTrust (Enterprise-Lösung)
+----
+
+=== Implementierung (AWS)
+
+[source,hcl]
+----
+# JIT-Rolle: Zeitgebundene Admin-Berechtigungen
+resource "aws_iam_role" "jit_admin" {
+  name = "jit-admin-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = "arn:aws:iam::${var.account_id}:role/jit-approval-system" }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        # Session darf maximal 4 Stunden dauern
+        NumericLessThanEquals = {
+          "sts:DurationSeconds" = "14400"
+        }
+      }
+    }]
+  })
+}
+
+# CloudWatch-Alarm: Alert bei JIT-Admin-Nutzung
+resource "aws_cloudwatch_metric_alarm" "jit_admin_usage" {
+  alarm_name = "jit-admin-role-assumed"
+  # ... CloudTrail AssumeRole Event für jit-admin-role
+}
+----
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010] – IAM Baseline
+* xref:controls/WAF-SEC-020.adoc[WAF-SEC-020] – Least Privilege
+
+=== Wann anwenden?
+
+* Immer, wenn privilegierte Cloud-Zugriffe für Administratoren existieren
+* Insbesondere bei regulierten Umgebungen (ISO 27001, SOC 2, DSGVO)
+* Als Ablösung für permanente Admin-Rollen
+
+---
+
+== Pattern 3: Secrets Injection Pattern
+
+*Secrets werden zur Laufzeit aus einem Secrets-Store geladen – niemals in Images gebacken oder als ENV-Variable übergeben.*
+
+=== Problem
+
+Secrets geraten auf viele Wegen in unsichere Orte:
+
+* Direkt im Terraform-Code (dann im State-File)
+* Als Environment-Variable in Task Definitions (im Klartext in CloudWatch-Logs sichtbar)
+* In Docker-Images gebacken (im Image-Layer sichtbar)
+* In Git-Repositories committed (für immer in der History)
+
+=== Lösung
+
+[source,text]
+----
+Container-Startzeit:
+  ECS Task → IAM Task Role (AssumeRole via IRSA/Task Policy)
+           → Secrets Manager API (GetSecretValue)
+           → Secret wird als ENV-Variable IN den Container injiziert
+           → Secret verlässt nie das AWS-Netzwerk (VPC Endpoint)
+
+ODER: Sidecar-Pattern (Vault Agent):
+  Vault Agent Sidecar → Vault Server (AppRole/Kubernetes Auth)
+                      → Liest Secret, schreibt in shared Volume
+                      → App-Container liest Secret aus Datei
+----
+
+=== Implementierung (AWS ECS)
+
+[source,hcl]
+----
+# Secrets Manager Secret
+resource "aws_secretsmanager_secret" "db_credentials" {
+  name                    = "prod/myapp/db-credentials"
+  recovery_window_in_days = 30
+  kms_key_id              = aws_kms_key.secrets.arn  # CMK für Secrets
+}
+
+# ECS Task Definition: Secret als Container-Secret (nicht Environment-Variable!)
+resource "aws_ecs_task_definition" "app" {
+  family                   = "myapp"
+  task_role_arn            = aws_iam_role.app_task.arn
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+
+  container_definitions = jsonencode([{
+    name  = "app"
+    image = "${var.ecr_repository}:${var.image_tag}"
+
+    # Richtig: secrets aus Secrets Manager
+    secrets = [
+      {
+        name      = "DB_PASSWORD"
+        valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+      },
+      {
+        name      = "DB_USERNAME"
+        valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+      }
+    ]
+    # Kein: environment = [{ name = "DB_PASSWORD", value = var.db_password }]
+  }])
+}
+----
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-060.adoc[WAF-SEC-060] – Secrets Management
+
+=== Wann anwenden?
+
+* Bei jeder Anwendung, die Datenbankpasswörter, API-Keys oder Zertifikate benötigt
+* In CI/CD-Pipelines (OIDC statt statische Access Keys)
+* In allen Container-basierten Workloads
+
+---
+
+== Pattern 4: Immutable Infrastructure
+
+*Infrastruktur wird durch neue Versionen ersetzt – nicht durch manuelle Änderungen repariert. Kein SSH in Produktion.*
+
+=== Problem
+
+Mutable Server (die direkt konfiguriert werden) führen zu:
+
+* Configuration Drift: Was im IaC-Code steht, stimmt nicht mehr mit dem Live-System überein
+* Security-Lücken durch vergessene manuell angewandte Hotfixes
+* Schwierige Forensik: Was wurde vor dem Incident geändert?
+* SSH als permanente Angriffsfläche
+
+=== Lösung
+
+[source,text]
+----
+Änderungszyklus bei Immutable Infrastructure:
+
+Alter Weg (mutable):
+  Entwickler → SSH-Zugriff → Konfigurationsänderung im Live-System
+
+Neuer Weg (immutable):
+  Entwickler → Code-Änderung in Repository
+             → CI/CD-Pipeline (Terraform Plan + Apply)
+             → Neues AMI gebacken (wenn EC2)
+             → Blue/Green Deployment (Swap auf neues AMI)
+             → Altes AMI decommissioned
+
+Falls Debugging nötig:
+  CloudWatch Logs analysieren (keine SSH-Session)
+  AWS Systems Manager Session Manager (falls unbedingt nötig, mit vollständigem Audit-Log)
+----
+
+=== Implementierung
+
+[source,hcl]
+----
+# EC2: Kein SSH-Key, SSM statt SSH für Debugging
+resource "aws_instance" "app" {
+  ami                  = var.app_ami  # Gepatchtes, gescanntes AMI
+  instance_type        = "t3.medium"
+  iam_instance_profile = aws_iam_instance_profile.ssm_access.name
+
+  # Kein key_name = ... (kein SSH-Key)
+
+  # SSM Agent ist in modernen AMIs vorinstalliert
+  # Zugriff via: aws ssm start-session --target instance-id
+
+  metadata_options {
+    http_tokens = "required"  # IMDSv2 erzwingen
+  }
+}
+
+# Security Group: kein SSH-Port 22 offen
+resource "aws_security_group" "app" {
+  # Kein Ingress-Rule auf Port 22
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+----
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010] – IAM Baseline (SSM statt SSH)
+* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050] – Network Segmentation (kein SSH-Port)
+
+=== Wann anwenden?
+
+* Für alle EC2-basierte Produktionsworkloads
+* Für ECS/EKS Nodes (immer)
+* Für alle Umgebungen, in denen Compliance-Anforderungen gelten
+
+---
+
+== Pattern 5: Security Event Pipeline
+
+*CloudTrail → CloudWatch → SIEM → Alerting: vollständige, tamper-proof Sicherheitsevent-Pipeline.*
+
+=== Problem
+
+Ohne strukturierte Security-Event-Pipeline:
+
+* Events gehen verloren oder sind nicht auswertbar
+* Angriffe werden zu spät oder gar nicht erkannt
+* Forensik nach einem Incident ist unmöglich
+* Compliance-Nachweise fehlen
+
+=== Lösung
+
+[source,text]
+----
+Security Event Pipeline:
+
+AWS CloudTrail (API-Audit-Logs)
+  ├── → S3 (tamper-proof, Log-File-Validation, Object Lock)
+  └── → CloudWatch Logs
+          ├── Metric Filter → CloudWatch Alarm → SNS → PagerDuty/Slack
+          └── → Log Group (Retention: 365 Tage)
+
+AWS GuardDuty (Threat Intelligence)
+  └── → Security Hub (aggregiert alle Findings)
+          ├── → EventBridge (Automatische Response)
+          └── → SIEM (Splunk / Elastic / Datadog)
+
+VPC Flow Logs
+  └── → S3 oder CloudWatch Logs
+
+AWS Config (Konfigurationsänderungen)
+  └── → Security Hub Findings
+
+Alerting:
+  Kritisch (Sofort): Root-Login, GuardDuty High Severity → PagerDuty (24/7)
+  Hoch (< 1h): IAM-Policy-Änderung, Security Group 0.0.0.0/0 → Slack #security-alerts
+  Mittel (< 4h): Failed Login Attempts, Unusual API Calls → Ticket-System
+----
+
+=== Implementierung (Auszug)
+
+[source,hcl]
+----
+# CloudWatch Metric Filter: Root-Account-Login
+resource "aws_cloudwatch_log_metric_filter" "root_login" {
+  name           = "root-account-login"
+  log_group_name = aws_cloudwatch_log_group.cloudtrail.name
+  pattern        = "{ $.userIdentity.type = \"Root\" && $.eventName = \"ConsoleLogin\" }"
+
+  metric_transformation {
+    name      = "RootLoginCount"
+    namespace = "SecurityMetrics"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "root_login_alarm" {
+  alarm_name          = "root-account-login-detected"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "RootLoginCount"
+  namespace           = "SecurityMetrics"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "1"
+  alarm_actions       = [aws_sns_topic.security_critical.arn]
+}
+----
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-080.adoc[WAF-SEC-080] – Security Monitoring & Threat Detection
+
+=== Wann anwenden?
+
+* In allen Produktionsumgebungen (keine Ausnahme)
+* Idealerweise auch in Staging/Dev für frühzeitige Erkennung
+
+---
+
+== Pattern 6: Policy-as-Code Gateway
+
+*OPA oder wafpass im CI/CD als Qualitätsgate – Security-Violations werden vor dem Merge blockiert.*
+
+=== Problem
+
+Ohne automatisiertes Security-Gate im CI/CD:
+
+* Security-Schwachstellen gelangen unbemerkt in Produktion
+* Security-Reviews sind zeitaufwändig und oft oberflächlich
+* Inkonsistente Durchsetzung von Security-Standards über Teams hinweg
+* Compliance-Nachweise fehlen (kein Audit-Trail der PR-Checks)
+
+=== Lösung
+
+[source,text]
+----
+Pull Request → CI/CD Pipeline
+
+Pipeline-Schritte:
+  1. terraform fmt --check (Formatierung)
+  2. terraform validate (Syntax)
+  3. wafpass check --pillar security (WAF++ Controls)
+        ├── Kritische Findings → Pipeline FAIL (PR wird geblockt)
+        └── Mittlere Findings → Warning (PR kommt durch, aber mit Kommentar)
+  4. tfsec / checkov (zusätzliche IaC-Security-Scanner)
+  5. terraform plan (Was würde sich ändern?)
+  6. OPA / Conftest (Custom Policies)
+  7. Manual Review (für sicherheitsrelevante Ressourcen)
+  8. terraform apply (nach Merge, automatisch)
+----
+
+=== Implementierung (GitHub Actions)
+
+[source,yaml]
+----
+# .github/workflows/security-check.yml
+name: Security Gate
+
+on: [pull_request]
+
+jobs:
+  wafpass:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE }}
+          aws-region: eu-central-1
+
+      - name: WAF++ Security Check
+        run: |
+          wafpass check \
+            --pillar security \
+            --path ./infrastructure \
+            --format github-annotations \
+            --fail-on critical
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1
+        with:
+          soft_fail: true
+
+      - name: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infrastructure/
+          framework: terraform
+          soft_fail: false
+          check: CKV_AWS_*
+----
+
+=== OPA/Conftest Custom Policies
+
+[source,rego]
+----
+# policies/no-public-s3.rego
+package main
+
+deny[msg] {
+  resource := input.resource.aws_s3_bucket[name]
+  resource.acl == "public-read"
+  msg := sprintf("S3 Bucket '%s' hat public-read ACL – verboten", [name])
+}
+
+deny[msg] {
+  resource := input.resource.aws_security_group[name]
+  rule := resource.ingress[_]
+  rule.cidr_blocks[_] == "0.0.0.0/0"
+  rule.from_port == 0
+  rule.to_port == 65535
+  msg := sprintf("Security Group '%s' hat offene Ingress-Regel – verboten", [name])
+}
+----
+
+=== Zugehörige Controls
+
+* xref:controls/WAF-SEC-090.adoc[WAF-SEC-090] – Policy-as-Code & Compliance Automation
+
+=== Wann anwenden?
+
+* In jeder Infrastruktur-Repository mit IaC (Terraform, OpenTofu, Pulumi)
+* Idealerweise ab dem ersten Commit (Greenfield)
+* Bei Brownfield: schrittweise einführen, zunächst Warnmodus, dann Blocking

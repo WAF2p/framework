@@ -1,0 +1,214 @@
+id: WAF-SEC-040
+title: "Encryption in Transit – TLS Enforcement"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "encryption"
+type: ['configuration', 'automation']
+tags: ['tls', 'https', 'encryption-in-transit', 'certificate', 'load-balancer']
+
+description: >
+  All network communication between clients and services, and between internal services,
+  MUST use TLS 1.2 or higher. HTTP listeners on application load balancers MUST either
+  redirect to HTTPS or be prohibited. CloudFront distributions MUST enforce a minimum
+  TLS policy of TLSv1.2. Internal service-to-service communication within VPCs MUST
+  be encrypted. Expired, self-signed, or untrusted TLS certificates MUST NOT be used
+  in production environments.
+
+rationale: >
+  Unencrypted network traffic can be intercepted by network-layer attackers, compromised
+  network devices, or malicious insiders with access to VPC traffic mirroring or network
+  taps. Man-in-the-middle attacks against unencrypted connections expose credentials,
+  session tokens, and sensitive data in transit. TLS 1.0 and 1.1 contain known cryptographic
+  weaknesses and MUST NOT be used. Enforcing TLS at the infrastructure layer removes reliance
+  on application-layer implementation, providing a defense-in-depth layer that is harder
+  to misconfigure or bypass.
+
+threat:
+  - "Man-in-the-middle attacks intercepting unencrypted credentials, session tokens, or PII in transit"
+  - "Protocol downgrade attacks exploiting TLS 1.0/1.1 weaknesses (POODLE, BEAST, CRIME)"
+  - "Internal traffic interception via VPC traffic mirroring or compromised network appliances"
+  - "Certificate impersonation attacks using expired or self-signed certificates accepted by misconfigured clients"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: encryption of personal data in transit"
+  - framework: "BSI C5:2020"
+    controls:
+      - "CRY-01 – Use of cryptography"
+      - "NET-01 – Network security"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.20 – Networks security"
+      - "A.8.24 – Use of cryptography"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "CRY-01 – Cryptography policy"
+      - "IVS-09 – Network security"
+
+implementation_guidance:
+  - "Configure all ALB and NLB listeners to use HTTPS (port 443) with a valid ACM certificate; add HTTP-to-HTTPS redirect rules for any port 80 listeners."
+  - "Set CloudFront viewer certificate minimum_protocol_version to TLSv1.2_2021 or higher; disable SSLv3, TLS 1.0, and TLS 1.1."
+  - "Use ACM (AWS Certificate Manager) to provision and auto-renew TLS certificates; never use self-signed or manually managed certificates in production."
+  - "Enforce TLS for RDS connections by setting aws_db_instance parameter_group to require SSL; use aws_db_parameter_group with rds.force_ssl = 1 for PostgreSQL."
+  - "Enable encryption in transit for internal services: Elasticache (transit_encryption_enabled = true), MSK (tls.client_broker = TLS), OpenSearch (encrypt_at_rest / node_to_node encryption)."
+  - "Validate TLS certificates in all SDK and client configurations; disable insecure TLS verification (verify=False / InsecureSkipVerify=true) in all production code."
+  - "Monitor certificate expiration using AWS Certificate Manager notifications; set alerts at 60, 30, and 7 days before expiration."
+
+maturity_levels:
+  level_1:
+    description: "HTTPS used for public endpoints; internal traffic may be unencrypted"
+    criteria:
+      - "Public-facing load balancers use HTTPS for most endpoints"
+      - "Internal service-to-service traffic is not encrypted"
+  level_2:
+    description: "TLS enforced on all public endpoints; certificates managed via ACM"
+    criteria:
+      - "All public ALB/NLB listeners use HTTPS with ACM certificates"
+      - "HTTP-to-HTTPS redirect configured on all port 80 listeners"
+      - "Certificate expiry monitoring is in place"
+  level_3:
+    description: "TLS 1.2+ enforced everywhere including internal services"
+    criteria:
+      - "Internal services (RDS, Elasticache, MSK) enforce TLS for all connections"
+      - "TLS 1.0 and 1.1 disabled across all endpoints"
+      - "CI pipeline checks for HTTP listener and TLS policy misconfigurations"
+  level_4:
+    description: "mTLS for service-to-service communication; certificate automation"
+    criteria:
+      - "Mutual TLS (mTLS) enforced for internal service mesh communication"
+      - "Certificate rotation fully automated with zero manual intervention"
+      - "TLS policy and cipher suite compliance verified continuously"
+  level_5:
+    description: "Zero-trust network with encrypted overlay and continuous validation"
+    criteria:
+      - "All internal network traffic encrypted via service mesh (e.g., Istio, AWS App Mesh)"
+      - "Certificate transparency logs monitored for unauthorized certificate issuance"
+      - "Post-quantum TLS cipher suites adopted for highest-sensitivity communications"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing all ALB/NLB listeners with HTTPS protocol and ACM certificate ARNs, and CloudFront with TLS policy."
+    - kind: "config"
+      description: "ACM certificate inventory showing all production certificates with valid expiry dates and auto-renewal enabled."
+  optional:
+    - kind: "config"
+      description: "TLS scan report (e.g., SSLLabs, testssl.sh) showing A or A+ rating for all public endpoints."
+    - kind: "process"
+      description: "Certificate expiry monitoring alert configuration with defined escalation procedure."
+
+checks:
+  - id: "waf-sec-040.tf.aws.alb-https-listener"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "ALB and NLB listeners must use HTTPS, not HTTP"
+    description: >
+      Application and Network Load Balancer listeners must be configured with the HTTPS
+      protocol (or TLS for NLB). Listeners configured with plain HTTP on port 80 are
+      only acceptable if they redirect to HTTPS via a fixed-response redirect rule and
+      do not forward traffic to targets.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lb_listener"
+        - "aws_alb_listener"
+    assertions:
+      - attribute: "protocol"
+        op: "not_equals"
+        expected: "HTTP"
+        message: "Load balancer listener MUST use HTTPS (or HTTP-to-HTTPS redirect), not plain HTTP forwarding."
+    on_fail: "violation"
+    remediation: >
+      Change the listener protocol to HTTPS and provide a valid ACM certificate ARN.
+      If a port 80 listener is required for redirect purposes, change the default_action
+      to type = "redirect" with redirect { protocol = "HTTPS", status_code = "HTTP_301" }.
+    example:
+      compliant: |
+        resource "aws_lb_listener" "https" {
+          load_balancer_arn = aws_lb.main.arn
+          port              = 443
+          protocol          = "HTTPS"
+          ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+          certificate_arn   = aws_acm_certificate.main.arn
+          default_action {
+            type             = "forward"
+            target_group_arn = aws_lb_target_group.app.arn
+          }
+        }
+        resource "aws_lb_listener" "redirect_http" {
+          load_balancer_arn = aws_lb.main.arn
+          port              = 80
+          protocol          = "HTTP"
+          default_action {
+            type = "redirect"
+            redirect {
+              port        = "443"
+              protocol    = "HTTPS"
+              status_code = "HTTP_301"
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_lb_listener" "http" {
+          load_balancer_arn = aws_lb.main.arn
+          port              = 80
+          protocol          = "HTTP"   # WAF-SEC-040 violation: plain HTTP forwarding
+          default_action {
+            type             = "forward"
+            target_group_arn = aws_lb_target_group.app.arn
+          }
+        }
+
+  - id: "waf-sec-040.tf.aws.cloudfront-tls-policy"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "CloudFront distributions must enforce TLS 1.2 or higher"
+    description: >
+      CloudFront distributions must have a viewer_certificate block with
+      minimum_protocol_version set to at least TLSv1.2_2021 to prevent connections
+      using outdated TLS versions.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudfront_distribution"
+    assertions:
+      - attribute: "viewer_certificate"
+        op: "attribute_exists"
+        message: "CloudFront distribution must have an explicit viewer_certificate block configured."
+    on_fail: "violation"
+    remediation: >
+      Add a viewer_certificate block to the aws_cloudfront_distribution resource.
+      Set minimum_protocol_version = "TLSv1.2_2021" and ssl_support_method = "sni-only".
+      Use a custom ACM certificate instead of the default CloudFront certificate for
+      production workloads with custom domains.
+    example:
+      compliant: |
+        resource "aws_cloudfront_distribution" "main" {
+          # ... origin and cache behavior config
+          viewer_certificate {
+            acm_certificate_arn      = aws_acm_certificate.cdn.arn
+            ssl_support_method       = "sni-only"
+            minimum_protocol_version = "TLSv1.2_2021"
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudfront_distribution" "main" {
+          # ... origin and cache behavior config
+          viewer_certificate {
+            cloudfront_default_certificate = true
+            # minimum_protocol_version not set – defaults to TLSv1 (WAF-SEC-040 violation)
+          }
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-040"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-encryption.adoc"
+  related_controls:
+    - "WAF-SEC-030"
+    - "WAF-SOV-090"

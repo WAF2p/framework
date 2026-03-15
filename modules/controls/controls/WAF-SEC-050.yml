@@ -1,0 +1,207 @@
+id: WAF-SEC-050
+title: "Network Segmentation & Security Group Hardening"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "network-security"
+type: ['configuration', 'automation']
+tags: ['network', 'security-group', 'segmentation', 'firewall', 'zero-trust']
+
+description: >
+  All compute resources MUST be placed in private subnets unless they explicitly serve
+  public traffic. Security groups MUST NOT allow unrestricted ingress from 0.0.0.0/0 or
+  ::/0 on administrative ports (SSH port 22, RDP port 3389). Egress MUST be restricted
+  to required destinations; unrestricted egress (0.0.0.0/0 on all ports) is prohibited
+  for workloads handling sensitive data. Network ACLs (NACLs) and security groups MUST
+  be used in combination for defense-in-depth. VPC resources MUST be logically segmented
+  by workload tier (public, private, data).
+
+rationale: >
+  Network segmentation is a critical defense-in-depth layer that limits the blast radius
+  of a breach. Without segmentation, a compromised application server has direct network
+  access to all databases, internal APIs, and administrative interfaces within the VPC.
+  Open SSH and RDP to the internet are among the most commonly exploited attack vectors
+  for initial access. Unrestricted egress enables data exfiltration and command-and-control
+  communication even when ingress is locked down. Proper network segmentation ensures an
+  attacker who compromises one workload tier cannot laterally move to the data tier without
+  traversing additional security boundaries.
+
+threat:
+  - "Unrestricted SSH/RDP access from the internet enabling brute-force and credential-spray initial access"
+  - "Lateral movement from a compromised application instance to databases or internal admin APIs"
+  - "Data exfiltration over unrestricted egress channels to attacker-controlled infrastructure"
+  - "Reconnaissance and pivoting via direct compute-to-compute connectivity within flat VPC networks"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: network access controls"
+  - framework: "BSI C5:2020"
+    controls:
+      - "NET-01 – Network architecture and segmentation"
+      - "NET-02 – Network access controls"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.20 – Networks security"
+      - "A.8.21 – Security of network services"
+      - "A.8.22 – Segregation of networks"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "IVS-09 – Network security controls"
+      - "IVS-10 – Network segmentation"
+
+implementation_guidance:
+  - "Design VPC architecture with at least three subnet tiers: public (load balancers only), private (compute/application), and isolated (databases/data stores with no internet route)."
+  - "Never assign public IP addresses to database instances, cache clusters, or internal compute; use private subnets and VPC endpoints for AWS service access."
+  - "Create security groups following a hub-and-spoke model: reference security group IDs as sources rather than CIDR ranges for intra-VPC traffic."
+  - "Prohibit inbound rules from 0.0.0.0/0 on port 22 (SSH) and port 3389 (RDP); use AWS Systems Manager Session Manager for administrative access instead."
+  - "Restrict outbound security group rules to specific destination CIDRs and ports; avoid protocol -1 (all traffic) with destination 0.0.0.0/0 for data-tier security groups."
+  - "Use VPC endpoints (Interface or Gateway) for AWS service access (S3, DynamoDB, Secrets Manager, KMS) to avoid traffic traversing the public internet."
+  - "Enable VPC Flow Logs on all production VPCs and ship to CloudWatch or S3 for security monitoring and incident investigation."
+
+maturity_levels:
+  level_1:
+    description: "Flat VPC with all resources in public or a single private subnet"
+    criteria:
+      - "Single subnet or no subnet segmentation between application and data tiers"
+      - "Security groups allow broad ingress ranges for administrative convenience"
+  level_2:
+    description: "Public/private subnet separation with basic security group rules"
+    criteria:
+      - "Database instances placed in private subnets without public IP addresses"
+      - "SSH and RDP restricted to known CIDR ranges rather than open to internet"
+      - "Security groups defined per workload component rather than shared"
+  level_3:
+    description: "Three-tier network segmentation with hardened security groups"
+    criteria:
+      - "Public, private, and isolated subnet tiers with appropriate route table restrictions"
+      - "No security group allows 0.0.0.0/0 ingress on any port"
+      - "VPC Flow Logs enabled; administrative access via SSM Session Manager"
+  level_4:
+    description: "Micro-segmentation with VPC endpoints and least-privilege egress"
+    criteria:
+      - "Security groups use security group ID references rather than CIDR ranges for all intra-VPC rules"
+      - "VPC endpoints deployed for all AWS services accessed from private subnets"
+      - "Egress restricted to specific required destinations for all security groups"
+  level_5:
+    description: "Zero-trust network with service mesh, continuous flow analysis, and anomaly detection"
+    criteria:
+      - "All east-west traffic requires mutual authentication (service mesh or mTLS)"
+      - "VPC Flow Log analysis with real-time anomaly detection and automated blocking"
+      - "Network policy as code validated in CI/CD; no manual security group changes"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform VPC, subnet, and security group resources demonstrating three-tier segmentation and absence of 0.0.0.0/0 ingress rules on administrative ports."
+    - kind: "architecture"
+      description: "Network architecture diagram showing subnet tiers, security group boundaries, and traffic flow rules."
+  optional:
+    - kind: "config"
+      description: "VPC Flow Logs configuration and sample log output confirming logging is active."
+    - kind: "config"
+      description: "AWS Config rule restricted-ssh compliance report showing no security groups with open SSH access."
+
+checks:
+  - id: "waf-sec-050.tf.aws.no-public-ip-internal-compute"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Internal compute resources must not be assigned public IP addresses"
+    description: >
+      EC2 instances and launch templates used for application or internal workloads must
+      have associate_public_ip_address = false to ensure they are not directly reachable
+      from the internet.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "associate_public_ip_address"
+        op: "is_false"
+        message: "Internal compute resources MUST NOT have public IP addresses assigned. Use private subnets and NAT Gateway for outbound access."
+    on_fail: "violation"
+    remediation: >
+      Set associate_public_ip_address = false on all aws_instance and aws_launch_template
+      resources used for internal workloads. Place these instances in private subnets.
+      Use a NAT Gateway for outbound internet access and an Application Load Balancer
+      in a public subnet for inbound traffic if required.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami                         = data.aws_ami.ubuntu.id
+          instance_type               = "t3.medium"
+          subnet_id                   = aws_subnet.private.id
+          associate_public_ip_address = false
+          vpc_security_group_ids      = [aws_security_group.app.id]
+          tags = { Name = "app-server" }
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami                         = data.aws_ami.ubuntu.id
+          instance_type               = "t3.medium"
+          subnet_id                   = aws_subnet.public.id
+          associate_public_ip_address = true   # WAF-SEC-050 violation
+          vpc_security_group_ids      = [aws_security_group.app.id]
+        }
+
+  - id: "waf-sec-050.tf.aws.no-unrestricted-ssh"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "Security groups must not allow unrestricted SSH or RDP ingress from the internet"
+    description: >
+      Security group ingress rules must not allow port 22 (SSH) or port 3389 (RDP)
+      from 0.0.0.0/0 (IPv4) or ::/0 (IPv6). Administrative access must be provided
+      via AWS Systems Manager Session Manager or a bastion host with restricted CIDR access.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_security_group"
+        - "aws_vpc_security_group_ingress_rule"
+    assertions:
+      - attribute: "ingress"
+        op: "json_not_contains_pattern"
+        pattern: "\"cidr_blocks\":\\s*\\[\"0\\.0\\.0\\.0/0\"\\]"
+        message: "Security group must not allow ingress from 0.0.0.0/0 on administrative ports. Restrict to known CIDR ranges or use SSM Session Manager."
+    on_fail: "violation"
+    remediation: >
+      Remove any ingress rule allowing port 22 or 3389 from 0.0.0.0/0.
+      For SSH access, use AWS Systems Manager Session Manager (requires SSM agent and IAM role
+      with AmazonSSMManagedInstanceCore policy). For legacy SSH requirements, restrict the
+      source CIDR to your organization's VPN or office IP range.
+    example:
+      compliant: |
+        resource "aws_security_group" "app" {
+          name   = "app-server-sg"
+          vpc_id = aws_vpc.main.id
+          # No SSH ingress rule – use SSM Session Manager instead
+          egress {
+            from_port   = 443
+            to_port     = 443
+            protocol    = "tcp"
+            cidr_blocks = ["0.0.0.0/0"]
+            description = "HTTPS outbound for AWS API calls"
+          }
+        }
+      non_compliant: |
+        resource "aws_security_group" "bad" {
+          name   = "app-server-sg"
+          vpc_id = aws_vpc.main.id
+          ingress {
+            from_port   = 22
+            to_port     = 22
+            protocol    = "tcp"
+            cidr_blocks = ["0.0.0.0/0"]   # WAF-SEC-050 violation: open SSH to internet
+          }
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-050"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-network-security.adoc"
+  related_controls:
+    - "WAF-SEC-040"
+    - "WAF-SOV-090"

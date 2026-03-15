@@ -1,0 +1,171 @@
+= WAF-SEC-120 – Container & Runtime Security
+:page-toc: right
+:control-id: WAF-SEC-120
+:pillar: security
+:severity: high
+:category: container
+:automated: hoch
+:description: WAF++ Security – Container-Sicherheit: Non-Root-Ausführung, kein Privileged Mode, EKS-Secrets-Verschlüsselung, Resource-Limits.
+
+[.metadata]
+*Pillar:* Security | *Severity:* High | *Kategorie:* Container | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Container DÜRFEN NICHT im Privileged Mode (`privileged: true`) betrieben werden.
+Container SOLLEN NICHT als Root (UID 0) laufen – Non-Root-Ausführung MUSS für alle
+Produktions-Workloads konfiguriert sein. EKS-Cluster MÜSSEN Secrets-Encryption mit einem
+KMS-CMK konfiguriert haben. Resource Limits (CPU und Memory) MÜSSEN für alle Container
+in Produktionsumgebungen definiert sein. Der EKS-API-Server-Endpoint SOLLTE nicht öffentlich
+zugänglich sein (privater Endpoint bevorzugt).
+
+== Rationale
+
+Container, die als Root laufen, haben bei einem Container-Escape-Exploit dieselben Rechte
+wie der Host-Root – was eine sofortige Host-Kompromittierung bedeutet. Privilegierte Container
+haben nahezu uneingeschränkten Zugriff auf den Host-Kernel und alle Geräte.
+EKS Kubernetes-Secrets werden standardmäßig unverschlüsselt in etcd gespeichert; ohne CMK-Encryption
+sind Secrets (Service-Account-Tokens, TLS-Zertifikate, Applikations-Secrets) im Klartext im etcd lesbar.
+Resource Limits verhindern, dass ein kompromittierter Container alle Host-Ressourcen belegt und damit
+einen Denial-of-Service verursacht.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Container Escape zu Root*
+|Ein als Root laufender Container kann bei einem Kernel-Exploit direkt Host-Root-Zugriff erlangen.
+
+|*Privileged Container als Backdoor*
+|Privilegierte Container können Kernel-Module laden, Geräte mounten und damit den gesamten Host kompromittieren.
+
+|*Unverschlüsselte Kubernetes-Secrets*
+|Ohne etcd-Verschlüsselung sind alle Kubernetes-Secrets im Klartext im Cluster-Backup oder für Cluster-Admins lesbar.
+
+|*Resource Exhaustion durch kompromittierte Workloads*
+|Cryptominer oder Denial-of-Service aus einem kompromittierten Container beanspruchen alle verfügbaren Ressourcen.
+
+|===
+
+== Anforderung
+
+* Alle EKS-Cluster MÜSSEN `encryption_config` mit einer KMS-CMK für `resources = ["secrets"]` konfiguriert haben.
+* Container in Produktionsumgebungen DÜRFEN NICHT mit `privileged = true` laufen.
+* Container MÜSSEN als Non-Root-User konfiguriert sein (z. B. `user = "1000:1000"` in ECS Task Definitions).
+* Resource Limits (CPU/Memory) MÜSSEN für alle Produktions-Container definiert sein.
+* EKS-Control-Plane-Logging MUSS für `api`, `audit`, `authenticator` aktiviert sein.
+
+== Implementierungsanleitung
+
+. *EKS Secrets Encryption*: `encryption_config { resources = ["secrets"] provider { key_arn = aws_kms_key.eks.arn } }` im `aws_eks_cluster` konfigurieren.
+. *EKS Logging aktivieren*: `enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]`.
+. *Non-Root-User in ECS*: `user = "1000:1000"` in der Container-Definition der `aws_ecs_task_definition` setzen.
+. *No Privileged Mode*: `privileged = false` explizit setzen; in Kubernetes: `securityContext.privileged: false`.
+. *Resource Limits*: `memory` und `cpu` in ECS Task Definition oder Kubernetes `resources.limits` und `resources.requests`.
+. *Pod Security Standards*: Kubernetes Admission Controller für `restricted` oder mindestens `baseline` PSS konfigurieren.
+. *Runtime Security*: GuardDuty Runtime Monitoring oder Falco für laufzeitbasierte Anomalie-Erkennung aktivieren.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Container-Sicherheitsstandards
+|Container laufen als Root; kein Privileged-Mode-Schutz; keine Resource Limits; EKS-Secrets unverschlüsselt.
+
+|*2*
+|Grundlegende Härtung für einige Workloads
+|Resource Limits für kritische Workloads; einige Container mit Non-Root-User; EKS-Logging teilweise aktiv.
+
+|*3*
+|Erzwungene Non-Root-Ausführung; EKS verschlüsselt
+|EKS Secrets CMK-Encryption; Non-Root für alle Produktions-Container; kein Privileged Mode; Resource Limits überall definiert.
+
+|*4*
+|Pod Security Standards enforced; Runtime Monitoring
+|Kubernetes PSS `restricted` enforced via Admission Controller; GuardDuty Runtime Monitoring aktiv; MTTD für Container-Threats < 15min.
+
+|*5*
+|Zero-Trust Container-Netzwerk mit eBPF Security
+|Service Mesh mit mTLS für alle East-West-Traffic; eBPF-basiertes Runtime Security; vollständige Workload-Identität.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-120.tf.aws.eks-secrets-encryption
+*Prüft:* EKS-Cluster müssen Secrets-Encryption mit KMS-CMK konfiguriert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_kms_key" "eks" {
+  description         = "EKS secrets encryption CMK"
+  enable_key_rotation = true
+}
+
+resource "aws_eks_cluster" "main" {
+  name     = "prod-cluster"
+  role_arn = aws_iam_role.eks.arn
+
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+  }
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+}
+----
+a|[source,hcl]
+----
+resource "aws_eks_cluster" "main" {
+  name     = "prod-cluster"
+  role_arn = aws_iam_role.eks.arn
+  # encryption_config fehlt
+  # WAF-SEC-120 Violation: Secrets unverschlüsselt in etcd
+  # enabled_cluster_log_types fehlt
+  # WAF-SEC-120 Violation: kein Audit-Logging
+}
+----
+|===
+
+*Remediation:* `encryption_config`-Block mit CMK-ARN und `resources = ["secrets"]` zum `aws_eks_cluster` hinzufügen. Kann nur beim Cluster-Erstellen oder nachträglich über ein Cluster-Update gesetzt werden.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration des `aws_eks_cluster` mit `encryption_config` und `enabled_cluster_log_types`.
+
+|*Config*
+|✅ Pflicht
+|ECS Task Definition oder Kubernetes Deployment-Manifeste ohne `privileged: true` und mit Non-Root-User.
+
+|*Config*
+|Optional
+|Pod Security Admission Controller Konfiguration mit `restricted` oder `baseline` Policy.
+
+|*Process*
+|Optional
+|GuardDuty Runtime Monitoring Aktivierungs-Screenshot oder Falco-Deployment-Konfiguration.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050 – Network Segmentation & Security Group Hardening]
+* xref:controls/WAF-SEC-070.adoc[WAF-SEC-070 – Vulnerability & Patch Management]
+* xref:controls/WAF-SEC-110.adoc[WAF-SEC-110 – Supply Chain Security]

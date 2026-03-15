@@ -1,0 +1,208 @@
+= WAF-SEC-050 – Network Segmentation & Security Group Hardening
+:page-toc: right
+:control-id: WAF-SEC-050
+:pillar: security
+:severity: high
+:category: netzwerksicherheit
+:automated: hoch
+:description: WAF++ Security – Netzwerksegmentierung und Security-Group-Härtung: Keine öffentlichen IPs auf internen Ressourcen, kein SSH/RDP offen zum Internet.
+
+[.metadata]
+*Pillar:* Security | *Severity:* High | *Kategorie:* Netzwerksicherheit | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Compute-Ressourcen MÜSSEN in privaten Subnetzen platziert sein, sofern sie nicht
+explizit öffentlichen Traffic bedienen.
+Security Groups DÜRFEN KEINE uneingeschränkten Ingress-Regeln von `0.0.0.0/0` oder `::/0`
+auf administrativen Ports (SSH Port 22, RDP Port 3389) erlauben.
+Egress MUSS auf erforderliche Ziele eingeschränkt sein; uneingeschränkter Egress
+(`0.0.0.0/0` auf allen Ports) ist für Workloads mit sensiblen Daten verboten.
+VPC-Ressourcen MÜSSEN logisch nach Workload-Tier segmentiert sein (Public, Private, Data/Isolated).
+
+== Rationale
+
+Netzwerksegmentierung ist eine kritische Defense-in-Depth-Schicht, die den Blast Radius
+eines Einbruchs begrenzt. Ohne Segmentierung hat ein kompromittierter Applikationsserver
+direkten Netzwerkzugriff auf alle Datenbanken, interne APIs und administrative Schnittstellen
+im VPC. Offene SSH- und RDP-Ports zum Internet gehören zu den am häufigsten ausgenutzten
+Angriffsvektoren für initialen Zugriff. Uneingeschränkter Egress ermöglicht Datenexfiltration
+und Command-and-Control-Kommunikation, selbst wenn der Ingress gesperrt ist.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Lateral Movement*
+|Ein kompromittierter Applikationsserver in einem flachen VPC kann direkt auf Datenbanken, Admin-APIs und andere kritische interne Ressourcen zugreifen.
+
+|*Exponierte Admin-Ports*
+|Offenes SSH (22) oder RDP (3389) zum Internet ist Brute-Force- und Credential-Spray-Angriffen direkt ausgesetzt.
+
+|*Datenexfiltration via unkontrollierten Egress*
+|Ohne Egress-Einschränkungen können Angreifende Daten über beliebige Protokolle und Ziele nach außen schleusen.
+
+|*Reconnaissance und Pivoting*
+|In flachen VPC-Netzwerken können Angreifende nach dem initialen Zugriff unkontrolliert Dienste im internen Netz erkunden und sich ausbreiten.
+
+|===
+
+== Anforderung
+
+* Datenbankinstanzen, Cache-Cluster und interne Compute-Ressourcen MÜSSEN in privaten Subnetzen ohne öffentliche IP platziert sein.
+* Security Groups DÜRFEN KEINE Ingress-Regel auf Port 22 oder 3389 von `0.0.0.0/0` enthalten.
+* Administrative Zugriffe MÜSSEN über AWS Systems Manager Session Manager (SSM) ohne offene SSH-Ports erfolgen.
+* VPC-Architektur MUSS mindestens drei Subnetztiers aufweisen: Public (Load Balancer), Private (Compute) und Isolated (Datenbanken).
+* VPC Flow Logs MÜSSEN auf allen Produktions-VPCs aktiviert sein.
+* Egress-Regeln MÜSSEN auf spezifische Ziel-CIDRs und Ports beschränkt sein für Datentier-Security-Groups.
+
+== Implementierungsanleitung
+
+. *Drei-Tier-VPC-Architektur aufbauen*: Public-Subnetze (nur Load Balancer), Private-Subnetze (Compute), Isolated-Subnetze (Datenbanken ohne Internet-Route).
+. *Öffentliche IPs deaktivieren*: `associate_public_ip_address = false` auf allen `aws_instance`- und `aws_launch_template`-Ressourcen für interne Workloads.
+. *SSH/RDP-Regeln entfernen*: Ingress-Regeln auf Port 22/3389 von `0.0.0.0/0` aus allen Security Groups entfernen.
+. *SSM Session Manager aktivieren*: IAM-Rolle mit `AmazonSSMManagedInstanceCore`-Policy auf EC2-Instanzen; kein SSH-Port notwendig.
+. *Security Groups nach SG-ID referenzieren*: Intra-VPC-Regeln über Security-Group-IDs statt CIDR-Ranges formulieren.
+. *VPC Flow Logs aktivieren*: Flow Logs auf alle Prod-VPCs; Logs nach S3 oder CloudWatch für Security-Monitoring shippen.
+. *VPC Endpoints einrichten*: Interface- und Gateway-Endpoints für AWS-Dienste (S3, DynamoDB, Secrets Manager, KMS) um Datenverkehr über das öffentliche Internet zu vermeiden.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Flaches VPC
+|Einzelnes Subnetz oder keine Segmentierung zwischen Applikations- und Datentier; Security Groups mit breiten Ingress-Ranges.
+
+|*2*
+|Public/Private-Subnetztrennung
+|Datenbankinstanzen in privaten Subnetzen ohne öffentliche IP; SSH/RDP auf bekannte CIDR-Ranges eingeschränkt.
+
+|*3*
+|Drei-Tier-Segmentierung mit gehärteten Security Groups
+|Public, Private und Isolated Subnetze; keine Security Group mit `0.0.0.0/0`-Ingress; VPC Flow Logs aktiv; Admin-Zugriff via SSM.
+
+|*4*
+|Mikrosegmentierung mit VPC Endpoints und Least-Privilege-Egress
+|Security Groups mit SG-ID-Referenzen; VPC Endpoints für alle AWS-Dienste; Egress auf spezifische Ziele eingeschränkt.
+
+|*5*
+|Zero-Trust-Netzwerk mit Service Mesh und kontinuierlicher Flussanalyse
+|Ost-West-Traffic mit gegenseitiger Authentifizierung (mTLS); Flow-Log-Analyse mit Echtzeit-Anomalieerkennung; Network Policy as Code.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-050.tf.aws.no-public-ip-internal-compute
+*Prüft:* Interne Compute-Ressourcen dürfen keine öffentlichen IP-Adressen erhalten.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.private.id
+  associate_public_ip_address = false
+  vpc_security_group_ids      = [aws_security_group.app.id]
+  tags = { Name = "app-server" }
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.public.id
+  associate_public_ip_address = true
+  # WAF-SEC-050 Violation: öffentliche IP
+  vpc_security_group_ids      = [aws_security_group.app.id]
+}
+----
+|===
+
+*Remediation:* `associate_public_ip_address = false` auf allen `aws_instance`- und `aws_launch_template`-Ressourcen für interne Workloads setzen. Instanzen in private Subnetze verlegen. NAT Gateway für ausgehenden Internet-Traffic nutzen; eingehenden Traffic über Application Load Balancer im Public Subnet routen.
+
+---
+
+=== waf-sec-050.tf.aws.no-unrestricted-ssh
+*Prüft:* Security Groups dürfen kein uneingeschränktes SSH (Port 22) oder RDP (Port 3389) aus dem Internet erlauben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_security_group" "app" {
+  name   = "app-server-sg"
+  vpc_id = aws_vpc.main.id
+  # Kein SSH-Ingress – SSM Session Manager verwenden
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS outbound for AWS API calls"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_security_group" "bad" {
+  name   = "app-server-sg"
+  vpc_id = aws_vpc.main.id
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    # WAF-SEC-050 Violation: SSH offen zum Internet
+  }
+}
+----
+|===
+
+*Remediation:* Alle Ingress-Regeln, die Port 22 oder 3389 von `0.0.0.0/0` erlauben, aus Security Groups entfernen. Für SSH-Zugriff AWS Systems Manager Session Manager aktivieren (erfordert SSM-Agent und IAM-Rolle mit `AmazonSSMManagedInstanceCore`). Bei Legacy-SSH-Anforderungen Quell-CIDR auf das VPN oder Office-IP-Range einschränken.
+
+NOTE: WAF-SOV-090 adressiert darüber hinaus Netzwerksouveränitätsaspekte und egress-seitige Kontrollen für Workloads mit Datensouveränitätsanforderungen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform VPC-, Subnetz- und Security-Group-Ressourcen mit Drei-Tier-Segmentierung und ohne `0.0.0.0/0`-Ingress auf administrativen Ports.
+
+|*Architecture*
+|✅ Pflicht
+|Netzwerkarchitektur-Diagramm mit Subnetztiers, Security-Group-Grenzen und Datenflussregeln.
+
+|*Config*
+|Optional
+|VPC Flow Logs Konfiguration und Beispiel-Log-Output als Bestätigung aktiver Protokollierung.
+
+|*Config*
+|Optional
+|AWS Config Rule `restricted-ssh` Compliance-Report ohne Security Groups mit offenem SSH-Zugang.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-040.adoc[WAF-SEC-040 – Encryption in Transit – TLS Enforcement]
+
+== Best Practice
+
+* xref:../best-practices/bp-network-security.adoc[Netzwerksicherheits-Best-Practice →]

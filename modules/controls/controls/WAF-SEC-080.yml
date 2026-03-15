@@ -1,0 +1,247 @@
+id: WAF-SEC-080
+title: "Security Monitoring & Threat Detection"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "monitoring"
+type: ['configuration', 'automation']
+tags: ['monitoring', 'siem', 'cloudtrail', 'guardduty', 'securityhub', 'alerting', 'threat-detection']
+
+description: >
+  AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and
+  global service event inclusion. GuardDuty MUST be enabled in all active AWS regions.
+  AWS Security Hub or an equivalent SIEM MUST be enabled to aggregate and correlate
+  security findings centrally. CloudTrail logs MUST be stored in a dedicated S3 bucket
+  with server-side encryption and MFA delete enabled. Alerts MUST be configured for
+  critical Security Hub findings and GuardDuty HIGH/CRITICAL severity findings.
+  All security alerts MUST route to an on-call escalation channel with a defined
+  response SLA.
+
+rationale: >
+  Without centralized security monitoring, attackers can operate within cloud environments
+  undetected for extended periods. The average cloud breach dwell time without monitoring
+  exceeds 200 days. CloudTrail provides the foundational audit log for all AWS API activity;
+  without it, forensic investigation after an incident is impossible. GuardDuty uses machine
+  learning and threat intelligence to detect anomalous behavior that rule-based systems miss,
+  including crypto-mining, credential exfiltration, and unusual API call patterns. Security Hub
+  aggregates findings from all AWS security services into a unified view, reducing the risk
+  of missed detections across multiple accounts and regions.
+
+threat:
+  - "Undetected data exfiltration by an attacker operating inside the AWS account for weeks or months"
+  - "Compromised IAM credentials used for lateral movement without triggering any alerts"
+  - "Cryptomining workloads launched in non-monitored regions consuming resources and indicating a breach"
+  - "Failure to detect a security incident in time to prevent a GDPR notification-required data breach"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: ability to ensure ongoing confidentiality"
+      - "Art. 33 – Notification of a personal data breach to the supervisory authority"
+  - framework: "BSI C5:2020"
+    controls:
+      - "LOG-01 – Logging and monitoring"
+      - "LOG-02 – Log integrity and retention"
+      - "SIM-01 – Security incident management"
+      - "SIM-02 – Security information and event management"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.15 – Logging"
+      - "A.8.16 – Monitoring activities"
+      - "A.5.26 – Response to information security incidents"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "LOG-01 – Audit logging"
+      - "IVS-09 – Security monitoring"
+  - framework: "SOC 2"
+    controls:
+      - "CC7.4 – Detection and monitoring of security events"
+
+implementation_guidance:
+  - "Create a multi-region CloudTrail trail with is_multi_region_trail = true, enable_log_file_validation = true, and include_global_service_events = true."
+  - "Store CloudTrail logs in a dedicated S3 bucket in a centralized logging account; enable SSE-KMS encryption and block all public access."
+  - "Enable GuardDuty in every active AWS region; use aws_guardduty_detector with enable = true and configure organization-level GuardDuty for multi-account environments."
+  - "Enable AWS Security Hub with aws_securityhub_account and activate the AWS Foundational Security Best Practices and CIS AWS Foundations Benchmark standards."
+  - "Configure CloudWatch metric filters and alarms for critical events: root login, MFA disablement, security group changes, IAM policy changes, and CloudTrail deactivation."
+  - "Create SNS topics for security alerts and subscribe on-call channels (PagerDuty, OpsGenie, or Slack) with defined escalation paths and SLAs."
+  - "Aggregate findings from all accounts and regions into a Security Hub administrator account for centralized review and triage."
+
+maturity_levels:
+  level_1:
+    description: "No centralized logging; monitoring ad-hoc or absent"
+    criteria:
+      - "CloudTrail not enabled or only in some regions"
+      - "No threat detection tooling; no centralized log aggregation"
+  level_2:
+    description: "CloudTrail enabled; GuardDuty active in primary region"
+    criteria:
+      - "CloudTrail enabled as multi-region trail with log file validation"
+      - "GuardDuty enabled in at least the primary production region"
+      - "CloudTrail logs stored in a dedicated S3 bucket"
+  level_3:
+    description: "All monitoring services active; Security Hub aggregating findings"
+    criteria:
+      - "GuardDuty active in all regions; Security Hub enabled and aggregating all findings"
+      - "CloudWatch alarms configured for critical security events"
+      - "SNS topics with on-call subscriber routing for HIGH/CRITICAL findings"
+  level_4:
+    description: "SIEM integration; centralized multi-account security operations"
+    criteria:
+      - "Security findings forwarded to SIEM (Splunk, Elastic, or equivalent) for correlation"
+      - "Security Hub administrator account aggregating findings from all organization accounts"
+      - "Defined detection use cases with playbooks for top 10 finding types"
+  level_5:
+    description: "Automated detection, response, and forensic evidence collection"
+    criteria:
+      - "Automated response playbooks triggered by GuardDuty/Security Hub findings (quarantine, revoke, snapshot)"
+      - "Mean time to detect (MTTD) and mean time to respond (MTTR) measured and improving quarterly"
+      - "Security data lake with long-term analytics and proactive threat hunting"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing aws_cloudtrail with multi-region settings, aws_guardduty_detector with enable=true, and aws_securityhub_account resource."
+    - kind: "config"
+      description: "Security Hub enabled standards report and GuardDuty detector status across all active regions."
+  optional:
+    - kind: "config"
+      description: "CloudWatch alarm configuration showing metric filters for critical IAM and CloudTrail events."
+    - kind: "process"
+      description: "Security incident response runbook defining escalation paths, SLAs, and alert triage procedure."
+
+checks:
+  - id: "waf-sec-080.tf.aws.cloudtrail-multi-region"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "CloudTrail must be enabled as a multi-region trail with log file validation"
+    description: >
+      An aws_cloudtrail resource must exist with is_multi_region_trail = true,
+      enable_log_file_validation = true, and include_global_service_events = true
+      to ensure complete API activity coverage across all regions and global services.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudtrail"
+    assertions:
+      - attribute: "is_multi_region_trail"
+        op: "is_true"
+        message: "CloudTrail must be a multi-region trail to capture API activity in all regions."
+      - attribute: "enable_log_file_validation"
+        op: "is_true"
+        message: "CloudTrail log file validation must be enabled to detect log tampering."
+      - attribute: "include_global_service_events"
+        op: "is_true"
+        message: "CloudTrail must include global service events (e.g., IAM API calls)."
+    on_fail: "violation"
+    remediation: >
+      Set is_multi_region_trail = true, enable_log_file_validation = true, and
+      include_global_service_events = true on the aws_cloudtrail resource.
+      Ensure the trail S3 bucket has SSE-KMS encryption and is not publicly accessible.
+    example:
+      compliant: |
+        resource "aws_cloudtrail" "main" {
+          name                          = "org-cloudtrail"
+          s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
+          is_multi_region_trail         = true
+          enable_log_file_validation    = true
+          include_global_service_events = true
+          kms_key_id                    = aws_kms_key.cloudtrail.arn
+          tags = {
+            owner       = "security-team"
+            environment = "all"
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudtrail" "main" {
+          name                          = "org-cloudtrail"
+          s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
+          is_multi_region_trail         = false  # WAF-SEC-080 violation
+          enable_log_file_validation    = false  # WAF-SEC-080 violation
+          include_global_service_events = false  # WAF-SEC-080 violation
+        }
+
+  - id: "waf-sec-080.tf.aws.guardduty-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "GuardDuty must be enabled in all active regions"
+    description: >
+      An aws_guardduty_detector resource must exist with enable = true in each
+      active AWS region. GuardDuty provides continuous threat detection and is
+      a foundational security detective control.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_guardduty_detector"
+    assertions:
+      - attribute: "enable"
+        op: "is_true"
+        message: "GuardDuty detector must be enabled (enable = true)."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_guardduty_detector resource with enable = true in each active AWS region.
+      For multi-account environments, configure GuardDuty at the organization level using
+      aws_guardduty_organization_configuration to automatically enable GuardDuty in all
+      existing and future member accounts.
+    example:
+      compliant: |
+        resource "aws_guardduty_detector" "main" {
+          enable = true
+          datasources {
+            s3_logs { enable = true }
+            kubernetes { audit_logs { enable = true } }
+            malware_protection { scan_ec2_instance_with_findings { ebs_volumes { enable = true } } }
+          }
+        }
+      non_compliant: |
+        resource "aws_guardduty_detector" "main" {
+          enable = false  # WAF-SEC-080 violation: GuardDuty must be enabled
+        }
+
+  - id: "waf-sec-080.tf.aws.securityhub-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS Security Hub must be enabled"
+    description: >
+      An aws_securityhub_account resource must exist to enable Security Hub in the
+      account, providing centralized aggregation of security findings from GuardDuty,
+      Amazon Inspector, AWS Config, Macie, and other integrated services.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_securityhub_account"
+    assertions:
+      - op: "block_exists"
+        message: "AWS Security Hub must be enabled (aws_securityhub_account resource must exist)."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_securityhub_account resource to the Terraform configuration.
+      After enabling Security Hub, activate standards using aws_securityhub_standards_subscription:
+      - arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0
+      - arn:aws:securityhub:REGION::standards/aws-foundational-security-best-practices/v/1.0.0
+    example:
+      compliant: |
+        resource "aws_securityhub_account" "main" {}
+        resource "aws_securityhub_standards_subscription" "cis" {
+          standards_arn = "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"
+          depends_on    = [aws_securityhub_account.main]
+        }
+        resource "aws_securityhub_standards_subscription" "fsbp" {
+          standards_arn = "arn:aws:securityhub:${data.aws_region.current.name}::standards/aws-foundational-security-best-practices/v/1.0.0"
+          depends_on    = [aws_securityhub_account.main]
+        }
+      non_compliant: |
+        # aws_securityhub_account resource absent – WAF-SEC-080 violation
+        # Security Hub is not enabled in this account
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-080"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-monitoring.adoc"
+  related_controls:
+    - "WAF-SEC-090"
+    - "WAF-SOV-070"

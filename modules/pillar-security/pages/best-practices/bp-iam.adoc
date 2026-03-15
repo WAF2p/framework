@@ -1,0 +1,332 @@
+= Best Practice: Identity & Access Management
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – IAM-Strategie für Cloud-Plattformen: Rollen-basiert, kein Root, kein Long-Lived Key, MFA-Durchsetzung und Service-Account-Isolation.
+
+== Kontext
+
+Identity & Access Management ist die Grundlage aller anderen Security-Controls.
+Ein Angreifer, der eine Identität mit übermäßigen Berechtigungen übernimmt, kann alle
+anderen Schutzmaßnahmen deaktivieren.
+
+Häufige IAM-Fehlkonfigurationen in der Praxis:
+
+* Root-Account wird täglich für Deployments genutzt
+* IAM-Benutzer mit `AdministratorAccess` für alle Entwickler
+* Langlebige Access Keys in CI/CD-Pipelines und `.env`-Dateien
+* Eine einzige Rolle für Anwendung, Deployment und Administration
+* Service-Accounts ohne MFA, die interaktiven Zugriff erlauben
+
+== Zugehörige Controls
+
+* xref:../controls/WAF-SEC-010.adoc[WAF-SEC-010] – Identity & Access Management Baseline
+* xref:../controls/WAF-SEC-020.adoc[WAF-SEC-020] – Least Privilege & RBAC Enforcement
+
+== Zielbild
+
+Ein reifes IAM-Setup ist:
+
+* *Rollenbasiert*: Keine langlebigen IAM-Benutzer-Credentials in Produktion
+* *Minimal*: Jede Rolle hat nur die Berechtigungen, die sie konkret benötigt
+* *MFA-geschützt*: Alle Benutzer mit Konsolen-Zugriff haben MFA
+* *Zeitgebunden*: Erhöhte Berechtigungen werden nur für die Dauer einer Aufgabe gewährt
+* *Auditierbar*: Alle privilegierten Aktionen werden in CloudTrail geloggt
+
+== IAM-Rollen-Hierarchie
+
+Eine empfohlene Rollenstruktur für Cloud-Plattformen:
+
+[source,text]
+----
+Organisationsebene (AWS Organizations)
+├── OrganizationAdmin (nur für Org-Verwaltung, JIT-Zugriff)
+│
+Account-Ebene (jeder AWS Account)
+├── PlatformAdmin
+│   ├── Darf: VPCs, IAM-Rollen, KMS, Landing Zone verwalten
+│   └── Darf nicht: Anwendungsressourcen, Produktionsdaten
+│
+├── Developer
+│   ├── Darf: Anwendungsressourcen lesen und schreiben (eigener Account)
+│   └── Darf nicht: IAM-Policies, KMS-Keys, CloudTrail ändern
+│
+├── ReadOnly
+│   ├── Darf: Alle Ressourcen lesen
+│   └── Darf nicht: Schreiboperationen
+│
+└── CI/CD-Deployment (nur für Pipeline-Runs)
+    ├── Darf: Terraform Apply für definierte Ressourcen
+    └── Darf nicht: IAM-Policies ändern, CloudTrail deaktivieren
+----
+
+== Technische Umsetzung
+
+=== Schritt 1: IAM-Passwort-Policy (WAF-SEC-010)
+
+[source,hcl]
+----
+resource "aws_iam_account_password_policy" "default" {
+  minimum_password_length        = 14
+  require_uppercase_characters   = true
+  require_lowercase_characters   = true
+  require_numbers                = true
+  require_symbols                = true
+  allow_users_to_change_password = true
+  max_password_age               = 90
+  password_reuse_prevention      = 24
+  hard_expiry                    = false
+}
+----
+
+=== Schritt 2: MFA erzwingen via IAM-Policy
+
+[source,hcl]
+----
+# Policy: Alle Aktionen außer MFA-Setup erfordern aktive MFA-Session
+resource "aws_iam_policy" "require_mfa" {
+  name = "RequireMFA"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowViewAccountInfo"
+        Effect = "Allow"
+        Action = [
+          "iam:GetAccountPasswordPolicy",
+          "iam:GetAccountSummary",
+          "iam:ListVirtualMFADevices"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowManageOwnMFA"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateVirtualMFADevice",
+          "iam:EnableMFADevice",
+          "iam:GetUser",
+          "iam:ListMFADevices",
+          "iam:ResyncMFADevice"
+        ]
+        Resource = "arn:aws:iam::*:user/$${aws:username}"
+      },
+      {
+        Sid    = "DenyWithoutMFA"
+        Effect = "Deny"
+        NotAction = [
+          "iam:CreateVirtualMFADevice",
+          "iam:EnableMFADevice",
+          "iam:GetUser",
+          "iam:ListMFADevices",
+          "iam:ResyncMFADevice",
+          "sts:GetSessionToken"
+        ]
+        Resource = "*"
+        Condition = {
+          BoolIfExists = {
+            "aws:MultiFactorAuthPresent" = "false"
+          }
+        }
+      }
+    ]
+  })
+}
+----
+
+=== Schritt 3: Service-Account-Rollen mit IRSA (EKS)
+
+[source,hcl]
+----
+# OIDC-Provider für EKS-Cluster
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+# IAM-Rolle für Kubernetes Service Account (IRSA)
+resource "aws_iam_role" "app_service_account" {
+  name = "app-service-account-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.eks.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" =
+            "system:serviceaccount:production:app-service-account"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" =
+            "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+}
+
+# Minimal-Policy: Nur lesender S3-Zugriff auf spezifischen Bucket
+resource "aws_iam_role_policy" "app_s3_read" {
+  name = "app-s3-read"
+  role = aws_iam_role.app_service_account.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ]
+      Resource = [
+        aws_s3_bucket.app_data.arn,
+        "${aws_s3_bucket.app_data.arn}/*"
+      ]
+    }]
+  })
+}
+----
+
+=== Schritt 4: CI/CD-OIDC-Integration ohne statische Keys
+
+[source,hcl]
+----
+# GitHub Actions OIDC Provider
+resource "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+
+  client_id_list = ["sts.amazonaws.com"]
+
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1"
+  ]
+}
+
+# Deployment-Rolle für GitHub Actions
+resource "aws_iam_role" "github_actions_deploy" {
+  name = "github-actions-deploy"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.github.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          # Nur main-Branch und PR-Merges
+          "token.actions.githubusercontent.com:sub" =
+            "repo:myorg/myrepo:ref:refs/heads/main"
+        }
+      }
+    }]
+  })
+}
+----
+
+== MFA-Durchsetzung: Methoden und Trade-offs
+
+[cols="2,2,2,1"]
+|===
+|MFA-Methode |Sicherheitsniveau |Benutzerfreundlichkeit |Empfehlung
+
+|Hardware-Token (YubiKey)
+|Sehr hoch (Phishing-resistent)
+|Mittel
+|Admin-Rollen, Privileged Access
+
+|TOTP-App (Google Authenticator, Authy)
+|Hoch
+|Gut
+|Alle Konsolennutzer
+
+|SMS-OTP
+|Niedrig (SIM-Swapping-Angriffe)
+|Sehr gut
+|Nicht empfohlen
+
+|AWS SSO mit FIDO2
+|Sehr hoch (Phishing-resistent)
+|Sehr gut
+|Ziel für Organisationen mit AWS SSO
+
+|===
+
+== Least Privilege: Compliant vs. Non-Compliant
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+# Spezifische Berechtigungen
+resource "aws_iam_role_policy" "app" {
+  policy = jsonencode({
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject"
+      ]
+      Resource = [
+        "${aws_s3_bucket.uploads.arn}/*"
+      ]
+    }]
+  })
+}
+----
+
+a|[source,hcl]
+----
+# Wildcard: VERBOTEN
+resource "aws_iam_role_policy" "app" {
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "*"      # Verboten!
+      Resource = "*"      # Verboten!
+    }]
+  })
+}
+----
+
+|===
+
+== Anti-Patterns
+
+* *Root-Account täglich nutzen*: Root sollte nur für Kontoverwaltung (sehr selten) genutzt werden.
+  Für alles andere: IAM-Rollen.
+* *Shared IAM-User für Teams*: Ein gemeinsamer `deploy-user` für das gesamte Team ist nicht auditierbar.
+  Individuelle Rollen via SSO.
+* *`AdministratorAccess` für CI/CD*: CI/CD braucht nur die Berechtigungen für die Ressourcen, die es verwaltet.
+* *Permanente Admin-Rollen*: Tägliche Arbeit als Admin ist ein permanentes Risiko. JIT-Zugriff stattdessen.
+* *Access Keys in `.env`-Dateien*: OIDC und Instance Profiles sind die sicheren Alternativen.
+
+== Metriken
+
+* Anteil der IAM-User mit MFA aktiviert (Ziel: 100%)
+* Anzahl aktiver Root-Access-Keys (Ziel: 0)
+* Anteil der Deployments via OIDC statt statische Keys (Ziel: 100% für neue Systeme)
+* IAM Access Analyzer Findings (öffentlich zugängliche Ressourcen): Ziel: 0
+* Zeit seit letztem IAM Access Review (Ziel: < 90 Tage)
+
+== Reifegrad
+
+Level 1 – Root-Account täglich genutzt, keine MFA-Pflicht +
+Level 2 – MFA für Admins, grobe Rollentrennung, kein `AdministratorAccess` für alle +
+Level 3 – Keine Wildcards, IRSA für Service-Accounts, CI/CD via OIDC, JAT-Passwort-Policy +
+Level 4 – IAM Access Analyzer aktiv, JIT für privilegierte Rollen, Permission Boundaries +
+Level 5 – Zero Standing Privilege, Continuous Access Review, FIDO2 überall

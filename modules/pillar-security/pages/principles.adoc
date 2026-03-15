@@ -1,0 +1,205 @@
+= Security-Prinzipien
+:page-toc: right
+:toclevels: 3
+:description: WAF++ – Die 7 Prinzipien der Security-Säule. Von Security by Design bis Assume Breach.
+
+Die folgenden sieben Prinzipien bilden das konzeptionelle Fundament der Security-Säule im WAF++.
+Sie sind technologieunabhängig formuliert und gelten über alle Cloud-Anbieter hinweg.
+
+Prinzipien sind keine Controls. Sie erklären das *Warum* hinter den Controls.
+Ein Team, das die Prinzipien versteht, trifft bessere Entscheidungen auch in Situationen,
+die kein Control explizit abdeckt.
+
+---
+
+== SP-1 – Security by Design
+
+*Security wird von Anfang an eingeplant – nicht nachträglich ergänzt.*
+
+Security-Maßnahmen, die nach der Architekturphase hinzugefügt werden, sind teurer, lückenhafter
+und schwerer durchzusetzen. Wenn Netzwerkdesign, Datenbankschema und IAM-Struktur bereits
+feststehen, ist jede Security-Änderung ein Kompromiss.
+
+Security by Design bedeutet: Security-Anforderungen werden im *ersten Design-Meeting* berücksichtigt,
+nicht im letzten Review vor dem Go-Live. Das schließt Bedrohungsmodellierung (Threat Modeling),
+Datenklassifizierung und IAM-Design ein.
+
+*Implikation:* Kein neues Feature, kein neuer Service ohne einen kurzen Security-Review am Anfang
+des Designs. Das Resultat: Security ist ein *Feature der Architektur*, kein nachgelagerter Patch.
+
+*Zugehörige Controls:* WAF-SEC-010, WAF-SEC-020, WAF-SEC-050
+
+*Warum es wichtig ist:* Nachträgliche Security-Härtung in bestehenden Systemen ist einer der
+größten Kostentreiber in Cloud-Security-Projekten. Security by Design verhindert technische
+Schulden, die sich über Jahre anhäufen.
+
+---
+
+== SP-2 – Least Privilege by Default
+
+*Jede Identität erhält nur die Berechtigungen, die sie für ihre konkrete Aufgabe benötigt – und nicht mehr.*
+
+Least Privilege ist kein restriktives Prinzip aus Misstrauen. Es ist ein *Schadensbegrenzungsprinzip*:
+Wenn ein Account kompromittiert wird, begrenzt minimale Berechtigung den Radius des Schadens.
+Ein Development-Account mit Read-Only-Zugriff auf S3 kann keine Daten aus der Produktion exfiltrieren.
+
+Least Privilege bedeutet auch: Berechtigungen sind *temporär, überprüfbar und revozierbar*.
+Permanente Admin-Rollen für tägliche Aufgaben sind ein Anti-Pattern.
+
+*Implikation:* Jede neue IAM-Rolle beginnt mit minimalen Berechtigungen und wird erweitert,
+wenn ein konkreter Bedarf nachgewiesen wird. „Besser zu viel als zu wenig" ist falsch.
+„Genau das Notwendige" ist richtig.
+
+*Zugehörige Controls:* WAF-SEC-020
+
+*Warum es wichtig ist:* Die meisten großen Cloud-Security-Breaches der letzten Jahre basierten
+auf übermäßigen IAM-Berechtigungen. Least Privilege ist die effektivste Einzelmaßnahme zur
+Begrenzung des Blast Radius eines Angriffs.
+
+---
+
+== SP-3 – Defense in Depth
+
+*Mehrere unabhängige Schutzschichten sind besser als eine starke einzelne Kontrolle.*
+
+Defense in Depth basiert auf der Erkenntnis, dass jede einzelne Sicherheitsmaßnahme versagen kann.
+Kein Passwort ist unknackbar, kein Zertifikat unvergänglich, keine Firewall-Regel fehlerfrei.
+Wenn mehrere unabhängige Kontrollen vorhanden sind, muss ein Angreifer alle überwinden.
+
+Im WAF++-Kontext bedeutet das:
+
+* IAM kontrolliert Zugriff (wer darf?)
+* Verschlüsselung schützt Daten (auch wenn Zugriff erfolgt)
+* Netzwerk-Segmentierung begrenzt laterale Bewegung (auch wenn ein System kompromittiert ist)
+* Monitoring erkennt Angriffe (auch wenn Prävention versagt)
+* Incident Response begrenzt Schaden (auch wenn Erkennung verzögert war)
+
+*Implikation:* Kein einzelner Control ersetzt alle anderen. WAF++ verlangt Controls in allen
+relevanten Schichten. Ein System, das „sicher" ist weil es eine gute Firewall hat, aber
+keine Verschlüsselung und kein Monitoring, entspricht nicht den Anforderungen.
+
+*Zugehörige Controls:* WAF-SEC-030, WAF-SEC-040, WAF-SEC-050, WAF-SEC-080
+
+*Warum es wichtig ist:* Defense in Depth ist das einzige Konzept, das auch gegen bisher
+unbekannte Angriffsvektoren (Zero-Days) eine Restschutzwirkung bietet.
+
+---
+
+== SP-4 – Zero Trust
+
+*Kein Vertrauen basierend auf Netzwerkstandort. Jede Anfrage wird explizit authentifiziert und autorisiert.*
+
+Das klassische Perimeter-Modell – „intern ist vertrauenswürdig, extern nicht" – ist im
+Cloud-Zeitalter obsolet. In Cloud-Umgebungen gibt es keinen klar definierten Perimeter:
+Services kommunizieren über API-Calls, Entwickler zugreifen über VPNs und CI/CD-Systeme
+führen Code mit Service-Accounts aus.
+
+Zero Trust ersetzt die Frage „Ist die Anfrage von innen?" durch:
+
+* *Wer* stellt die Anfrage? (Identität: Nutzer, Service, Workload)
+* *Was* will die anfragende Entität tun? (Berechtigung: Least Privilege)
+* *Ist* das Gerät/die Umgebung vertrauenswürdig? (Kontext: Device Trust, Laufzeit)
+
+*Implikation:* VPC-interne Service-to-Service-Kommunikation ist nicht per Definition vertrauenswürdig.
+Auch interne Services benötigen mTLS, Service Accounts mit minimalen Berechtigungen und
+explizite Autorisierungsentscheidungen.
+
+*Zugehörige Controls:* WAF-SEC-010, WAF-SEC-020, WAF-SEC-040, WAF-SEC-050
+
+*Warum es wichtig ist:* Lateral Movement – die Ausbreitung eines Angreifers nach dem initialen
+Einbruch – ist nur möglich, weil interne Netzwerkkommunikation implizit vertraut wird.
+Zero Trust eliminiert dieses Risiko.
+
+---
+
+== SP-5 – Shift Left
+
+*Security wird in den Pull-Request-Prozess integriert – nicht erst im Audit nach dem Deployment.*
+
+„Shift Left" bedeutet, Security-Prüfungen so früh wie möglich im Entwicklungsprozess zu verankern.
+Je später ein Security-Problem gefunden wird, desto teurer und aufwändiger ist die Behebung.
+
+[cols="2,1"]
+|===
+|Phase der Erkennung |Relativer Aufwand zur Behebung
+
+|Beim Schreiben des Codes (Pre-Commit-Hook)
+|1x
+
+|Im Pull Request (CI-Check)
+|10x
+
+|Nach dem Merge (Staging-Scan)
+|50x
+
+|In Produktion (Incident)
+|100x+
+
+|===
+
+Im WAF++-Kontext bedeutet Shift Left:
+
+* Pre-Commit-Hooks: `tfsec`, `checkov` oder `wafpass` lokal ausführen
+* CI-Gates: WAF++ Checker blockiert PRs mit kritischen Findings
+* Container-Scanning: Vulnerability-Scan vor dem Image-Push (nicht nach dem Deployment)
+* IaC-Linting: Security-Regeln im selben Pipeline-Schritt wie Syntax-Checks
+
+*Implikation:* Security wird Teil des Developer-Workflows, nicht ein nachgelagerter Prozess.
+Entwickler erhalten sofortiges Feedback zu Security-Problemen im selben Kontext, in dem
+sie den Code schreiben.
+
+*Zugehörige Controls:* WAF-SEC-070, WAF-SEC-090
+
+*Warum es wichtig ist:* Shift Left reduziert die durchschnittliche Zeit zur Behebung von
+Security-Findings (MTTF – Mean Time to Fix) drastisch und verhindert, dass Vulnerabilities
+überhaupt in Produktion gelangen.
+
+---
+
+== SP-6 – Immutability
+
+*Infrastruktur wird ersetzt, nicht repariert. Kein direkter SSH-Zugriff auf Produktionssysteme.*
+
+Immutable Infrastructure bedeutet: Konfigurationsänderungen werden nicht direkt auf laufenden
+Systemen durchgeführt, sondern durch das Ersetzen des Systems mit einer neuen, vorkonfigurierten
+Version. Patches werden in neue AMIs oder Container-Images eingebaut, nicht in laufende VMs
+eingespielt.
+
+Das hat Security-Implikationen:
+
+* *Kein SSH-Zugriff*: Kein direkter Shell-Zugriff auf Produktionssysteme → kein Angriffsziel
+* *Keine Config Drift*: Was deployed ist, entspricht dem IaC-Code – keine manuellen Änderungen
+* *Forensik via Logs*: Vorfälle werden anhand von Logs analysiert, nicht durch interaktive Debugging-Sessions
+
+*Implikation:* Jeder Bedarf für direkten Serverzugriff ist ein Zeichen für ein Prozess-Problem.
+Debugging geschieht über zentralisiertes Logging. Hotfixes gehen durch den normalen IaC-Deployment-Prozess
+(beschleunigt, aber nicht abgekürzt).
+
+*Zugehörige Controls:* WAF-SEC-010, WAF-SEC-020
+
+*Warum es wichtig ist:* Direct SSH/RDP-Zugriff auf Produktionssysteme ist einer der häufigsten
+Vektoren für Insider-Threats und externe Angreifer. Immutability eliminiert dieses Angriffsfeld vollständig.
+
+---
+
+== SP-7 – Assume Breach
+
+*Plan für den Fall, dass ein Angreifer bereits im System ist. Erkennung und Reaktion sind genauso wichtig wie Prävention.*
+
+Assume Breach ist ein Paradigmenwechsel: Anstatt ausschließlich in Prävention zu investieren,
+akzeptiert man, dass Angriffe erfolgreich sein können, und investiert in *Detection und Response*.
+
+Das bedeutet konkret:
+
+* Monitoring und SIEM sind nicht optional – sie sind die Antwort auf erfolgreiche Angriffe
+* Incident Response Playbooks sind getestet, bevor ein Incident passiert
+* Blast-Radius-Minimierung: Wenn ein Account kompromittiert wird, wie viel Schaden kann angerichtet werden?
+* Data-Exfiltration-Prevention: Selbst wenn jemand im System ist, soll er keine Daten herausbekommen
+
+*Implikation:* Jede Woche ohne Security Monitoring ist eine Woche, in der ein erfolgreicher
+Angriff unbemerkt bleibt. Mean Time to Detect (MTTD) ist eine der wichtigsten Security-Metriken.
+
+*Zugehörige Controls:* WAF-SEC-080, WAF-SEC-100
+
+*Warum es wichtig ist:* Der durchschnittliche Breach bleibt laut Studien über 200 Tage unentdeckt.
+Assume Breach zwingt zu Monitoring-Investitionen, die diesen Zeitraum massiv verkürzen.

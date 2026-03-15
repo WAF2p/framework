@@ -1,0 +1,166 @@
+= WAF-SEC-090 – Policy-as-Code & Compliance Automation
+:page-toc: right
+:control-id: WAF-SEC-090
+:pillar: security
+:severity: medium
+:category: compliance
+:automated: hoch
+:description: WAF++ Security – Policy-as-Code mit AWS Config, OPA/Conftest und automatisierten Compliance-Checks.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Compliance | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Sicherheitsrichtlinien MÜSSEN als Code implementiert und automatisch durchgesetzt werden.
+AWS Config MUSS als Recorder mit kontinuierlichem Monitoring konfiguriert sein.
+Mindestens ein Policy-as-Code-Framework (OPA/Conftest, Checkov, AWS Config Rules, HashiCorp Sentinel)
+MUSS in der CI/CD-Pipeline für IaC-Checks integriert sein.
+Policy-Violations MÜSSEN CI-Builds blockieren oder als Security-Findings eskaliert werden.
+Manuelle Compliance-Reviews ohne technische Durchsetzung sind nicht ausreichend.
+
+== Rationale
+
+Sicherheitsrichtlinien, die nur in Dokumenten existieren, bieten keinen Schutz.
+Policy-as-Code überführt Richtlinien in maschinenprüfbare, versionierbare und automatisch
+durchsetzbare Regeln. Dadurch wird Policy Drift (Abweichung des Ist-Zustands vom Soll-Zustand)
+kontinuierlich erkannt. Automatisierte Compliance-Gates in CI/CD verhindern die Einführung von
+Non-Compliant-Infrastruktur, bevor sie deployed wird – deutlich günstiger als post-deployment Remediation.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Policy Drift*
+|Manuelle Konfigurationsänderungen außerhalb von IaC führen zu Abweichungen, die wochenlang unentdeckt bleiben.
+
+|*Unvollständige Security-Reviews*
+|Manuelle Pull-Request-Reviews übersehen systematisch bestimmte Klassen von Fehlkonfigurationen.
+
+|*Compliance-Audit-Failure*
+|Fehlende technische Durchsetzung macht es unmöglich, gegenüber Auditoren Compliance-Nachweise zu erbringen.
+
+|*Langsame Remediation*
+|Ohne automatische Erkennung von Compliance-Verletzungen bleibt die Zeit bis zur Behebung unvorhersehbar.
+
+|===
+
+== Anforderung
+
+* AWS Config MUSS als Recorder (`aws_config_configuration_recorder`) mit `all_supported = true` und einem Delivery-Channel in einen dedizierten S3-Bucket aktiviert sein.
+* Mindestens ein Policy-as-Code-Tool (Checkov, Conftest, OPA, wafpass) MUSS als CI-Gate für alle IaC-Änderungen konfiguriert sein.
+* Policy-Violations mit Severity CRITICAL oder HIGH MÜSSEN CI-Builds blockieren (exit code != 0).
+* AWS Config Managed Rules für grundlegende Sicherheitsanforderungen (CloudTrail enabled, S3 encryption, GuardDuty enabled) MÜSSEN konfiguriert sein.
+* Policy-as-Code-Regeln MÜSSEN versioniert, peer-reviewed und im selben Repository wie die IaC-Konfiguration verwaltet werden.
+
+== Implementierungsanleitung
+
+. *AWS Config aktivieren*: `aws_config_configuration_recorder` mit `all_supported = true` und `aws_config_delivery_channel` zu einem S3-Bucket konfigurieren.
+. *Config-Recorder starten*: `aws_config_configuration_recorder_status` mit `is_enabled = true` – ohne Status-Ressource ist der Recorder inaktiv.
+. *Managed Rules hinzufügen*: `aws_config_config_rule` für `cloud-trail-enabled`, `guardduty-enabled-centralized`, `s3-bucket-server-side-encryption-enabled`, `restricted-ssh`.
+. *Checkov/wafpass in CI integrieren*: GitHub Actions Step mit `checkov -d . --framework terraform` oder `wafpass check . --fail-on HIGH,CRITICAL` als Required Check.
+. *OPA/Conftest für benutzerdefinierte Policies*: Rego-Policies für WAF++-spezifische Anforderungen (z. B. Mandatory-Tags, Approved-AMI-Liste) als Conftest-Checks.
+. *Pre-Commit-Hook*: `wafpass check` oder `checkov` als Pre-Commit-Hook für sofortiges Entwickler-Feedback.
+. *Findings-Aggregation*: AWS Config Non-Compliant-Findings in Security Hub aggregieren.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine automatisierte Policy-Prüfung
+|Richtlinien nur in Dokumenten; keine technische Durchsetzung; manuelles Compliance-Review.
+
+|*2*
+|Einzelne Tools eingesetzt; kein CI-Gate
+|Checkov oder tfsec manuell ausgeführt; Ergebnisse nicht automatisch enforced; AWS Config deaktiviert.
+
+|*3*
+|CI-Gate mit Policy-as-Code; AWS Config aktiv
+|Checkov/wafpass als Required CI-Check; AWS Config Recorder + Managed Rules aktiv; CRITICAL-Violations blockieren Deployment.
+
+|*4*
+|Benutzerdefinierte Policies und automatische Remediation
+|Eigene OPA/Rego-Policies für WAF++-Controls; AWS Config Auto-Remediation für häufige Violations; Compliance-Dashboard.
+
+|*5*
+|Vollständige Policy-as-Code-Plattform
+|Alle Security-Controls als testbare Policies; Policy-Changes durch RFC-Prozess; Continuous Compliance Attestation für Audit.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-090.tf.aws.config-recorder-enabled
+*Prüft:* AWS Config Recorder muss konfiguriert und aktiviert sein.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_config_configuration_recorder" "main" {
+  name     = "default"
+  role_arn = aws_iam_role.config.arn
+  recording_group {
+    all_supported                 = true
+    include_global_resource_types = true
+  }
+}
+
+resource "aws_config_configuration_recorder_status" "main" {
+  name       = aws_config_configuration_recorder.main.name
+  is_enabled = true
+}
+----
+a|[source,hcl]
+----
+# aws_config_configuration_recorder fehlt komplett
+# oder:
+resource "aws_config_configuration_recorder_status" "main" {
+  name       = "default"
+  is_enabled = false
+  # WAF-SEC-090 Violation: Config Recorder deaktiviert
+}
+----
+|===
+
+*Remediation:* `aws_config_configuration_recorder` mit `all_supported = true` und eine `aws_config_configuration_recorder_status`-Ressource mit `is_enabled = true` erstellen. Ohne Status-Ressource startet der Recorder nicht.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration von `aws_config_configuration_recorder` und zugehöriger Status-Ressource mit `is_enabled = true`.
+
+|*Config*
+|✅ Pflicht
+|CI-Pipeline-Konfiguration mit Policy-as-Code-Check (wafpass, Checkov oder gleichwertig) als Required Check.
+
+|*Process*
+|Optional
+|AWS Config Compliance-Dashboard-Screenshot oder Bericht mit Liste aktiver Managed Rules und deren Compliance-Status.
+
+|*Config*
+|Optional
+|OPA/Rego-Policy-Dateien im Repository mit nachvollziehbarer Versionierung und Code-Review-Historie.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-080.adoc[WAF-SEC-080 – Security Monitoring & Threat Detection]
+* xref:controls/WAF-SEC-100.adoc[WAF-SEC-100 – Incident Response Readiness]
+
+== Best Practice
+
+* xref:../best-practices/bp-policy-as-code.adoc[Policy-as-Code Best Practice →]

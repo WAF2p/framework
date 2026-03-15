@@ -1,0 +1,311 @@
+= Verantwortlichkeiten (Security)
+:page-toc: right
+:toclevels: 3
+:description: WAF++ Security – Shared Responsibility Model für Cloud-Security. Wer ist für was verantwortlich: Cloud-Anbieter, Platform-Team, Dev-Teams, Security-Team.
+
+== Das Shared Responsibility Model
+
+Cloud-Security ist eine geteilte Verantwortung zwischen Cloud-Anbieter und Kunde.
+Das Missverständnis dieser Grenze ist eine der häufigsten Ursachen für Cloud-Security-Incidents.
+
+=== Grundprinzip
+
+[source,text]
+----
+Cloud-Anbieter ist verantwortlich für: Security OF the Cloud
+  ├── Physische Sicherheit der Rechenzentren
+  ├── Hardware-Infrastruktur (Server, Netzwerk, Storage)
+  ├── Hypervisor-Security
+  └── Globale Netzwerkinfrastruktur
+
+Kunde ist verantwortlich für: Security IN the Cloud
+  ├── Betriebssystem-Konfiguration und Patches (EC2)
+  ├── Netzwerkkonfiguration (VPC, Security Groups, NACLs)
+  ├── IAM und Zugangskontrollen
+  ├── Datenverschlüsselung
+  ├── Anwendungssicherheit
+  └── Monitoring und Incident Response
+----
+
+=== Detaillierte Verantwortungsmatrix
+
+[cols="3,1,1,1"]
+|===
+|Verantwortungsbereich |IaaS (EC2, VMs) |PaaS (RDS, Lambda) |SaaS (Office 365, Salesforce)
+
+|Physische Sicherheit
+|Cloud-Anbieter
+|Cloud-Anbieter
+|Cloud-Anbieter
+
+|Hypervisor/Host-OS
+|Cloud-Anbieter
+|Cloud-Anbieter
+|Cloud-Anbieter
+
+|Netzwerkkonfiguration
+|*Kunde*
+|Geteilt
+|Cloud-Anbieter
+
+|Betriebssystem (Guest OS)
+|*Kunde*
+|Cloud-Anbieter
+|Cloud-Anbieter
+
+|Middleware / Runtime
+|*Kunde*
+|Cloud-Anbieter
+|Cloud-Anbieter
+
+|Anwendungsdaten
+|*Kunde*
+|*Kunde*
+|*Kunde*
+
+|IAM & Zugriffskontrollen
+|*Kunde*
+|*Kunde*
+|*Kunde* (User Mgmt)
+
+|Datenverschlüsselung
+|*Kunde*
+|Geteilt (CMK = Kunde)
+|Geteilt
+
+|Monitoring & Alerting
+|*Kunde*
+|*Kunde*
+|Geteilt
+
+|Patch Management
+|*Kunde*
+|Cloud-Anbieter (managed)
+|Cloud-Anbieter
+
+|Backup-Konfiguration
+|*Kunde*
+|*Kunde* (Policy)
+|*Kunde* (Policy)
+
+|===
+
+WARNING: „Managed Service" bedeutet, der Cloud-Anbieter patcht die Plattform. Es bedeutet *nicht*,
+dass er Ihre Daten schützt, Ihre IAM-Policies konfiguriert oder Ihr Monitoring einrichtet.
+
+== WAF++ Verantwortungsbereich
+
+Die WAF-SEC Controls decken die *Kundenseite* des Shared Responsibility Models ab.
+
+[cols="2,3,1"]
+|===
+|WAF++ Control |Was wird abgedeckt |Kundenseite
+
+|WAF-SEC-010 IAM Baseline
+|MFA-Konfiguration, Root-Account-Schutz, IAM-Passwort-Policy
+|Vollständig Kunde
+
+|WAF-SEC-020 Least Privilege
+|IAM-Policy-Design, Rollenstruktur, Wildcard-Vermeidung
+|Vollständig Kunde
+
+|WAF-SEC-030 Encryption at Rest
+|CMK-Konfiguration, Encryption-Policy, KMS-Rotation
+|Schlüsselverwaltung = Kunde
+
+|WAF-SEC-040 TLS Enforcement
+|ALB/NLB TLS-Policy, API Gateway, CloudFront Security Policy
+|Konfiguration = Kunde
+
+|WAF-SEC-050 Network Segmentation
+|VPC-Design, Security Groups, NACLs, VPC Endpoints
+|Vollständig Kunde
+
+|WAF-SEC-060 Secrets Management
+|Secrets-Manager-Konfiguration, CI/CD-Integration, Rotation
+|Vollständig Kunde
+
+|WAF-SEC-070 Vulnerability Management
+|Container-Scanning-Konfiguration, Patch-Policy, SBOM
+|Vollständig Kunde
+
+|WAF-SEC-080 Security Monitoring
+|GuardDuty-Aktivierung, CloudTrail-Konfiguration, Alerting
+|Vollständig Kunde
+
+|WAF-SEC-090 Policy-as-Code
+|OPA/wafpass-Integration in CI/CD, SCP-Konfiguration
+|Vollständig Kunde
+
+|WAF-SEC-100 Incident Response
+|Playbooks, Runbooks, Response-Automatisierung
+|Vollständig Kunde
+
+|===
+
+== Team-Verantwortlichkeiten
+
+In modernen Cloud-Organisationen mit mehreren Teams ist die Aufteilung der Security-Verantwortung
+entscheidend. WAF++ empfiehlt folgende Rollenverteilung:
+
+=== Platform Team (Cloud Platform / Infrastruktur)
+
+Das Platform Team ist verantwortlich für die *Security Foundation*:
+
+* Bereitstellung und Wartung der IaC-Basismodule (VPC, IAM-Rollen, KMS, Security Groups)
+* Betrieb des Security Monitoring Stacks (GuardDuty, Security Hub, SIEM-Integration)
+* Verwaltung von SCPs und Org-Policies
+* Betrieb des Secrets-Management-Systems (Secrets Manager, Vault)
+* Wartung der WAF++ Checker-Integration in CI/CD-Plattform
+
+*Security-Entscheidungen des Platform Teams:*
+
+* Welche Regionen sind erlaubt?
+* Welche KMS-Keys werden für welche Datenkategorien verwendet?
+* Wie sind VPCs und Netzwerke aufgebaut?
+* Welche Security-Guardrails gelten organisationsweit?
+
+=== Dev Teams (Produktteams / Entwicklungsteams)
+
+Dev Teams sind verantwortlich für die *Security ihrer Anwendungen und Services*:
+
+* Korrekte Verwendung der vom Platform Team bereitgestellten Sicherheitsmodule
+* Keine Wildcards in anwendungsspezifischen IAM-Policies
+* Keine hardcodierten Secrets im Anwendungscode und IaC
+* Adressierung von Security-Findings aus Vulnerability-Scans
+* Implementierung von Security Controls auf Anwendungsebene
+
+*Security-Entscheidungen der Dev Teams:*
+
+* Welche Berechtigungen benötigt ihre Anwendung konkret?
+* Wie werden Application-Secrets zur Laufzeit bezogen?
+* Wie werden Container-Images aktuell gehalten?
+
+=== Security Team (CISO / Cloud Security)
+
+Das Security Team ist verantwortlich für *Governance, Oversight und Risk Management*:
+
+* Definition der Security-Richtlinien und Standards (Policy Owner)
+* Review und Genehmigung von Ausnahmen von Security-Standards
+* Betrieb des Security Operations Centers (SOC) oder Oversight der SOC-Funktion
+* Durchführung oder Beauftragung von Penetrationstests und Red-Team-Übungen
+* Incident Response Koordination
+* Regulatorische Compliance-Überwachung (ISO 27001, DSGVO, BSI C5)
+
+*Security-Entscheidungen des Security Teams:*
+
+* Welche Risks sind akzeptabel? (Risk Acceptance)
+* Welche Ausnahmen von Controls werden genehmigt? (Exception Process)
+* Welche neuen Bedrohungen erfordern neue Controls?
+
+=== Compliance Team
+
+Das Compliance Team ist verantwortlich für *Audit und Nachweisführung*:
+
+* Sammlung von Audit-Evidenz aus dem WAF++ Framework
+* Koordination externer Audits (ISO 27001 Zertifizierungsaudit, SOC 2 Audit)
+* Übersetzung regulatorischer Anforderungen in technische Controls-Anforderungen
+
+== Das „Security as Code" Prinzip
+
+WAF++ folgt dem Grundsatz: *Security-Entscheidungen sind Code, keine Ausnahmen.*
+
+Das bedeutet:
+
+=== Kein manueller Bypass ohne Dokumentation
+
+Jede Abweichung von einem WAF-SEC Control erfordert:
+
+. *Exception Request*: Dokumentiertes Formular mit Begründung, Risikobewertung und Zeitraum
+. *Risk Acceptance*: Genehmigung durch Security Team und CISO
+. *Compensating Controls*: Was ersetzt den fehlenden Control?
+. *Review-Datum*: Exception-Perioden sind maximal 90 Tage (danach Review oder Verlängerung)
+. *Audit-Trail*: Exception ist im Repository dokumentiert (nicht in E-Mail)
+
+[source,yaml]
+----
+# exceptions/WAF-SEC-020-exception-001.yml
+exception_id: "EXC-WAF-SEC-020-001"
+control: "WAF-SEC-020"
+resource: "arn:aws:iam::123456789:role/legacy-batch-role"
+reason: "Legacy-System noch nicht auf Least Privilege migriert. Migration geplant Q2 2026."
+risk_level: "medium"
+approved_by: "CISO - Max Mustermann"
+approved_date: "2025-12-01"
+expiry_date: "2026-03-31"
+compensating_controls:
+  - "CloudTrail-Alerting bei Nutzung dieser Rolle"
+  - "Manuelle Quarterly Review"
+----
+
+=== Security-Reviews im PR-Prozess
+
+Jede Änderung an sicherheitsrelevanten Ressourcen erfordert ein Security-Review im Pull Request:
+
+* IAM-Policies: Pflicht-Review durch Platform Team oder Security Team
+* Security Group-Änderungen: Review durch Platform Team
+* KMS-Key-Policies: Review durch Security Team
+* Neue externe Integrationen: Review durch Security Team
+
+CODEOWNERS-Datei in der Infrastruktur-Repository stellt sicher, dass diese Reviews
+automatisch angefordert werden.
+
+[source,text]
+----
+# CODEOWNERS
+/modules/iam/           @platform-team @security-team
+/modules/network/       @platform-team
+/modules/kms/           @security-team
+/modules/secrets/       @security-team
+/.github/workflows/     @platform-team @security-team
+----
+
+=== Verantwortungsmatrix (RACI)
+
+[cols="3,1,1,1,1"]
+|===
+|Security-Aufgabe |Platform Team |Dev Team |Security Team |Compliance
+
+|WAF++ Controls implementieren (IaC)
+|Responsible
+|Responsible
+|Consulted
+|Informed
+
+|Security-Richtlinien definieren
+|Consulted
+|Informed
+|Responsible
+|Accountable
+
+|Ausnahmen genehmigen
+|Consulted
+|Requestor
+|Responsible
+|Accountable
+
+|Security-Incidents eskalieren
+|Informed
+|Informed
+|Responsible
+|Informed
+
+|Audit-Evidenz bereitstellen
+|Responsible
+|Responsible
+|Accountable
+|Responsible
+
+|Penetrationstests durchführen
+|Informed
+|Informed
+|Accountable
+|Informed
+
+|Compliance-Reports erstellen
+|Consulted
+|Consulted
+|Consulted
+|Responsible
+
+|===

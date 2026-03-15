@@ -1,0 +1,231 @@
+= WAF-SEC-020 – Least Privilege & RBAC Enforcement
+:page-toc: right
+:control-id: WAF-SEC-020
+:pillar: security
+:severity: critical
+:category: iam
+:automated: hoch
+:description: WAF++ Security – Minimalprinzip und RBAC: AdministratorAccess darf nicht direkt an IAM-User vergeben werden; Rollen benötigen Bedingungen.
+
+[.metadata]
+*Pillar:* Security | *Severity:* Critical | *Kategorie:* IAM | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle IAM-Berechtigungen MÜSSEN nach dem Minimalprinzip (Least Privilege) vergeben werden.
+`AdministratorAccess` und andere Volladmin-Policies DÜRFEN NICHT direkt an IAM-Benutzer
+angehängt werden – ausschließlich an IAM-Rollen.
+IAM-Rollen-Policies MÜSSEN Bedingungen (`Condition`-Blöcke) enthalten, die den Nutzungskontext
+einschränken (z. B. MFA-Pflicht, Quell-IP, temporale Einschränkung).
+Wildcard-Berechtigungen (`*` auf `Action` und `Resource` gleichzeitig) sind VERBOTEN.
+
+== Rationale
+
+Übermäßige IAM-Berechtigungen sind der primäre Verstärker bei Cloud-Sicherheitsvorfällen:
+Ein kompromittierter Account mit `AdministratorAccess` kann sämtliche Ressourcen lesen,
+ändern und löschen – einschließlich Audit-Logs und Sicherheitskontrollen.
+Direkte Policy-Bindungen an Benutzer umgehen den rollenbasierten Delegationsfluss
+und erschweren konsistentes Berechtigungs-Lifecycle-Management erheblich.
+Rollen mit erzwungenen Bedingungen begrenzen die Nutzbarkeit kompromittierter Credentials:
+Ohne gültige MFA-Session oder aus einer fremden IP ist die Rolle nicht annehmbar.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Privilege Escalation*
+|Ein kompromittierter Low-Privilege-Account kann sich zu AdministratorAccess hocharbeiten, wenn IAM-Policies zu weitreichend sind.
+
+|*Blast Radius*
+|Direkt an Benutzer gebundene Admin-Policies bedeuten: Ein kompromittierter Account = vollständige Kontrolle über das gesamte AWS-Konto.
+
+|*Insider-Bedrohung*
+|Mitarbeitende mit übermäßigen Berechtigungen können Daten exfiltrieren oder Ressourcen absichtlich beschädigen.
+
+|*Audit-Komplexität*
+|Ohne klare RBAC-Struktur ist nicht nachvollziehbar, welche Person welche Rechte besitzt – Compliance-Reviews werden unmöglich.
+
+|===
+
+== Anforderung
+
+* `AdministratorAccess` und vergleichbare Volladmin-Policies DÜRFEN NICHT direkt an IAM-Benutzer gebunden werden – ausschließlich an IAM-Rollen.
+* IAM-Rollen-Trust-Policies MÜSSEN `Condition`-Blöcke mit mindestens einer Einschränkung enthalten (MFA, IP, Zeit).
+* Wildcard-Aktionen (`Action: "*"`) kombiniert mit Wildcard-Ressourcen (`Resource: "*"`) sind in produktiven IAM-Policies VERBOTEN.
+* Jede IAM-Rolle MUSS einen klar benannten Zweck und einen definierten Eigner-Tag (`owner`) tragen.
+* IAM-Berechtigungen MÜSSEN nach dem Prinzip des geringsten Privilegs vergeben und quartalsweise überprüft werden.
+* Unused IAM Credentials MÜSSEN über IAM Access Analyzer identifiziert und entfernt werden.
+
+== Implementierungsanleitung
+
+. *RBAC-Rollen-Taxonomie definieren*: Rollen nach Funktion strukturieren (Developer, ReadOnly, Operator, SecurityAuditor).
+. *AdministratorAccess von Benutzern trennen*: Direkte Policy-Bindungen auflösen; Benutzer nehmen Rollen an.
+. *Condition-Blöcke einrichten*: MFA-Pflicht (`aws:MultiFactorAuthPresent: true`) in Trust-Policies für sensible Rollen.
+. *Berechtigungs-Boundaries einsetzen*: IAM Permission Boundaries auf alle entwicklergesteuerten Rollen anwenden.
+. *Access Analyzer aktivieren*: IAM Access Analyzer Findings wöchentlich reviewen; unused permissions entfernen.
+. *CI-Gate konfigurieren*: OPA- oder WAF++-Policy prüft bei jedem PR auf direkten `AdministratorAccess` an Benutzer.
+. *Quartalsaudit*: Access Reviews dokumentieren, Findings tracken und schließen.
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc Berechtigungen
+|Berechtigungen manuell vergeben; häufig `AdministratorAccess` direkt an Benutzer; kein RBAC-Konzept.
+
+|*2*
+|Basis-RBAC vorhanden
+|Rollen-Taxonomie dokumentiert; AdministratorAccess nur noch an Rollen; grobe Least-Privilege-Umsetzung.
+
+|*3*
+|Conditions und Permission Boundaries
+|Alle Admin-Rollen mit MFA-Condition; Permission Boundaries auf entwicklergesteuerte Rollen; Access Analyzer aktiv.
+
+|*4*
+|Just-in-Time-Zugriff und quartalsweise Access Reviews
+|Keine dauerhaften Admin-Rollen; JIT-Zugriff via IAM Identity Center; dokumentierte quartalsweise Access Reviews.
+
+|*5*
+|Vollautomatisiertes Berechtigungsmanagement
+|Automatische Erkennung und Entzug ungenutzter Berechtigungen; Policy-Generierung aus tatsächlichem Nutzungsverhalten via Access Advisor.
+
+|===
+
+== Terraform Checks
+
+=== waf-sec-020.tf.aws.no-admin-policy-on-users
+*Prüft:* Die Policy `AdministratorAccess` darf nicht direkt an IAM-Benutzer gebunden sein – nur an IAM-Rollen.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_role" "admin" {
+  name = "OrganizationAdminRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = var.admin_principal }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        Bool = {
+          "aws:MultiFactorAuthPresent" = "true"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "admin" {
+  role       = aws_iam_role.admin.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+----
+a|[source,hcl]
+----
+resource "aws_iam_user" "admin_user" {
+  name = "alice"
+}
+
+# WAF-SEC-020 Violation:
+# AdministratorAccess direkt an Benutzer
+resource "aws_iam_user_policy_attachment" "bad" {
+  user       = aws_iam_user.admin_user.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+----
+|===
+
+*Remediation:* `aws_iam_user_policy_attachment` mit `AdministratorAccess` entfernen. Eine IAM-Rolle mit entsprechender Trust-Policy und `Condition`-Block erstellen; Benutzer nehmen die Rolle an statt direkter Policy-Bindung.
+
+---
+
+=== waf-sec-020.tf.aws.role-policy-requires-condition
+*Prüft:* IAM-Rollen-Trust-Policies für privilegierte Rollen müssen einen `Condition`-Block enthalten.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_iam_role" "ops" {
+  name = "OperationsRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::123456789:root"
+      }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        Bool = {
+          "aws:MultiFactorAuthPresent" = "true"
+        }
+      }
+    }]
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_iam_role" "ops" {
+  name = "OperationsRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::123456789:root"
+      }
+      Action = "sts:AssumeRole"
+      # Kein Condition-Block
+      # WAF-SEC-020 Violation
+    }]
+  })
+}
+----
+|===
+
+*Remediation:* Trust-Policy der IAM-Rolle um einen `Condition`-Block erweitern, der mindestens `aws:MultiFactorAuthPresent = true` oder eine IP-Einschränkung via `aws:SourceIp` enthält.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration aller IAM-Rollen mit Trust-Policy, Condition-Blöcken und zugeordneten Policies; kein direkter `AdministratorAccess` an Benutzer.
+
+|*Governance*
+|✅ Pflicht
+|RBAC-Konzeptdokument mit Rollen-Taxonomie, erlaubten Policy-Kombinationen und Überprüfungsrhythmus.
+
+|*Process*
+|Optional
+|Quartalsweise Access-Review-Protokolle mit IAM Access Analyzer Findings und dokumentierter Bereinigung.
+
+|*Config*
+|Optional
+|OPA- oder WAF++-CI-Gate-Konfiguration, die direkte Admin-Policy-Bindungen an Benutzer blockiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010 – Identity & Access Management Baseline]
+
+== Best Practice
+
+* xref:../best-practices/bp-iam.adoc[Identity & Access Management Best Practice →]

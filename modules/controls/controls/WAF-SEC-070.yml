@@ -1,0 +1,194 @@
+id: WAF-SEC-070
+title: "Vulnerability & Patch Management"
+pillar: "security"
+status: "active"
+severity: "medium"
+category: "vulnerability-management"
+type: ['configuration', 'governance', 'automation']
+tags: ['vulnerability', 'patching', 'cve', 'image-scanning', 'ecr', 'container-security']
+
+description: >
+  All container images MUST have vulnerability scanning enabled at the registry level
+  using enhanced scanning (Amazon Inspector) or equivalent. Container images containing
+  critical or high CVEs MUST NOT be deployed to production environments without a documented
+  exception and compensating control. ECR repositories MUST use immutable tags to prevent
+  image tampering after push. A documented patch management process MUST exist with defined
+  SLAs: critical CVEs remediated within 72 hours, high CVEs within 7 days, medium within 30 days.
+  OS-level patching for EC2 instances and EKS nodes MUST be automated via AWS Systems Manager
+  Patch Manager.
+
+rationale: >
+  Unpatched software vulnerabilities are the second most common attack vector after compromised
+  credentials. Container images built from outdated base images accumulate CVEs rapidly; a single
+  critical CVE in a base image can expose hundreds of containerized workloads simultaneously.
+  Immutable tags prevent supply chain attacks where an attacker overwrites a trusted image tag
+  with a malicious payload. Automated patch management reduces the mean time to remediation
+  and eliminates the human coordination overhead that causes patching delays. Documented SLAs
+  create accountability and demonstrable compliance evidence for auditors.
+
+threat:
+  - "Exploitation of known CVEs in unpatched container base images or application dependencies"
+  - "Supply chain attack via mutable image tags overwritten with malicious payloads"
+  - "Lateral movement through a compromised container with kernel-level vulnerabilities"
+  - "Zero-day exploitation on unpatched EC2 instances or EKS worker nodes running outdated kernels"
+
+regulatory_mapping:
+  - framework: "BSI C5:2020"
+    controls:
+      - "OPS-01 – Patch and vulnerability management"
+      - "OPS-02 – Change management"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.8 – Management of technical vulnerabilities"
+      - "A.8.19 – Installation of software on operational systems"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "OPS-01 – Patch and vulnerability management"
+  - framework: "SLSA"
+    controls:
+      - "SLSA L2 – Build provenance attestation"
+      - "SLSA L3 – Hardened build environment"
+
+implementation_guidance:
+  - "Enable enhanced ECR image scanning (Amazon Inspector) on all ECR repositories; configure scan-on-push and continuous scanning for all repositories."
+  - "Set image_tag_mutability = 'IMMUTABLE' on all ECR repositories to prevent tag overwrites; use digest-based image references in container orchestration."
+  - "Integrate ECR vulnerability findings into deployment pipelines: block promotion to production if critical CVEs are present using Inspector findings and EventBridge rules."
+  - "Define and document patch SLAs: critical (72h), high (7d), medium (30d), low (90d); review and approve exceptions via a formal risk acceptance process."
+  - "Automate OS-level patching for EC2 instances using AWS Systems Manager Patch Manager; configure maintenance windows and patch baselines per OS and environment."
+  - "Use minimal base images (distroless, Alpine, or UBI minimal) for containers to reduce the attack surface and number of installed packages."
+  - "Generate and store Software Bills of Materials (SBOM) for all container images at build time; use tools such as Syft or AWS Inspector SBOM export."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc patching with no formal vulnerability management process"
+    criteria:
+      - "No container image scanning; patching done reactively after incidents"
+      - "No defined SLAs for CVE remediation"
+  level_2:
+    description: "Container scanning enabled; patching process documented"
+    criteria:
+      - "ECR image scanning enabled on all repositories (at minimum basic scanning)"
+      - "Patch management process documented with defined SLAs"
+      - "Critical CVEs identified and escalated within 72 hours"
+  level_3:
+    description: "Enhanced scanning; immutable tags; automated OS patching"
+    criteria:
+      - "Enhanced (Amazon Inspector) scanning enabled; findings integrated into CI/CD pipeline"
+      - "ECR immutable tags enforced; digest-based image references used in deployments"
+      - "EC2 and EKS nodes patched automatically via Systems Manager Patch Manager"
+  level_4:
+    description: "Blocking deployments on critical CVEs; SBOM generation"
+    criteria:
+      - "CI/CD pipeline blocks deployment to production when critical CVEs are present"
+      - "SBOM generated and stored for all container images"
+      - "Patch compliance dashboards with real-time coverage metrics"
+  level_5:
+    description: "Continuous vulnerability lifecycle management with automated remediation"
+    criteria:
+      - "Automated PR creation for base image updates when critical CVEs are published"
+      - "SBOM inventory continuously analyzed against vulnerability feeds with auto-alerting"
+      - "Full patch compliance audit trail with mean-time-to-remediation metrics per severity"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing ECR repositories with image_scanning_configuration and image_tag_mutability = 'IMMUTABLE'."
+    - kind: "governance"
+      description: "Patch management policy document defining SLAs per CVE severity, escalation process, and exception handling procedure."
+  optional:
+    - kind: "config"
+      description: "Amazon Inspector findings dashboard export showing current vulnerability status across all registered ECR repositories."
+    - kind: "process"
+      description: "Patch compliance report from AWS Systems Manager Patch Manager showing patch compliance percentage per environment."
+
+checks:
+  - id: "waf-sec-070.tf.aws.ecr-image-scanning"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "ECR repositories must have image scanning enabled"
+    description: >
+      All aws_ecr_repository resources must have an image_scanning_configuration block
+      with scan_on_push = true to ensure every pushed image is immediately scanned
+      for known vulnerabilities.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ecr_repository"
+    assertions:
+      - attribute: "image_scanning_configuration"
+        op: "attribute_exists"
+        message: "ECR repository must have image_scanning_configuration block defined with scan_on_push = true."
+    on_fail: "violation"
+    remediation: >
+      Add an image_scanning_configuration block to all aws_ecr_repository resources:
+        image_scanning_configuration { scan_on_push = true }
+      For enhanced scanning, enable Amazon Inspector at the account level and configure
+      continuous ECR scanning via aws_inspector2_enabler resource.
+    example:
+      compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "IMMUTABLE"
+          image_scanning_configuration {
+            scan_on_push = true
+          }
+          encryption_configuration {
+            encryption_type = "KMS"
+            kms_key         = aws_kms_key.ecr.arn
+          }
+        }
+      non_compliant: |
+        resource "aws_ecr_repository" "app" {
+          name = "my-application"
+          # image_scanning_configuration not set – WAF-SEC-070 violation
+          # image_tag_mutability defaults to MUTABLE – WAF-SEC-070 violation
+        }
+
+  - id: "waf-sec-070.tf.aws.ecr-immutable-tags"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "ECR repositories must use immutable image tags"
+    description: >
+      All aws_ecr_repository resources must have image_tag_mutability = 'IMMUTABLE'
+      to prevent overwriting of existing image tags, which could allow supply chain
+      attacks by replacing a trusted image with a malicious one.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ecr_repository"
+    assertions:
+      - attribute: "image_tag_mutability"
+        op: "equals"
+        expected: "IMMUTABLE"
+        message: "ECR repository MUST use immutable tags (image_tag_mutability = 'IMMUTABLE') to prevent image tampering."
+    on_fail: "violation"
+    remediation: >
+      Set image_tag_mutability = "IMMUTABLE" on all aws_ecr_repository resources.
+      Update deployment pipelines to reference images by digest (sha256:...) rather than
+      mutable tags like 'latest'. Implement a tagging strategy using semantic versioning
+      (e.g., v1.2.3) combined with immutability for full traceability.
+    example:
+      compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "IMMUTABLE"
+          image_scanning_configuration {
+            scan_on_push = true
+          }
+        }
+      non_compliant: |
+        resource "aws_ecr_repository" "app" {
+          name                 = "my-application"
+          image_tag_mutability = "MUTABLE"  # WAF-SEC-070 violation: allows tag overwrite
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-070"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-vulnerability-management.adoc"
+  related_controls:
+    - "WAF-SEC-080"
+    - "WAF-SOV-080"

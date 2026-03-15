@@ -1,0 +1,210 @@
+id: WAF-SEC-030
+title: "Encryption at Rest with Customer-Managed Keys"
+pillar: "security"
+status: "active"
+severity: "high"
+category: "encryption"
+type: ['configuration', 'automation']
+tags: ['encryption', 'kms', 'cmk', 'at-rest', 'data-protection']
+
+description: >
+  All data stores containing sensitive or classified data MUST be encrypted at rest using
+  customer-managed keys (CMK) stored in AWS KMS. Automatic key rotation MUST be enabled
+  for all CMKs. Encryption using only provider-managed keys (SSE-S3/AES256) is NOT
+  sufficient for sensitive, PII, financial, or regulated data. KMS key deletion windows
+  MUST be set to a minimum of 7 days. KMS key policies MUST restrict access to explicitly
+  authorized principals only.
+
+rationale: >
+  Encryption at rest with customer-managed keys ensures that the cloud provider cannot
+  access encrypted data without explicit customer authorization via key access. Provider-managed
+  encryption (SSE-S3, default AES256) relies on provider-controlled keys, which may be
+  accessed by the provider for law-enforcement or operational reasons. CMK encryption provides
+  an additional sovereignty layer: revoking key access effectively revokes data access even if
+  the underlying storage is compromised. Key rotation limits the blast radius of any key
+  compromise to the rotation interval.
+
+threat:
+  - "Data exposure if cloud provider infrastructure is compromised or accessed under foreign legal compulsion"
+  - "Persistent access to stored data following a storage layer breach if data is not separately encrypted"
+  - "Key misuse or unauthorized decryption by over-permissive KMS key policies"
+  - "Data unavailability risk from accidental key deletion without an adequate deletion window"
+
+regulatory_mapping:
+  - framework: "GDPR"
+    controls:
+      - "Art. 32 – Security of processing: encryption of personal data"
+      - "Art. 25 – Data protection by design and by default"
+  - framework: "BSI C5:2020"
+    controls:
+      - "CRY-01 – Use of cryptography"
+      - "CRY-02 – Key management"
+  - framework: "ISO 27001:2022"
+    controls:
+      - "A.8.24 – Use of cryptography"
+      - "A.8.25 – Secure development life cycle"
+  - framework: "EUCS (ENISA)"
+    controls:
+      - "CRY-01 – Cryptography policy"
+      - "CRY-03 – Key management"
+  - framework: "GAIA-X"
+    controls:
+      - "Sovereign Cloud – Cryptographic self-determination"
+      - "Data Protection – Encryption key ownership"
+
+implementation_guidance:
+  - "Create dedicated CMKs per data class or workload using aws_kms_key; never use the default service key for sensitive data."
+  - "Enable automatic key rotation (enable_key_rotation = true) on all CMKs; rotation period defaults to 365 days."
+  - "Set deletion_window_in_days to a minimum of 7 days (recommend 30 days for production CMKs) to prevent accidental data loss."
+  - "Encrypt all RDS instances (aws_db_instance), RDS clusters, DynamoDB tables, S3 buckets, EBS volumes, and EFS file systems with CMKs."
+  - "Restrict KMS key policies to only the IAM principals that require access; avoid using '*' as principal in key policies."
+  - "Enable KMS key usage logging via CloudTrail to audit all encryption and decryption operations."
+  - "For cross-account or cross-region scenarios, use KMS multi-region keys with explicit replication policies."
+
+maturity_levels:
+  level_1:
+    description: "Some data stores encrypted with provider-managed keys"
+    criteria:
+      - "Default provider encryption (SSE-S3, default RDS encryption) is used"
+      - "No customer-managed keys deployed; key rotation not configured"
+  level_2:
+    description: "CMKs deployed for critical data stores"
+    criteria:
+      - "At least databases containing PII and financial data are encrypted with CMKs"
+      - "Key rotation is enabled on deployed CMKs"
+      - "KMS key policies reviewed and documented"
+  level_3:
+    description: "CMK encryption enforced across all sensitive data stores via IaC"
+    criteria:
+      - "All data stores tagged as sensitive or PII use CMKs; enforced in CI pipeline"
+      - "KMS key policies are least-privilege and version-controlled"
+      - "CloudTrail logs all KMS API calls for audit"
+  level_4:
+    description: "Centralized key management with access monitoring and alerting"
+    criteria:
+      - "Centralized KMS key inventory with ownership, rotation status, and key policy tracked"
+      - "Automated alerts on key policy changes or unusual decryption volume spikes"
+      - "Annual key policy review with documented sign-off"
+  level_5:
+    description: "Bring-Your-Own-Key (BYOK) or HSM-backed keys with automated key lifecycle"
+    criteria:
+      - "Customer-controlled hardware-backed keys (AWS CloudHSM or external KMS) for highest-sensitivity data"
+      - "Automated key lifecycle management: creation, rotation, archival, and deletion"
+      - "Full cryptographic audit trail integrated into SIEM with real-time anomaly detection"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing aws_kms_key resources with enable_key_rotation=true and aws_db_instance/aws_s3_bucket with kms_key_id referencing CMKs."
+    - kind: "config"
+      description: "KMS key policy documents confirming least-privilege access to key operations."
+  optional:
+    - kind: "config"
+      description: "AWS Config rule cloud-trail-encryption-enabled and rds-storage-encrypted compliance report."
+    - kind: "process"
+      description: "Annual KMS key policy review sign-off records."
+
+checks:
+  - id: "waf-sec-030.tf.aws.rds-encryption-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "RDS instances and clusters must be encrypted at rest with a CMK"
+    description: >
+      All RDS database instances and Aurora clusters must have storage_encrypted = true
+      and must reference a customer-managed KMS key via kms_key_id.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+    assertions:
+      - attribute: "storage_encrypted"
+        op: "is_true"
+        message: "RDS instance/cluster must have storage encryption enabled (storage_encrypted = true)."
+      - attribute: "kms_key_id"
+        op: "attribute_exists"
+        message: "RDS instance/cluster must use a customer-managed KMS key (kms_key_id must be set)."
+    on_fail: "violation"
+    remediation: >
+      Set storage_encrypted = true and kms_key_id = aws_kms_key.rds_key.arn on the
+      aws_db_instance or aws_rds_cluster resource. Note: enabling encryption on an existing
+      unencrypted RDS instance requires creating an encrypted snapshot and restoring to a new
+      instance. Plan for a maintenance window.
+    example:
+      compliant: |
+        resource "aws_kms_key" "rds" {
+          description             = "CMK for RDS encryption"
+          enable_key_rotation     = true
+          deletion_window_in_days = 30
+        }
+        resource "aws_db_instance" "main" {
+          identifier        = "app-db-prod"
+          engine            = "postgres"
+          instance_class    = "db.t3.medium"
+          storage_encrypted = true
+          kms_key_id        = aws_kms_key.rds.arn
+          # ... other required attributes
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier        = "app-db-prod"
+          engine            = "postgres"
+          instance_class    = "db.t3.medium"
+          storage_encrypted = false  # WAF-SEC-030 violation
+          # kms_key_id not set – using default AWS-managed key
+        }
+
+  - id: "waf-sec-030.tf.aws.kms-key-rotation"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "KMS keys must have automatic rotation enabled and a sufficient deletion window"
+    description: >
+      All customer-managed KMS keys must have enable_key_rotation = true and
+      deletion_window_in_days >= 7 to ensure keys are regularly rotated and accidental
+      deletion can be recovered.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_kms_key"
+    assertions:
+      - attribute: "enable_key_rotation"
+        op: "is_true"
+        message: "KMS key must have automatic rotation enabled (enable_key_rotation = true)."
+      - attribute: "deletion_window_in_days"
+        op: "greater_than_or_equal"
+        expected: 7
+        message: "KMS key deletion window must be at least 7 days to allow recovery from accidental deletion."
+    on_fail: "violation"
+    remediation: >
+      Set enable_key_rotation = true on all aws_kms_key resources.
+      Set deletion_window_in_days to at least 7 (recommend 30 for production keys).
+      Note: key rotation does not apply to asymmetric keys or keys in external key stores;
+      those require separate rotation procedures.
+    example:
+      compliant: |
+        resource "aws_kms_key" "app_data" {
+          description             = "CMK for application data encryption"
+          enable_key_rotation     = true
+          deletion_window_in_days = 30
+          tags = {
+            owner       = "platform-team"
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "aws_kms_key" "app_data" {
+          description             = "CMK for application data"
+          enable_key_rotation     = false   # WAF-SEC-030 violation
+          deletion_window_in_days = 3       # WAF-SEC-030 violation: below 7-day minimum
+        }
+
+references:
+  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-030"
+  best_practice: "modules/pillar-security/pages/best-practices/bp-encryption.adoc"
+  related_controls:
+    - "WAF-SEC-040"
+    - "WAF-SOV-050"
