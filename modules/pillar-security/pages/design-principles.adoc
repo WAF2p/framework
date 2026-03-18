@@ -1,75 +1,75 @@
-= Technische Design-Prinzipien (Security)
+= Technical Design Principles (Security)
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Security – Technische Architekturprinzipien für sichere Cloud-Infrastruktur: Netzwerk, IAM, Verschlüsselung, Secrets, Logging und Container-Design.
+:description: WAF++ Security – Technical architecture principles for secure cloud infrastructure: network, IAM, encryption, secrets, logging and container design.
 
-Technische Design-Prinzipien übersetzen die abstrakten xref:principles.adoc[Security-Prinzipien]
-in konkrete Architekturentscheidungen. Diese Seite richtet sich an Platform-Engineers und
-Architects, die sichere Cloud-Infrastruktur entwerfen.
+Technical design principles translate the abstract xref:principles.adoc[Security Principles]
+into concrete architecture decisions. This page is aimed at platform engineers and
+architects who design secure cloud infrastructure.
 
-== Netzwerk-Design
+== Network Design
 
 === Private by Default
 
-Jede neue Ressource wird im *private Subnet* deployiert. Public Subnets sind Ausnahmen,
-die explizit begründet und dokumentiert sein müssen.
+Every new resource is deployed in a *private subnet*. Public subnets are exceptions
+that must be explicitly justified and documented.
 
 [source,text]
 ----
 VPC (10.0.0.0/16)
 ├── Public Subnets (10.0.0.0/24, 10.0.1.0/24)
-│   └── Nur: Load Balancer, NAT Gateway, Bastion (wenn überhaupt)
+│   └── Only: Load Balancer, NAT Gateway, Bastion (if at all)
 ├── Private Subnets – Application (10.0.10.0/24, 10.0.11.0/24)
 │   └── ECS/EKS Worker Nodes, EC2 Application Instances
 ├── Private Subnets – Data (10.0.20.0/24, 10.0.21.0/24)
 │   └── RDS, ElastiCache, OpenSearch
 └── Private Subnets – Management (10.0.30.0/24, 10.0.31.0/24)
-    └── Bastion Host (wenn nötig), Admin-Tools
+    └── Bastion Host (if needed), Admin tools
 ----
 
-*Konsequenz:* Application-Server haben keine direkte Internet-Konnektivität.
-Outbound-Traffic läuft über NAT Gateway (oder besser: VPC Endpoints).
+*Consequence:* Application servers have no direct internet connectivity.
+Outbound traffic runs via NAT Gateway (or better: VPC endpoints).
 
 === Security Groups: Application-First, Minimal Scope
 
-Security Groups werden *nach Anwendungslogik* strukturiert, nicht nach Server-Typ:
+Security groups are structured *according to application logic*, not server type:
 
-* `sg-alb-public` – Nur Port 443 von 0.0.0.0/0 eingehend
-* `sg-app-tier` – Nur von `sg-alb-public` auf App-Port eingehend
-* `sg-db-tier` – Nur von `sg-app-tier` auf DB-Port eingehend
-* `sg-management` – Nur von VPN/Bastion auf SSH (22) oder SSM-Port
+* `sg-alb-public` – Only port 443 from 0.0.0.0/0 inbound
+* `sg-app-tier` – Only from `sg-alb-public` on app port inbound
+* `sg-db-tier` – Only from `sg-app-tier` on DB port inbound
+* `sg-management` – Only from VPN/bastion on SSH (22) or SSM port
 
-Blanket-Regeln wie `0.0.0.0/0` in Security Groups sind verboten.
-Egress-Regeln werden spezifiziert, nicht offen gelassen.
+Blanket rules like `0.0.0.0/0` in security groups are forbidden.
+Egress rules are specified, not left open.
 
-=== VPC Endpoints statt öffentlicher Routes
+=== VPC Endpoints Instead of Public Routes
 
-AWS-Services (S3, KMS, Secrets Manager, SQS, etc.) werden über *VPC Interface Endpoints*
-oder *Gateway Endpoints* erreicht – nicht über das öffentliche Internet:
+AWS services (S3, KMS, Secrets Manager, SQS, etc.) are reached via *VPC Interface Endpoints*
+or *Gateway Endpoints* – not over the public internet:
 
-* Weniger Egress-Traffic → geringere Kosten
-* Kein Internet-Gateway für AWS-Service-Calls notwendig
-* Traffic verlässt nie das AWS-Netzwerk
-* Ermöglicht restriktive Egress-Policies
+* Less egress traffic → lower costs
+* No internet gateway needed for AWS service calls
+* Traffic never leaves the AWS network
+* Enables restrictive egress policies
 
 ---
 
-== IAM-Design
+== IAM Design
 
-=== Rollen über Benutzer
+=== Roles Over Users
 
-*IAM Users mit langlebigen Zugriffsschlüsseln sind in der Produktion verboten.*
+*IAM users with long-lived access keys are forbidden in production.*
 
-Stattdessen:
+Instead:
 
 * EC2/ECS/Lambda: *Instance Profile / Task Role / Execution Role*
-* CI/CD: *OIDC Federation* (kein statischer Access Key in GitHub Secrets)
-* Entwickler: *AWS SSO / IAM Identity Center* mit temporären Credentials via `aws sso login`
-* Cross-Account: *AssumeRole* über STS
+* CI/CD: *OIDC Federation* (no static access key in GitHub Secrets)
+* Developers: *AWS SSO / IAM Identity Center* with temporary credentials via `aws sso login`
+* Cross-account: *AssumeRole* via STS
 
 [source,hcl]
 ----
-# Richtig: OIDC-basierte CI/CD-Rolle
+# Correct: OIDC-based CI/CD role
 resource "aws_iam_role" "github_actions" {
   name = "github-actions-deploy"
   assume_role_policy = jsonencode({
@@ -93,91 +93,91 @@ resource "aws_iam_role" "github_actions" {
 }
 ----
 
-=== STS-basierter Zugriff und Credential-Lifetime
+=== STS-Based Access and Credential Lifetime
 
-Alle temporären Credentials via AWS STS haben eine definierte Lifetime:
+All temporary credentials via AWS STS have a defined lifetime:
 
-* Normale Entwickler-Sessions: 8 Stunden (Arbeitstag)
-* CI/CD-Sessions: 1-2 Stunden (Dauer eines Pipeline-Runs)
-* Just-in-Time Admin-Zugriff: 1 Stunde (mit Post-Use-Review)
+* Normal developer sessions: 8 hours (working day)
+* CI/CD sessions: 1-2 hours (duration of a pipeline run)
+* Just-in-time admin access: 1 hour (with post-use review)
 
-Langlebige Credentials (> 24 Stunden) sind für automatisierte Systeme verboten.
-Ausnahme: Externe Systeme ohne OIDC-Support (mit Rotation und Monitoring).
+Long-lived credentials (> 24 hours) are forbidden for automated systems.
+Exception: external systems without OIDC support (with rotation and monitoring).
 
-=== Permission Boundaries und SCPs
+=== Permission Boundaries and SCPs
 
-* *Permission Boundaries*: Begrenzen die maximalen Berechtigungen, die eine Rolle haben kann,
-  auch wenn sie von wem auch immer angepasst wird
-* *Service Control Policies (SCPs)*: Organisationsweite Guardrails, die nicht durch lokale
-  IAM-Policies umgangen werden können
+* *Permission Boundaries*: Limit the maximum permissions a role can have,
+  even if it is modified by anyone
+* *Service Control Policies (SCPs)*: Organization-wide guardrails that cannot be bypassed by local
+  IAM policies
 
-SCPs eignen sich für:
+SCPs are suitable for:
 
-* Verbieten von Aktionen in nicht erlaubten Regionen
-* Verbieten der Deaktivierung von CloudTrail und GuardDuty
-* Erzwingen von MFA für sensitive Aktionen
-* Verbieten der Erstellung von IAM-Users mit Access Keys
+* Forbidding actions in unauthorized regions
+* Forbidding deactivation of CloudTrail and GuardDuty
+* Enforcing MFA for sensitive actions
+* Forbidding creation of IAM users with access keys
 
 ---
 
-== Verschlüsselungs-Design
+== Encryption Design
 
-=== CMK für sensitive Daten – immer
+=== CMK for Sensitive Data – Always
 
-Für alle Daten der Klassen `pii`, `financial`, `health` und `restricted` gilt:
-*Customer Managed Keys (CMK) via KMS*, nicht provider-verwaltete Schlüssel (SSE-S3/AES256).
+For all data of the classes `pii`, `financial`, `health` and `restricted`:
+*Customer Managed Keys (CMK) via KMS*, not provider-managed keys (SSE-S3/AES256).
 
-Begründung: CMK ermöglicht:
+Rationale: CMK enables:
 
-* Unabhängige Key-Rotation (automatisch, jährlich)
-* Key-Deletion als Datenlöschmethode (Cryptographic Erasure)
-* Granulare Key-Policy (wer darf den Schlüssel nutzen?)
-* Audit-Trail aller Schlüsselnutzungen in CloudTrail
+* Independent key rotation (automatic, annually)
+* Key deletion as a data erasure method (cryptographic erasure)
+* Granular key policy (who may use the key?)
+* Audit trail of all key usages in CloudTrail
 
-=== KMS-Schlüssel-Hierarchie
+=== KMS Key Hierarchy
 
 [source,text]
 ----
 KMS Customer Master Key (CMK)
-└── Verschlüsselt: Data Encryption Keys (DEK)
-    └── DEK verschlüsselt: eigentliche Daten (Envelope Encryption)
+└── Encrypts: Data Encryption Keys (DEK)
+    └── DEK encrypts: actual data (envelope encryption)
 
-Pro Datenklasse ein eigener CMK:
-  ├── cmk-pii (PII-Daten: RDS, S3 Kundendaten)
-  ├── cmk-logs (Audit-Logs, CloudTrail)
-  ├── cmk-secrets (Secrets Manager Keys)
-  └── cmk-backup (Backup Vault)
+One separate CMK per data class:
+  ├── cmk-pii (PII data: RDS, S3 customer data)
+  ├── cmk-logs (audit logs, CloudTrail)
+  ├── cmk-secrets (Secrets Manager keys)
+  └── cmk-backup (backup vault)
 ----
 
-*Rotation:* Alle CMKs rotieren automatisch jährlich (`enable_key_rotation = true`).
-Rotation ändert das Key-Material, nicht die Key-ID – bestehende Daten bleiben entschlüsselbar.
+*Rotation:* All CMKs rotate automatically annually (`enable_key_rotation = true`).
+Rotation changes the key material, not the key ID – existing data remains decryptable.
 
-=== Keine Verschlüsselung ohne Schlüssel-Ownership-Dokumentation
+=== No Encryption Without Key Ownership Documentation
 
-Für jeden verschlüsselten Datenspeicher muss dokumentiert sein:
+For every encrypted data store it must be documented:
 
-* Welcher CMK wird verwendet?
-* Wer hat Zugriff auf den Schlüssel?
-* Was passiert bei Schlüsselverlust (Recovery-Verfahren)?
+* Which CMK is used?
+* Who has access to the key?
+* What happens in case of key loss (recovery procedure)?
 
 ---
 
-== Secret-Management-Design
+== Secret Management Design
 
-=== Keine Secrets in Environment-Variablen
+=== No Secrets in Environment Variables
 
-Environment-Variablen sind im Prozessspeicher, in Container-Inspect-Outputs und in
-Log-Ausgaben oft sichtbar. Sie sind *kein sicherer Speicherort für Secrets*.
+Environment variables are often visible in process memory, container inspect output and
+log output. They are *not a secure storage location for secrets*.
 
-Korrekte Alternativen:
+Correct alternatives:
 
-* **AWS Secrets Manager**: Für rotierbare Secrets (DB-Passwörter, API-Keys)
-* **Parameter Store SecureString**: Für Konfiguration mit Geheimhaltungsbedarf
-* **HashiCorp Vault**: Für Dynamic Secrets, Multi-Cloud, Feingranulare Policies
+* **AWS Secrets Manager**: For rotatable secrets (DB passwords, API keys)
+* **Parameter Store SecureString**: For configuration requiring confidentiality
+* **HashiCorp Vault**: For dynamic secrets, multi-cloud, fine-grained policies
 
 [source,hcl]
 ----
-# Richtig: Secret zur Laufzeit aus Secrets Manager holen
+# Correct: Fetch secret at runtime from Secrets Manager
 data "aws_secretsmanager_secret_version" "db_password" {
   secret_id = aws_secretsmanager_secret.db.id
 }
@@ -189,82 +189,82 @@ resource "aws_ecs_task_definition" "app" {
       name      = "DB_PASSWORD"
       valueFrom = aws_secretsmanager_secret.db.arn
     }]
-    # Kein: environment = [{ name = "DB_PASSWORD", value = var.db_password }]
+    # Not: environment = [{ name = "DB_PASSWORD", value = var.db_password }]
   }])
 }
 ----
 
-=== Secret-Rotation
+=== Secret Rotation
 
-Alle Secrets werden automatisch rotiert:
+All secrets are rotated automatically:
 
-* Datenbankpasswörter: Automatische Rotation via Secrets Manager Lambda (alle 30 Tage)
-* API-Keys: Manuelle Rotation mit dokumentiertem Prozess und Erinnerungsalarm (max. 90 Tage)
-* TLS-Zertifikate: ACM managed renewal (automatisch)
+* Database passwords: automatic rotation via Secrets Manager Lambda (every 30 days)
+* API keys: manual rotation with documented process and reminder alarm (max. 90 days)
+* TLS certificates: ACM managed renewal (automatic)
 
 ---
 
-== Logging-Design
+== Logging Design
 
-=== Zentralisiert und Tamper-Proof
+=== Centralized and Tamper-Proof
 
-Alle Security-relevanten Logs werden an einen zentralen, unveränderlichen Log-Store geleitet:
+All security-relevant logs are forwarded to a central, immutable log store:
 
-* CloudTrail → S3 mit S3 Object Lock (WORM) und Log-File-Validation
-* CloudTrail → CloudWatch Logs (für Alerting)
-* VPC Flow Logs → S3 oder CloudWatch (für Netzwerkforensik)
-* Application Logs → zentrales Log-Aggregationssystem
+* CloudTrail → S3 with S3 Object Lock (WORM) and log file validation
+* CloudTrail → CloudWatch Logs (for alerting)
+* VPC Flow Logs → S3 or CloudWatch (for network forensics)
+* Application logs → central log aggregation system
 
-*Tamper-Protection:* CloudTrail Log-File-Validation (SHA-256-Signatur) erkennt nachträgliche
-Manipulation von Log-Dateien. S3 Object Lock verhindert Löschung.
+*Tamper Protection:* CloudTrail log file validation (SHA-256 signature) detects
+subsequent manipulation of log files. S3 Object Lock prevents deletion.
 
-=== Retention nach Datenklasse
+=== Retention by Data Class
 
 [cols="2,1,1"]
 |===
-|Log-Typ |Mindest-Retention |Regulatorische Anforderung
+|Log Type |Minimum Retention |Regulatory Requirement
 
-|CloudTrail (API-Audit-Logs)
-|365 Tage (hot), 7 Jahre (cold/glacier)
-|SOC 2, ISO 27001, DSGVO
+|CloudTrail (API audit logs)
+|365 days (hot), 7 years (cold/glacier)
+|SOC 2, ISO 27001, GDPR
 
 |VPC Flow Logs
-|90 Tage
-|Netzwerkforensik
+|90 days
+|Network forensics
 
-|Anwendungs-Logs
-|30 Tage (non-PII), 365 Tage (PII-Kontext)
-|DSGVO Art. 5(1)(e)
+|Application logs
+|30 days (non-PII), 365 days (PII context)
+|GDPR Art. 5(1)(e)
 
-|IAM Access Logs
-|365 Tage
+|IAM access logs
+|365 days
 |ISO 27001 A.9.2
 
 |===
 
-=== Kein Logging sensitiver Daten
+=== No Logging of Sensitive Data
 
-Anwendungs-Logging muss sensitiven Datenkategorien ausweichen:
+Application logging must avoid sensitive data categories:
 
-* Kreditkartennummern, PINs, Passwörter dürfen nicht in Logs erscheinen
-* Log-Scrubbing-Libraries in Anwendungen einsetzen
-* CloudWatch Logs Data Masking für strukturierte Logs konfigurieren
+* Credit card numbers, PINs, passwords must not appear in logs
+* Use log scrubbing libraries in applications
+* Configure CloudWatch Logs Data Masking for structured logs
 
 ---
 
-== Container-Design
+== Container Design
 
-=== Distroless / Minimale Base Images
+=== Distroless / Minimal Base Images
 
-Container-Images sollen nur enthalten, was die Anwendung benötigt:
+Container images should only contain what the application needs:
 
-* *Distroless Images* (google/distroless): Kein Shell, kein Package Manager, kein OS-Overhead
-* *Alpine-basierte Images*: Kleinere Angriffsfläche als Debian/Ubuntu
-* *Multi-Stage Builds*: Build-Tools nicht im finalen Image
+* *Distroless Images* (google/distroless): No shell, no package manager, no OS overhead
+* *Alpine-based Images*: Smaller attack surface than Debian/Ubuntu
+* *Multi-stage builds*: Build tools not in the final image
 
 [source,dockerfile]
 ----
-# Multi-Stage Build: Build-Tools nicht im Produktions-Image
+# Multi-stage build: Build tools not in production image
 FROM golang:1.22 AS builder
 WORKDIR /app
 COPY . .
@@ -278,10 +278,10 @@ ENTRYPOINT ["/server"]
 
 === Non-Root, Read-Only Filesystem
 
-* Container-Prozesse laufen als nicht-privilegierter User (`runAsNonRoot: true`)
-* Root-Filesystem ist read-only (`readOnlyRootFilesystem: true`)
-* Capabilities werden auf das Minimum reduziert (`drop: ["ALL"]`)
-* Privileged-Containers sind verboten (`allowPrivilegeEscalation: false`)
+* Container processes run as non-privileged user (`runAsNonRoot: true`)
+* Root filesystem is read-only (`readOnlyRootFilesystem: true`)
+* Capabilities are reduced to the minimum (`drop: ["ALL"]`)
+* Privileged containers are forbidden (`allowPrivilegeEscalation: false`)
 
 [source,yaml]
 ----
@@ -296,9 +296,9 @@ securityContext:
       - ALL
 ----
 
-=== Image-Scanning und Signierung
+=== Image Scanning and Signing
 
-* Vor dem Push in die Registry: automatisches Vulnerability-Scanning (Trivy, Grype, ECR Scanning)
-* Kritische CVEs (CVSS >= 9.0) blockieren den Build
-* Image-Signierung mit Sigstore/Cosign für Herkunftsnachweis
-* Admission Controller (OPA Gatekeeper, Kyverno) in Kubernetes blockiert unsignierte Images
+* Before push to the registry: automatic vulnerability scanning (Trivy, Grype, ECR scanning)
+* Critical CVEs (CVSS >= 9.0) block the build
+* Image signing with Sigstore/Cosign for provenance
+* Admission controller (OPA Gatekeeper, Kyverno) in Kubernetes blocks unsigned images

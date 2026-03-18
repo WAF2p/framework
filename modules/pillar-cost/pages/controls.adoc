@@ -1,19 +1,19 @@
 = Controls (WAF-COST)
 :page-toc: right
-:description: WAF++ – Vollständiger Controls-Katalog der Cost-Optimization-Säule (WAF-COST-010 bis WAF-COST-100).
+:description: WAF++ – Complete controls catalog of the Cost Optimization pillar (WAF-COST-010 to WAF-COST-100).
 
-Die Cost-Optimization-Säule wird durch 10 messbare Controls operationalisiert.
-Jeder Control hat eine eindeutige ID im Format `WAF-COST-NNN`, eine Severity-Einstufung,
-maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+The Cost Optimization pillar is operationalized through 10 measurable controls.
+Each control has a unique ID in the format `WAF-COST-NNN`, a severity rating,
+machine-readable YAML checks and a maturity level graduation.
 
-Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-COST-*.yml`
-und können vom WAF++ Checker Tool direkt ausgeführt werden.
+The YAML source files are located under `modules/controls/controls/WAF-COST-*.yml`
+and can be executed directly by the WAF++ Checker tool.
 
-== Controls-Übersicht
+== Controls Overview
 
 [cols="1,3,1,1"]
 |===
-|Control ID |Titel |Severity |Kategorie
+|Control ID |Title |Severity |Category
 
 |xref:controls/WAF-COST-010.adoc[WAF-COST-010]
 |Cost Allocation Tagging Enforced
@@ -72,25 +72,25 @@ und können vom WAF++ Checker Tool direkt ausgeführt werden.
 [#WAF-COST-010]
 == WAF-COST-010 – Cost Allocation Tagging Enforced
 
-*Severity:* High | *Kategorie:* Cost Allocation | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* Cost Allocation | *Automatable:* High
 
-*Intent:* Ohne Tagging ist keine Kostenzuordnung möglich. Ohne Kostenzuordnung ist keine Optimierung möglich.
+*Intent:* Without tagging, no cost attribution is possible. Without cost attribution, no optimization is possible.
 
-*Anforderung:* Alle Cloud-Ressourcen MÜSSEN die Pflicht-Tags tragen: `cost-center`, `owner`, `environment`, `workload`.
-Fehlende Tags MÜSSEN im CI-Gate als Violation behandelt werden. Kein Deployment ohne vollständige Tagging-Compliance.
+*Requirement:* All cloud resources MUST carry the mandatory tags: `cost-center`, `owner`, `environment`, `workload`.
+Missing tags MUST be treated as violations in the CI gate. No deployment without full tagging compliance.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-010.tf.any.resource-mandatory-tags` – Alle Ressourcen müssen `cost-center`, `owner`, `environment`, `workload` Tags haben
-* `waf-cost-010.tf.aws.compute-tags-complete` – EC2-Instanzen müssen alle Pflicht-Tags tragen
-* `waf-cost-010.tf.azurerm.resource-group-tags` – Azure Resource Groups mit Pflicht-Tags
-* `waf-cost-010.tf.google.resource-labels-mandatory` – GCP-Ressourcen mit Pflicht-Labels
+* `waf-cost-010.tf.any.resource-mandatory-tags` – All resources must have `cost-center`, `owner`, `environment`, `workload` tags
+* `waf-cost-010.tf.aws.compute-tags-complete` – EC2 instances must carry all mandatory tags
+* `waf-cost-010.tf.azurerm.resource-group-tags` – Azure resource groups with mandatory tags
+* `waf-cost-010.tf.google.resource-labels-mandatory` – GCP resources with mandatory labels
 
-*Evidenz:*
+*Evidence:*
 
-* Tagging-Taxonomie-Dokument (versioniert)
-* CI-Gate-Konfiguration mit Tag-Pflicht-Check
-* Tagging-Compliance-Report (monatlich, Ziel >= 95%)
+* Tagging taxonomy document (versioned)
+* CI gate configuration with mandatory tag check
+* Tagging compliance report (monthly, target >= 95%)
 
 *Best Practice:* xref:best-practices/bp-tagging.adoc[Cost Allocation Tagging]
 
@@ -99,153 +99,153 @@ Fehlende Tags MÜSSEN im CI-Gate als Violation behandelt werden. Kein Deployment
 [#WAF-COST-020]
 == WAF-COST-020 – Cost Budgets & Alerting Configured
 
-*Severity:* High | *Kategorie:* Budget Control | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* Budget Control | *Automatable:* High
 
-*Intent:* Budget-Überschreitungen, die erst in der Monatsrechnung entdeckt werden, sind zu spät.
+*Intent:* Budget overruns discovered only in the monthly bill are too late.
 
-*Anforderung:* Für jeden Cloud-Account/jede Subscription MUSS ein Budget-Limit als IaC-Ressource definiert sein.
-Alerts MÜSSEN bei 80% und 100% des Budget-Limits automatisch ausgelöst werden.
-Budget-Ressourcen MÜSSEN versioniert und reviewbar sein (nicht im Console-UI gesetzt).
+*Requirement:* For every cloud account/subscription, a budget limit MUST be defined as an IaC resource.
+Alerts MUST be triggered automatically at 80% and 100% of the budget limit.
+Budget resources MUST be versioned and reviewable (not set in the console UI).
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-020.tf.aws.budgets-budget-exists` – `aws_budgets_budget` Ressource muss existieren
-* `waf-cost-020.tf.aws.budget-alert-80-percent` – Alert bei 80% Budget-Verbrauch konfiguriert
-* `waf-cost-020.tf.azurerm.consumption-budget-defined` – `azurerm_consumption_budget_resource_group` existiert
-* `waf-cost-020.tf.google.billing-budget-configured` – `google_billing_budget` Ressource vorhanden
+* `waf-cost-020.tf.aws.budgets-budget-exists` – `aws_budgets_budget` resource must exist
+* `waf-cost-020.tf.aws.budget-alert-80-percent` – Alert at 80% budget consumption configured
+* `waf-cost-020.tf.azurerm.consumption-budget-defined` – `azurerm_consumption_budget_resource_group` exists
+* `waf-cost-020.tf.google.billing-budget-configured` – `google_billing_budget` resource present
 
-*Evidenz:*
+*Evidence:*
 
-* Terraform Budget-Ressourcen im Repository
-* Alert-Konfigurationen mit Notification-Channels
+* Terraform budget resources in the repository
+* Alert configurations with notification channels
 
 ---
 
 [#WAF-COST-030]
 == WAF-COST-030 – Resource Rightsizing & Idle Detection
 
-*Severity:* Medium | *Kategorie:* Resource Optimization | *Automatisierbar:* Mittel
+*Severity:* Medium | *Category:* Resource Optimization | *Automatable:* Medium
 
-*Intent:* Überprovisionierung ist die häufigste Form von Cloud-Verschwendung.
+*Intent:* Over-provisioning is the most common form of cloud waste.
 
-*Anforderung:* Alle persistenten Compute-Ressourcen MÜSSEN den Tag `rightsizing-reviewed` mit
-einem Datum (< 90 Tage) tragen. Idle-Detection MUSS konfiguriert sein.
-Instanzen ohne aktuelle Rightsizing-Überprüfung gelten als nicht-compliant.
+*Requirement:* All persistent compute resources MUST carry the tag `rightsizing-reviewed` with
+a date (< 90 days). Idle detection MUST be configured.
+Instances without a current rightsizing review are considered non-compliant.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-030.tf.aws.ec2-rightsizing-tag-required` – EC2-Instanzen müssen `rightsizing-reviewed`-Tag haben
-* `waf-cost-030.tf.azurerm.vm-rightsizing-tag` – Azure VMs mit `rightsizing-reviewed`-Tag
-* `waf-cost-030.tf.aws.no-persistent-t2-micro-without-justification` – Übermäßig kleine Instanzen ohne Justification
-* `waf-cost-030.tf.google.compute-rightsizing-tag` – GCP Compute Instances mit Rightsizing-Tag
+* `waf-cost-030.tf.aws.ec2-rightsizing-tag-required` – EC2 instances must have `rightsizing-reviewed` tag
+* `waf-cost-030.tf.azurerm.vm-rightsizing-tag` – Azure VMs with `rightsizing-reviewed` tag
+* `waf-cost-030.tf.aws.no-persistent-t2-micro-without-justification` – Excessively small instances without justification
+* `waf-cost-030.tf.google.compute-rightsizing-tag` – GCP compute instances with rightsizing tag
 
-*Evidenz:*
+*Evidence:*
 
-* Rightsizing-Review-Protokolle (monatlich)
-* Compute-Optimizer / Azure Advisor / GCP Recommender Export
-* Tag-Compliance-Report für `rightsizing-reviewed`
+* Rightsizing review records (monthly)
+* Compute Optimizer / Azure Advisor / GCP Recommender export
+* Tag compliance report for `rightsizing-reviewed`
 
 ---
 
 [#WAF-COST-040]
 == WAF-COST-040 – Storage & Retention Lifecycle Defined
 
-*Severity:* High | *Kategorie:* Retention Management | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* Retention Management | *Automatable:* High
 
-*Intent:* Infinite Retention ist keine Strategie. Sie ist Architektonische Kostenschuld.
+*Intent:* Infinite retention is not a strategy. It is Architectural Cost Debt.
 
-*Anforderung:* Alle Storage-Ressourcen MÜSSEN explizite Lifecycle-Policies haben.
-Alle Log-Gruppen MÜSSEN eine `retention_in_days`-Einstellung != 0 und != null haben.
-Kein S3-Bucket, keine Azure Storage, kein GCS-Bucket ohne definierte Lifecycle-Regeln.
+*Requirement:* All storage resources MUST have explicit lifecycle policies.
+All log groups MUST have a `retention_in_days` setting != 0 and != null.
+No S3 bucket, no Azure storage, no GCS bucket without defined lifecycle rules.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-040.tf.aws.s3-lifecycle-rule-defined` – S3 Buckets müssen `lifecycle_rule` haben
-* `waf-cost-040.tf.aws.cloudwatch-log-retention-set` – CloudWatch Log Groups müssen `retention_in_days` != 0 haben
-* `waf-cost-040.tf.azurerm.storage-lifecycle-policy` – Azure Storage mit Lifecycle-Policy
-* `waf-cost-040.tf.google.gcs-bucket-lifecycle` – GCS Buckets mit Lifecycle-Regel
+* `waf-cost-040.tf.aws.s3-lifecycle-rule-defined` – S3 buckets must have `lifecycle_rule`
+* `waf-cost-040.tf.aws.cloudwatch-log-retention-set` – CloudWatch log groups must have `retention_in_days` != 0
+* `waf-cost-040.tf.azurerm.storage-lifecycle-policy` – Azure storage with lifecycle policy
+* `waf-cost-040.tf.google.gcs-bucket-lifecycle` – GCS buckets with lifecycle rule
 
-*Evidenz:*
+*Evidence:*
 
-* Terraform Lifecycle-Konfigurationen aller Storage- und Log-Ressourcen
-* Retention-Strategie-Dokument (Tiering: Hot/Warm/Cold/Archive)
+* Terraform lifecycle configurations of all storage and log resources
+* Retention strategy document (tiering: Hot/Warm/Cold/Archive)
 
 ---
 
 [#WAF-COST-050]
 == WAF-COST-050 – Cost Impact Assessment in Architecture Decision Records
 
-*Severity:* High | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+*Severity:* High | *Category:* Architectural Cost Debt | *Automatable:* Partial
 
-*Intent:* Architektonische Kostenschuld entsteht in Architekturentscheidungen – dort muss sie auch verhindert werden.
+*Intent:* Architectural cost debt arises in architecture decisions – that is where it must also be prevented.
 
-*Anforderung:* Jedes ADR mit Infrastruktur-Impact MUSS eine strukturierte Cost-Impact-Sektion enthalten:
-TCO-Schätzung, Lock-in-Risiko-Score (1–5), Datentransfer-Kostenschätzung, Betriebsaufwand (FTE),
-Exit-Kosten-Schätzung, 3-Jahres-NPV. ADRs mit Lock-in-Score >= 4 erfordern Architecture-Board-Genehmigung.
+*Requirement:* Every ADR with infrastructure impact MUST contain a structured cost impact section:
+TCO estimate, lock-in risk score (1–5), data transfer cost estimate, operational effort (FTE),
+exit cost estimate, 3-year NPV. ADRs with lock-in score >= 4 require architecture board approval.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-050.tf.any.adr-cost-section-present` – ADR-Datei-Format-Validierung (Cost-Sektion vorhanden)
-* `waf-cost-050.tf.any.high-lockin-services-tagged` – Ressourcen mit Lock-in-Score-Tag (lock-in-risk >= 4)
+* `waf-cost-050.tf.any.adr-cost-section-present` – ADR file format validation (cost section present)
+* `waf-cost-050.tf.any.high-lockin-services-tagged` – Resources with lock-in score tag (lock-in-risk >= 4)
 
-*Evidenz:*
+*Evidence:*
 
-* ADR-Dokumente mit ausgefüllter Cost-Impact-Sektion
-* Architecture-Board-Genehmigungen für Lock-in-Score-4/5-Entscheidungen
+* ADR documents with completed cost impact section
+* Architecture board approvals for lock-in score 4/5 decisions
 
-*Best Practice:* xref:best-practices/bp-cost-debt.adoc[Architektonische Kostenschuld managen]
+*Best Practice:* xref:best-practices/bp-cost-debt.adoc[Managing Architectural Cost Debt]
 
 ---
 
 [#WAF-COST-060]
 == WAF-COST-060 – FinOps Review Cadence
 
-*Severity:* Medium | *Kategorie:* FinOps Governance | *Automatisierbar:* Niedrig–Mittel
+*Severity:* Medium | *Category:* FinOps Governance | *Automatable:* Low–Medium
 
-*Intent:* FinOps ohne strukturierte Review-Zyklen ist keine Disziplin – es ist Hoffnung.
+*Intent:* FinOps without structured review cycles is not a discipline – it is hope.
 
-*Anforderung:* Monatliche Engineering-Reviews MÜSSEN stattfinden (Action Items, Owner, Fälligkeit dokumentiert).
-Quartalsweise Architecture-Board-Reviews MÜSSEN stattfinden (Cost-Debt-Register-Sign-off).
-Review-Protokolle MÜSSEN schriftlich vorliegen und zugänglich sein.
+*Requirement:* Monthly engineering reviews MUST take place (action items, owner, due date documented).
+Quarterly architecture board reviews MUST take place (cost debt register sign-off).
+Review records MUST be available in writing and accessible.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-060.tf.any.finops-review-tag-current` – Workload-Tags enthalten `last-finops-review` mit Datum (< 45 Tage)
-* `waf-cost-060.tf.any.cost-debt-register-exists` – Cost-Debt-Register-Datei im Repository vorhanden
+* `waf-cost-060.tf.any.finops-review-tag-current` – Workload tags contain `last-finops-review` with date (< 45 days)
+* `waf-cost-060.tf.any.cost-debt-register-exists` – Cost debt register file present in repository
 
-*Evidenz:*
+*Evidence:*
 
-* Monatliche Review-Protokolle mit Action-Item-Liste (letzten 3 Monate)
-* Quartalsweises Architecture-Board-Review-Protokoll mit Cost-Debt-Sign-off
+* Monthly review records with action item list (last 3 months)
+* Quarterly architecture board review record with cost debt sign-off
 
-*Best Practice:* xref:best-practices/bp-finops.adoc[FinOps-Prozesse implementieren]
+*Best Practice:* xref:best-practices/bp-finops.adoc[Implementing FinOps Processes]
 
 ---
 
 [#WAF-COST-070]
 == WAF-COST-070 – Observability & Logging Cost Tiers
 
-*Severity:* Medium | *Kategorie:* Observability Cost | *Automatisierbar:* Hoch
+*Severity:* Medium | *Category:* Observability Cost | *Automatable:* High
 
-*Intent:* Observability-Kosten gehören zu den am schnellsten wachsenden und am schwersten kontrollierbaren Cloud-Kostentreibern.
+*Intent:* Observability costs are among the fastest-growing and hardest-to-control cloud cost drivers.
 
-*Anforderung:* Log-Gruppen MÜSSEN nach Retention-Tier kategorisiert sein (Hot: 7–30d, Warm: 30–90d, Cold: 90–365d, Archive: >365d).
-DEBUG-Level-Logging in Produktion ist verboten ohne explizite Justification.
-CloudWatch Log Groups dürfen nicht `retention_in_days = 0` haben.
-Trace-Sampling MUSS für High-Volume-Services konfiguriert sein.
+*Requirement:* Log groups MUST be categorized by retention tier (Hot: 7–30d, Warm: 30–90d, Cold: 90–365d, Archive: >365d).
+DEBUG level logging in production is prohibited without explicit justification.
+CloudWatch log groups MUST NOT have `retention_in_days = 0`.
+Trace sampling MUST be configured for high-volume services.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-070.tf.aws.cloudwatch-retention-not-infinite` – Log Group retention_in_days != 0 (nicht unbegrenzt)
-* `waf-cost-070.tf.aws.cloudwatch-retention-max-365` – Operational Log Groups: retention_in_days <= 365
-* `waf-cost-070.tf.azurerm.log-analytics-retention-defined` – Azure Log Analytics mit expliziter Retention
-* `waf-cost-070.tf.google.cloud-logging-bucket-retention` – GCP Logging Bucket mit definierter Retention
+* `waf-cost-070.tf.aws.cloudwatch-retention-not-infinite` – Log group retention_in_days != 0 (not unlimited)
+* `waf-cost-070.tf.aws.cloudwatch-retention-max-365` – Operational log groups: retention_in_days <= 365
+* `waf-cost-070.tf.azurerm.log-analytics-retention-defined` – Azure Log Analytics with explicit retention
+* `waf-cost-070.tf.google.cloud-logging-bucket-retention` – GCP logging bucket with defined retention
 
-*Evidenz:*
+*Evidence:*
 
-* Terraform Log-Group-Konfigurationen mit Retention-Einstellungen
-* Log-Tiering-Strategie-Dokument
-* Observability-Kostenanteil am Gesamt-Budget (Ziel: < 20%)
+* Terraform log group configurations with retention settings
+* Log tiering strategy document
+* Observability cost share of total budget (target: < 20%)
 
 *Best Practice:* xref:best-practices/bp-retention.adoc[Retention Strategy]
 
@@ -254,52 +254,52 @@ Trace-Sampling MUSS für High-Volume-Services konfiguriert sein.
 [#WAF-COST-080]
 == WAF-COST-080 – Commitment & Reserved Capacity Planning
 
-*Severity:* Medium | *Kategorie:* Cost Optimization | *Automatisierbar:* Mittel
+*Severity:* Medium | *Category:* Cost Optimization | *Automatable:* Medium
 
-*Intent:* Baseline-Workloads dauerhaft On-Demand zu betreiben bedeutet 30–60% Mehrkosten ohne Mehrwert.
+*Intent:* Running baseline workloads permanently on-demand means 30–60% higher costs without added value.
 
-*Anforderung:* Compute-Ressourcen mit >= 70% Auslastung über 30 Tage MÜSSEN mit Reservierungen abgedeckt sein.
-Alle On-Demand-Baseline-Instanzen MÜSSEN den Tag `capacity-commitment: reviewed` mit Datum tragen.
-Spot/Preemptible Instances sind für variable Workloads bevorzugt.
+*Requirement:* Compute resources with >= 70% utilization over 30 days MUST be covered with reservations.
+All on-demand baseline instances MUST carry the tag `capacity-commitment: reviewed` with date.
+Spot/preemptible instances are preferred for variable workloads.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-080.tf.aws.ec2-commitment-tag` – EC2-Instanzen müssen `capacity-commitment`-Tag tragen
-* `waf-cost-080.tf.aws.reserved-instance-coverage-tag` – Baseline-Instanzen mit RI-Coverage-Tag
-* `waf-cost-080.tf.azurerm.vm-commitment-tag` – Azure VMs mit Commitment-Review-Tag
+* `waf-cost-080.tf.aws.ec2-commitment-tag` – EC2 instances must carry `capacity-commitment` tag
+* `waf-cost-080.tf.aws.reserved-instance-coverage-tag` – Baseline instances with RI coverage tag
+* `waf-cost-080.tf.azurerm.vm-commitment-tag` – Azure VMs with commitment review tag
 
-*Evidenz:*
+*Evidence:*
 
-* Reservierungsportfolio-Export (quartalsweise)
-* RI-Utilization-Report (Ziel: >= 80%)
-* Savings-Plan-Analyse
+* Reservation portfolio export (quarterly)
+* RI utilization report (target: >= 80%)
+* Savings plan analysis
 
 ---
 
 [#WAF-COST-090]
 == WAF-COST-090 – Data Transfer & Egress Cost Management
 
-*Severity:* High | *Kategorie:* Data Transfer | *Automatisierbar:* Mittel
+*Severity:* High | *Category:* Data Transfer | *Automatable:* Medium
 
-*Intent:* Datentransfer- und Egress-Kosten sind die am häufigsten unterschätzten Cloud-Kostentreiber.
+*Intent:* Data transfer and egress costs are the most frequently underestimated cloud cost drivers.
 
-*Anforderung:* VPC Endpoints MÜSSEN für S3, KMS und interne Services deployed sein.
-Öffentliche IPs auf internen Compute-Ressourcen sind verboten.
-CDN MUSS für öffentlich zugängliche Medien/Assets konfiguriert sein.
-Egress-Budget-Alert MUSS existieren.
+*Requirement:* VPC Endpoints MUST be deployed for S3, KMS and internal services.
+Public IPs on internal compute resources are prohibited.
+CDN MUST be configured for publicly accessible media/assets.
+An egress budget alert MUST exist.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-090.tf.aws.vpc-endpoint-s3-exists` – VPC Endpoint für S3 in jedem genutzten VPC
-* `waf-cost-090.tf.aws.no-public-ip-internal-compute` – Interne EC2-Instanzen ohne öffentliche IP
-* `waf-cost-090.tf.aws.cloudfront-for-s3-public-assets` – CloudFront vor öffentlichen S3-Buckets
-* `waf-cost-090.tf.azurerm.storage-private-endpoint` – Azure Storage mit Private Endpoint
+* `waf-cost-090.tf.aws.vpc-endpoint-s3-exists` – VPC endpoint for S3 in every used VPC
+* `waf-cost-090.tf.aws.no-public-ip-internal-compute` – Internal EC2 instances without public IP
+* `waf-cost-090.tf.aws.cloudfront-for-s3-public-assets` – CloudFront in front of public S3 buckets
+* `waf-cost-090.tf.azurerm.storage-private-endpoint` – Azure storage with private endpoint
 
-*Evidenz:*
+*Evidence:*
 
-* VPC-Endpoint-Ressourcen im Terraform-Code
-* Egress-Kostentrend (monatlich)
-* CDN-Konfiguration für Public-Assets
+* VPC endpoint resources in Terraform code
+* Egress cost trend (monthly)
+* CDN configuration for public assets
 
 *Best Practice:* xref:best-practices/bp-greenfield.adoc[Greenfield FinOps by Design]
 
@@ -308,22 +308,22 @@ Egress-Budget-Alert MUSS existieren.
 [#WAF-COST-100]
 == WAF-COST-100 – Architectural Cost Debt Register & Quarterly Review
 
-*Severity:* Medium | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+*Severity:* Medium | *Category:* Architectural Cost Debt | *Automatable:* Partial
 
-*Intent:* Nicht dokumentierte Kostenschuld ist unkontrollierte Kostenschuld.
+*Intent:* Undocumented cost debt is uncontrolled cost debt.
 
-*Anforderung:* Ein Cost-Debt-Register MUSS im Repository existieren mit: Beschreibung, Owner,
-geschätzter Jahresauswirkung (€), Erstellungsdatum, Ziel-Auflösungsdatum, Status (monitoring/paydown/accepted),
-Paydown-Plan oder Akzeptanz-Begründung. Quartalsweiser Architecture-Board-Review-Eintrag MUSS vorhanden sein.
+*Requirement:* A cost debt register MUST exist in the repository with: description, owner,
+estimated annual impact (€), creation date, target resolution date, status (monitoring/paydown/accepted),
+paydown plan or acceptance rationale. A quarterly architecture board review entry MUST be present.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (excerpt):*
 
-* `waf-cost-100.tf.any.cost-debt-register-file-exists` – `cost-debt-register.yml` im Repository vorhanden
-* `waf-cost-100.tf.any.quarterly-review-entry-current` – Aktueller Quartals-Review-Eintrag vorhanden
+* `waf-cost-100.tf.any.cost-debt-register-file-exists` – `cost-debt-register.yml` present in repository
+* `waf-cost-100.tf.any.quarterly-review-entry-current` – Current quarterly review entry present
 
-*Evidenz:*
+*Evidence:*
 
-* Versioniertes Cost-Debt-Register (YAML oder Markdown) im Repository
-* Quartalsweises Architecture-Board-Review-Protokoll (letzten 2 Quartale)
+* Versioned cost debt register (YAML or Markdown) in the repository
+* Quarterly architecture board review record (last 2 quarters)
 
-*Best Practice:* xref:best-practices/bp-cost-debt.adoc[Architektonische Kostenschuld managen]
+*Best Practice:* xref:best-practices/bp-cost-debt.adoc[Managing Architectural Cost Debt]

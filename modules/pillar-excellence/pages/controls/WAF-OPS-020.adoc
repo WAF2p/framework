@@ -5,93 +5,93 @@
 :severity: high
 :category: infrastructure-as-code
 :automated: high
-:description: WAF++ Operational Excellence – Alle Cloud-Infrastruktur muss als IaC definiert sein. Manuelle Ressourcenerstellung in Produktion ist verboten.
+:description: WAF++ Operational Excellence – All cloud infrastructure must be defined as IaC. Manual resource creation in production is prohibited.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Infrastructure as Code | *Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* High | *Category:* Infrastructure as Code | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Cloud-Infrastruktur MUSS als Code (Terraform, Pulumi, AWS CDK) definiert sein.
-Manuelle Ressourcenerstellung durch Cloud-Konsole MUSS für Produktion und Staging
-verboten sein. IaC-Definitionen MÜSSEN versioniert, reviewed und durch CI/CD deployt werden.
+All cloud infrastructure MUST be defined as code (Terraform, Pulumi, AWS CDK).
+Manual resource creation through the cloud console MUST be prohibited for production and staging.
+IaC definitions MUST be versioned, reviewed, and deployed through CI/CD.
 
 == Rationale
 
-Manuell erstellte Infrastruktur kann nicht zuverlässig reproduziert werden, kann nicht reviewed
-werden und kann nicht auditiert werden. Snowflake-Server sind ein Hauptrisiko für Reliability
-und Operational Debt. IaC eliminiert Configuration Drift, ermöglicht Audit-Trails und erlaubt
-Disaster-Recovery in Minuten statt Wochen.
+Manually created infrastructure cannot be reliably reproduced, cannot be reviewed,
+and cannot be audited. Snowflake servers are a primary risk for reliability
+and operational debt. IaC eliminates configuration drift, enables audit trails, and allows
+disaster recovery in minutes instead of weeks.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
 |*Configuration Drift*
-|Manuelle Konsolen-Änderungen erzeugen unsichtbare Abweichungen zwischen IaC-Definition und Realität.
+|Manual console changes create invisible deviations between the IaC definition and reality.
 
-|*Snowflake-Server*
-|Manuell konfigurierte Systeme können nach Ausfall nicht reproduziert werden.
+|*Snowflake Servers*
+|Manually configured systems cannot be reproduced after a failure.
 
-|*Fehlende Peer-Review*
-|Ohne IaC und Pull-Requests gibt es keine zweiten Augen für Infrastruktur-Änderungen.
+|*Missing Peer Review*
+|Without IaC and pull requests, there are no second eyes on infrastructure changes.
 
-|*DR-Versagen*
-|Disaster-Recovery-Tests scheitern weil tatsächliche Infrastruktur vom dokumentierten IaC abweicht.
+|*DR Failure*
+|Disaster recovery tests fail because the actual infrastructure deviates from the documented IaC.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Alle Produktions- und Staging-Infrastruktur MUSS als IaC definiert sein
-* Manuelle Änderungen MÜSSEN durch IAM-Policy oder Service Control Policy (SCP) eingeschränkt sein
-* Remote-State-Backend mit Locking MUSS konfiguriert sein (kein lokaler State)
-* Alle IaC-Änderungen MÜSSEN Pull-Request-Review durchlaufen
-* State-Bucket MUSS Versioning aktiviert haben für Rollback-Fähigkeit
+* All production and staging infrastructure MUST be defined as IaC
+* Manual changes MUST be restricted by IAM policy or Service Control Policy (SCP)
+* Remote state backend with locking MUST be configured (no local state)
+* All IaC changes MUST go through pull request review
+* State bucket MUST have versioning enabled for rollback capability
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Remote-State konfigurieren:* S3+DynamoDB (AWS), Azure Storage Account, GCS Bucket – mit Locking
-. *State-Bucket absichern:* Versioning aktivieren; Encryption at Rest; Access-Logging
-. *Konsolen-Zugriff einschränken:* SCP oder IAM-Permission-Boundary für Produktions-Accounts
-. *Modul-Bibliothek aufbauen:* Wiederverwendbare Module für Networking, Compute, Security
-. *Drift-Erkennung aktivieren:* `terraform plan` täglich per EventBridge Schedule; Alert bei Drift
-. *Brownfield-Import:* Bestehende Ressourcen per `terraform import` in State übernehmen
+. *Configure remote state:* S3+DynamoDB (AWS), Azure Storage Account, GCS Bucket – with locking
+. *Secure state bucket:* Enable versioning; encryption at rest; access logging
+. *Restrict console access:* SCP or IAM permission boundary for production accounts
+. *Build module library:* Reusable modules for networking, compute, security
+. *Enable drift detection:* `terraform plan` daily via EventBridge schedule; alert on drift
+. *Brownfield import:* Take over existing resources into state with `terraform import`
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Manuell
-|Keine IaC; Infrastruktur manuell via Konsole oder CLI erstellt.
+|Manual
+|No IaC; infrastructure created manually via console or CLI.
 
 |*2*
-|Inkonsistentes IaC
-|Teile der Infrastruktur als IaC; manuelle Ressourcen koexistieren; kein Remote State.
+|Inconsistent IaC
+|Parts of the infrastructure as IaC; manual resources coexist; no remote state.
 
 |*3*
-|IaC vollständig enforced
-|100% Produktions-Infrastruktur als IaC; Remote State; manuelle Änderungen eingeschränkt.
+|IaC Fully Enforced
+|100% production infrastructure as IaC; remote state; manual changes restricted.
 
 |*4*
 |Drift Detection & Policy Enforcement
-|Drift täglich erkannt und alarmiert; Policy-as-Code in CI; Modul-Bibliothek vorhanden.
+|Drift detected and alerted daily; policy-as-code in CI; module library present.
 
 |*5*
 |GitOps
-|Git-State = Single Source of Truth; Automatische Drift-Remediation; IaC Coverage 100%.
+|Git state = single source of truth; automatic drift remediation; IaC coverage 100%.
 
 |===
 
 == Terraform Checks
 
 === waf-ops-020.tf.aws.s3-terraform-state-backend
-*Prüft:* Terraform-Remote-State im S3 Backend konfiguriert (nicht lokaler State).
+*Checks:* Terraform remote state is configured in S3 backend (not local state).
 
 [cols="1,1"]
 |===
@@ -112,16 +112,16 @@ terraform {
 a|[source,hcl]
 ----
 terraform {
-  # Kein Backend – lokaler State
+  # No backend – local state
   # WAF-OPS-020 Violation:
-  # kein Remote State, kein Locking
+  # no remote state, no locking
 }
 ----
 
 |===
 
 === waf-ops-020.tf.aws.s3-state-bucket-versioning
-*Prüft:* S3 State-Bucket hat Versioning aktiviert.
+*Checks:* S3 state bucket has versioning enabled.
 
 [source,hcl]
 ----
@@ -129,43 +129,43 @@ terraform {
 resource "aws_s3_bucket_versioning" "state" {
   bucket = aws_s3_bucket.terraform_state.id
   versioning_configuration {
-    status = "Enabled"  # Nicht Suspended
+    status = "Enabled"  # Not Suspended
   }
 }
 ----
 
-*Remediation:* Remote-State-Backend mit S3+DynamoDB Locking konfigurieren.
-State-Bucket-Versioning aktivieren.
+*Remediation:* Configure remote state backend with S3+DynamoDB locking.
+Enable state bucket versioning.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform-Repository mit Remote-State-Konfiguration (backend.tf mit S3/Azure/GCS).
+|✅ Required
+|Terraform repository with remote state configuration (backend.tf with S3/Azure/GCS).
 
 |*Config*
-|✅ Pflicht
-|State-Backend-Konfiguration mit aktiviertem Versioning und Locking.
+|✅ Required
+|State backend configuration with versioning and locking enabled.
 
 |*Process*
 |Optional
-|Drift-Detection-Report (letzte 30 Tage, Drift-Events mit Resolutionszeiten).
+|Drift detection report (last 30 days, drift events with resolution times).
 
 |*Governance*
 |Optional
-|SCP oder IAM-Policy die direkte Console-Änderungen in Produktions-Accounts verhindert.
+|SCP or IAM policy preventing direct console changes in production accounts.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
 * xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
 
 == Best Practice
 
-* xref:best-practices/bp-iac.adoc[Infrastructure as Code konsequent umsetzen →]
+* xref:best-practices/bp-iac.adoc[Implementing Infrastructure as Code Consistently →]

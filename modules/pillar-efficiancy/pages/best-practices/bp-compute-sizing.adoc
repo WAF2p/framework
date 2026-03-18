@@ -1,42 +1,42 @@
-= Best Practice: Compute-Sizing & Instanzauswahl
+= Best Practice: Compute Sizing & Instance Selection
 :page-toc: right
-:description: WAF++ Performance Efficiency – Instanztypen datenbasiert auswählen und Sizing-Entscheidungen dokumentieren.
+:description: WAF++ Performance Efficiency – Select instance types based on data and document sizing decisions.
 
-== Kontext
+== Context
 
-Compute-Sizing ist eine der häufigsten Quellen sowohl für Ressourcenverschwendung
-als auch für Performance-Probleme. Überprovisionierte Instanzen verschwenden Geld;
-unterprovisionierte Instanzen verursachen Latenz-Spikes und Ausfälle unter Last.
+Compute sizing is one of the most common sources of both resource waste
+and performance problems. Over-provisioned instances waste money;
+under-provisioned instances cause latency spikes and failures under load.
 
-Häufige Probleme ohne strukturiertes Sizing:
+Common problems without structured sizing:
 
-* Instanztypen werden nach Bauchgefühl oder "war schon immer so" gewählt
-* Vorgänger-Generationen (t2, m4, c4) laufen jahrelang weiter, ohne überprüft zu werden
-* CPU-Auslastung < 5% – klassisches Zeichen für unreflektiertes Over-Provisioning
-* Keine Sizing-Dokumentation: niemand weiß mehr, warum ein bestimmter Instanztyp gewählt wurde
+* Instance types are chosen by gut feeling or "that's how it's always been"
+* Previous generations (t2, m4, c4) continue running for years without review
+* CPU utilization < 5% – a classic sign of unreflective over-provisioning
+* No sizing documentation: nobody remembers why a particular instance type was chosen
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-010[WAF-PERF-010] – Compute Instance Type & Sizing Validated
 
-== Zielbild
+== Target State
 
-Eine reife Sizing-Strategie:
+A mature sizing strategy:
 
-* *Datenbasiert*: Sizing-Entscheidungen basieren auf gemessenen CPU/Memory/Network-Baselines
-* *Dokumentiert*: Jede Produktionsressource hat eine Sizing-Begründung in ADR oder Sizing-Sheet
-* *Aktuell*: Quartalsweise Review; Upgrade-Empfehlungen von Cloud Provider werden verfolgt
-* *Generationsaktuell*: Alle Ressourcen verwenden aktuelle Instanzgenerationen
+* *Data-driven*: Sizing decisions are based on measured CPU/memory/network baselines
+* *Documented*: Every production resource has a sizing rationale in an ADR or sizing sheet
+* *Current*: Quarterly review; cloud provider upgrade recommendations are tracked
+* *Current generation*: All resources use current instance generations
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Baseline-Daten sammeln
+=== Step 1: Collect Baseline Data
 
-Bevor eine Sizing-Entscheidung getroffen wird, müssen 2–4 Wochen Metriken vorliegen:
+Before making a sizing decision, 2–4 weeks of metrics must be available:
 
 [source,bash]
 ----
-# AWS: CloudWatch CPU-Metriken für einen EC2 abfragen
+# AWS: Query CloudWatch CPU metrics for an EC2 instance
 aws cloudwatch get-metric-statistics \
   --namespace AWS/EC2 \
   --metric-name CPUUtilization \
@@ -55,7 +55,7 @@ gcloud recommender recommendations list \
   --recommender=google.compute.instance.MachineTypeRecommender
 ----
 
-=== Schritt 2: Sizing-Dokument anlegen
+=== Step 2: Create a Sizing Document
 
 [source,yaml]
 ----
@@ -91,14 +91,14 @@ auto_scaling:
   scale_out_trigger: "ALBRequestCountPerTarget > 800"
 ----
 
-=== Schritt 3: Current-Generation in Terraform verwenden
+=== Step 3: Use Current Generation in Terraform
 
 [source,hcl]
 ----
-# Compliant: Aktuelle Generation, explizite Sizing-Begründung als Kommentar
+# Compliant: Current generation, explicit sizing rationale as comment
 locals {
-  # t3.medium gewählt basierend auf docs/sizing/payment-api.yml
-  # CPU avg 18%, P95 45% – 2 vCPU bietet ausreichend Headroom für 2.5x Spitzen
+  # t3.medium chosen based on docs/sizing/payment-api.yml
+  # CPU avg 18%, P95 45% – 2 vCPU provides sufficient headroom for 2.5x spikes
   instance_type = "t3.medium"
 }
 
@@ -118,21 +118,21 @@ resource "aws_launch_template" "app" {
 }
 ----
 
-=== Schritt 4: AWS Compute Optimizer nutzen
+=== Step 4: Use AWS Compute Optimizer
 
 [source,terraform]
 ----
-# Compute Optimizer Enrollment aktivieren
+# Activate Compute Optimizer enrollment
 resource "aws_computeoptimizer_enrollment_status" "main" {
   status = "Active"
 }
 
-# Recommendations per CLI abrufen und in Sizing-Review einbeziehen
+# Retrieve recommendations via CLI and include in sizing review
 # aws compute-optimizer get-ec2-instance-recommendations \
 #   --filters name=Finding,values=UNDER_PROVISIONED,OVER_PROVISIONED
 ----
 
-=== Schritt 5: Quartalsweise Review-Prozess
+=== Step 5: Quarterly Review Process
 
 [source,yaml]
 ----
@@ -141,36 +141,36 @@ frequency: "quarterly"
 next_review: "2026-06-18"
 
 checklist:
-  - Compute Optimizer Empfehlungen prüfen
-  - Instanzen mit CPU avg < 10% identifizieren → Rightsizing-Kandidaten
-  - Instanzen mit CPU p95 > 80% identifizieren → Upgrade-Kandidaten
-  - Previous-Generation-Instanzen (t2, m4, c4) identifizieren → Migration-Plan
-  - Sizing-Dokumente aktualisieren
+  - Review Compute Optimizer recommendations
+  - Identify instances with CPU avg < 10% → rightsizing candidates
+  - Identify instances with CPU p95 > 80% → upgrade candidates
+  - Identify previous-generation instances (t2, m4, c4) → migration plan
+  - Update sizing documents
 
 output:
-  - Sizing-Review-Report (welche Änderungen vorgenommen wurden)
-  - Jira-Tickets für Rightsizing-Maßnahmen
-  - Aktualisierte Sizing-Dokumente in docs/sizing/
+  - Sizing review report (which changes were made)
+  - Jira tickets for rightsizing actions
+  - Updated sizing documents in docs/sizing/
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *"Wir haben früher mehr gebraucht"*: Historische Peaks rechtfertigen keine permanente Überprovisionierung. Auto-Scaling löst Peak-Last.
-* *"t2.large war immer gut genug"*: t2 ist Previous-Generation; t3 bietet bessere Leistung zu niedrigerem Preis.
-* *"Wir erhöhen lieber vorsorglich"*: Vertikales Sizing-Hinzufügen ist kein Substitut für Auto-Scaling.
-* *Sizing nach AWS-Default*: Default-Empfehlungen sind nicht workload-spezifisch.
+* *"We needed more in the past"*: Historical peaks do not justify permanent over-provisioning. Auto-scaling handles peak load.
+* *"t2.large was always good enough"*: t2 is a previous generation; t3 offers better performance at a lower price.
+* *"We'd rather provision more to be safe"*: Vertical sizing increases are not a substitute for auto-scaling.
+* *Sizing from AWS defaults*: Default recommendations are not workload-specific.
 
-== Metriken
+== Metrics
 
-* Durchschnittliche CPU-Auslastung aller Compute-Ressourcen (Ziel: 20–70%)
-* Anteil der Ressourcen mit CPU avg < 10% (Ziel: < 5% der Ressourcen)
-* Anteil Previous-Generation-Instanzen (Ziel: 0%)
-* Anteil Ressourcen ohne Sizing-Dokumentation (Ziel: 0% für Produktion)
+* Average CPU utilization across all compute resources (target: 20–70%)
+* Proportion of resources with CPU avg < 10% (target: < 5% of resources)
+* Proportion of previous-generation instances (target: 0%)
+* Proportion of resources without sizing documentation (target: 0% for production)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Kein Standard; Sizing nach Intuition oder historischen Werten +
-Level 2 – Experience-based Sizing; gelegentliche Reviews +
-Level 3 – Datenbasiertes Sizing mit dokumentierten Baselines; Quartals-Review +
-Level 4 – Compute-Optimizer-Integration; automatische Rightsizing-Tickets +
-Level 5 – ML-basiertes Predictive Sizing; Self-Optimizing Capacity
+Level 1 – No standard; sizing by intuition or historical values +
+Level 2 – Experience-based sizing; occasional reviews +
+Level 3 – Data-driven sizing with documented baselines; quarterly review +
+Level 4 – Compute Optimizer integration; automatic rightsizing tickets +
+Level 5 – ML-based predictive sizing; self-optimizing capacity

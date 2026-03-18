@@ -1,132 +1,132 @@
-= Shared Responsibility im Sovereign-Kontext
+= Shared Responsibility in the Sovereign Context
 :page-toc: right
-:description: WAF++ Sovereign – Verantwortungsteilung zwischen Cloud-Anbieter und Betreiber.
+:description: WAF++ Sovereign – Division of responsibility between cloud provider and operator.
 
-Souveränität ist im Cloud-Umfeld immer eine geteilte Verantwortung.
-Die Grenze ist jedoch *anders* als bei klassischer Sicherheit – Souveränität erfordert
-aktivere Betreiber-Entscheidungen, weil Provider-Defaults oft nicht sovereign sind.
+Sovereignty in the cloud is always a shared responsibility.
+The boundary is however *different* from classic security – sovereignty requires
+more active operator decisions, because provider defaults are often not sovereign.
 
-== Was Anbieter typischerweise kontrollieren
+== What Providers Typically Control
 
 [cols="1,3"]
 |===
-|Bereich |Anbieter-Verantwortung
+|Area |Provider Responsibility
 
-|*Physische Sicherheit*
-|Rechenzentrum, Netzwerk-Backbone, Hardwaresicherheit.
+|*Physical Security*
+|Data center, network backbone, hardware security.
 
-|*Basis-Compliance*
-|ISO 27001, SOC 2, BSI C5-Testate des Providers. Hinweis: Diese Testate decken den Anbieter ab, nicht den Betreiber-Anteil.
+|*Base Compliance*
+|ISO 27001, SOC 2, BSI C5 attestations of the provider. Note: these attestations cover the provider, not the operator's portion.
 
-|*Region-Infrastruktur*
-|Verfügbarkeit von Regionen, Dokumentation zu Subprozessoren, Compliance-Zertifikate.
+|*Region Infrastructure*
+|Availability of regions, documentation on subprocessors, compliance certificates.
 
-|*Default-Verschlüsselung*
-|Viele Dienste bieten Standard-Verschlüsselung mit Provider-verwalteten Schlüsseln.
+|*Default Encryption*
+|Many services offer standard encryption with provider-managed keys.
 
-|*Audit-Artefakte*
-|SOC 2 Reports, ISO-Zertifikate, BSI C5-Testate als Nachweis für Provider-Anteil.
+|*Audit Artefacts*
+|SOC 2 reports, ISO certificates, BSI C5 attestations as evidence for the provider's portion.
 
 |===
 
-IMPORTANT: Anbieter-Zertifikate (BSI C5, ISO 27001) decken *den Anbieter* ab. Sie sind *kein*
-Nachweis für die Sovereign-Compliance des Betreibers. Beide Seiten müssen ihre eigene
-Evidenz vorhalten.
+IMPORTANT: Provider certificates (BSI C5, ISO 27001) cover *the provider*. They are *not*
+evidence of the operator's sovereign compliance. Both sides must maintain their own
+evidence.
 
-== Was Betreiber kontrollieren (WAF++ Fokus)
+== What Operators Control (WAF++ Focus)
 
 [cols="1,3,2"]
 |===
-|Bereich |Betreiber-Verantwortung |WAF++ Control
+|Area |Operator Responsibility |WAF++ Control
 
-|*Datenklassifikation*
-|Welche Daten wie klassifiziert werden und welche Residency-Anforderungen gelten.
+|*Data Classification*
+|Which data is classified how and what residency requirements apply.
 |WAF-SOV-010
 
 |*Region Pinning*
-|Technische Durchsetzung der erlaubten Regionen via IaC und Policy-as-Code.
+|Technical enforcement of permitted regions via IaC and policy-as-code.
 |WAF-SOV-020
 
-|*Backup-Konfiguration*
-|Wo Backups gespeichert werden, wie lange, und ob Restore-Tests durchgeführt werden.
+|*Backup Configuration*
+|Where backups are stored, for how long, and whether restore tests are performed.
 |WAF-SOV-030
 
-|*Log-Destinationen*
-|Wohin Logs, Traces und Metriken exportiert werden.
+|*Log Destinations*
+|Where logs, traces and metrics are exported.
 |WAF-SOV-040
 
-|*Schlüsselverwaltung*
-|Ob CMK/BYOK/HYOK genutzt wird; Rotation und Deletion Policies.
+|*Key Management*
+|Whether CMK/BYOK/HYOK is used; rotation and deletion policies.
 |WAF-SOV-050
 
-|*IAM & Zugriff*
-|Rollenmodell, privilegierter Zugriff, Separation of Duties, MFA-Enforcement.
+|*IAM & Access*
+|Role model, privileged access, separation of duties, MFA enforcement.
 |WAF-SOV-060
 
-|*Break-Glass Prozess*
-|Wer aktiviert, was wird geloggt, wie wird nachgewertet.
+|*Break-Glass Process*
+|Who activates, what is logged, how it is reviewed afterwards.
 |WAF-SOV-070
 
-|*Subprozessoren & Abhängigkeiten*
-|Inventar aller Drittanbieter und deren Jurisdiktion, Vertragsgrundlage.
+|*Subprocessors & Dependencies*
+|Inventory of all third-party providers and their jurisdiction, contractual basis.
 |WAF-SOV-080
 
-|*Egress-Kontrolle*
-|Welche ausgehenden Verbindungen erlaubt sind und wie Exfiltration erkannt wird.
+|*Egress Control*
+|Which outgoing connections are permitted and how exfiltration is detected.
 |WAF-SOV-090
 
-|*Exit-Fähigkeit*
-|Dokumentierter, getesteter Exit-Plan; Datenportabilität; IaC-Portabilität.
+|*Exit Capability*
+|Documented, tested exit plan; data portability; IaC portability.
 |WAF-SOV-100
 
 |===
 
-== Das Sovereign-Compliance-Dreieck
+== The Sovereign Compliance Triangle
 
-Für vollständige Sovereign-Compliance braucht eine Organisation drei Nachweise:
+For complete sovereign compliance an organization needs three types of evidence:
 
 ----
          ┌─────────────────────────────┐
-         │  Provider-Compliance-Artefakt│  ← BSI C5-Testat, ISO 27001 des Anbieters
+         │  Provider Compliance Artefact│  ← BSI C5 attestation, ISO 27001 of the provider
          └─────────────────────────────┘
                         +
          ┌─────────────────────────────┐
-         │  Betreiber-Technische Evidenz│  ← IaC-Konfiguration, Audit-Logs, WAF-SOV-Checks
+         │  Operator Technical Evidence │  ← IaC configuration, audit logs, WAF-SOV checks
          └─────────────────────────────┘
                         +
          ┌─────────────────────────────┐
-         │  Vertrags-/Prozess-Evidenz  │  ← DPA, Subprocessor-Listen, Runbooks, Reviews
+         │  Contractual/Process Evidence│  ← DPA, subprocessor lists, runbooks, reviews
          └─────────────────────────────┘
 ----
 
-Fehlt eine der drei Ebenen, ist der Sovereign-Nachweis unvollständig.
+If any one of the three layers is missing, the sovereign evidence is incomplete.
 
-== Vertragliche vs. konfigurierbare Souveränität
+== Contractual vs. Configurable Sovereignty
 
-Ein häufiges Missverständnis: Viele Anbieter offerieren „Sovereign Cloud"-Produkte.
-Für WAF++ gilt die Unterscheidung:
+A common misconception: many providers offer "Sovereign Cloud" products.
+For WAF++ the following distinction applies:
 
 [cols="1,2,2"]
 |===
-|Aspekt |Vertraglich |Konfigurierbar/Technisch
+|Aspect |Contractual |Configurable/Technical
 
-|*Jurisdiktion*
-|Vertrag regelt Datenort; oft schwer durchsetzbar.
-|Region Pinning via IaC und Policy – messbar und prüfbar.
+|*Jurisdiction*
+|Contract governs data location; often hard to enforce.
+|Region pinning via IaC and policy – measurable and verifiable.
 
-|*Datenzugriff durch Anbieter*
-|Vertragsklauseln; Cloud Act-Risiken nicht eliminierbar durch Vertrag.
-|HYOK eliminiert technisch die Zugriffsmöglichkeit.
+|*Data access by provider*
+|Contractual clauses; Cloud Act risks cannot be eliminated by contract.
+|HYOK technically eliminates the access possibility.
 
-|*Subprozessor-Änderungen*
-|Anbieter informiert; keine technische Kontrolle.
-|Inventar + Review-Prozess + Vertrags-Exit-Recht.
+|*Subprocessor changes*
+|Provider notifies; no technical control.
+|Inventory + review process + contractual exit right.
 
-|*Datenlöschung bei Vertragsende*
-|Vertragsklausel; kein technischer Nachweis.
-|S3 Lifecycle, GDPR Art. 17 – technisch implementierbar und nachweisbar.
+|*Data deletion at contract end*
+|Contractual clause; no technical proof.
+|S3 Lifecycle, GDPR Art. 17 – technically implementable and verifiable.
 
 |===
 
-NOTE: Für sovereign-kritische Workloads sollte die Faustregel gelten:
-_„Wenn es nur vertraglich geregelt ist und nicht technisch überprüfbar, ist es kein Sovereign-Control."_
+NOTE: For sovereignty-critical workloads the rule of thumb should apply:
+_"If it is only governed contractually and not technically verifiable, it is not a sovereign control."_

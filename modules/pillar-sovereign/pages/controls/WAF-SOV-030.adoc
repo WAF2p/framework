@@ -5,124 +5,123 @@
 :severity: high
 :category: data-residency
 :automated: medium
-:description: WAF++ Sovereign – Backup-Standorte innerhalb der Souveränitätsgrenzen halten; Retention und Restore-Tests definieren und erzwingen.
+:description: WAF++ Sovereign – Keep backup locations within sovereignty boundaries; define and enforce retention and restore tests.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Kategorie:* Data Residency | *Automatisierbar:* Mittel
+*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Data Residency | *Automatable:* Medium
 
-== Beschreibung
+== Description
 
-Backup-Policies MÜSSEN explizit Region/Location-Constraints, Mindest-Retention-Perioden
-und Restore-Test-Zeitpläne definieren. Cross-Region-Replikation MUSS ausdrücklich
-genehmigt und ausschließlich in gültige souveräne Regionen gerichtet sein.
+Backup policies MUST explicitly define region/location constraints, minimum retention periods,
+and restore test schedules. Cross-region replication MUST be explicitly approved and directed
+exclusively to valid sovereign regions.
 
-Backup-Speicher MUSS innerhalb der gleichen Jurisdiktionsgrenze wie die Primärdaten
-verbleiben – außer mit explizit dokumentierter Genehmigung.
+Backup storage MUST remain within the same jurisdictional boundary as primary data —
+except with explicitly documented approval.
 
 == Rationale
 
-Backups sind häufig der erste Souveränitätsleck, den Audit-Teams übersehen.
-Eine Primärdatenbank kann in einer genehmigten EU-Region liegen, während automatisierte
-Backup-Replikation stillschweigend Daten in eine US-DR-Region leitet.
+Backups are often the first sovereignty leak that audit teams overlook. A primary database may
+reside in an approved EU region while automated backup replication silently routes data to a
+US DR region.
 
-Jede Backup-Konfiguration ist ein potenzieller Datenresidenz-Verstoß. Restore-Tests
-validieren sowohl die technische Wiederherstellbarkeit als auch, dass Backup-Daten
-nicht in nicht-souveränen Speichern gelandet sind.
+Every backup configuration is a potential data residency violation. Restore tests validate
+both the technical recoverability and that backup data has not ended up in non-sovereign storage.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Backup-Replikation in US-Region*
-|Automatisierte DR-Replikation leitet Backup-Daten stillschweigend in nicht-genehmigte Zielregionen.
+|*Backup replication to US region*
+|Automated DR replication silently routes backup data to non-approved destination regions.
 
-|*Provider-Default-Backup-Storage*
-|Managed-Service-Backups landen in provider-verwaltetem Storage außerhalb der genehmigten Jurisdiktion.
+|*Provider-default backup storage*
+|Managed service backups land in provider-managed storage outside the approved jurisdiction.
 
-|*Ungetestete Restore-Prozesse*
-|RPO/RTO-Verletzung weil Restore-Prozess niemals geübt wurde.
+|*Untested restore processes*
+|RPO/RTO violation because the restore process was never practiced.
 
-|*Fehlende Retention-Policy*
-|Unklare Retention führt zu endloser Speicherung sensitiver Daten oder zu frühzeitiger Löschung.
+|*Missing retention policy*
+|Unclear retention leads to indefinite storage of sensitive data or premature deletion.
 
-|*Cross-Region-Copy-Jobs*
-|Geplante Snapshot-Copies exfiltrieren Backup-Daten in nicht-souveräne Regionen.
+|*Cross-region copy jobs*
+|Scheduled snapshot copies exfiltrate backup data to non-sovereign regions.
 
 |===
 
-== Regulatorisches Mapping
+== Regulatory Mapping
 
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 5(1)(e) – Speicherbegrenzung; Art. 32 – Sicherheit der Verarbeitung; Art. 44–46 – Übermittlungen in Drittländer
+|*GDPR*
+|Art. 5(1)(e) – Storage limitation; Art. 32 – Security of processing; Art. 44–46 – Transfers to third countries
 
 |*BSI C5:2020*
-|OPS-04 – Datenverwaltung; BCM-01 – Business-Continuity-Management
+|OPS-04 – Data management; BCM-01 – Business continuity management
 
 |*EUCS (ENISA)*
-|BCR-01 – Backup-Policy; DSP-04 – Datenportabilität
+|BCR-01 – Backup policy; DSP-04 – Data portability
 
 |*ISO 27001:2022*
-|A.8.13 – Datensicherung; A.5.29 – Informationssicherheit bei Betriebsunterbrechung
+|A.8.13 – Information backup; A.5.29 – Information security during business disruption
 
 |===
 
-== Anforderung
+== Requirement
 
-* Backup-Konfigurationen MÜSSEN `location`/`region` explizit setzen
-* `backup_retention_period` MUSS mindestens 7 Tage (non-prod) und 30 Tage (prod) betragen
-* Point-in-Time Recovery (PITR) MUSS für Datenbankdienste mit PII/Finanzdaten aktiviert sein
-* Cross-Region Replikation MUSS explizit genehmigt und zu einer souveränen Zielregion gerichtet sein
-* Restore-Tests MÜSSEN mindestens jährlich (quartalsweise für kritische Daten) durchgeführt und dokumentiert werden
-* Backup-Ressourcen MÜSSEN mit `data-residency` und `data-class` konsistent mit den Quelldaten getaggt sein
+* Backup configurations MUST set `location`/`region` explicitly
+* `backup_retention_period` MUST be at least 7 days (non-prod) and 30 days (prod)
+* Point-in-Time Recovery (PITR) MUST be enabled for database services with PII/financial data
+* Cross-region replication MUST be explicitly approved and directed to a sovereign target region
+* Restore tests MUST be performed and documented at least annually (quarterly for critical data)
+* Backup resources MUST be tagged with `data-residency` and `data-class` consistent with source data
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Backup-Ressourcen in IaC deklarieren*: Keine impliziten Backup-Konfigurationen; alle Einstellungen explizit.
-. *Retention-Perioden* nach Datenkategorie festlegen und in IaC erzwingen.
-. *PITR aktivieren* für alle Datenbanken mit personenbezogenen oder Finanzdaten.
-. *Cross-Region-Replikation prüfen*: Zielregion in Genehmigungsliste; DPO-Review wenn ausserhalb.
-. *Immutable Backups* (Object Lock / Soft Delete) für kritische Datenkategorien konfigurieren.
-. *Restore-Drills* kalenderieren und dokumentieren: Backup-ID, Zeitstempel, erreichtes RTO, Findings.
-. *Backup Vault taggen*: `data-residency` und `data-class` konsistent mit Quelldaten.
+. *Declare backup resources in IaC*: No implicit backup configurations; all settings explicit.
+. *Set retention periods* by data category and enforce in IaC.
+. *Enable PITR* for all databases with personal or financial data.
+. *Review cross-region replication*: Target region in approval list; DPO review if outside.
+. *Configure immutable backups* (Object Lock / Soft Delete) for critical data categories.
+. *Schedule restore drills* and document: backup ID, timestamp, achieved RTO, findings.
+. *Tag backup vaults*: `data-residency` and `data-class` consistent with source data.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Backups aktiviert, Standort unkontrolliert
-|Backups für kritische Datenbanken aktiviert; keine expliziten Standort-Constraints.
+|Backups enabled, location uncontrolled
+|Backups enabled for critical databases; no explicit location constraints.
 
 |*2*
-|Standort und Retention in IaC definiert
-|Backup-Vault-Standort in genehmigter Region; Mindest-Retention gesetzt und erzwungen.
+|Location and retention defined in IaC
+|Backup vault location in approved region; minimum retention set and enforced.
 
 |*3*
-|Vollständige souveräne Backup-Posture
-|Alle Backup-Ziele in genehmigten Regionen verifiziert; PITR für PII/Finanzdaten; Cross-Region-Replikation genehmigt.
+|Full sovereign backup posture
+|All backup targets verified in approved regions; PITR for PII/financial data; cross-region replication approved.
 
 |*4*
-|Kontinuierliches Monitoring und getestete Restores
-|Quartalsweise Restore-Tests mit Evidenz; automatisierte Checks für Backup-Standort-Compliance; Alerts auf Backup-Jobs zu nicht-genehmigten Regionen.
+|Continuous monitoring and tested restores
+|Quarterly restore tests with evidence; automated checks for backup location compliance; alerts on backup jobs to non-approved regions.
 
 |*5*
-|Immutable, auditierbarer souveräner Backup-Prozess
-|Object Lock / immutable Backups erzwungen; Restore-Drills automatisiert mit RTO-Messung; Backup-Compliance-Dashboard für Auditoren.
+|Immutable, auditable sovereign backup process
+|Object Lock / immutable backups enforced; restore drills automated with RTO measurement; backup compliance dashboard for auditors.
 
 |===
 
 == Terraform Checks
 
 === waf-sov-030.tf.aws.db-instance-backup-retention
-*Prüft:* RDS `backup_retention_period` >= 7 Tage.
+*Checks:* RDS `backup_retention_period` >= 7 days.
 
 [cols="1,1"]
 |===
@@ -140,7 +139,7 @@ a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
   backup_retention_period = 0
-  # ❌ Backups deaktiviert
+  # ❌ Backups disabled
 }
 ----
 |===
@@ -148,7 +147,7 @@ resource "aws_db_instance" "main" {
 ---
 
 === waf-sov-030.tf.aws.dynamodb-pitr-enabled
-*Prüft:* DynamoDB PITR muss aktiviert sein.
+*Checks:* DynamoDB PITR must be enabled.
 
 [cols="1,1"]
 |===
@@ -167,7 +166,7 @@ a|[source,hcl]
 ----
 resource "aws_dynamodb_table" "sovereign" {
   name = "sovereign-table"
-  # ❌ Kein PITR
+  # ❌ No PITR
 }
 ----
 |===
@@ -175,7 +174,7 @@ resource "aws_dynamodb_table" "sovereign" {
 ---
 
 === waf-sov-030.tf.azurerm.recovery-vault-location
-*Prüft:* Azure Recovery Services Vault muss in genehmigter souveräner Region liegen.
+*Checks:* Azure Recovery Services Vault must reside in an approved sovereign region.
 
 [cols="1,1"]
 |===
@@ -203,7 +202,7 @@ resource "azurerm_recovery_services_vault" "backup" {
 ---
 
 === waf-sov-030.tf.aws.s3-versioning-enabled
-*Prüft:* S3-Backup-Buckets müssen Versioning aktiviert haben.
+*Checks:* S3 backup buckets must have versioning enabled.
 
 [source,hcl]
 ----
@@ -216,31 +215,31 @@ resource "aws_s3_bucket_versioning" "backup" {
 }
 ----
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform Backup-Ressourcen mit explizitem Location, Retention und PITR-Settings.
+|✅ Required
+|Terraform backup resources with explicit location, retention, and PITR settings.
 
 |*Process*
-|✅ Pflicht
-|Restore-Test-Protokolle (mindestens jährlich) mit Backup-ID, Zeitstempel und erreichtem RTO.
+|✅ Required
+|Restore test records (at least annually) with backup ID, timestamp, and achieved RTO.
 
 |*Config*
 |Optional
-|Cloud-Console-Export der aktiven Backup-Policy mit Location- und Retention-Einstellungen.
+|Cloud console export of the active backup policy with location and retention settings.
 
 |*Logs*
 |Optional
-|Backup-Job-Logs mit Quell- und Zielregion.
+|Backup job logs with source and destination region.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
 * xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning]
@@ -249,4 +248,4 @@ resource "aws_s3_bucket_versioning" "backup" {
 
 == Best Practice
 
-* xref:best-practices/bp-data-residency.adoc[Data Residency Policy implementieren →]
+* xref:best-practices/bp-data-residency.adoc[Implement Data Residency Policy →]

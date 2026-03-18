@@ -1,139 +1,139 @@
-= Best Practice: Architektonische Kostenschuld managen
+= Best Practice: Managing Architectural Cost Debt
 :page-toc: right
-:description: WAF++ Cost Optimization – ADR-Template mit Cost-Sektion, Cost-Debt-Register aufsetzen, Quarterly-Review-Prozess etablieren.
+:description: WAF++ Cost Optimization – ADR template with cost section, setting up a cost debt register, establishing a quarterly review process.
 
-== Kontext
+== Context
 
-Architektonische Kostenschuld entsteht still. Jede Architekturentscheidung, die ohne vollständiges
-Cost-Impact-Assessment getroffen wird, ist ein potenzieller Kostenschuld-Eintrag.
-HA-Designs ohne SLO-Grundlage, proprietäre Services ohne Exit-Plan, Retention-Defaults
-ohne Lifecycle-Strategie – sie alle akkumulieren monatlich Kosten, deren Ursprung
-nicht mehr zur ursprünglichen Entscheidung rückverfolgbar ist.
+Architectural cost debt accumulates silently. Every architectural decision made without a complete
+cost impact assessment is a potential cost debt entry.
+HA designs without an SLO basis, proprietary services without an exit plan, retention defaults
+without a lifecycle strategy – they all accumulate monthly costs whose origin
+can no longer be traced back to the original decision.
 
-Diese Best Practice zeigt, wie Kostenschuld systematisch verhindert, erkannt und abgebaut wird.
+This best practice shows how cost debt is systematically prevented, detected, and reduced.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-COST-050[WAF-COST-050] – Cost Impact Assessment in Architecture Decision Records
 * xref:../controls.adoc#WAF-COST-100[WAF-COST-100] – Architectural Cost Debt Register & Quarterly Review
 
-== Zielbild
+== Target State
 
-* Alle Architekturentscheidungen mit Infrastruktur-Impact haben ein vollständiges Cost-Impact-Assessment
-* Bekannte Kostenschulden sind im Cost-Debt-Register mit Owner und Status erfasst
-* Quartalsweiser Architecture-Board-Review stellt sicher, dass keine Schuld unbemerkt bleibt
-* Bewusste Akzeptanz von Kostenschuld ist möglich – aber dokumentiert
+* All architectural decisions with infrastructure impact have a complete cost impact assessment
+* Known cost debts are recorded in the cost debt register with owner and status
+* Quarterly architecture board review ensures no debt goes unnoticed
+* Deliberate acceptance of cost debt is possible – but documented
 
-== ADR-Template mit Cost-Impact-Sektion
+== ADR Template with Cost Impact Section
 
-=== Vollständiges ADR-Template
+=== Complete ADR Template
 
 [source,markdown]
 ----
-# ADR-XXXX: [Titel der Entscheidung]
+# ADR-XXXX: [Title of the Decision]
 
 **Status:** [Proposed | Accepted | Superseded | Deprecated]
-**Datum:** YYYY-MM-DD
-**Entscheider:** [Team / Architecture Board]
+**Date:** YYYY-MM-DD
+**Decision Makers:** [Team / Architecture Board]
 
-## Kontext
+## Context
 
-[Beschreibung des Problems und des Entscheidungskontexts]
+[Description of the problem and decision context]
 
-## Optionen
+## Options
 
 ### Option A: [Name]
-[Beschreibung]
+[Description]
 
 ### Option B: [Name]
-[Beschreibung]
+[Description]
 
-## Entscheidung
+## Decision
 
-[Gewählte Option und Begründung]
+[Chosen option and rationale]
 
-## Konsequenzen
+## Consequences
 
-[Positive und negative Folgen der Entscheidung]
+[Positive and negative consequences of the decision]
 
 ---
 
 ## Cost Impact Assessment (WAF-COST-050)
 
-> Pflichtsektion für alle ADRs mit Infrastruktur-Impact.
+> Mandatory section for all ADRs with infrastructure impact.
 
-| Dimension                | Bewertung                                        |
+| Dimension                | Assessment                                       |
 |--------------------------|--------------------------------------------------|
-| **Geschätzte TCO/Jahr**  | XX.XXX EUR                                       |
-| **Lock-in-Risiko**       | X/5 – [Begründung]                              |
-| **Datentransfer-Kosten** | ~XXX EUR/Monat (Schätzung Egress-Anteil)         |
-| **Betriebsaufwand**      | X.X FTE/Jahr (Ops + Engineering)                 |
-| **Exit-Kosten (est.)**   | ~XX.XXX EUR Migrationsaufwand                    |
-| **3-Jahres-NPV**         | -XX.XXX EUR (Infrastruktur, ohne Business-Value) |
+| **Estimated TCO/Year**   | XX,XXX EUR                                       |
+| **Lock-in Risk**         | X/5 – [Rationale]                               |
+| **Data Transfer Costs**  | ~XXX EUR/month (estimated egress share)          |
+| **Operational Effort**   | X.X FTE/year (ops + engineering)                 |
+| **Exit Costs (est.)**    | ~XX,XXX EUR migration effort                     |
+| **3-Year NPV**           | -XX,XXX EUR (infrastructure, excl. business value)|
 
-**Lock-in-Score Erklärung:**
-- 1: Standard-APIs, Open Format, einfacher Anbieterwechsel
-- 2: Geringe Proprietarität, Alternativen verfügbar
-- 3: Mittlerer Lock-in, Migration möglich mit überschaubarem Aufwand
-- 4: Hoher Lock-in, Migration teuer (erfordert AB-Genehmigung)
-- 5: Extremer Lock-in, Migration sehr teuer oder praktisch unmöglich
+**Lock-in Score Explanation:**
+- 1: Standard APIs, open format, easy vendor switch
+- 2: Low proprietary nature, alternatives available
+- 3: Medium lock-in, migration possible with manageable effort
+- 4: High lock-in, migration costly (requires AB approval)
+- 5: Extreme lock-in, migration very costly or practically impossible
 
-**Kostenschuld-Risiko:** [Gering / Mittel / Hoch]
+**Cost Debt Risk:** [Low / Medium / High]
 
-**Begründung:**
-[Warum ist diese Option trotz des Kostenschuld-Risikos die richtige Wahl?]
+**Rationale:**
+[Why is this option the right choice despite the cost debt risk?]
 
-**Cost-Debt-Register:**
-[Eintrag CD-YYYY-XXX angelegt / Kein Eintrag erforderlich weil: ...]
+**Cost Debt Register:**
+[Entry CD-YYYY-XXX created / No entry required because: ...]
 
-**Nächster Review:** [Datum des nächsten Cost-Debt-Reviews]
+**Next Review:** [Date of the next cost debt review]
 ----
 
-=== Beispiel: Ausgefülltes Cost-Impact-Assessment
+=== Example: Completed Cost Impact Assessment
 
 [source,markdown]
 ----
 ## Cost Impact Assessment (WAF-COST-050)
 
-| Dimension                | Bewertung                                        |
+| Dimension                | Assessment                                       |
 |--------------------------|--------------------------------------------------|
-| **Geschätzte TCO/Jahr**  | 48.000 EUR                                       |
-| **Lock-in-Risiko**       | 4/5 – Proprietäres Datenformat, hoher Migrations- |
-|                          | aufwand zu alternativen Streaming-Services       |
-| **Datentransfer-Kosten** | ~400 EUR/Monat (Kinesis→S3 Egress-Schätzung)     |
-| **Betriebsaufwand**      | 0.3 FTE/Jahr (Monitoring, Shard-Management)      |
-| **Exit-Kosten (est.)**   | ~80.000 EUR (Consumer-Migration zu Kafka/etc.)   |
-| **3-Jahres-NPV**         | -224.000 EUR                                     |
+| **Estimated TCO/Year**   | 48,000 EUR                                       |
+| **Lock-in Risk**         | 4/5 – Proprietary data format, high migration    |
+|                          | effort to alternative streaming services         |
+| **Data Transfer Costs**  | ~400 EUR/month (Kinesis→S3 egress estimate)      |
+| **Operational Effort**   | 0.3 FTE/year (monitoring, shard management)      |
+| **Exit Costs (est.)**    | ~80,000 EUR (consumer migration to Kafka/etc.)   |
+| **3-Year NPV**           | -224,000 EUR                                     |
 
-**Kostenschuld-Risiko:** Hoch
+**Cost Debt Risk:** High
 
-**Begründung:**
-Kinesis ist die am besten integrierte AWS-native Streaming-Lösung für unseren
-bestehenden AWS-Stack. Der Lock-in ist bewusst akzeptiert, weil:
-- Kein Multi-Cloud-Requirement in den nächsten 3 Jahren (Architecture Decision AD-2023-11)
-- Operationsaufwand von Kafka-Self-Hosting würde ~0.8 FTE mehr kosten
-- Exit-Plan dokumentiert: Konsumenten können auf Apache Kafka on MSK migriert werden
+**Rationale:**
+Kinesis is the best-integrated AWS-native streaming solution for our
+existing AWS stack. The lock-in is deliberately accepted because:
+- No multi-cloud requirement in the next 3 years (Architecture Decision AD-2023-11)
+- Self-hosting Kafka would cost ~0.8 FTE more in operational effort
+- Exit plan documented: consumers can be migrated to Apache Kafka on MSK
 
-**Cost-Debt-Register:** Eintrag CD-2025-007 angelegt.
-**Nächster Review:** Q3 2025 (Architecture Board)
+**Cost Debt Register:** Entry CD-2025-007 created.
+**Next Review:** Q3 2025 (Architecture Board)
 ----
 
-== Cost-Debt-Register aufsetzen
+== Setting Up the Cost Debt Register
 
-=== Dateistruktur
+=== File Structure
 
 [source,text]
 ----
 repository/
 ├── docs/
-│   ├── cost-debt-register.yml    # Haupt-Register
+│   ├── cost-debt-register.yml    # Main register
 │   └── adr/
 │       └── ADR-0042-*.md
 └── infrastructure/
     └── ...
 ----
 
-=== Register-Format
+=== Register Format
 
 [source,yaml]
 ----
@@ -145,81 +145,81 @@ next_review: "2025-06-01"
 
 entries:
   - id: CD-2025-001
-    title: "Multi-AZ PostgreSQL ohne SLO-Grundlage"
+    title: "Multi-AZ PostgreSQL without SLO basis"
     category: "ha-over-engineering"
     description: >
-      Produktionsdatenbank in 3 AZs deployed. Aktueller SLO des Services ist 99.5%,
-      der auch mit Single-AZ (AWS-Garantie 99.95% für einzelne AZ) erfüllt wäre.
-      Keine dokumentierte Business-Anforderung für Multi-AZ.
+      Production database deployed in 3 AZs. Current SLO of the service is 99.5%,
+      which would also be met with single-AZ (AWS guarantee 99.95% for single AZ).
+      No documented business requirement for multi-AZ.
     detected: "2025-01-15"
     owner: "platform-team"
     estimated_annual_impact_eur: 22000
     status: "paydown"
     paydown_plan: >
-      SLO-Review mit Product Owner bis 2025-04-15.
-      Wenn SLO <= 99.5%: Downgrade auf Single-AZ, Multi-AZ nur für DR-Tests.
-      Erwartete Einsparung: ~1.833 EUR/Monat.
+      SLO review with product owner by 2025-04-15.
+      If SLO <= 99.5%: downgrade to single-AZ, multi-AZ only for DR tests.
+      Expected saving: ~1,833 EUR/month.
     target_resolution: "2025-06-30"
     related_adr: "docs/adr/ADR-0038-database-ha.md"
     related_controls: [WAF-COST-050, WAF-COST-100]
 
   - id: CD-2025-002
-    title: "CloudWatch Logs ohne Retention – 3 Produktions-Log-Groups"
+    title: "CloudWatch Logs without retention – 3 production log groups"
     category: "infinite-retention"
     description: >
-      Drei CloudWatch Log Groups aus 2022 haben retention_in_days = 0 (unbegrenzt).
-      Kumuliertes Log-Volumen: ~800 GB. Wächst mit ~15 GB/Monat.
+      Three CloudWatch Log Groups from 2022 have retention_in_days = 0 (unlimited).
+      Cumulative log volume: ~800 GB. Growing at ~15 GB/month.
     detected: "2025-02-01"
     owner: "infrastructure-team"
     estimated_annual_impact_eur: 1200
     status: "paydown"
     paydown_plan: >
-      Terraform-Konfiguration mit retention_in_days = 90 für alle drei Log Groups.
-      PR geplant für Sprint 2025-03-1.
+      Terraform configuration with retention_in_days = 90 for all three log groups.
+      PR planned for Sprint 2025-03-1.
     target_resolution: "2025-03-15"
     related_controls: [WAF-COST-040, WAF-COST-070]
 
   - id: CD-2025-003
-    title: "AWS Kinesis Data Streams – Lock-in ohne Exit-Plan"
+    title: "AWS Kinesis Data Streams – lock-in without exit plan"
     category: "lock-in"
     description: >
-      Kinesis-basiertes Event-Streaming mit hohem Lock-in (Score 4/5).
-      Exit-Plan bisher nicht dokumentiert.
+      Kinesis-based event streaming with high lock-in (score 4/5).
+      Exit plan not yet documented.
     detected: "2025-03-01"
     owner: "data-team"
     estimated_annual_impact_eur: 48000
     status: "monitoring"
-    paydown_plan: "Nicht geplant für 2025. Exit-Plan bis Q2 2025 dokumentieren."
+    paydown_plan: "Not planned for 2025. Document exit plan by Q2 2025."
     acceptance_rationale: >
-      Bewusst akzeptiert: Kinesis ist optimal für AWS-nativen Stack. Operationsersparnis
-      gegenüber selbst-betriebenem Kafka überwiegt Lock-in-Risiko.
-      Voraussetzung: Exit-Plan-Dokument bis Q2 2025.
+      Deliberately accepted: Kinesis is optimal for AWS-native stack. Operational savings
+      vs. self-hosted Kafka outweigh lock-in risk.
+      Prerequisite: exit plan document by Q2 2025.
     target_resolution: "2025-06-30"
     related_adr: "docs/adr/ADR-0042-streaming-platform.md"
     related_controls: [WAF-COST-050]
 ----
 
-== Quarterly Cost-Debt-Review-Prozess
+== Quarterly Cost Debt Review Process
 
-=== Vorbereitung (1 Woche vor Review)
+=== Preparation (1 week before review)
 
-. FinOps-Team erstellt vorbereitenden Report:
-   * Neue Kostenschuld-Kandidaten aus dem letzten Quartal
-   * Paydown-Fortschritt bestehender Einträge
-   * Kosten-Anomalien der letzten 90 Tage
-   * ADRs des Quartals mit Lock-in-Score >= 3
+. FinOps team creates a preparatory report:
+   * New cost debt candidates from the last quarter
+   * Paydown progress of existing entries
+   * Cost anomalies from the last 90 days
+   * ADRs from the quarter with lock-in score >= 3
 
-. Owners jedes Cost-Debt-Eintrags aktualisieren ihren Status vorab
+. Owners of each cost debt entry update their status in advance
 
-=== Review-Agenda (60–90 Minuten)
+=== Review Agenda (60–90 minutes)
 
-. *Quartalsbericht* (10 Min): Gesamtkosten-Trend, größte Veränderungen
-. *Neue Einträge* (20 Min): Für jede Neuaufnahme: Bestätigung Owner, Impact-Bewertung, Status-Entscheidung
-. *Bestandseinträge* (20 Min): Paydown-Fortschritt, geänderte Einschätzungen, Status-Updates
-. *Acceptance-Entscheidungen* (15 Min): Bewusste Akzeptanz mit dokumentierter Begründung
-. *Priorisierung* (15 Min): Top-3 Paydown-Maßnahmen für nächstes Quartal
+. *Quarterly report* (10 min): overall cost trend, biggest changes
+. *New entries* (20 min): for each new addition – confirm owner, impact assessment, status decision
+. *Existing entries* (20 min): paydown progress, changed assessments, status updates
+. *Acceptance decisions* (15 min): deliberate acceptance with documented rationale
+. *Prioritization* (15 min): top 3 paydown measures for the next quarter
 
-=== Review-Protokoll
+=== Review Minutes
 
 [source,yaml]
 ----
@@ -234,32 +234,32 @@ attendees:
 
 new_entries:
   - id: CD-2025-003
-    decision: "Accepted – Exit-Plan bis Q2 2025 erforderlich"
+    decision: "Accepted – exit plan required by Q2 2025"
 
 paydown_updates:
   - id: CD-2025-001
-    progress: "SLO-Review geplant für April. Kein Paydown in Q1."
+    progress: "SLO review planned for April. No paydown in Q1."
   - id: CD-2025-002
-    progress: "ABGESCHLOSSEN. PR gemergt 2025-03-10. Einsparung: 100 EUR/Monat bestätigt."
+    progress: "COMPLETED. PR merged 2025-03-10. Saving: 100 EUR/month confirmed."
 
 strategic_decisions:
-  - "Kein neues Kinesis-Deployment ohne AB-Genehmigung (Lock-in-Score 4)"
-  - "Alle neuen ADRs mit Infrastruktur-Impact: Cost-Impact-Assessment Pflicht ab sofort"
+  - "No new Kinesis deployment without AB approval (lock-in score 4)"
+  - "All new ADRs with infrastructure impact: cost impact assessment mandatory effective immediately"
 
 next_review: "2025-06-01"
 sign_off: "Architecture Board"
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Register als PDF*: Versionskontrolle und ADR-Verlinkung unmöglich
-* *Keine Owner-Zuweisung*: Einträge ohne Owner werden nicht abgebaut
-* *Acceptance ohne Begründung*: „Accepted" ohne dokumentierten Grund ist Dokumentationsverschwendung
-* *Review nur als Bestandsaufnahme*: Review muss Entscheidungen produzieren, nicht nur Status berichten
+* *Register as PDF*: version control and ADR linking impossible
+* *No owner assignment*: entries without owners are not paid down
+* *Acceptance without rationale*: "Accepted" without documented reason is wasted documentation effort
+* *Review as status report only*: review must produce decisions, not just report status
 
-== Metriken
+== Metrics
 
-* Vollständigkeit des Registers: Alle bekannten Kostenschulden erfasst (100%)
-* Paydown-Rate: Anteil der Einträge mit aktivem Paydown-Plan (Ziel: >= 50%)
-* Acceptance-Quote: Anteil bewusst akzeptierter Schulden (Richtwert: < 30%)
-* Durchschnittlicher Impact/Eintrag: Gesamt-Impact ÷ Anzahl Einträge (KPI für Priorisierung)
+* Register completeness: all known cost debts recorded (100%)
+* Paydown rate: share of entries with an active paydown plan (target: >= 50%)
+* Acceptance ratio: share of deliberately accepted debts (benchmark: < 30%)
+* Average impact per entry: total impact ÷ number of entries (KPI for prioritization)

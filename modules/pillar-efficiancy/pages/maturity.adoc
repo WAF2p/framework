@@ -1,223 +1,223 @@
-= Reifegrad-Modell (Performance Efficiency)
+= Maturity Model (Performance Efficiency)
 :page-toc: right
-:description: WAF++ Performance Efficiency – Fünfstufiges Reifegrad-Modell für Performance-Efficiency-Kompetenz.
+:description: WAF++ Performance Efficiency – Five-level maturity model for performance efficiency competence.
 
-Das Performance-Efficiency-Reifegrad-Modell ermöglicht eine strukturierte Selbstbewertung
-und definiert einen klaren Entwicklungspfad von reaktiver Performance-Beobachtung
-bis zur autonomen, prädiktiven Performance-Steuerung.
+The Performance Efficiency maturity model enables structured self-assessment
+and defines a clear development path from reactive performance observation
+to autonomous, predictive performance management.
 
-== Das Fünf-Stufen-Modell
+== The Five-Level Model
 
 [cols="1,2,4"]
 |===
-|Level |Bezeichnung |Merkmale
+|Level |Label |Characteristics
 
 |*Level 1*
-|Reaktiv / Undokumentiert
-|Keine Performance-Baselines. SLOs fehlen oder sind informell definiert.
-Performance-Probleme werden erst nach User-Beschwerden entdeckt.
-Auto-Scaling nicht konfiguriert; statische Kapazität.
-Datenbankabfragen nie analysiert; keine Slow-Query-Logs.
-Kein Lasttest-Prozess; Performance unter Last unbekannt.
+|Reactive / Undocumented
+|No performance baselines. SLOs are missing or informally defined.
+Performance problems are only discovered after user complaints.
+Auto-scaling not configured; static capacity.
+Database queries never analyzed; no slow query logs.
+No load test process; performance under load unknown.
 
 |*Level 2*
-|Dokumentiert & Definiert
-|Grundlegende Metriken werden gesammelt (CPU, Memory, Latenz-Durchschnitt).
-Informelle Performance-Ziele existieren, aber nicht als formale SLOs.
-Auto-Scaling für einige Workloads konfiguriert, aber nicht validiert.
-Slow-Query-Logging aktiviert; Reviews ad-hoc.
-Manuelle Lasttests vor großen Releases.
-Caching teilweise implementiert, aber ohne Strategie.
+|Documented & Defined
+|Basic metrics are collected (CPU, memory, average latency).
+Informal performance targets exist, but not as formal SLOs.
+Auto-scaling configured for some workloads, but not validated.
+Slow query logging enabled; reviews ad hoc.
+Manual load tests before major releases.
+Caching partially implemented, but without a strategy.
 
 |*Level 3*
-|Durchgesetzt & Monitored
-|Formale SLOs für alle Produktions-Services definiert und instrumentiert.
-Auto-Scaling für alle zustandslosen Workloads konfiguriert und durch Lasttest validiert.
-Lasttests als CI/CD-Deployment-Gate konfiguriert.
-Caching-Strategie dokumentiert; Hit-Raten gemessen und gemonitored.
-Datenbankperformance-Insights aktiv; Index-Strategie dokumentiert.
-Performance-Schuld-Register eingeführt.
+|Enforced & Monitored
+|Formal SLOs defined and instrumented for all production services.
+Auto-scaling configured for all stateless workloads and validated through load tests.
+Load tests configured as CI/CD deployment gate.
+Caching strategy documented; hit rates measured and monitored.
+Database performance insights active; index strategy documented.
+Performance debt register introduced.
 
 |*Level 4*
-|Gemessen & Automatisiert
-|Error-Budget-Management: Deployments bei Budgeterschöpfung geblockt.
-Performance-Regressionen werden automatisch in CI erkannt.
-Alle Storage-Volumes auf optimale Performance-Typen migriert.
-VPC Endpoints und CDN für alle relevanten Services konfiguriert.
-Quartalsweise Performance-Reviews mit Schulden-Paydown-Tracking.
-Serverless-Profiling für Lambda/Functions durchgeführt.
+|Measured & Automated
+|Error budget management: deployments blocked on budget exhaustion.
+Performance regressions automatically detected in CI.
+All storage volumes migrated to optimal performance types.
+VPC endpoints and CDN configured for all relevant services.
+Quarterly performance reviews with debt paydown tracking.
+Serverless profiling for Lambda/functions performed.
 
 |*Level 5*
-|Optimiert & Prädiktiv
-|Prädiktives Capacity Modeling: Kapazitätsbedarf wird vor Traffic-Spitzen modelliert.
-Auto-Scaling vollständig automatisiert ohne manuelle Intervention notwendig.
-Kontinuierlicher Performance-Schuld-Abbau: Backlog enthält immer aktive Paydown-Tasks.
-SLOs sind in Architekturentscheidungen (ADRs) explizit referenziert.
-ML-gestützte Anomalie-Erkennung in Performance-Metriken.
+|Optimized & Predictive
+|Predictive capacity modeling: capacity needs are modeled before traffic spikes.
+Auto-scaling fully automated without manual intervention required.
+Continuous performance debt reduction: backlog always contains active paydown tasks.
+SLOs are explicitly referenced in architectural decisions (ADRs).
+ML-assisted anomaly detection in performance metrics.
 
 |===
 
-== Reifegrad je Control
+== Maturity per Control
 
 [cols="2,1,1,1,1,1"]
 |===
 |Control |L1 |L2 |L3 |L4 |L5
 
 |WAF-PERF-010 Compute Sizing
-|Kein Standard; überprovisioniert
-|Experience-based; dokumentiert
-|Gemessene Baseline; CI-Validation
-|Compute-Optimizer integriert
-|ML-basiertes Predictive Sizing
+|No standard; over-provisioned
+|Experience-based; documented
+|Measured baseline; CI validation
+|Compute Optimizer integrated
+|ML-based predictive sizing
 
 |WAF-PERF-020 Auto-Scaling
-|Statische Kapazität
-|ASG konfiguriert, nicht validiert
-|Validiert durch Lasttest
-|Predictive Scaling konfiguriert
-|Autonomes Capacity Management
+|Static capacity
+|ASG configured, not validated
+|Validated by load test
+|Predictive scaling configured
+|Autonomous capacity management
 
 |WAF-PERF-030 Caching
-|Kein Cache
-|Ad-hoc Cache ohne Strategie
-|Strategie dokumentiert; Hit-Rate gemessen
-|Cache-Hit >= 80% enforced
-|Adaptive TTLs, intelligente Warming
+|No cache
+|Ad-hoc cache without strategy
+|Strategy documented; hit rate measured
+|Cache hit >= 80% enforced
+|Adaptive TTLs, intelligent warming
 
-|WAF-PERF-040 Datenbank-Performance
-|Keine Analyse; Slow Queries unbekannt
-|Slow-Query-Log aktiviert
-|Performance Insights aktiv; Index-Strategie
-|Automatische Regression-Detection
-|Query-SLOs, automatisches Tuning
+|WAF-PERF-040 Database Performance
+|No analysis; slow queries unknown
+|Slow query log enabled
+|Performance Insights active; index strategy
+|Automatic regression detection
+|Query SLOs, automatic tuning
 
 |WAF-PERF-050 SLOs & Monitoring
-|Keine SLOs
-|Informelle Targets, Durchschnittswerte
-|Formale SLOs; P99-Alerting
-|Error-Budget-Management
-|Prädiktive Burn-Rate-Alerts
+|No SLOs
+|Informal targets, average values
+|Formal SLOs; P99 alerting
+|Error budget management
+|Predictive burn rate alerts
 
-|WAF-PERF-060 Lasttests
-|Keine Lasttests
-|Manuelle Tests vor Releases
-|Automatisch im CI/CD-Gate
-|Regression-Detection automatisch
-|Kontinuierlich + Chaos Engineering
+|WAF-PERF-060 Load Tests
+|No load tests
+|Manual tests before releases
+|Automatic in CI/CD gate
+|Regression detection automatic
+|Continuous + chaos engineering
 
-|WAF-PERF-070 Netzwerk-Performance
-|Kein Topology-Design
-|CDN für statischen Content
-|VPC Endpoints + CDN konfiguriert
-|Latenz-Baseline gemessen
-|Anycast, Edge-Computing
+|WAF-PERF-070 Network Performance
+|No topology design
+|CDN for static content
+|VPC endpoints + CDN configured
+|Latency baseline measured
+|Anycast, edge computing
 
 |WAF-PERF-080 Serverless & Managed
-|Default-Config; nicht optimiert
-|Memory adjustiert ohne Messung
-|Profiling durchgeführt; optimiert
-|Provisioned Concurrency wo nötig
-|Cost-per-Invocation optimiert
+|Default config; not optimized
+|Memory adjusted without measurement
+|Profiling performed; optimized
+|Provisioned concurrency where needed
+|Cost per invocation optimized
 
 |WAF-PERF-090 Storage I/O
-|gp2; keine I/O-Überwachung
-|Storage-Typ selektiert
-|gp3-Migration; I/O-Alerts
-|Disk-Typ vollständig optimiert
-|Intelligent Tiering; Auto-Tuning
+|gp2; no I/O monitoring
+|Storage type selected
+|gp3 migration; I/O alerts
+|Disk type fully optimized
+|Intelligent tiering; auto-tuning
 
-|WAF-PERF-100 Performance-Schuld
-|Keine Dokumentation
-|Infomelles Tracking in Tickets
-|Register + Quarterly Review
-|Business-Impact quantifiziert
-|Automatische Schuld-Erkennung
+|WAF-PERF-100 Performance Debt
+|No documentation
+|Informal tracking in tickets
+|Register + quarterly review
+|Business impact quantified
+|Automatic debt detection
 
 |===
 
-== Selbstbewertungs-Checkliste Level 2
+== Self-Assessment Checklist Level 2
 
-Trifft folgendes auf Ihre Organisation zu?
+Does the following apply to your organization?
 
-* [ ] Für alle Produktions-Services werden CPU, Memory und Latenz-Metriken gesammelt
-* [ ] Performance-Ziele existieren informell (z.B. "unter 500ms sollte es sein")
-* [ ] Auto-Scaling ist für mindestens einen Workload konfiguriert
-* [ ] Slow-Query-Logging ist in mindestens einer Datenbank aktiv
-* [ ] Manuelle Lasttests werden vor großen Releases durchgeführt
-* [ ] Caching ist für statische Assets implementiert
+* [ ] CPU, memory, and latency metrics are collected for all production services
+* [ ] Performance targets exist informally (e.g. "should be under 500ms")
+* [ ] Auto-scaling is configured for at least one workload
+* [ ] Slow query logging is active in at least one database
+* [ ] Manual load tests are performed before major releases
+* [ ] Caching is implemented for static assets
 
-Wenn >= 4 zutreffen: Level 2 erreicht. Wenn >= 4 nicht zutreffen: Level 1 Handlungsbedarf.
+If >= 4 apply: Level 2 reached. If >= 4 do not apply: Level 1 action required.
 
-== Selbstbewertungs-Checkliste Level 3
+== Self-Assessment Checklist Level 3
 
-Trifft folgendes auf Ihre Organisation zu?
+Does the following apply to your organization?
 
-* [ ] Formale SLOs (mit P95/P99-Latenzzielen) für alle produktionskritischen Services definiert
-* [ ] SLOs sind instrumentiert: SLIs werden kontinuierlich gemessen
-* [ ] SLO-Burn-Rate-Alerting ist konfiguriert
-* [ ] Auto-Scaling für alle zustandslosen Produktions-Workloads konfiguriert
-* [ ] Auto-Scaling wurde durch Lasttest unter realistischer Last validiert
-* [ ] Lasttests laufen automatisch in der CI/CD-Pipeline als Deployment-Gate
-* [ ] Akzeptanzkriterien für Lasttests sind definiert und werden enforced
-* [ ] Caching-Strategie ist dokumentiert (Layer, TTL, Invalidierung)
-* [ ] Cache-Hit-Rates werden gemessen und gemonitored
-* [ ] Performance Insights oder äquivalentes Datenbankmonitoring ist aktiv
-* [ ] Index-Strategie für hochfrequente Abfragen ist dokumentiert
-* [ ] Performance-Schuld-Register existiert und wird aktualisiert
-* [ ] Alle EBS/Managed Disks neuer Deployments verwenden gp3 oder Premium SSD
+* [ ] Formal SLOs (with P95/P99 latency targets) defined for all production-critical services
+* [ ] SLOs are instrumented: SLIs are continuously measured
+* [ ] SLO burn rate alerting is configured
+* [ ] Auto-scaling configured for all stateless production workloads
+* [ ] Auto-scaling validated by load test under realistic load
+* [ ] Load tests run automatically in the CI/CD pipeline as a deployment gate
+* [ ] Acceptance criteria for load tests are defined and enforced
+* [ ] Caching strategy is documented (layer, TTL, invalidation)
+* [ ] Cache hit rates are measured and monitored
+* [ ] Performance Insights or equivalent database monitoring is active
+* [ ] Index strategy for high-frequency queries is documented
+* [ ] Performance debt register exists and is kept up to date
+* [ ] All EBS/managed disks for new deployments use gp3 or Premium SSD
 
-Wenn >= 10 zutreffen: Level 3 erreicht.
+If >= 10 apply: Level 3 reached.
 
-== Selbstbewertungs-Checkliste Level 4
+== Self-Assessment Checklist Level 4
 
-Trifft folgendes auf Ihre Organisation zu?
+Does the following apply to your organization?
 
-* [ ] Error Budgets werden getrackt und in Deployment-Entscheidungen berücksichtigt
-* [ ] Performance-Regressions werden automatisch im CI/CD erkannt (Baseline-Vergleich)
-* [ ] Performance-Schuld-Register enthält Business-Impact-Schätzungen
-* [ ] Quartalsweise Performance-Reviews mit Engineering-Leadership finden statt
-* [ ] Schulden-Paydown ist im Sprint-Backlog priorisiert
-* [ ] VPC Endpoints für alle major Cloud-Service-APIs konfiguriert
-* [ ] CDN-Cache-Hit-Rate >= 95% für statischen Content
-* [ ] Lambda/Function-Memory durch Profiling optimiert (Power Tuning o.ä.)
-* [ ] gp2-zu-gp3-Migration vollständig abgeschlossen
-* [ ] Stresstest-Reports (2x, 5x Peak-Load) für alle kritischen Services
+* [ ] Error budgets are tracked and considered in deployment decisions
+* [ ] Performance regressions are automatically detected in CI/CD (baseline comparison)
+* [ ] Performance debt register contains business impact estimates
+* [ ] Quarterly performance reviews with engineering leadership take place
+* [ ] Debt paydown is prioritized in the sprint backlog
+* [ ] VPC endpoints configured for all major cloud service APIs
+* [ ] CDN cache hit rate >= 95% for static content
+* [ ] Lambda/function memory optimized through profiling (power tuning or equivalent)
+* [ ] gp2-to-gp3 migration fully completed
+* [ ] Stress test reports (2x, 5x peak load) for all critical services
 
-Wenn >= 8 zutreffen: Level 4 erreicht.
+If >= 8 apply: Level 4 reached.
 
-== Empfohlener Einstiegspfad
+== Recommended Entry Path
 
-Für Organisationen, die heute auf Level 1 sind:
+For organizations currently at Level 1:
 
 [cols="1,3,2"]
 |===
-|Woche |Maßnahme |Zugehöriger Control
+|Week |Action |Related Control
 
-|*Woche 1–2*
-|SLO-Workshop: P95/P99-Ziele für alle Produktions-Services definieren. Monitoring-Stack prüfen.
+|*Week 1–2*
+|SLO workshop: define P95/P99 targets for all production services. Review monitoring stack.
 |WAF-PERF-050
 
-|*Woche 3–4*
-|Slow-Query-Analyse: Performance Insights aktivieren, Top-20-Queries optimieren.
+|*Week 3–4*
+|Slow query analysis: enable Performance Insights, optimize top-20 queries.
 |WAF-PERF-040
 
-|*Woche 5–6*
-|Auto-Scaling-Konfiguration für die drei wichtigsten stateless Services.
+|*Week 5–6*
+|Auto-scaling configuration for the three most important stateless services.
 |WAF-PERF-020
 
-|*Woche 7–8*
-|Erstmals Lasttest in Staging ausführen; Akzeptanzkriterien definieren.
+|*Week 7–8*
+|Run first load test in staging; define acceptance criteria.
 |WAF-PERF-060
 
-|*Woche 9–10*
-|gp2-zu-gp3-Migration für alle EBS-Volumes starten.
+|*Week 9–10*
+|Start gp2-to-gp3 migration for all EBS volumes.
 |WAF-PERF-090
 
-|*Woche 11–12*
-|Performance-Schuld-Register anlegen: bekannte Probleme erfassen, priorisieren.
+|*Week 11–12*
+|Create performance debt register: capture known problems, prioritize.
 |WAF-PERF-100
 
 |===
 
-NOTE: Beginne mit Messen (WAF-PERF-050) und Datenbankoptimierung (WAF-PERF-040).
-Diese beiden Controls haben typischerweise den höchsten Impact pro Investitionseinheit.
+NOTE: Start with measuring (WAF-PERF-050) and database optimization (WAF-PERF-040).
+These two controls typically have the highest impact per unit of investment.

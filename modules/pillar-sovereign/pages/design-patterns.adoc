@@ -1,19 +1,19 @@
 = Design Patterns
 :page-toc: right
-:description: WAF++ Sovereign – Architekturpatterns für sovereign-konforme Cloud-Infrastruktur.
+:description: WAF++ Sovereign – Architecture patterns for sovereignty-compliant cloud infrastructure.
 
-Die folgenden Patterns sind erprobt und von den WAF++ Prinzipien abgeleitet.
-Sie sind cloud-agnostisch formuliert, mit provider-spezifischen Hinweisen.
+The following patterns are proven and derived from the WAF++ principles.
+They are formulated in a cloud-agnostic manner, with provider-specific notes.
 
 == Pattern 1: Region-Pinned Landing Zone
 
 === Problem
-Ohne eine strukturierte Landing Zone können einzelne Teams Ressourcen in beliebigen Regionen erstellen.
+Without a structured landing zone, individual teams can create resources in arbitrary regions.
 
-=== Lösung
-Eine Landing Zone mit eingebautem Region-Pinning schlägt alle anderen Maßnahmen durch technische Vorab-Constraints.
+=== Solution
+A landing zone with built-in region pinning overrides all other measures through technical upfront constraints.
 
-=== Struktur
+=== Structure
 
 ----
 Organization Root
@@ -31,59 +31,59 @@ Organization Root
 ----
 
 === Controls
-* WAF-SOV-010: Residency Policy in IaC-Defaults abgebildet
-* WAF-SOV-020: SCP verhindert Outside-Region Deployments
-* WAF-SOV-040: Zentrales Logging sovereign gespeichert
+* WAF-SOV-010: Residency policy reflected in IaC defaults
+* WAF-SOV-020: SCP prevents outside-region deployments
+* WAF-SOV-040: Central logging stored sovereignly
 
 === Anti-Pattern
-* Einzelne Accounts ohne SCP-Guardrails
-* „Default VPC" mit offener Security Group Konfiguration
-* Kein zentrales Logging-Konto
+* Individual accounts without SCP guardrails
+* "Default VPC" with open security group configuration
+* No central logging account
 
 ---
 
 == Pattern 2: Sovereign Key Hierarchy
 
 === Problem
-Standard-Verschlüsselung mit Provider-Managed Keys gibt dem Anbieter theoretischen Zugriff.
+Standard encryption with provider-managed keys gives the provider theoretical access.
 
-=== Lösung
-Eine drei-schichtige Key-Hierarchie nach Datenkritikalität:
+=== Solution
+A three-tier key hierarchy based on data criticality:
 
 ----
 Tier 1 – Public/Low-sensitivity Data
-└── Provider-Managed Key (PMK) – akzeptabel
+└── Provider-Managed Key (PMK) – acceptable
 
 Tier 2 – Internal/Operational Data
 └── Customer-Managed Key (CMK) in Cloud-KMS
-    ├── Rotation: automatisch (jährlich)
+    ├── Rotation: automatic (annual)
     └── Key Policy: restrict to specific services/principals
 
 Tier 3 – PII / Financial / Health Data
 └── BYOK: Customer-Key, Cloud-managed HSM (CloudHSM, Azure HSM, Cloud HSM)
-    oder
-    HYOK: Key in externem HSM (Thales, Utimaco, Securosys)
-    ├── Zugriff für Cloud-Provider: technisch nicht möglich
-    └── Rotation: manuell / prozessgesteuert
+    or
+    HYOK: Key in external HSM (Thales, Utimaco, Securosys)
+    ├── Access for cloud provider: technically not possible
+    └── Rotation: manual / process-driven
 ----
 
 === Controls
-* WAF-SOV-050: Key Ownership, Rotation, Deletion
+* WAF-SOV-050: Key ownership, rotation, deletion
 
-=== Empfehlungen
-* CloudHSM (AWS) oder Azure Dedicated HSM für Tier-2/3 Keys
-* Key Ceremonies für HYOK dokumentieren und jährlich durchführen
-* Cryptographic Erasure als DSGVO Art. 17-Umsetzung planen
+=== Recommendations
+* CloudHSM (AWS) or Azure Dedicated HSM for Tier-2/3 keys
+* Document and conduct key ceremonies for HYOK annually
+* Plan cryptographic erasure as GDPR Art. 17 implementation
 
 ---
 
 == Pattern 3: Sovereign Observability Stack
 
 === Problem
-Standard-Monitoring-Setups exportieren Telemetriedaten zu US-basierten SaaS-Anbietern.
+Standard monitoring setups export telemetry data to US-based SaaS providers.
 
-=== Lösung
-Ein sovereign Observability Stack verarbeitet Daten innerhalb der genehmigten Regionen:
+=== Solution
+A sovereign observability stack processes data within approved regions:
 
 ----
 Application
@@ -91,71 +91,71 @@ Application
     ├── Traces → Sovereign Trace Backend (Jaeger/Tempo in eu-central-1)
     ├── Metrics → Sovereign Metrics Backend (Prometheus/Thanos in eu-central-1)
     └── Logs → CloudWatch/S3 (eu-central-1, retention=90d, KMS-encrypted)
-                    └── Optionaler Export zu DPA-gesichertem SIEM
+                    └── Optional export to DPA-secured SIEM
 ----
 
-=== Wenn externer SIEM notwendig:
-* DPA abschließen und Datenverarbeitungsregion prüfen
-* Datenmaskierung vor Export (PII-Felder entfernen)
-* Export über Private Link / VPN (kein Public Internet)
-* Regelmäßige Review: Welche Daten verlassen die Souveränitätsgrenze?
+=== If external SIEM is necessary:
+* Conclude DPA and verify data processing region
+* Data masking before export (remove PII fields)
+* Export via Private Link / VPN (no public internet)
+* Regular review: which data leaves the sovereignty boundary?
 
 === Controls
-* WAF-SOV-040: Logging Residency
-* WAF-SOV-090: Egress Control
+* WAF-SOV-040: Logging residency
+* WAF-SOV-090: Egress control
 
 ---
 
 == Pattern 4: Break-Glass with Zero Standing Privilege
 
 === Problem
-Permanente Admin-Rollen sind ein dauerhaftes Angriffsziel.
+Permanent admin roles are a permanent attack target.
 
-=== Lösung
-Zero Standing Privilege: Admin-Zugriff existiert nicht permanent, sondern wird nur bei Bedarf aktiviert.
+=== Solution
+Zero Standing Privilege: admin access does not exist permanently, but is only activated on demand.
 
 ----
-Normalbetrieb:
-├── Developers: read-only oder scoped write (Applikationsebene)
-├── Operations: Operations-Rolle (kein IAM-Zugriff)
-└── Platform: Platform-Rolle (IaC-Deploy, kein Datenzugriff)
+Normal Operations:
+├── Developers: read-only or scoped write (application level)
+├── Operations: operations role (no IAM access)
+└── Platform: platform role (IaC deploy, no data access)
 
-Break-Glass Aktivierung:
-├── Trigger: dokumentierter Incident / Genehmigung (Dual Control)
-├── Aktivierung: JIT-System (IAM Identity Center / Azure PIM)
-├── Dauer: max. 4h, nach Ablauf automatische Deaktivierung
-├── Logging: CloudTrail sammelt alle Aktionen
-└── Review: Post-Incident Review innerhalb 5 Werktagen, Protokoll archiviert
+Break-Glass Activation:
+├── Trigger: documented incident / approval (Dual Control)
+├── Activation: JIT system (IAM Identity Center / Azure PIM)
+├── Duration: max. 4h, automatic deactivation after expiry
+├── Logging: CloudTrail captures all actions
+└── Review: post-incident review within 5 business days, record archived
 ----
 
 === Controls
-* WAF-SOV-060: Privileged Access, SoD
-* WAF-SOV-070: Break-Glass Process & Logging
+* WAF-SOV-060: Privileged access, SoD
+* WAF-SOV-070: Break-glass process & logging
 
 ---
 
 == Pattern 5: Sovereign Egress Gateway
 
 === Problem
-Anwendungen mit offener Egress-Konfiguration können Daten zu beliebigen Zielen senden.
+Applications with open egress configuration can send data to arbitrary destinations.
 
-=== Lösung
-Zentralisierter Egress-Punkt mit Domain Allow-List und Anomalie-Erkennung:
+=== Solution
+Centralized egress point with domain allow-list and anomaly detection:
 
 ----
 Workload Subnet (Private)
-└── alle ausgehenden Verbindungen → Egress Gateway
+└── all outgoing connections → Egress Gateway
 
 Egress Gateway
 ├── AWS Network Firewall / Azure Firewall / GCP Cloud Armor
-├── Domain Allow-List (FQDN-basiert)
+├── Domain Allow-List (FQDN-based)
 │   ├── Approved: *.amazonaws.com (via VPC Endpoint)
 │   ├── Approved: *.internal.company.com
 │   └── Blocked: * (default deny)
 ├── DNS: Route53 Resolver / Azure Private DNS
 └── Logging: Flow Logs → sovereign S3
 
-VPC Endpoints (kein Internet-Routing):
+VPC Endpoints (no internet routing):
 ├── com.amazonaws.eu-central-1.s3
 ├── com.amazonaws.eu-central-1.kms
 ├── com.amazonaws.eu-central-1.ecr.api
@@ -163,7 +163,7 @@ VPC Endpoints (kein Internet-Routing):
 ----
 
 === Controls
-* WAF-SOV-090: Controlled Egress
+* WAF-SOV-090: Controlled egress
 * WAF-SOV-040: VPC Flow Logs
 
 ---
@@ -171,29 +171,29 @@ VPC Endpoints (kein Internet-Routing):
 == Pattern 6: Exit-Ready IaC Architecture
 
 === Problem
-Proprietäres IaC mit hartkodierter Provider-Abhängigkeit macht Migration extrem teuer.
+Proprietary IaC with hard-coded provider dependencies makes migration extremely expensive.
 
-=== Lösung
-Portables IaC mit abstrakten Modulen und offenen Standards:
+=== Solution
+Portable IaC with abstract modules and open standards:
 
 ----
 IaC Abstraction Layer
-├── Module: network/vpc → AWS VPC oder Azure VNet
-├── Module: storage/object → S3 oder Azure Blob oder GCS
-├── Module: database/relational → RDS PostgreSQL oder Azure PostgreSQL
-└── Module: compute/container → EKS oder AKS oder GKE
+├── Module: network/vpc → AWS VPC or Azure VNet
+├── Module: storage/object → S3 or Azure Blob or GCS
+├── Module: database/relational → RDS PostgreSQL or Azure PostgreSQL
+└── Module: compute/container → EKS or AKS or GKE
 
-Daten-Standards:
-├── PostgreSQL (open) statt Aurora Serverless v2 (proprietär)
-├── OpenTelemetry statt X-Ray (proprietär)
-└── S3-compatible API statt proprietary object store features
+Data Standards:
+├── PostgreSQL (open) instead of Aurora Serverless v2 (proprietary)
+├── OpenTelemetry instead of X-Ray (proprietary)
+└── S3-compatible API instead of proprietary object store features
 
 Exit-Readiness:
-├── Quarterly Data Export Test: alle Daten exportiert und validiert
-├── Terraform Plan in Ziel-Cloud: IaC angepasst und geplant
-└── Lessons Learned dokumentiert
+├── Quarterly Data Export Test: all data exported and validated
+├── Terraform Plan in target cloud: IaC adapted and planned
+└── Lessons Learned documented
 ----
 
 === Controls
-* WAF-SOV-100: Exit Plan & Portability
-* WAF-SOV-080: Dependency & Subprocessor Inventory
+* WAF-SOV-100: Exit plan & portability
+* WAF-SOV-080: Dependency & subprocessor inventory

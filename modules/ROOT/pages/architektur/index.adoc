@@ -1,294 +1,294 @@
-= Architektur-Referenz
-:description: Schichtenmodell, Entscheidungsleitfäden und Architekturprinzipien des WAF++ Frameworks
+= Architecture Reference
+:description: Layer model, decision guides, and architecture principles of the WAF++ framework
 :toc: left
 :toclevels: 3
 
-Diese Seite beschreibt das abstrakte Referenzmodell, auf dem WAF++ aufbaut, und bietet Entscheidungsleitfäden für wiederkehrende Architekturfragestellungen in Cloud-Plattformen.
+This page describes the abstract reference model on which WAF++ is built, and provides decision guides for recurring architectural questions in cloud platforms.
 
 ---
 
-== Schichtenmodell
+== Layer Model
 
-WAF++ betrachtet Cloud-Plattformen in vier aufeinander aufbauenden Schichten.
-Jede Schicht hat eigene Controls, Best Practices und Verantwortlichkeiten.
+WAF++ views cloud platforms through four stacked layers.
+Each layer has its own controls, best practices, and responsibilities.
 
 [cols="1,2,3", options="header"]
 |===
-| Schicht | Komponenten | WAF++-Relevanz
+| Layer | Components | WAF++ Relevance
 
-| *Infrastruktur-Layer*
-| Compute, Storage, Netzwerk, KMS, IAM
-| Pillar 1 (Security), Pillar 2 (Cost), Pillar 7 (Sovereign) – physische Controls, Verschlüsselung, Tagging, Region-Pinning
+| *Infrastructure Layer*
+| Compute, storage, networking, KMS, IAM
+| Pillar 1 (Security), Pillar 2 (Cost), Pillar 7 (Sovereign) – physical controls, encryption, tagging, region pinning
 
-| *Plattform-Layer*
-| Kubernetes, Service Mesh, CI/CD, Observability, Secret Management
-| Pillar 3 (Performance), Pillar 4 (Reliability), Pillar 5 (Operations) – Skalierung, SLOs, Deployment-Automatisierung
+| *Platform Layer*
+| Kubernetes, service mesh, CI/CD, observability, secret management
+| Pillar 3 (Performance), Pillar 4 (Reliability), Pillar 5 (Operations) – scaling, SLOs, deployment automation
 
-| *Anwendungs-Layer*
-| Microservices, APIs, Datenbanken, Queues, Batch-Jobs
-| Alle Pillars – Workload-spezifische Controls, Tagging, Resilienz-Pattern
+| *Application Layer*
+| Microservices, APIs, databases, queues, batch jobs
+| All pillars – workload-specific controls, tagging, resilience patterns
 
 | *Cross-Cutting Concerns*
-| Security, Compliance, Kosten, Resilienz, Nachhaltigkeit
-| Alle 7 Pillars – übergreifende Governance, Audit-Trail, Regulatory Mapping
+| Security, compliance, cost, resilience, sustainability
+| All 7 pillars – overarching governance, audit trail, regulatory mapping
 |===
 
-Die Schichten sind nicht isoliert: eine Entscheidung auf Infrastruktur-Ebene (z.B. Region-Pinning) zieht Controls auf Plattform- und Anwendungsebene nach sich (z.B. Log-Residency, Backup-Location).
+The layers are not isolated: a decision at the infrastructure level (e.g. region pinning) pulls controls at the platform and application level (e.g. log residency, backup location).
 
 ---
 
-== Architekturprinzipien
+== Architecture Principles
 
-WAF++ baut auf sieben Architekturprinzipien auf, die über alle Pillars hinweg gelten:
+WAF++ is built on seven architecture principles that apply across all pillars:
 
-=== AP-1 – Explizit statt implizit
+=== AP-1 – Explicit over Implicit
 
-Jede Konfiguration, die Sicherheit, Kosten oder Compliance beeinflusst, muss explizit in IaC definiert sein.
-Implizite Cloud-Defaults (Regionen, Verschlüsselung, Netzwerk-ACLs) sind nicht akzeptabel.
+Every configuration that affects security, cost, or compliance must be explicitly defined in IaC.
+Implicit cloud defaults (regions, encryption, network ACLs) are not acceptable.
 
-*Relevante Controls:* SOV-020 (Region Pinning), SOV-050 (Key Ownership), COST-010 (Tagging)
+*Relevant controls:* SOV-020 (Region Pinning), SOV-050 (Key Ownership), COST-010 (Tagging)
 
 === AP-2 – Policy-as-Code
 
-Alle Policies – Security, Kosten, Residency – müssen maschinenlesbar und versioniert sein.
-Manuelle Policies in PDFs sind nicht auditierbar und driften von der Realität ab.
+All policies – security, cost, residency – must be machine-readable and version-controlled.
+Manual policies in PDFs are not auditable and drift away from reality.
 
-*Relevante Controls:* SOV-010 (Data Residency Policy), COST-050 (ADR Cost Impact), COST-100 (Cost Debt Register)
+*Relevant controls:* SOV-010 (Data Residency Policy), COST-050 (ADR Cost Impact), COST-100 (Cost Debt Register)
 
 === AP-3 – Shift Left
 
-Compliance- und Kostenprüfungen gehören in den PR-Prozess, nicht in den Post-Deployment-Audit.
-`wafpass` im CI/CD ist die primäre Umsetzung dieses Prinzips.
+Compliance and cost checks belong in the PR process, not in post-deployment audits.
+`wafpass` in CI/CD is the primary implementation of this principle.
 
-*Relevante Controls:* COST-010, COST-020, SOV-020 – alle mit `automated: true`
+*Relevant controls:* COST-010, COST-020, SOV-020 – all with `automated: true`
 
 === AP-4 – Least Privilege by Default
 
-Alle Rollen, Netzwerkregeln und Zugriffsrechte werden mit minimalem Umfang definiert.
-Wildcards (`Action: *`, `0.0.0.0/0`) sind explizit verboten.
+All roles, network rules, and access rights are defined with minimal scope.
+Wildcards (`Action: *`, `0.0.0.0/0`) are explicitly prohibited.
 
-*Relevante Controls:* SOV-060 (Privileged Access), SOV-090 (Egress Control)
+*Relevant controls:* SOV-060 (Privileged Access), SOV-090 (Egress Control)
 
-=== AP-5 – Datenhoheit als Entwurfsprinzip
+=== AP-5 – Data Sovereignty as a Design Principle
 
-Datenklassifizierung, Jurisdiction-Anforderungen und Löschpflichten werden beim ersten Entwurf einer Architektur berücksichtigt – nicht nachträglich.
+Data classification, jurisdiction requirements, and deletion obligations are considered at the first design of an architecture – not retroactively.
 
-*Relevante Controls:* SOV-010, SOV-020, SOV-030, SOV-040, SOV-050
+*Relevant controls:* SOV-010, SOV-020, SOV-030, SOV-040, SOV-050
 
-=== AP-6 – Kostentransparenz als Voraussetzung für Optimierung
+=== AP-6 – Cost Transparency as a Prerequisite for Optimization
 
-Ohne vollständige Kostenzuordnung (Tagging, Budgets, Alerts) ist keine Optimierung möglich.
-Kostenoptimierung beginnt immer mit Sichtbarkeit.
+Without complete cost allocation (tagging, budgets, alerts), no optimization is possible.
+Cost optimization always starts with visibility.
 
-*Relevante Controls:* COST-010 (Tagging), COST-020 (Budgets), COST-060 (FinOps Cadence)
+*Relevant controls:* COST-010 (Tagging), COST-020 (Budgets), COST-060 (FinOps Cadence)
 
-=== AP-7 – Exit-Fähigkeit als Designkriterium
+=== AP-7 – Exit Capability as a Design Criterion
 
-Jede Architekturentscheidung wird auch danach bewertet, wie reversibel sie ist.
-Vendor-Lock-in ist kein Schicksal, sondern eine Entwurfsentscheidung.
+Every architectural decision is also evaluated by how reversible it is.
+Vendor lock-in is not fate – it is a design decision.
 
-*Relevante Controls:* SOV-080 (Dependency Inventory), SOV-100 (Exit Plan), COST-050 (ADR Cost Impact)
+*Relevant controls:* SOV-080 (Dependency Inventory), SOV-100 (Exit Plan), COST-050 (ADR Cost Impact)
 
 ---
 
-== Entscheidungsleitfäden
+== Decision Guides
 
 === Multi-Cloud vs. Single-Cloud
 
 [cols="2,3,3", options="header"]
 |===
-| Kriterium | Single-Cloud | Multi-Cloud
+| Criterion | Single-Cloud | Multi-Cloud
 
-| *Betriebskomplexität*
-| Niedrig – ein Provider, ein Tooling-Stack
-| Hoch – mehrere Control Planes, unterschiedliche IAM-Modelle
+| *Operational complexity*
+| Low – one provider, one tooling stack
+| High – multiple control planes, different IAM models
 
-| *Vendor-Lock-in-Risiko*
-| Hoch – tiefe Integration in proprietäre Dienste
-| Niedrig – Portabilität durch Abstraktionsschicht
+| *Vendor lock-in risk*
+| High – deep integration into proprietary services
+| Low – portability via abstraction layer
 
 | *Compliance (GDPR/BSI C5)*
-| Einfacher – ein DPA, ein Audit-Scope
-| Komplexer – mehrere DPAs, gekreuzte Datenflüsse prüfen
+| Simpler – one DPA, one audit scope
+| More complex – multiple DPAs, cross-data flows to verify
 
-| *Kosten*
-| Niedrigere Egress-Kosten, Volume-Discounts
-| Höhere Egress-Kosten, komplexeres Reserved-Capacity-Planning
+| *Cost*
+| Lower egress costs, volume discounts
+| Higher egress costs, more complex reserved capacity planning
 
-| *WAF++ Empfehlung*
-| Default für neue Plattformen
-| Nur wenn Resilience- oder Portabilitätsanforderungen es erfordern
+| *WAF++ recommendation*
+| Default for new platforms
+| Only when resilience or portability requirements demand it
 |===
 
-Bevor Multi-Cloud gewählt wird: `SOV-100` (Exit Plan) und `COST-050` (ADR Cost Impact) vollständig ausfüllen.
+Before choosing multi-cloud: fully complete `SOV-100` (Exit Plan) and `COST-050` (ADR Cost Impact).
 
-=== Managed Services vs. Eigenbetrieb
+=== Managed Services vs. Self-Hosted
 
 [cols="2,3,3", options="header"]
 |===
-| Kriterium | Managed Service | Eigenbetrieb (Self-hosted)
+| Criterion | Managed Service | Self-Hosted
 
-| *Operativer Aufwand*
-| Gering – Provider übernimmt Patches, Backups, HA
-| Hoch – vollständige Verantwortung beim Team
+| *Operational effort*
+| Low – provider handles patches, backups, HA
+| High – full responsibility with the team
 
-| *Datensouveränität*
-| Eingeschränkt – Subprocessor-Kette des Providers gilt
-| Vollständig – eigene Kontrolle über Datenstandort und Zugriff
+| *Data sovereignty*
+| Limited – provider's subprocessor chain applies
+| Full – own control over data location and access
 
-| *Kosten*
-| Vorhersehbar, aber Premium gegenüber Self-hosted
-| Variabel, Risiko für versteckte Betriebskosten
+| *Cost*
+| Predictable, but premium over self-hosted
+| Variable, risk of hidden operational costs
 
-| *Compliance-Nachweis*
-| Zertifikate des Providers (SOC2, BSI C5, ISO 27001)
-| Eigene Zertifizierung erforderlich
+| *Compliance evidence*
+| Provider certificates (SOC2, BSI C5, ISO 27001)
+| Own certification required
 
-| *WAF++ Empfehlung*
-| Default – Betriebsaufwand hat immer versteckte Kosten
-| Nur wenn Datensouveränität oder spezifische Anforderungen es erzwingen
+| *WAF++ recommendation*
+| Default – operational effort always has hidden costs
+| Only when data sovereignty or specific requirements force it
 |===
 
-=== Netzwerk- und Zero-Trust-Architektur
+=== Network & Zero-Trust Architecture
 
 [cols="1,3", options="header"]
 |===
-| Entscheidung | WAF++ Leitlinie
+| Decision | WAF++ Guideline
 
-| *Segmentierung*
-| Jede Workload in einem eigenen Netzwerksegment (VPC/VNET/Subnet). Keine flachen Netze.
+| *Segmentation*
+| Each workload in its own network segment (VPC/VNET/Subnet). No flat networks.
 
 | *Egress*
-| Standardmäßig kein öffentlicher Egress (`0.0.0.0/0`). VPC-Endpoints für Cloud-Dienste. (SOV-090, COST-090)
+| No public egress by default (`0.0.0.0/0`). VPC endpoints for cloud services. (SOV-090, COST-090)
 
 | *Ingress*
-| Nur explizit definierte Ports und CIDRs. Keine Security-Groups mit `0.0.0.0/0` außer ALB/NLB.
+| Only explicitly defined ports and CIDRs. No security groups with `0.0.0.0/0` except ALB/NLB.
 
-| *Interne Kommunikation*
-| mTLS bevorzugt (Service Mesh). Keine Plain-HTTP zwischen internen Diensten.
+| *Internal communication*
+| mTLS preferred (service mesh). No plain HTTP between internal services.
 
 | *Zero Trust*
-| Identität statt Netzwerkposition als Vertrauensbasis. Kurze Token-Laufzeiten, regelmäßige Rotation.
+| Identity rather than network position as the trust basis. Short token lifetimes, regular rotation.
 |===
 
-=== Verschlüsselung – Entscheidungsmatrix
+=== Encryption – Decision Matrix
 
 [cols="2,2,2,2", options="header"]
 |===
-| Datenkategorie | At Rest | In Transit | Schlüsselverwaltung
+| Data category | At Rest | In Transit | Key management
 
 | PII / Health / Financial
-| CMK (Customer Managed Key) zwingend
-| TLS 1.2+ zwingend
-| HSM oder Cloud KMS mit Rotation (SOV-050)
+| CMK (Customer Managed Key) mandatory
+| TLS 1.2+ mandatory
+| HSM or Cloud KMS with rotation (SOV-050)
 
 | Operational / Internal
-| CMK empfohlen, SSE-S3/AES256 akzeptabel
+| CMK recommended, SSE-S3/AES256 acceptable
 | TLS 1.2+
-| Cloud KMS, jährliche Rotation
+| Cloud KMS, annual rotation
 
 | Public / Logs (non-PII)
-| SSE-S3 / AES256 ausreichend
+| SSE-S3 / AES256 sufficient
 | TLS 1.2+
 | Cloud-managed
 
 | Backup
-| CMK empfohlen
+| CMK recommended
 | TLS 1.2+
-| Separate KMS-Region bevorzugt (SOV-030)
+| Separate KMS region preferred (SOV-030)
 |===
 
 ---
 
-== Reifegrad – Pillar-übergreifendes Modell
+== Maturity – Cross-Pillar Model
 
-Das WAF++ Maturity Model hat 5 Stufen.
-Der **Gesamtreifegrad** einer Plattform ist das Minimum über alle bewerteten Säulen.
+The WAF++ Maturity Model has 5 levels.
+The **overall maturity** of a platform is the minimum across all assessed pillars.
 
 [cols="1,2,5", options="header"]
 |===
-| Level | Bezeichnung | Charakteristika
+| Level | Name | Characteristics
 
 | *1*
 | Ad hoc
-| Keine strukturierten Controls. Individuelle Entscheidungen ohne Dokumentation. Hohe Varianz zwischen Teams.
+| No structured controls. Individual decisions without documentation. High variance between teams.
 
 | *2*
-| Standardisiert
-| Grundlegende Policies dokumentiert. Manuelle Umsetzung. Erste Wiederverwendung von IaC-Modulen.
+| Standardized
+| Basic policies documented. Manual implementation. First reuse of IaC modules.
 
 | *3*
-| Integriert
-| Controls in CI/CD integriert. Automatisierte Prüfung (wafpass). KPIs vorhanden. Compliance-Reporting möglich.
+| Integrated
+| Controls integrated into CI/CD. Automated checks (wafpass). KPIs in place. Compliance reporting possible.
 
 | *4*
-| Souverän
-| Vollständig automatisiert und auditierbar. Drift-Detection aktiv. Regulatorische Mappings belegt.
+| Sovereign
+| Fully automated and auditable. Drift detection active. Regulatory mappings evidenced.
 
 | *5*
-| Optimiert
-| Kontinuierliche Verbesserung. Automatische Remediation. Echtzeit-Dashboards. Contribution zu Framework-Controls.
+| Optimized
+| Continuous improvement. Automatic remediation. Real-time dashboards. Contribution to framework controls.
 |===
 
-=== Typische Ausgangssituation nach Kontext
+=== Typical Starting Points by Context
 
 [cols="2,1,3", options="header"]
 |===
-| Kontext | Typischer Einstiegs-Level | Priorität
+| Context | Typical entry level | Priority
 
-| Greenfield (neues Projekt)
+| Greenfield (new project)
 | Level 2
-| Sofort Level 3 anstreben: CI-Gates, Tagging, Region-Pinning
+| Target Level 3 immediately: CI gates, tagging, region pinning
 
-| Brownfield (bestehende Plattform)
+| Brownfield (existing platform)
 | Level 1–2
-| Gap-Analyse zuerst, dann priorisierter Remediation-Plan
+| Gap analysis first, then prioritized remediation plan
 
-| Pre-Audit (BSI C5 / ISO 27001)
+| Pre-audit (BSI C5 / ISO 27001)
 | Level 2–3
-| Level 4 für Sovereign-Pillar ist Mindestanforderung
+| Level 4 for Sovereign pillar is minimum requirement
 
-| FinOps-Initiative
+| FinOps initiative
 | Level 1–2
-| Level 3 für Cost-Pillar (Tagging, Budgets, CI-Gates)
+| Level 3 for Cost pillar (tagging, budgets, CI gates)
 |===
 
 ---
 
-== ADR-Vorlage mit WAF++ Cost-Impact
+== ADR Template with WAF++ Cost Impact
 
-Architekturentscheidungen (ADRs) sollten immer einen Cost-Impact-Abschnitt enthalten (WAF-COST-050):
+Architectural decisions (ADRs) should always include a cost impact section (WAF-COST-050):
 
 [source,markdown]
 ----
-# ADR-NNN: [Titel der Entscheidung]
+# ADR-NNN: [Decision title]
 
 ## Status
 Proposed | Accepted | Deprecated
 
-## Kontext
-[Warum wird diese Entscheidung getroffen?]
+## Context
+[Why is this decision being made?]
 
-## Entscheidung
-[Was wird entschieden?]
+## Decision
+[What is being decided?]
 
-## Konsequenzen
-[Positive und negative Auswirkungen]
+## Consequences
+[Positive and negative impacts]
 
 ## WAF++ Cost Impact
-- **Laufende Kosten:** [geschätzte monatliche Mehrkosten / Einsparungen]
-- **Egress-Risiko:** [Ja / Nein – Begründung]
-- **Lock-in-Bewertung:** [Reversibilitätsstufe 1–5, 1=leicht wechselbar]
-- **Architektonische Kostenschuld:** [Entsteht Kostenschuld? Wenn ja: in Cost-Debt-Register eintragen]
-- **Reserved Capacity:** [Eignet sich die Ressource für Commitment? Wenn ja: capacity-commitment-Tag setzen]
+- **Ongoing costs:** [estimated monthly additional costs / savings]
+- **Egress risk:** [Yes / No – justification]
+- **Lock-in assessment:** [Reversibility level 1–5, 1=easily switchable]
+- **Architectural cost debt:** [Does this create cost debt? If yes: add to cost debt register]
+- **Reserved capacity:** [Is the resource suitable for commitment? If yes: set capacity-commitment tag]
 ----
 
 ---
 
-== Weiterführende Seiten
+== Further Reading
 
-* xref:best-practises/index.adoc[Assessment-Methodik] – wie Architekturentscheidungen bewertet werden
-* xref:pillar-sovereign:design-patterns.adoc[Sovereign Design Patterns] – konkrete Patterns für souveräne Architekturen
-* xref:pillar-cost:cost-debt.adoc[Architektonische Kostenschuld] – Cost-Debt als Architekturkonzept
-* xref:resources/regulatory-mapping.adoc[Regulatorisches Mapping] – welche Controls welche Rahmenwerke abdecken
-* xref:resources/control-schema.adoc[Control-Schema] – wie Controls definiert werden
+* xref:best-practises/index.adoc[Assessment Methodology] – how architectural decisions are evaluated
+* xref:pillar-sovereign:design-patterns.adoc[Sovereign Design Patterns] – concrete patterns for sovereign architectures
+* xref:pillar-cost:cost-debt.adoc[Architectural Cost Debt] – cost debt as an architectural concept
+* xref:resources/regulatory-mapping.adoc[Regulatory Mapping] – which controls cover which frameworks
+* xref:resources/control-schema.adoc[Control Schema] – how controls are defined

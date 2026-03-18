@@ -5,131 +5,129 @@
 :severity: high
 :category: access-control
 :automated: high
-:description: WAF++ Sovereign – Formal dokumentiertes Break-Glass-Verfahren mit vollständigem Audit-Trail; Root-Account-Aktivität via CloudWatch alarmieren; Post-Incident-Review erzwingen.
+:description: WAF++ Sovereign – Formally documented break-glass process with full audit trail; alert on root account activity via CloudWatch; enforce post-incident review.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Kategorie:* Access Control | *Automatisierbar:* Hoch
+*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Access Control | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Ein formal dokumentiertes Break-Glass-Verfahren MUSS existieren, das Auslösekriterien,
-Genehmigungsworkflow, Aktivierungsschritte und Post-Incident-Review-Anforderungen definiert.
-Alle Break-Glass-Aktionen MÜSSEN vollständig via CloudTrail (oder äquivalent) mit
-Log-File-Validation protokolliert werden.
+A formally documented break-glass process MUST exist that defines trigger criteria, approval
+workflow, activation steps, and post-incident review requirements. All break-glass actions MUST
+be fully logged via CloudTrail (or equivalent) with log file validation.
 
-Root-Account- und Notfalladmin-Aktivitäten MÜSSEN Echtzeit-Alerts auslösen.
-Post-Incident-Reviews MÜSSEN dokumentiert und mit dem Aktivierungsereignis verknüpft werden.
+Root account and emergency admin activities MUST trigger real-time alerts. Post-incident reviews
+MUST be documented and linked to the activation event.
 
 == Rationale
 
-Break-Glass-Zugriff stellt das höchste Risikoereignis in einer Cloud-Umgebung dar:
-Notfallnutzung hochprivilegierter Credentials, die normale Zugriffskontrollen umgehen.
-Ohne definierten Prozess, Logging und Review-Zyklus wird Break-Glass zu einer permanenten
-Hintertür.
+Break-glass access represents the highest-risk event in a cloud environment: emergency use of
+highly privileged credentials that bypass normal access controls. Without a defined process,
+logging, and review cycle, break-glass becomes a permanent backdoor.
 
-Aus Souveränitätsperspektive kann unprotokollierter privilegierter Zugriff Region-Constraints
-modifizieren, Audit-Logging deaktivieren, Key-Policies ändern oder Daten exfiltrieren –
-und damit die gesamte Sovereignty-Posture in einem einzigen Vorfall zerstören.
+From a sovereignty perspective, unlogged privileged access can modify region constraints,
+disable audit logging, change key policies, or exfiltrate data — thereby destroying the entire
+sovereignty posture in a single incident.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Break-Glass als permanente Backdoor*
-|Notfallzugang nach Incident nicht außer Betrieb genommen; wird zur dauerhaften Hintertür.
+|*Break-glass as permanent backdoor*
+|Emergency access not decommissioned after incident; becomes a permanent backdoor.
 
-|*Root-Nutzung für Routinetasks*
-|Root-Account-Credentials für reguläre Aufgaben ohne Logging oder Review verwendet.
+|*Root account used for routine tasks*
+|Root account credentials used for regular tasks without logging or review.
 
-|*Kein Audit-Trail bei Break-Glass*
-|Aktivierung ohne Logging ermöglicht plausible Abstreitbarkeit bei Missbrauch.
+|*No audit trail during break-glass*
+|Activation without logging enables plausible deniability in case of abuse.
 
-|*Nicht rotierte Notfall-Credentials*
-|Kompromittierte Emergency-Credentials nach Incident-Abschluss nicht rotiert.
+|*Unrotated emergency credentials*
+|Compromised emergency credentials not rotated after incident closure.
 
-|*CloudTrail während "Maintenance" deaktiviert*
-|Logging-Deaktivierung verhindert forensische Rekonstruktion bei Datenpanne.
+|*CloudTrail disabled during "maintenance"*
+|Logging deactivation prevents forensic reconstruction in case of a data breach.
 
 |===
 
-== Regulatorisches Mapping
+== Regulatory Mapping
 
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 32 – Sicherheit der Verarbeitung; Art. 33 – Meldung von Datenschutzverletzungen
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Notification of data breaches
 
 |*BSI C5:2020*
-|IAM-03 – Privileged Access Management; LOG-01 – Protokollierung; BCM-02 – Incident Management
+|IAM-03 – Privileged access management; LOG-01 – Logging; BCM-02 – Incident management
 
 |*EUCS (ENISA)*
-|IAM-03 – Emergency Access; LOG-01 – Audit Logging
+|IAM-03 – Emergency access; LOG-01 – Audit logging
 
 |*ISO 27001:2022*
-|A.5.26 – Reaktion auf Informationssicherheitsvorfälle; A.8.15 – Protokollierung; A.8.16 – Überwachungsaktivitäten
+|A.5.26 – Response to information security incidents; A.8.15 – Logging; A.8.16 – Monitoring activities
 
 |*SOC 2*
-|CC7.4 – Security Incident Response
+|CC7.4 – Security incident response
 
 |===
 
-== Anforderung
+== Requirement
 
-* Ein Break-Glass-Runbook MUSS existieren: Auslösekriterien, Berechtigte, Genehmigungskette, Schritte, Dekommissionierung und Review
-* CloudTrail MUSS Multi-Region mit `is_multi_region_trail = true` und `enable_log_file_validation = true` konfiguriert sein
-* Der CloudTrail-S3-Bucket MUSS Public Access Block vollständig aktiviert haben
-* CloudWatch-Alarme MÜSSEN für Root-Account-API-Calls und IAM-Policy-Änderungen konfiguriert sein
-* Break-Glass-Credentials MÜSSEN nach jeder Verwendung sofort rotiert werden
-* Post-Incident-Review MUSS innerhalb von 5 Werktagen dokumentiert und mit CloudTrail-Event-IDs verknüpft werden
-* Break-Glass-Prozess MUSS mindestens jährlich in einer Non-Produktionsumgebung getestet werden
+* A break-glass runbook MUST exist: trigger criteria, authorized personnel, approval chain, steps, decommissioning, and review
+* CloudTrail MUST be configured as multi-region with `is_multi_region_trail = true` and `enable_log_file_validation = true`
+* The CloudTrail S3 bucket MUST have public access block fully enabled
+* CloudWatch alarms MUST be configured for root account API calls and IAM policy changes
+* Break-glass credentials MUST be immediately rotated after every use
+* Post-incident review MUST be documented within 5 business days and linked to CloudTrail event IDs
+* The break-glass process MUST be tested at least annually in a non-production environment
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Break-Glass-Runbook dokumentieren*: Auslösekriterien, Berechtigte, Genehmigungskette, Schritt-für-Schritt-Verfahren, Dekommissionierung und Review.
-. *Credentials sicher speichern*: Break-Glass-Credentials in einem dediziert und unabhängig auditierten Secret Store (nicht im Haupt-Vault).
-. *CloudTrail vollständig konfigurieren*: Multi-Region, Log-File-Validation, Global-Service-Events, CloudWatch-Integration.
-. *CloudWatch-Alarme einrichten*: Root-Account-API-Calls, Console-Anmeldungen ohne MFA, IAM-Policy-Änderungen.
-. *Credentials sofort rotieren*: Nach jeder Nutzung; niemals für Routinetasks verwenden.
-. *Post-Incident-Review erzwingen*: Innerhalb 5 Werktagen nach Aktivierung; verknüpft mit CloudTrail-Event-IDs.
-. *Drill durchführen*: Jährlicher Test des Break-Glass-Prozesses in Non-Produktion.
-. *S3-Bucket sichern*: CloudTrail-Bucket nie öffentlich; Object Lock für Logs erwägen.
+. *Document break-glass runbook*: Trigger criteria, authorized personnel, approval chain, step-by-step procedure, decommissioning, and review.
+. *Store credentials securely*: Break-glass credentials in a dedicated and independently audited secret store (not in the main vault).
+. *Configure CloudTrail completely*: Multi-region, log file validation, global service events, CloudWatch integration.
+. *Set up CloudWatch alarms*: Root account API calls, console sign-ins without MFA, IAM policy changes.
+. *Rotate credentials immediately*: After every use; never use for routine tasks.
+. *Enforce post-incident review*: Within 5 business days of activation; linked to CloudTrail event IDs.
+. *Conduct drill*: Annual test of the break-glass process in non-production.
+. *Secure S3 bucket*: Never make the CloudTrail bucket public; consider Object Lock for logs.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Break-Glass existiert, aber undokumentiert
-|Notfallzugangs-Credentials vorhanden; kein formaler Prozess dokumentiert.
+|Break-glass exists but undocumented
+|Emergency access credentials available; no formal process documented.
 
 |*2*
-|Prozess dokumentiert, Basis-Logging
-|Break-Glass-Runbook existiert und ist versioniert; CloudTrail für den Account aktiviert.
+|Process documented, basic logging
+|Break-glass runbook exists and is versioned; CloudTrail enabled for the account.
 
 |*3*
-|Vollständiges Logging, Alarme und Post-Incident-Review
-|CloudTrail Multi-Region mit Log-File-Validation; Echtzeit-Alarme auf Root/Break-Glass-Aktivierung; Post-Incident-Review verpflichtend und dokumentiert.
+|Full logging, alarms, and post-incident review
+|CloudTrail multi-region with log file validation; real-time alarms on root/break-glass activation; post-incident review mandatory and documented.
 
 |*4*
-|Automatisierte Erkennung und Credential-Rotation
-|Automatische Credential-Rotation nach jeder Nutzung; Break-Glass-Aktivierungen lösen automatisch Change-Management-Ticket aus; jährlicher Non-Produktion-Drill abgeschlossen.
+|Automated detection and credential rotation
+|Automatic credential rotation after every use; break-glass activations automatically trigger a change management ticket; annual non-production drill completed.
 
 |*5*
-|Zero-Standing-Privilege mit Just-in-Time Break-Glass
-|Keine dauerhaften Break-Glass-Credentials; On-Demand-Aktivierung mit Dual-Approval; vollständige forensische Evidenz-Chain automatisiert; Mean Time to Activate < 5 Minuten mit generiertem Audit-Artefakt.
+|Zero standing privilege with just-in-time break-glass
+|No permanent break-glass credentials; on-demand activation with dual approval; full forensic evidence chain automated; mean time to activate < 5 minutes with generated audit artifact.
 
 |===
 
 == Terraform Checks
 
 === waf-sov-070.tf.aws.cloudtrail-enabled-all-regions
-*Prüft:* CloudTrail muss Multi-Region mit Log-File-Validation und Global-Service-Events sein.
+*Checks:* CloudTrail must be multi-region with log file validation and global service events.
 
 [cols="1,1"]
 |===
@@ -152,8 +150,8 @@ a|[source,hcl]
 resource "aws_cloudtrail" "trail" {
   name           = "my-trail"
   s3_bucket_name = "my-logs"
-  # ❌ Defaults: single-region, kein Validation,
-  #    kein CloudWatch
+  # ❌ Defaults: single-region, no validation,
+  #    no CloudWatch
 }
 ----
 |===
@@ -161,7 +159,7 @@ resource "aws_cloudtrail" "trail" {
 ---
 
 === waf-sov-070.tf.aws.cloudtrail-s3-bucket-not-public
-*Prüft:* Der CloudTrail-S3-Bucket muss vollständigen Public Access Block aktiviert haben.
+*Checks:* The CloudTrail S3 bucket must have full public access block enabled.
 
 [cols="1,1"]
 |===
@@ -182,7 +180,7 @@ a|[source,hcl]
 resource "aws_s3_bucket_public_access_block" "cloudtrail" {
   bucket            = aws_s3_bucket.cloudtrail.id
   block_public_acls = true
-  # ❌ Andere Settings fehlen – Default: false
+  # ❌ Other settings missing – default: false
 }
 ----
 |===
@@ -190,11 +188,11 @@ resource "aws_s3_bucket_public_access_block" "cloudtrail" {
 ---
 
 === waf-sov-070.tf.aws.cloudwatch-alarm-root-login
-*Prüft:* CloudWatch-Alarm für Root-Account-Aktivität muss konfiguriert sein.
+*Checks:* CloudWatch alarm for root account activity must be configured.
 
 [source,hcl]
 ----
-# Compliant: Metric Filter + Alarm für Root-Account-Nutzung
+# Compliant: Metric Filter + Alarm for root account usage
 resource "aws_cloudwatch_log_metric_filter" "root_usage" {
   name           = "root-account-usage"
   pattern        = "{$.userIdentity.type = Root && $.userIdentity.invokedBy NOT EXISTS && $.eventType != AwsServiceEvent}"
@@ -223,11 +221,11 @@ resource "aws_cloudwatch_metric_alarm" "root_usage" {
 ---
 
 === waf-sov-070.tf.aws.cloudwatch-alarm-iam-policy-changes
-*Prüft:* CloudWatch-Alarm für IAM-Policy-Änderungen muss konfiguriert sein.
+*Checks:* CloudWatch alarm for IAM policy changes must be configured.
 
 [source,hcl]
 ----
-# Compliant: Metric Filter für IAM-Policy-Änderungen
+# Compliant: Metric Filter for IAM policy changes
 resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
   name    = "iam-policy-changes"
   pattern = "{($.eventName = CreatePolicy) || ($.eventName = DeletePolicy) || ($.eventName = AttachRolePolicy) || ($.eventName = DetachRolePolicy)}"
@@ -241,35 +239,35 @@ resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
 }
 ----
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*Process*
-|✅ Pflicht
-|Break-Glass-Runbook (versioniert, Auslöser, Genehmigung, Aktivierung, Dekommissionierung, Review abdeckend).
+|✅ Required
+|Break-glass runbook (versioned; covering triggers, approval, activation, decommissioning, review).
 
 |*IaC*
-|✅ Pflicht
-|CloudTrail-Ressourcen mit `is_multi_region_trail=true` und `enable_log_file_validation=true`.
+|✅ Required
+|CloudTrail resources with `is_multi_region_trail=true` and `enable_log_file_validation=true`.
 
 |*IaC*
-|✅ Pflicht
-|CloudWatch Metric Filters und Alarme für Root-Account-Aktivität.
+|✅ Required
+|CloudWatch metric filters and alarms for root account activity.
 
 |*Logs*
 |Optional
-|Beispiel-Post-Incident-Review-Protokoll vom letzten Break-Glass-Test oder Aktivierungsereignis.
+|Sample post-incident review record from the last break-glass test or activation event.
 
 |*Config*
 |Optional
-|Secret-Store-Konfiguration für Break-Glass-Credential-Speicherung.
+|Secret store configuration for break-glass credential storage.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
 * xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]
@@ -277,4 +275,4 @@ resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
 
 == Best Practice
 
-* xref:best-practices/bp-break-glass.adoc[Break-Glass-Prozess implementieren →]
+* xref:best-practices/bp-break-glass.adoc[Implement Break-Glass Process →]

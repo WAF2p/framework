@@ -1,19 +1,19 @@
 = Controls (WAF-REL)
 :page-toc: right
-:description: WAF++ – Vollständiger Controls-Katalog der Reliability-Säule (WAF-REL-010 bis WAF-REL-100).
+:description: WAF++ – Complete controls catalog for the Reliability pillar (WAF-REL-010 to WAF-REL-100).
 
-Die Reliability-Säule wird durch 10 messbare Controls operationalisiert.
-Jeder Control hat eine eindeutige ID im Format `WAF-REL-NNN`, eine Severity-Einstufung,
-maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+The Reliability pillar is operationalized by 10 measurable controls.
+Each control has a unique ID in the format `WAF-REL-NNN`, a severity rating,
+machine-readable YAML checks and a maturity level breakdown.
 
-Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-REL-*.yml`
-und können vom WAF++ Checker Tool direkt ausgeführt werden.
+The YAML source files are located under `modules/controls/controls/WAF-REL-*.yml`
+and can be executed directly by the WAF++ Checker Tool.
 
-== Controls-Übersicht
+== Controls Overview
 
 [cols="1,3,1,1"]
 |===
-|Control ID |Titel |Severity |Kategorie
+|Control ID |Title |Severity |Category
 
 |xref:controls/WAF-REL-010.adoc[WAF-REL-010]
 |SLA & SLO Definition Documented
@@ -72,44 +72,44 @@ und können vom WAF++ Checker Tool direkt ausgeführt werden.
 [#WAF-REL-010]
 == WAF-REL-010 – SLA & SLO Definition Documented
 
-*Severity:* Critical | *Kategorie:* Reliability Governance | *Automatisierbar:* Mittel
+*Severity:* Critical | *Category:* Reliability Governance | *Automatable:* Medium
 
-Jeder Produktions-Workload MUSS dokumentierte SLOs (Availability, Latenz, Fehlerrate) haben.
-SLOs MÜSSEN in Monitoring-Dashboards mit Alerting auf Error Budget Burn Rate überwacht werden.
+Every production workload MUST have documented SLOs (availability, latency, error rate).
+SLOs MUST be monitored in monitoring dashboards with alerting on error budget burn rate.
 
-*Anforderung:* SLO-Dokument versioniert; Error Budget berechnet; Burn-Rate-Alerts konfiguriert;
-quarterly Review nachgewiesen.
+*Requirement:* SLO document versioned; error budget calculated; burn rate alerts configured;
+quarterly review evidenced.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-010.tf.aws.cloudwatch-slo-alarm` – CloudWatch-Alarm für SLO-Verfügbarkeitsüberwachung
-* `waf-rel-010.tf.azurerm.monitor-metric-alert-slo` – Azure Monitor Alert für SLO-Tracking
-* `waf-rel-010.tf.google.monitoring-alert-policy-slo` – GCP Monitoring Alert mit Notification Channels
+* `waf-rel-010.tf.aws.cloudwatch-slo-alarm` – CloudWatch alarm for SLO availability monitoring
+* `waf-rel-010.tf.azurerm.monitor-metric-alert-slo` – Azure Monitor alert for SLO tracking
+* `waf-rel-010.tf.google.monitoring-alert-policy-slo` – GCP Monitoring alert with notification channels
 
-*Evidenz:* SLO-Dokument pro Workload (Pflicht); Monitoring-Dashboard (Pflicht)
+*Evidence:* SLO document per workload (required); monitoring dashboard (required)
 
-*Best Practice:* xref:best-practices/bp-slo-definition.adoc[SLO & SLA definieren →]
+*Best Practice:* xref:best-practices/bp-slo-definition.adoc[SLO & SLA Definition →]
 
 ---
 
 [#WAF-REL-020]
 == WAF-REL-020 – Health Checks & Readiness Probes Configured
 
-*Severity:* High | *Kategorie:* Health Monitoring | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* Health Monitoring | *Automatable:* High
 
-Alle Produktions-Services MÜSSEN Health Check Endpoints exponieren und Readiness-/Liveness-Probes konfigurieren.
-Load Balancer MÜSSEN Health Checks mit expliziten Schwellenwerten, Intervallen und Timeouts nutzen.
+All production services MUST expose health check endpoints and configure readiness/liveness probes.
+Load balancers MUST use health checks with explicit thresholds, intervals and timeouts.
 
-*Anforderung:* kein Deployment ohne Health Check; Probes mit gemessenen initialDelaySeconds;
-Health-Check-Pfade validieren echte Abhängigkeiten.
+*Requirement:* No deployment without health check; probes with measured initialDelaySeconds;
+health check paths validate real dependencies.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-020.tf.aws.alb-target-group-health-check` – ALB Target Group Health Check konfiguriert
-* `waf-rel-020.tf.azurerm.lb-probe` – Azure LB Probe mit request_path
-* `waf-rel-020.tf.google.compute-health-check` – GCP Compute Health Check mit HTTP-Pfad
+* `waf-rel-020.tf.aws.alb-target-group-health-check` – ALB target group health check configured
+* `waf-rel-020.tf.azurerm.lb-probe` – Azure LB probe with request_path
+* `waf-rel-020.tf.google.compute-health-check` – GCP compute health check with HTTP path
 
-*Evidenz:* IaC mit Probe-Konfiguration (Pflicht); LB Health Check (Pflicht)
+*Evidence:* IaC with probe configuration (required); LB health check (required)
 
 *Best Practice:* xref:best-practices/bp-health-checks.adoc[Health Checks & Probes →]
 
@@ -118,22 +118,22 @@ Health-Check-Pfade validieren echte Abhängigkeiten.
 [#WAF-REL-030]
 == WAF-REL-030 – Multi-AZ High Availability Deployment
 
-*Severity:* High | *Kategorie:* High Availability | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* High Availability | *Automatable:* High
 
-Alle Produktions-Workloads MÜSSEN über mindestens 2 Availability Zones verteilt sein.
-Single-AZ-Deployments in Produktion sind ohne schriftliche Risk Acceptance nicht zulässig.
+All production workloads MUST be distributed across at least 2 Availability Zones.
+Single-AZ deployments in production are not permitted without written risk acceptance.
 
-*Anforderung:* Min. 2 AZs für Compute; Multi-AZ für alle Datenbanken; LB über 2+ AZs;
-AZ-Failover mindestens quartalsweise getestet.
+*Requirement:* Min. 2 AZs for compute; Multi-AZ for all databases; LB across 2+ AZs;
+AZ failover tested at least quarterly.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
 * `waf-rel-030.tf.aws.rds-multi-az` – RDS multi_az = true
-* `waf-rel-030.tf.aws.autoscaling-multi-az` – ASG mit min_size >= 2 und multi-AZ Subnets
-* `waf-rel-030.tf.azurerm.db-availability-zone` – Azure DB mit ZoneRedundant HA
+* `waf-rel-030.tf.aws.autoscaling-multi-az` – ASG with min_size >= 2 and multi-AZ subnets
+* `waf-rel-030.tf.azurerm.db-availability-zone` – Azure DB with ZoneRedundant HA
 * `waf-rel-030.tf.google.sql-availability-type` – Cloud SQL REGIONAL availability
 
-*Evidenz:* IaC mit Multi-AZ-Konfiguration (Pflicht); Cloud-Console-Screenshot (Pflicht)
+*Evidence:* IaC with Multi-AZ configuration (required); cloud console screenshot (required)
 
 *Best Practice:* xref:best-practices/bp-multi-az.adoc[Multi-AZ & High Availability →]
 
@@ -142,23 +142,23 @@ AZ-Failover mindestens quartalsweise getestet.
 [#WAF-REL-040]
 == WAF-REL-040 – Backup & Recovery Validation
 
-*Severity:* Critical | *Kategorie:* Backup Recovery | *Automatisierbar:* Hoch
+*Severity:* Critical | *Category:* Backup Recovery | *Automatable:* High
 
-Alle Produktionsdatenbanken und Stateful Services MÜSSEN automatisierte Backups mit
-Retention >= 7 Tage und PITR haben. Backups MÜSSEN in separatem Account/Region gespeichert
-werden. Recovery MUSS mindestens quartalsweise getestet und dokumentiert sein.
+All production databases and stateful services MUST have automated backups with
+retention >= 7 days and PITR. Backups MUST be stored in a separate account/region.
+Recovery MUST be tested and documented at least quarterly.
 
-*Anforderung:* PITR aktiviert; Cross-Account Backup; Restore-Test mit Ergebnisdokumentation;
-Backup-Failure-Alerts konfiguriert.
+*Requirement:* PITR enabled; cross-account backup; restore test with results documentation;
+backup failure alerts configured.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
 * `waf-rel-040.tf.aws.rds-backup-retention` – RDS backup_retention_period >= 7, deletion_protection = true
-* `waf-rel-040.tf.aws.s3-versioning` – S3 Versioning = Enabled
+* `waf-rel-040.tf.aws.s3-versioning` – S3 versioning = Enabled
 * `waf-rel-040.tf.azurerm.postgresql-backup` – Azure DB backup_retention_days >= 7, geo_redundant = true
-* `waf-rel-040.tf.google.sql-backup-config` – Cloud SQL Backup + PITR aktiviert
+* `waf-rel-040.tf.google.sql-backup-config` – Cloud SQL backup + PITR enabled
 
-*Evidenz:* IaC-Backup-Konfiguration (Pflicht); Restore-Testbericht (Pflicht)
+*Evidence:* IaC backup configuration (required); restore test report (required)
 
 *Best Practice:* xref:best-practices/bp-backup-recovery.adoc[Backup & Recovery →]
 
@@ -167,22 +167,22 @@ Backup-Failure-Alerts konfiguriert.
 [#WAF-REL-050]
 == WAF-REL-050 – Circuit Breaker & Timeout Configuration
 
-*Severity:* High | *Kategorie:* Resilience Patterns | *Automatisierbar:* Hoch
+*Severity:* High | *Category:* Resilience Patterns | *Automatable:* High
 
-Alle inter-service und downstream HTTP-Calls MÜSSEN explizite Timeouts definieren.
-Kritische Abhängigkeiten MÜSSEN Circuit Breaker implementieren. Retry-Logik MUSS
-Exponential Backoff mit Jitter verwenden.
+All inter-service and downstream HTTP calls MUST define explicit timeouts.
+Critical dependencies MUST implement circuit breakers. Retry logic MUST
+use exponential backoff with jitter.
 
-*Anforderung:* Kein Default-Timeout für externe Calls; Circuit Breaker für kritische Deps;
-Retry maximal 3 Versuche mit Backoff; Bulkhead-Isolation für verschiedene Klassen.
+*Requirement:* No default timeout for external calls; circuit breaker for critical dependencies;
+retry maximum 3 attempts with backoff; bulkhead isolation for different classes.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-050.tf.aws.alb-idle-timeout` – ALB idle_timeout explizit gesetzt
+* `waf-rel-050.tf.aws.alb-idle-timeout` – ALB idle_timeout explicitly set
 * `waf-rel-050.tf.azurerm.app-gateway-timeout` – App Gateway request_timeout_in_seconds
-* `waf-rel-050.tf.google.cloud-run-timeout` – Cloud Run timeout_seconds konfiguriert
+* `waf-rel-050.tf.google.cloud-run-timeout` – Cloud Run timeout_seconds configured
 
-*Evidenz:* Terraform/Service Mesh-Konfiguration (Pflicht); App-Config-Dateien (Pflicht)
+*Evidence:* Terraform/service mesh configuration (required); app config files (required)
 
 *Best Practice:* xref:best-practices/bp-circuit-breaker.adoc[Circuit Breaker & Timeouts →]
 
@@ -191,22 +191,22 @@ Retry maximal 3 Versuche mit Backoff; Bulkhead-Isolation für verschiedene Klass
 [#WAF-REL-060]
 == WAF-REL-060 – Incident Response & Runbook Readiness
 
-*Severity:* High | *Kategorie:* Incident Response | *Automatisierbar:* Mittel
+*Severity:* High | *Category:* Incident Response | *Automatable:* Medium
 
-Alle Produktions-Workloads MÜSSEN einen dokumentierten Incident Response Plan mit
-Severity-Definitionen, Eskalationspfaden und On-Call-Rotation haben. Runbooks MÜSSEN
-direkt aus Alert-Notifications verlinkt sein. Post-Incident Reviews innerhalb 5 Werktage.
+All production workloads MUST have a documented incident response plan with
+severity definitions, escalation paths and on-call rotation. Runbooks MUST
+be directly linked from alert notifications. Post-incident reviews within 5 business days.
 
-*Anforderung:* 4 Severity-Stufen definiert; On-Call konfiguriert; alle Critical-Alerts
-mit Runbook-Link; MTTR getrackt; Post-Mortems für SEV1/SEV2 dokumentiert.
+*Requirement:* 4 severity levels defined; on-call configured; all critical alerts
+with runbook link; MTTR tracked; post-mortems for SEV1/SEV2 documented.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-060.tf.aws.sns-topic-alarm-action` – CloudWatch Alarms mit alarm_actions und ok_actions
-* `waf-rel-060.tf.azurerm.action-group-configured` – Azure Monitor Action Group mit Empfängern
-* `waf-rel-060.tf.google.monitoring-notification-channel` – GCP Alert Policy mit notification_channels
+* `waf-rel-060.tf.aws.sns-topic-alarm-action` – CloudWatch alarms with alarm_actions and ok_actions
+* `waf-rel-060.tf.azurerm.action-group-configured` – Azure Monitor action group with recipients
+* `waf-rel-060.tf.google.monitoring-notification-channel` – GCP alert policy with notification_channels
 
-*Evidenz:* Incident Response Plan (Pflicht); Post-Incident Review Protokolle (Pflicht)
+*Evidence:* Incident response plan (required); post-incident review records (required)
 
 *Best Practice:* xref:best-practices/bp-incident-response.adoc[Incident Response & Runbooks →]
 
@@ -215,22 +215,22 @@ mit Runbook-Link; MTTR getrackt; Post-Mortems für SEV1/SEV2 dokumentiert.
 [#WAF-REL-070]
 == WAF-REL-070 – Disaster Recovery Testing
 
-*Severity:* High | *Kategorie:* Disaster Recovery | *Automatisierbar:* Teilweise
+*Severity:* High | *Category:* Disaster Recovery | *Automatable:* Partial
 
-Alle kritischen Produktions-Workloads MÜSSEN mindestens zweimal jährlich DR-Tests
-mit dokumentierten RTO/RPO-Ergebnissen durchführen. DR-Pläne MÜSSEN nach signifikanten
-Architekturänderungen aktualisiert werden.
+All critical production workloads MUST conduct DR tests at least twice a year
+with documented RTO/RPO results. DR plans MUST be updated after significant
+architecture changes.
 
-*Anforderung:* DR-Plan mit RTO/RPO-Zielen; halbjährlicher Test; Ergebnisdokumentation;
-Deviation => Remediation-Plan innerhalb 30 Tage.
+*Requirement:* DR plan with RTO/RPO targets; semi-annual test; results documentation;
+deviation => remediation plan within 30 days.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-070.tf.aws.route53-health-check-failover` – Route 53 Health Check Failover Routing
-* `waf-rel-070.tf.azurerm.traffic-manager-profile` – Azure Traffic Manager mit Failover-Routing und Monitor
-* `waf-rel-070.tf.google.dns-managed-zone-failover` – GCP DNS mit TTL <= 60s für schnelles Failover
+* `waf-rel-070.tf.aws.route53-health-check-failover` – Route 53 health check failover routing
+* `waf-rel-070.tf.azurerm.traffic-manager-profile` – Azure Traffic Manager with failover routing and monitor
+* `waf-rel-070.tf.google.dns-managed-zone-failover` – GCP DNS with TTL <= 60s for fast failover
 
-*Evidenz:* DR-Testberichte letzte 12 Monate (Pflicht); DR-Plan (Pflicht)
+*Evidence:* DR test reports from last 12 months (required); DR plan (required)
 
 *Best Practice:* xref:best-practices/bp-backup-recovery.adoc[Disaster Recovery →]
 
@@ -239,43 +239,43 @@ Deviation => Remediation-Plan innerhalb 30 Tage.
 [#WAF-REL-080]
 == WAF-REL-080 – Dependency & Upstream Resilience Management
 
-*Severity:* Medium | *Kategorie:* Dependency Management | *Automatisierbar:* Mittel
+*Severity:* Medium | *Category:* Dependency Management | *Automatable:* Medium
 
-Alle Produktions-Workloads MÜSSEN ein inventarisiertes und klassifiziertes Dependency Register
-führen. Kritische Abhängigkeiten MÜSSEN Circuit Breaker haben. Fallback-Verhalten MUSS für
-alle optionalen Abhängigkeiten definiert sein.
+All production workloads MUST maintain an inventoried and classified dependency register.
+Critical dependencies MUST have circuit breakers. Fallback behavior MUST be defined for
+all optional dependencies.
 
-*Anforderung:* Dependency Register mit Kritikalität und SLA; CB für kritische Deps;
-Fallback für optionale Deps; quartalsweiser Review.
+*Requirement:* Dependency register with criticality and SLA; CB for critical dependencies;
+fallback for optional dependencies; quarterly review.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation` – AWS VPC Endpoints für AWS-API-Isolation
-* `waf-rel-080.tf.azurerm.private-endpoint-dependency` – Azure Private Endpoints für Managed Services
+* `waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation` – AWS VPC endpoints for AWS API isolation
+* `waf-rel-080.tf.azurerm.private-endpoint-dependency` – Azure private endpoints for managed services
 * `waf-rel-080.tf.google.vpc-sc-dependency-isolation` – GCP private_ip_google_access = true
 
-*Evidenz:* Dependency Register (Pflicht); Circuit Breaker Konfiguration (Pflicht)
+*Evidence:* Dependency register (required); circuit breaker configuration (required)
 
 ---
 
 [#WAF-REL-090]
 == WAF-REL-090 – Chaos Engineering & Fault Injection
 
-*Severity:* Medium | *Kategorie:* Chaos Engineering | *Automatisierbar:* Mittel
+*Severity:* Medium | *Category:* Chaos Engineering | *Automatable:* Medium
 
-Produktions- und Staging-Workloads MÜSSEN quartalsweise strukturierte Chaos-Experimente
-mit Hypothesen-Framework, Stop Conditions und Ergebnisdokumentation durchführen.
+Production and staging workloads MUST conduct quarterly structured chaos experiments
+with a hypothesis framework, stop conditions and results documentation.
 
-*Anforderung:* Hypothesis-driven Tests; Stop Conditions konfiguriert; Experiments in
-Staging vor Produktion; Blast Radius begrenzt; Ergebnisse in Remediation überführt.
+*Requirement:* Hypothesis-driven tests; stop conditions configured; experiments in
+staging before production; blast radius limited; results converted into remediation.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-090.tf.aws.fis-experiment-template` – AWS FIS mit stop_condition konfiguriert
-* `waf-rel-090.tf.azurerm.chaos-studio-experiment` – Azure Chaos Studio Experiment mit Identity
-* `waf-rel-090.tf.google.fault-injection-test` – GCP URL Map mit fault_injection_policy
+* `waf-rel-090.tf.aws.fis-experiment-template` – AWS FIS with stop_condition configured
+* `waf-rel-090.tf.azurerm.chaos-studio-experiment` – Azure Chaos Studio experiment with identity
+* `waf-rel-090.tf.google.fault-injection-test` – GCP URL map with fault_injection_policy
 
-*Evidenz:* Chaos-Experiment-Berichte (Pflicht); Chaos-Engineering-Charter (Pflicht)
+*Evidence:* Chaos experiment reports (required); chaos engineering charter (required)
 
 *Best Practice:* xref:best-practices/bp-chaos-engineering.adoc[Chaos Engineering →]
 
@@ -284,19 +284,19 @@ Staging vor Produktion; Blast Radius begrenzt; Ergebnisse in Remediation überf�
 [#WAF-REL-100]
 == WAF-REL-100 – Reliability Debt Register & Quarterly Review
 
-*Severity:* Medium | *Kategorie:* Reliability Governance | *Automatisierbar:* Niedrig–Mittel
+*Severity:* Medium | *Category:* Reliability Governance | *Automatable:* Low–Medium
 
-Alle bekannten Reliability-Risiken und deferred Improvements MÜSSEN in einem
-versionierten Reliability Debt Register mit Owner, Severity und Zieldatum erfasst werden.
-Quarterly Review ist obligatorisch.
+All known reliability risks and deferred improvements MUST be captured in a
+versioned Reliability Debt Register with owner, severity and target date.
+Quarterly review is mandatory.
 
-*Anforderung:* Register versionskontrolliert; alle Einträge mit Owner, P1–P4 Priorität
-und Zieldatum; Quarterly Review mit Protokoll; P1 Items innerhalb eines Sprints adressiert.
+*Requirement:* Register version-controlled; all entries with owner, P1–P4 priority
+and target date; quarterly review with minutes; P1 items addressed within one sprint.
 
-*Terraform Checks (Auszug):*
+*Terraform Checks (Excerpt):*
 
-* `waf-rel-100.tf.aws.config-conformance-pack` – AWS Config Conformance Pack für Reliability
-* `waf-rel-100.tf.azurerm.policy-assignment-reliability` – Azure Policy Assignment für Reliability Controls
-* `waf-rel-100.tf.google.org-policy-reliability` – GCP Org Policy für Reliability Constraints
+* `waf-rel-100.tf.aws.config-conformance-pack` – AWS Config conformance pack for reliability
+* `waf-rel-100.tf.azurerm.policy-assignment-reliability` – Azure policy assignment for reliability controls
+* `waf-rel-100.tf.google.org-policy-reliability` – GCP org policy for reliability constraints
 
-*Evidenz:* Reliability Debt Register (Pflicht); Quarterly Review Protokolle (Pflicht)
+*Evidence:* Reliability Debt Register (required); quarterly review minutes (required)

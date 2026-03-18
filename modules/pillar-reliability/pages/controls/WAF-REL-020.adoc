@@ -5,98 +5,98 @@
 :severity: high
 :category: health-monitoring
 :automated: high
-:description: WAF++ Reliability – Health Check Endpoints, Readiness/Liveness Probes und Load Balancer Konfiguration.
+:description: WAF++ Reliability – Health check endpoints, Readiness/Liveness probes and load balancer configuration.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Health Monitoring | *Automatisierbar:* Hoch
+*Pillar:* Reliability | *Severity:* High | *Category:* Health Monitoring | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Produktions-Services MÜSSEN Health Check Endpoints exponieren und Readiness-/Liveness-Probes
-konfigurieren. Load Balancer MÜSSEN Health Checks mit explizit konfigurierten Pfaden, Intervallen
-und Schwellenwerten nutzen – keine Cloud-Provider-Defaults.
+All production services MUST expose health check endpoints and configure readiness/liveness probes.
+Load balancers MUST use health checks with explicitly configured paths, intervals
+and thresholds – no cloud provider defaults.
 
-Kein Deployment ohne funktionierende Health Checks. Dies ist eine nicht-verhandelbare
-Voraussetzung für automatisches Failover und Zero-Downtime Deployments.
+No deployment without working health checks. This is a non-negotiable
+prerequisite for automatic failover and zero-downtime deployments.
 
 == Rationale
 
-Ohne Health Checks werden fehlerhafte Instanzen weiterhin mit Traffic versorgt. Kubernetes
-ohne Readiness Probe sendet Traffic an Pods, die noch nicht bereit sind oder bereits
-ausgefallen sind. Load Balancer ohne explizite Health Check Konfiguration verwenden Defaults,
-die oft zu tolerant (30s Interval, keine Path-Validierung) sind.
+Without health checks, faulty instances continue to receive traffic. Kubernetes
+without a readiness probe sends traffic to pods that are not yet ready or have already
+failed. Load balancers without explicit health check configuration use defaults
+that are often too tolerant (30s interval, no path validation).
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Traffic auf fehlerhafte Instanzen*
-|Ohne Health Check routet LB weiterhin Requests an Instanzen, die Fehler zurückgeben.
+|*Traffic to Faulty Instances*
+|Without health check, LB continues routing requests to instances returning errors.
 
-|*Deadlock unentdeckt*
-|Ohne Liveness Probe läuft ein deadlockter Prozess ewig weiter und blockiert Ressourcen.
+|*Deadlock Undetected*
+|Without liveness probe, a deadlocked process runs forever and blocks resources.
 
 |*Premature Traffic*
-|Ohne Readiness Probe erhält ein nicht-initialisierter Pod Traffic und erzeugt Fehler.
+|Without readiness probe, an uninitialized pod receives traffic and produces errors.
 
-|*Default-Timeout zu tolerant*
-|Cloud-Provider-Defaults sind oft 30s Interval und 3 Fehlschläge – zu lang für schnelle Recovery.
+|*Default Timeout Too Tolerant*
+|Cloud provider defaults are often 30s interval and 3 failures – too long for fast recovery.
 
 |===
 
-== Anforderung
+== Requirement
 
-Alle Services MÜSSEN:
+All services MUST:
 
-* `/health/live` Endpoint exponieren (Liveness: Prozess lebt)
-* `/health/ready` Endpoint exponieren (Readiness: Traffic-fähig, Abhängigkeiten OK)
-* Kubernetes: `readinessProbe` und `livenessProbe` mit gemessenen `initialDelaySeconds` konfigurieren
-* Load Balancer Health Checks: expliziter Path, Interval, Timeout, Healthy/Unhealthy Threshold
-* Keine Cloud-Provider-Defaults für Health Check Konfiguration
+* Expose `/health/live` endpoint (liveness: process is alive)
+* Expose `/health/ready` endpoint (readiness: traffic-capable, dependencies OK)
+* Kubernetes: configure `readinessProbe` and `livenessProbe` with measured `initialDelaySeconds`
+* Load balancer health checks: explicit path, interval, timeout, healthy/unhealthy threshold
+* No cloud provider defaults for health check configuration
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Endpoints implementieren*: `/health/live` (nur Prozess), `/health/ready` (Deps prüfen)
-. *initialDelaySeconds messen*: Startup-Zeit des Services messen, Puffer addieren
-. *Intervalle konfigurieren*: `interval=15s`, `timeout=5s`, `failureThreshold=3`
-. *ALB Health Check*: `path=/health/ready`, `interval=15`, `matcher=200`
-. *Liveness NUR für Prozess-Liveness*: Keine externe Abhängigkeiten in Liveness-Probe prüfen
-. *Testen*: Health Check Failure in Staging simulieren und Verhalten beobachten
+. *Implement endpoints*: `/health/live` (process only), `/health/ready` (check deps)
+. *Measure initialDelaySeconds*: Measure service startup time, add buffer
+. *Configure intervals*: `interval=15s`, `timeout=5s`, `failureThreshold=3`
+. *ALB health check*: `path=/health/ready`, `interval=15`, `matcher=200`
+. *Liveness ONLY for process liveness*: Do not check external dependencies in liveness probe
+. *Test*: Simulate health check failure in staging and observe behavior
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Keine Health Checks
-|Keine Probes; LB verwendet TCP-Ping als Health Check.
+|No Health Checks
+|No probes; LB uses TCP ping as health check.
 
 |*2*
-|Basis LB Health Check
-|ALB Health Check auf "/" konfiguriert; keine Kubernetes Probes.
+|Basic LB Health Check
+|ALB health check on "/" configured; no Kubernetes probes.
 
 |*3*
 |ReadinessProbe + LivenessProbe
-|Beide Probes mit gemessenen Delays; LB prüft /health/ready; Fehler erzeugen Alerts.
+|Both probes with measured delays; LB checks /health/ready; failures generate alerts.
 
 |*4*
 |Deep Health Checks
-|Readiness prüft echte Abhängigkeiten; StartupProbe für langsame Services.
+|Readiness checks real dependencies; StartupProbe for slow services.
 
 |*5*
-|Synthetisches Monitoring
-|Externe Validierung der Health Endpoints; Health-Check-Latenz als SLI.
+|Synthetic Monitoring
+|External validation of health endpoints; health check latency as SLI.
 
 |===
 
 == Terraform Checks
 
 === waf-rel-020.tf.aws.alb-target-group-health-check
-*Prüft:* ALB Target Group hat expliziten health_check Block mit Path, Interval und Thresholds.
+*Checks:* ALB Target Group has explicit health_check block with path, interval and thresholds.
 
 [cols="1,1"]
 |===
@@ -128,37 +128,37 @@ resource "aws_lb_target_group" "api" {
   port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
-  # Kein health_check Block –
-  # Cloud-Defaults werden verwendet
+  # No health_check block –
+  # cloud defaults are used
   # WAF-REL-020 Violation
 }
 ----
 |===
 
-*Remediation:* `health_check` Block mit explizitem `path`, `interval`, `timeout`,
-`healthy_threshold` und `unhealthy_threshold` hinzufügen.
+*Remediation:* Add `health_check` block with explicit `path`, `interval`, `timeout`,
+`healthy_threshold` and `unhealthy_threshold`.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform oder Kubernetes-Manifeste mit Readiness- und Liveness-Probe-Konfiguration.
+|✅ Required
+|Terraform or Kubernetes manifests with readiness and liveness probe configuration.
 
 |*Config*
-|✅ Pflicht
-|Load Balancer Health Check Konfiguration mit explizitem Path und Thresholds.
+|✅ Required
+|Load balancer health check configuration with explicit path and thresholds.
 
 |*Process*
 |Optional
-|Test-Ergebnisse: Health Check Failure in Staging simuliert und dokumentiert.
+|Test results: health check failure simulated and documented in staging.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
 * xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]

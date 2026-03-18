@@ -1,154 +1,154 @@
-= Best Practice: Blameless Postmortems und kontinuierliches Lernen
+= Best Practice: Blameless Postmortems and Continuous Learning
 :page-toc: right
-:description: Postmortem-Prozess, Blameless Culture, Action-Item-Tracking, Trend-Analyse – wie man aus Incidents organisationales Wissen erzeugt.
+:description: Postmortem process, blameless culture, action item tracking, trend analysis – how to generate organizational knowledge from incidents.
 
-== Kontext
+== Context
 
-Jeder Incident ist eine Lerngelegenheit. Organisationen, die systematisch aus Incidents lernen,
-reduzieren Repeat Incidents um 30–50% innerhalb eines Jahres. Organisationen ohne strukturierten
-Lernprozess kämpfen dieselben Battles immer wieder.
+Every incident is a learning opportunity. Organizations that systematically learn from incidents
+reduce repeat incidents by 30–50% within a year. Organizations without a structured
+learning process fight the same battles over and over again.
 
-*Blameless bedeutet nicht: keine Verantwortung.* Es bedeutet: Systeme sind verantwortlich,
-nicht Personen. Engineers handeln in dem Kontext, den das System geschaffen hat.
+*Blameless does not mean: no accountability.* It means: systems are accountable,
+not people. Engineers act within the context that the system has created.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-OPS-070[WAF-OPS-070 – Post-Incident Review Process]
 
-== Zielbild
+== Target State
 
-Ein reifer Postmortem-Prozess:
+A mature postmortem process:
 
-* Jeder SEV-1/P1 Incident und jede SLO-Verletzung löst ein Postmortem aus
-* Postmortem-Meeting innerhalb von 48 Stunden nach Incident-Lösung
-* Postmortem-Dokument innerhalb von 5 Arbeitstagen fertiggestellt
-* Action Items werden in Jira/GitHub verfolgt und abgeschlossen
-* Postmortems werden teamübergreifend geteilt
-* Monatliche Trend-Analyse identifiziert systemische Muster
+* Every SEV-1/P1 incident and every SLO violation triggers a postmortem
+* Postmortem meeting within 48 hours of incident resolution
+* Postmortem document completed within 5 business days
+* Action items are tracked and closed in Jira/GitHub
+* Postmortems are shared across teams
+* Monthly trend analysis identifies systemic patterns
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Postmortem-Trigger-Kriterien definieren
+=== Step 1: Define Postmortem Trigger Criteria
 
 [source,markdown]
 ----
-# Postmortem-Policy
+# Postmortem Policy
 
-## Wann ist ein Postmortem verpflichtend?
+## When is a postmortem mandatory?
 
-**Trigger-Kriterien (alle erfordern Postmortem):**
-- Incidents mit Nutzerauswirkung > 15 Minuten (SEV-1 oder SEV-2)
-- SLO-Verletzung (Error Budget Burn Rate > Schwellenwert)
-- Datenverlust jeglichen Ausmaßes
-- Security-Incidents mit Produktionsauswirkung
-- Deployments, die manuellen Rollback erforderten
+**Trigger criteria (all require a postmortem):**
+- Incidents with user impact > 15 minutes (SEV-1 or SEV-2)
+- SLO violation (Error Budget Burn Rate > threshold)
+- Data loss of any extent
+- Security incidents with production impact
+- Deployments that required manual rollback
 
 **Timeline:**
-- Postmortem-Meeting: innerhalb 48h nach Incident-Lösung
-- Postmortem-Dokument: innerhalb 5 Arbeitstage fertig und geteilt
-- Action Items: Owner und Due Date innerhalb des Meetings zugewiesen
+- Postmortem meeting: within 48h of incident resolution
+- Postmortem document: completed and shared within 5 business days
+- Action items: owner and due date assigned within the meeting
 ----
 
-=== Schritt 2: Postmortem-Template verwenden
+=== Step 2: Use the Postmortem Template
 
 [source,markdown]
 ----
 # Postmortem: Payment Service Outage
 
-**Incident-ID:** INC-2025-034
-**Datum:** 2025-03-15
+**Incident ID:** INC-2025-034
+**Date:** 2025-03-15
 **Severity:** SEV-1
-**Duration:** 47 Minuten (14:23 – 15:10 UTC)
-**Verfasst von:** @payment-engineer-lead
-**Reviewed von:** @platform-lead, @cto
+**Duration:** 47 minutes (14:23 – 15:10 UTC)
+**Written by:** @payment-engineer-lead
+**Reviewed by:** @platform-lead, @cto
 **Status:** FINAL
 
 ---
 
 ## Impact
 
-- **Nutzer betroffen:** ~12.000 Nutzer konnten keine Zahlungen durchführen
-- **Transaktionen fehlgeschlagen:** ~340 Zahlungsversuche mit HTTP 500
-- **Umsatzauswirkung:** ~€8.500 (Schätzung basierend auf durchschnittlichem Transaction Value)
-- **SLO-Auswirkung:** Availability SLO verletzt, 2.3% des monatlichen Error Budgets verbraucht
+- **Users affected:** ~12,000 users were unable to make payments
+- **Transactions failed:** ~340 payment attempts with HTTP 500
+- **Revenue impact:** ~€8,500 (estimate based on average transaction value)
+- **SLO impact:** Availability SLO violated, 2.3% of monthly error budget consumed
 
 ---
 
-## Zeitlinie
+## Timeline
 
-| Zeit (UTC) | Ereignis |
+| Time (UTC) | Event |
 |-----------|---------|
-| 14:23 | Deployment von version 2.4.1 auf Production abgeschlossen |
-| 14:25 | CloudWatch Alarm `payment-service-5xx-error-rate` ausgelöst |
-| 14:27 | On-Call Engineer (Alex) paged, beginnt Diagnose |
-| 14:31 | Korrelation zum Deployment hergestellt via Logs |
-| 14:35 | Entscheidung für Rollback getroffen (Alex + Maria) |
-| 14:38 | Canary Rollback gestartet |
-| 14:45 | Error Rate sinkt auf Normal |
-| 15:10 | Vollständige Erholung bestätigt, Incident resolved |
-| 15:15 | Incident-Kommunikation an Stakeholder |
+| 14:23 | Deployment of version 2.4.1 to production completed |
+| 14:25 | CloudWatch Alarm `payment-service-5xx-error-rate` triggered |
+| 14:27 | On-call engineer (Alex) paged, starts diagnosis |
+| 14:31 | Correlation to deployment established via logs |
+| 14:35 | Rollback decision made (Alex + Maria) |
+| 14:38 | Canary rollback initiated |
+| 14:45 | Error rate drops to normal |
+| 15:10 | Full recovery confirmed, incident resolved |
+| 15:15 | Incident communication to stakeholders |
 
 ---
 
 ## Root Cause
 
-Die neue Version 2.4.1 enthielt eine Datenbankabfrage ohne Index auf der `payment_methods`
-Tabelle. Unter Produktionslast (>100 concurrent requests) führte diese Abfrage zu
-Full-Table-Scans, die die Datenbankverbindungen erschöpften.
+The new version 2.4.1 contained a database query without an index on the `payment_methods`
+table. Under production load (>100 concurrent requests), this query caused
+full table scans that exhausted database connections.
 
-**Root Cause:** Fehlender Datenbankindex (`payment_methods.user_id`)
+**Root Cause:** Missing database index (`payment_methods.user_id`)
 
 ---
 
 ## Contributing Factors
 
-1. **Kein Performance-Test in Staging:** Staging-Umgebung hatte < 1% des Produktionsvolumens
-   – der Performance-Unterschied war nicht sichtbar.
-2. **Keine Slow-Query-Warnung:** AWS Performance Insights war nicht konfiguriert.
-3. **Kein Rollback in Canary:** Canary war auf 20% Traffic (nicht 5%) – zu viel für einen neuen,
-   ungetesteten Deployment-Schritt.
+1. **No performance test in staging:** Staging environment had < 1% of production volume
+   – the performance difference was not visible.
+2. **No slow query warning:** AWS Performance Insights was not configured.
+3. **No rollback during canary:** Canary was at 20% traffic (not 5%) – too much for a new,
+   untested deployment step.
 
 ---
 
-## Was gut funktioniert hat
+## What Worked Well
 
-- Alerting erkannte das Problem innerhalb von 2 Minuten nach Deployment
-- Runbook war aktuell und korrekt – Rollback-Schritte wurden ohne Senior-Engineer-Hilfe ausgeführt
-- Canary-Deployment begrenzte die Auswirkung auf 20% statt 100% der Nutzer
-- Kommunikation zu Stakeholdern erfolgte innerhalb von 30 Minuten
+- Alerting detected the problem within 2 minutes of deployment
+- Runbook was up to date and correct – rollback steps were executed without senior engineer assistance
+- Canary deployment limited the impact to 20% instead of 100% of users
+- Communication to stakeholders happened within 30 minutes
 
 ---
 
 ## Action Items
 
-| # | Aktion | Owner | Due Date | Jira |
+| # | Action | Owner | Due Date | Jira |
 |---|--------|-------|----------|------|
-| 1 | Index auf `payment_methods.user_id` hinzufügen | @db-engineer | 2025-03-18 | PAY-456 |
-| 2 | AWS Performance Insights aktivieren (alle RDS-Instanzen) | @platform-team | 2025-03-22 | PLAT-789 |
-| 3 | Canary-Startprozentsatz auf 5% reduzieren | @payment-lead | 2025-03-20 | PAY-457 |
-| 4 | Performance-Test mit Produktionsdaten-Volumen in Staging | @qa-team | 2025-04-01 | QA-234 |
-| 5 | Runbook für "Fehlerhaftes Deployment" aktualisieren | @payment-engineer-lead | 2025-03-22 | PAY-458 |
+| 1 | Add index on `payment_methods.user_id` | @db-engineer | 2025-03-18 | PAY-456 |
+| 2 | Enable AWS Performance Insights (all RDS instances) | @platform-team | 2025-03-22 | PLAT-789 |
+| 3 | Reduce canary start percentage to 5% | @payment-lead | 2025-03-20 | PAY-457 |
+| 4 | Performance test with production data volume in staging | @qa-team | 2025-04-01 | QA-234 |
+| 5 | Update runbook for "failed deployment" | @payment-engineer-lead | 2025-03-22 | PAY-458 |
 
 ---
 
-## Notizen zu blameless Kultur
+## Notes on Blameless Culture
 
-Dieser Incident wurde nicht durch einen Fehler verursacht, sondern durch:
-- Unzureichende Test-Infrastruktur (kein Performance-Test)
-- Fehlende Monitoring-Konfiguration (Performance Insights)
-- Unklare Canary-Prozentsatz-Policy
+This incident was not caused by a mistake, but by:
+- Insufficient test infrastructure (no performance test)
+- Missing monitoring configuration (Performance Insights)
+- Unclear canary percentage policy
 
-Die beteiligten Engineers handelten korrekt innerhalb des Systems, das ihnen zur Verfügung stand.
-Die Action Items adressieren das System, nicht die Personen.
+The engineers involved acted correctly within the system available to them.
+The action items address the system, not the people.
 ----
 
-=== Schritt 3: Action-Item-Tracking mit Jira-Automation
+=== Step 3: Action Item Tracking with Jira Automation
 
 [source,json]
 ----
-// Jira Automation: Action Items aus Postmortem automatisch erstellen
-// Trigger: Issue "Postmortem FINAL" Label hinzugefügt
-// Action: Child Issues für jede Zeile in der Action-Items Tabelle erstellen
+// Jira Automation: automatically create action items from postmortem
+// Trigger: "POSTMORTEM-FINAL" label added to issue
+// Action: create child issues for each row in the action items table
 
 {
   "trigger": {
@@ -167,86 +167,86 @@ Die Action Items adressieren das System, nicht die Personen.
 }
 ----
 
-=== Schritt 4: Monatliche Trend-Analyse
+=== Step 4: Monthly Trend Analysis
 
 [source,markdown]
 ----
-# Incident Trend Report – Februar 2025
+# Incident Trend Report – February 2025
 
-## Überblick
+## Overview
 
-| Metrik | Feb 2025 | Jan 2025 | Trend |
+| Metric | Feb 2025 | Jan 2025 | Trend |
 |--------|----------|----------|-------|
 | SEV-1 Incidents | 2 | 4 | ↓ 50% |
 | SEV-2 Incidents | 5 | 6 | ↓ 17% |
-| MTTR Durchschnitt | 38 min | 55 min | ↓ 31% |
-| Action Items erstellt | 11 | 16 | ↓ |
-| Action Items abgeschlossen | 9/11 (82%) | 8/16 (50%) | ↑ |
+| MTTR Average | 38 min | 55 min | ↓ 31% |
+| Action items created | 11 | 16 | ↓ |
+| Action items completed | 9/11 (82%) | 8/16 (50%) | ↑ |
 
-## Top-Incident-Kategorien
+## Top Incident Categories
 
-1. **Datenbankprobleme** – 3 Incidents (neu: fehlende Indizes, Connection Pool)
-2. **Deployment-Fehler** – 2 Incidents (beide durch Canary abgefedert)
-3. **Externe API-Ausfälle** – 2 Incidents (Zahlungsdienstleister)
+1. **Database issues** – 3 incidents (new: missing indexes, connection pool)
+2. **Deployment errors** – 2 incidents (both mitigated by canary)
+3. **External API outages** – 2 incidents (payment provider)
 
-## Empfehlungen
+## Recommendations
 
-- Database-Performance-Testing in CI/CD integrieren (adressiert Top-Kategorie)
-- Circuit Breaker für externe APIs implementieren (adressiert Kategorie 3)
+- Integrate database performance testing into CI/CD (addresses top category)
+- Implement circuit breaker for external APIs (addresses category 3)
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
 [cols="1,3"]
 |===
-|Fehlmuster |Problem
+|Anti-Pattern |Problem
 
-|Blame-Postmortem
-|Engineers verstecken Informationen; zukünftige Incidents werden nicht gemeldet; Kulturschaden
+|Blame postmortem
+|Engineers hide information; future incidents are not reported; cultural damage
 
-|Action Items ohne Owner und Due Date
-|Werden nie abgeschlossen; Postmortem-Aufwand war umsonst
+|Action items without owner and due date
+|Never get completed; postmortem effort was wasted
 
-|Postmortem nur für große Incidents
-|Kleine, wiederholende Incidents werden nicht analysiert; Muster bleiben unsichtbar
+|Postmortem only for major incidents
+|Small, recurring incidents are not analyzed; patterns remain invisible
 
-|Postmortem-Dokument nicht geteilt
-|Andere Teams lernen nicht; gleiche Klasse von Incident passiert woanders
+|Postmortem document not shared
+|Other teams do not learn; same class of incident happens elsewhere
 
-|Meeting ohne Vorbereitung
-|Timeline unklar; Diskussion kreist; keine Lernpunkte
+|Meeting without preparation
+|Timeline unclear; discussion goes in circles; no learning points
 
-|Kein Review der Action-Item-Completion
-|Items werden geöffnet und vergessen; Prozess verliert Glaubwürdigkeit
+|No review of action item completion
+|Items are opened and forgotten; process loses credibility
 
 |===
 
-== Metriken
+== Metrics
 
-* *Postmortem-Completion-Rate:* % der qualifying Incidents mit Postmortem (Ziel: 100%)
-* *Time-to-Postmortem:* Tage von Incident bis Postmortem fertig (Ziel: <= 5 Arbeitstage)
-* *Action-Item-Completion-Rate:* % der Action Items abgeschlossen bis Due Date (Ziel: >= 80%)
-* *Repeat-Incident-Rate:* % der Incidents derselben Klasse wie in den letzten 6 Monaten (Ziel: < 20%)
+* *Postmortem completion rate:* % of qualifying incidents with a postmortem (target: 100%)
+* *Time-to-postmortem:* Days from incident to completed postmortem (target: <= 5 business days)
+* *Action item completion rate:* % of action items completed by due date (target: >= 80%)
+* *Repeat incident rate:* % of incidents of the same class as in the last 6 months (target: < 20%)
 
-== Reifegrad
+== Maturity Levels
 
 [cols="1,2"]
 |===
-|Stufe |Charakteristika
+|Level |Characteristics
 
 |*Level 1*
-|Keine Postmortems. Incidents gelöst und vergessen. Blame-Kultur oder keine Kultur.
+|No postmortems. Incidents resolved and forgotten. Blame culture or no culture.
 
 |*Level 2*
-|Informelle Incident-Reviews für große Ausfälle. Keine Vorlage. Keine Action-Item-Verfolgung.
+|Informal incident reviews for major outages. No template. No action item tracking.
 
 |*Level 3*
-|Strukturierte blameless Postmortems für alle qualifying Incidents. Action Items in Jira/GitHub.
+|Structured blameless postmortems for all qualifying incidents. Action items in Jira/GitHub.
 
 |*Level 4*
-|Monatliche Trend-Analyse. Action Item Completion Rate > 80%. Teamübergreifendes Teilen.
+|Monthly trend analysis. Action item completion rate > 80%. Cross-team sharing.
 
 |*Level 5*
-|Repeat Incident Rate < 20%. Postmortem-Datenbank durchsuchbar. Lernschleife in Architektur-Reviews.
+|Repeat incident rate < 20%. Postmortem database searchable. Learning loop in architecture reviews.
 
 |===

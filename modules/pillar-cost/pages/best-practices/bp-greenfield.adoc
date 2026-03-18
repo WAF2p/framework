@@ -1,60 +1,60 @@
 = Best Practice: Greenfield FinOps by Design
 :page-toc: right
-:description: WAF++ Cost Optimization – Cost Controls von Tag 0: Tagging-Module, Budget-Ressourcen, Lifecycle-Policies und ADR-Cost-Sections als Platform-Standards.
+:description: WAF++ Cost Optimization – Cost controls from day 0: tagging modules, budget resources, lifecycle policies, and ADR cost sections as platform standards.
 
-== Kontext
+== Context
 
-Greenfield-Projekte haben einen einzigartigen Vorteil: Es gibt keine Kostenschuld.
-Jede Entscheidung kann von Anfang an mit vollständigem Cost-Awareness getroffen werden.
-Dieser Vorteil wird häufig verspielt, weil FinOps als „Phase 2"-Thema behandelt wird –
-nach dem Launch, wenn die Kostenstrukturen bereits eingefroren sind.
+Greenfield projects have a unique advantage: there is no cost debt.
+Every decision can be made from the start with full cost awareness.
+This advantage is frequently squandered because FinOps is treated as a "phase 2" topic –
+after launch, when the cost structures are already locked in.
 
-FinOps by Design bedeutet: Cost Controls sind Teil des ersten Commits, nicht der zweiten Retrospektive.
+FinOps by design means: cost controls are part of the first commit, not the second retrospective.
 
-== Zugehörige Controls
+== Related Controls
 
-Alle WAF-COST Controls – mit Fokus auf präventive statt korrektive Maßnahmen.
+All WAF-COST controls – with focus on preventive rather than corrective measures.
 
-== Zielbild
+== Target State
 
-* Erster `terraform apply` enthält bereits: Mandatory-Tag-Modul, Budget-Ressource, Lifecycle-Policies
-* ADR-Template mit Cost-Impact-Sektion ist von Anfang an verfügbar und wird verwendet
-* FinOps-Review-Zyklus startet 30 Tage nach Launch (nicht „irgendwann")
-* Keine Ressource geht live ohne vollständige Tagging-Compliance
+* First `terraform apply` already includes: mandatory tag module, budget resource, lifecycle policies
+* ADR template with cost impact section is available from the start and is used
+* FinOps review cycle starts 30 days after launch (not "at some point")
+* No resource goes live without full tagging compliance
 
-== Platform-Template: Alles von Tag 0
+== Platform Template: Everything from Day 0
 
-=== Repository-Grundstruktur
+=== Repository Base Structure
 
 [source,text]
 ----
 new-service/
 ├── docs/
 │   ├── adr/
-│   │   └── ADR-TEMPLATE.md          # Mit Cost-Impact-Sektion
-│   ├── cost-debt-register.yml        # Initialisiert, leer
-│   └── retention-strategy.yml        # Tier-Strategie dokumentiert
+│   │   └── ADR-TEMPLATE.md          # With cost impact section
+│   ├── cost-debt-register.yml        # Initialized, empty
+│   └── retention-strategy.yml        # Tier strategy documented
 ├── infrastructure/
 │   ├── modules/
-│   │   ├── mandatory-tags/           # Pflicht: Cost-Center, Owner, etc.
-│   │   └── budget-alert/             # Pflicht: Budget + Alert
+│   │   ├── mandatory-tags/           # Required: cost-center, owner, etc.
+│   │   └── budget-alert/             # Required: budget + alert
 │   ├── environments/
 │   │   ├── production/
 │   │   │   ├── main.tf
-│   │   │   ├── budget.tf             # Production Budget
+│   │   │   ├── budget.tf             # Production budget
 │   │   │   └── variables.tf
 │   │   └── staging/
 │   │       └── ...
 │   └── shared/
-│       └── lifecycle-defaults.tf     # Default-Lifecycle für Storage/Logs
+│       └── lifecycle-defaults.tf     # Default lifecycle for storage/logs
 ├── .github/
 │   └── workflows/
-│       ├── cost-compliance.yml       # CI-Gate: Tagging, Lifecycle, Budget
+│       ├── cost-compliance.yml       # CI gate: tagging, lifecycle, budget
 │       └── monthly-finops-report.yml
 └── tagging-taxonomy.yml
 ----
 
-=== Mandatory-Tags-Modul (vollständig)
+=== Mandatory Tags Module (complete)
 
 [source,hcl]
 ----
@@ -110,7 +110,7 @@ output "tags" {
 }
 ----
 
-=== Budget-Modul als Pflichtkomponente
+=== Budget Module as Mandatory Component
 
 [source,hcl]
 ----
@@ -172,14 +172,14 @@ resource "aws_budgets_budget" "workload_budget" {
 }
 ----
 
-=== Lifecycle-Defaults als Standard
+=== Lifecycle Defaults as Standard
 
 [source,hcl]
 ----
-# shared/lifecycle-defaults.tf – Immer für alle Environments
+# shared/lifecycle-defaults.tf – Always for all environments
 
-# CloudWatch Log Groups MÜSSEN Retention haben
-# Wird als Variable übergeben; Default je nach Environment
+# CloudWatch Log Groups MUST have retention
+# Passed as a variable; default varies by environment
 
 variable "log_retention_operational" {
   type        = number
@@ -197,19 +197,19 @@ variable "log_retention_audit" {
   description = "Retention in days for audit logs (Cold-Tier)."
 }
 
-# S3 Lifecycle-Policy-Modul (verpflichtend für alle Buckets)
+# S3 lifecycle policy module (mandatory for all buckets)
 module "s3_lifecycle" {
   source  = "../../modules/s3-lifecycle"
   bucket  = aws_s3_bucket.main.id
 
   transition_to_ia_days       = 30
   transition_to_glacier_days  = 90
-  expiration_days             = 365  # Anpassen je nach Datenklasse
+  expiration_days             = 365  # Adjust per data class
   delete_old_versions_after   = 30
 }
 ----
 
-=== Vollständiges Production-Environment-Beispiel
+=== Complete Production Environment Example
 
 [source,hcl]
 ----
@@ -228,7 +228,7 @@ module "budget" {
   source = "../../modules/budget-alert"
 
   budget_name   = "payment-service-prod"
-  monthly_limit = 5000  # USD/Monat
+  monthly_limit = 5000  # USD/month
   workload      = "payment-service"
   alert_emails  = ["payments-team@company.com", "finops@company.com"]
 }
@@ -245,7 +245,7 @@ resource "aws_instance" "app" {
 
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/app/production/payment-service"
-  retention_in_days = 30  # Hot-Tier: 30 Tage
+  retention_in_days = 30  # Hot tier: 30 days
   kms_key_id        = aws_kms_key.logging.arn
   tags              = module.tags.tags
 }
@@ -279,36 +279,36 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
 }
 ----
 
-== Greenfield-Checkliste: Pre-Launch Gate
+== Greenfield Checklist: Pre-Launch Gate
 
-Bevor ein Service in Produktion geht, muss diese Checkliste erfüllt sein:
+Before a service goes to production, this checklist must be fulfilled:
 
 === Tagging & Budget (WAF-COST-010, WAF-COST-020)
-* [ ] Mandatory-Tag-Modul in allen Ressourcen verwendet
-* [ ] Tagging-Compliance: 100% aller Ressourcen
-* [ ] Budget-Ressource als IaC definiert
-* [ ] 80%- und 100%-Alerts konfiguriert
-* [ ] Alert-Empfänger: Team-Kanal + FinOps
+* [ ] Mandatory tag module used in all resources
+* [ ] Tagging compliance: 100% of all resources
+* [ ] Budget resource defined as IaC
+* [ ] 80% and 100% alerts configured
+* [ ] Alert recipients: team channel + FinOps
 
 === Lifecycle & Retention (WAF-COST-040, WAF-COST-070)
-* [ ] Alle S3-Buckets haben Lifecycle-Configuration
-* [ ] Alle CloudWatch Log Groups haben `retention_in_days` != 0
-* [ ] Retention-Strategie-Dokument vorhanden
-* [ ] Log-Tier dokumentiert (Hot/Warm/Cold/Archive)
+* [ ] All S3 buckets have a lifecycle configuration
+* [ ] All CloudWatch Log Groups have `retention_in_days` != 0
+* [ ] Retention strategy document present
+* [ ] Log tier documented (Hot/Warm/Cold/Archive)
 
-=== Architektur & Cost-Debt (WAF-COST-050, WAF-COST-100)
-* [ ] Initiales ADR für Infrastruktur-Entscheidungen vorhanden
-* [ ] ADR enthält Cost-Impact-Assessment
-* [ ] Cost-Debt-Register initialisiert (auch wenn leer)
-* [ ] FinOps-Review-Termin nach 30 Tagen eingetragen
+=== Architecture & Cost Debt (WAF-COST-050, WAF-COST-100)
+* [ ] Initial ADR for infrastructure decisions present
+* [ ] ADR contains cost impact assessment
+* [ ] Cost debt register initialized (even if empty)
+* [ ] FinOps review date entered 30 days after first deploy
 
-=== FinOps-Prozesse (WAF-COST-060)
-* [ ] FinOps-Review-Zyklus in Team-Kalender eingetragen (erster Review nach 30 Tagen)
-* [ ] Rightsizing-Review nach 90 Tagen geplant
+=== FinOps Processes (WAF-COST-060)
+* [ ] FinOps review cycle entered in team calendar (first review after 30 days)
+* [ ] Rightsizing review planned after 90 days
 
-== Metriken (Greenfield-spezifisch)
+== Metrics (Greenfield-Specific)
 
-* Time-to-Compliance: Tage von erstem Deploy bis 100% Cost-Compliance (Ziel: 0 – von Tag 0)
-* Kostenwachstumsrate Monat 1–6: % Abweichung von initialer TCO-Schätzung (Ziel: < ±20%)
-* Erste Rightsizing-Action: Spätestens 90 Tage nach Launch
-* Erster FinOps-Review: Spätestens 30 Tage nach Launch
+* Time to compliance: days from first deploy to 100% cost compliance (target: 0 – from day 0)
+* Cost growth rate months 1–6: % deviation from initial TCO estimate (target: < ±20%)
+* First rightsizing action: no later than 90 days after launch
+* First FinOps review: no later than 30 days after launch

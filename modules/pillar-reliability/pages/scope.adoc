@@ -1,150 +1,150 @@
-= Geltungsbereich: Reliability
+= Scope: Reliability
 :page-toc: right
-:description: WAF++ Reliability – Was ist im Scope? Brownfield vs. Greenfield, Treiber und Abgrenzung.
+:description: WAF++ Reliability – What is in scope? Brownfield vs. Greenfield, drivers and demarcation.
 
-== Was ist im Scope?
+== What is in Scope?
 
-Die Reliability-Säule adressiert folgende Themenbereiche:
+The Reliability pillar addresses the following subject areas:
 
 === SLO & SLA Governance
 
-* Definition und Dokumentation von Service Level Objectives (SLOs)
-* Messung von Verfügbarkeit, Latenz, Fehlerrate und Durchsatz
-* Error Budget Management und Burn-Rate-Alerting
-* SLA-Vereinbarungen mit internen und externen Kunden
+* Definition and documentation of Service Level Objectives (SLOs)
+* Measurement of availability, latency, error rate and throughput
+* Error budget management and burn rate alerting
+* SLA agreements with internal and external customers
 
 === High Availability
 
-* Multi-AZ Deployment für alle Produktions-Workloads
-* Automatisches Failover für Datenbanken und Stateful Services
-* Load Balancer mit AZ-übergreifender Konfiguration
-* Kubernetes Pod Distribution über Availability Zones
+* Multi-AZ deployment for all production workloads
+* Automatic failover for databases and stateful services
+* Load balancers with cross-AZ configuration
+* Kubernetes pod distribution across availability zones
 
 === Health Monitoring
 
-* Health Check Endpoints für alle Services
-* Readiness und Liveness Probes (Kubernetes)
-* Load Balancer Health Checks mit expliziten Schwellenwerten
-* Synthetisches Monitoring für externe Verfügbarkeitsvalidierung
+* Health check endpoints for all services
+* Readiness and liveness probes (Kubernetes)
+* Load balancer health checks with explicit thresholds
+* Synthetic monitoring for external availability validation
 
 === Backup & Recovery
 
-* Automatisierte Backup-Konfiguration mit definierten Retentionsperioden
-* Point-in-Time Recovery (PITR) für Datenbanken
-* Cross-Account/Cross-Region Backup-Speicherung
-* Getestete und dokumentierte Recovery-Verfahren
+* Automated backup configuration with defined retention periods
+* Point-in-Time Recovery (PITR) for databases
+* Cross-account/cross-region backup storage
+* Tested and documented recovery procedures
 
 === Resilience Patterns
 
-* Circuit Breaker für alle synchronen Abhängigkeiten
-* Timeout-Konfiguration für alle ausgehenden Calls
-* Retry-Logik mit Exponential Backoff und Jitter
-* Bulkhead-Isolation für verschiedene Abhängigkeitsklassen
+* Circuit breakers for all synchronous dependencies
+* Timeout configuration for all outgoing calls
+* Retry logic with exponential backoff and jitter
+* Bulkhead isolation for different dependency classes
 
 === Incident Response
 
-* Severity-Klassifizierung und Eskalationspfade
-* Runbooks für alle kritischen Alerts
-* On-Call-Rotation und Notification-Konfiguration
-* Post-Incident Reviews und Action-Item-Tracking
+* Severity classification and escalation paths
+* Runbooks for all critical alerts
+* On-call rotation and notification configuration
+* Post-incident reviews and action item tracking
 
 === Disaster Recovery Testing
 
-* Dokumentierte DR-Pläne mit RTO/RPO-Zielen
-* Mindestens zweimal jährliche DR-Tests
-* Ergebnisdokumentation mit tatsächlich erreichtem RTO/RPO
-* Automatisierte DR-Prozeduren via IaC
+* Documented DR plans with RTO/RPO targets
+* At least two DR tests per year
+* Results documentation with actual RTO/RPO achieved
+* Automated DR procedures via IaC
 
 === Chaos Engineering
 
-* Hypothesen-getriebene Fault-Injection-Tests
-* Strukturierte Chaos-Experimente (AWS FIS, Azure Chaos Studio)
-* GameDay-Events für ganzheitliche Resilienz-Tests
-* Kontinuierliche Chaos-Validierung in Staging
+* Hypothesis-driven fault injection tests
+* Structured chaos experiments (AWS FIS, Azure Chaos Studio)
+* GameDay events for holistic resilience tests
+* Continuous chaos validation in staging
 
 === Dependency & Reliability Debt
 
-* Inventar aller kritischen Abhängigkeiten
-* Reliability Debt Register mit Priorität und Owner
-* Quartalsweiser Review-Prozess
+* Inventory of all critical dependencies
+* Reliability Debt Register with priority and owner
+* Quarterly review process
 
-== Was ist NICHT im Scope?
+== What is NOT in Scope?
 
-* *Security Incident Response*: Sicherheitsvorfälle fallen in die Security-Säule
-* *Performance Tuning*: Latenzoptimierung unter nominaler Last ist Performance Efficiency
-* *Deployment Pipelines*: CI/CD-Prozesse sind in Operations
-* *Datenschutz*: GDPR-Compliance, Datenkategorisierung → Sovereign Säule
-* *Netzwerksicherheit*: Firewall-Regeln, VPN-Konfiguration → Security Säule
-* *Kostenoptimierung*: Auch wenn Reliability Kosten hat, ist TCO in der Cost-Säule
+* *Security Incident Response*: Security incidents fall under the Security pillar
+* *Performance Tuning*: Latency optimization under nominal load is Performance Efficiency
+* *Deployment Pipelines*: CI/CD processes are in Operations
+* *Data Protection*: GDPR compliance, data categorization → Sovereign pillar
+* *Network Security*: Firewall rules, VPN configuration → Security pillar
+* *Cost Optimization*: Even though reliability has costs, TCO is in the Cost pillar
 
 == Brownfield vs. Greenfield
 
-=== Greenfield (Neuentwicklung)
+=== Greenfield (New Development)
 
-Bei Neuentwicklungen kann Reliability von Anfang an eingebaut werden:
+For new development, reliability can be built in from the start:
 
 [cols="1,3"]
 |===
-|Phase |Reliability-Anforderung
+|Phase |Reliability Requirement
 
-|*Konzept*
-|SLO-Definition, RTO/RPO-Entscheidung, Dependency-Assessment
+|*Concept*
+|SLO definition, RTO/RPO decision, dependency assessment
 
 |*Design*
-|Multi-AZ-Architektur, Circuit Breaker Design, Backup-Strategie
+|Multi-AZ architecture, circuit breaker design, backup strategy
 
 |*Implementation*
-|IaC mit allen WAF-REL Controls von Beginn an; Health Checks in Code
+|IaC with all WAF-REL controls from the beginning; health checks in code
 
 |*Go-Live*
-|DR-Test vor ersten Produktionslasten; Chaos-Test in Staging bestanden
+|DR test before first production loads; chaos test in staging passed
 
-|*Betrieb*
-|Quarterly DR-Tests, Chaos-Experimente, SLO-Review-Zyklus
+|*Operations*
+|Quarterly DR tests, chaos experiments, SLO review cycle
 
 |===
 
-=== Brownfield (Bestandssysteme)
+=== Brownfield (Existing Systems)
 
-Für bestehende Systeme wird ein risikobasierter Ansatz empfohlen:
+For existing systems, a risk-based approach is recommended:
 
-. *Inventory*: Alle Produktions-Workloads identifizieren, nach Kritikalität klassifizieren
-. *SLO-Baseline*: Aktuelle Verfügbarkeit messen, um Ausgangspunkt zu kennen
-. *Quick Wins*: Health Checks und Alerting sind schnell nachzurüsten (1–2 Sprints)
-. *Kritische Systeme zuerst*: Multi-AZ und Backup-Tests für die kritischsten Systeme
-. *Schulden dokumentieren*: Bekannte Gaps ins Reliability Debt Register aufnehmen
-. *Iterativ verbessern*: Quarterly Review-Zyklus zur strukturierten Verbesserung
+. *Inventory*: Identify all production workloads, classify by criticality
+. *SLO Baseline*: Measure current availability to know the starting point
+. *Quick Wins*: Health checks and alerting can be retrofitted quickly (1–2 sprints)
+. *Critical Systems First*: Multi-AZ and backup tests for the most critical systems
+. *Document Debt*: Record known gaps in the Reliability Debt Register
+. *Improve Iteratively*: Quarterly review cycle for structured improvement
 
-WARNING: Brownfield-Systeme ohne DR-Test sind das häufigste Risiko. Beginnen Sie mit einem Single-Service-Restore-Test, bevor Sie komplexere Tests planen.
+WARNING: Brownfield systems without a DR test are the most common risk. Start with a single-service restore test before planning more complex tests.
 
-== Reliability-Treiber
+== Reliability Drivers
 
 [cols="1,3,2"]
 |===
-|Treiber |Beschreibung |WAF-REL Controls
+|Driver |Description |WAF-REL Controls
 
-|*Kundenverpflichtungen*
-|Externe SLAs erfordern nachweisbare Verfügbarkeit
+|*Customer Commitments*
+|External SLAs require demonstrable availability
 |REL-010, REL-020, REL-030
 
-|*Regulatorische Anforderungen*
-|ISO 27001, GDPR, BSI C5 erfordern demonstrierbare Recovery-Kapazität
+|*Regulatory Requirements*
+|ISO 27001, GDPR, BSI C5 require demonstrable recovery capacity
 |REL-040, REL-060, REL-070
 
-|*Kostenrisiko*
-|Ungeplante Ausfälle kosten mehr als präventive Reliability-Investitionen
+|*Cost Risk*
+|Unplanned outages cost more than preventive reliability investments
 |REL-030, REL-040, REL-100
 
-|*Ingenieurproduktivität*
-|Hoher Toil durch reaktive Incident Response ist Reliability-Schuld
+|*Engineering Productivity*
+|High toil from reactive incident response is reliability debt
 |REL-060, REL-090, REL-100
 
-|*Wachstumsskalierung*
-|Systeme, die bei 10x Last nicht funktionieren, blockieren Business-Wachstum
+|*Growth Scaling*
+|Systems that cannot handle 10x load block business growth
 |REL-020, REL-050, REL-080
 
-|*Partnerintegration*
-|B2B-Integrationen erfordern messbare Verfügbarkeit und Incident-Kommunikation
+|*Partner Integration*
+|B2B integrations require measurable availability and incident communication
 |REL-010, REL-060, REL-070
 
 |===

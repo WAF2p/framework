@@ -5,98 +5,98 @@
 :severity: high
 :category: compute-sizing
 :automated: high
-:description: WAF++ Performance Efficiency – Compute-Instanztypen datenbasiert auswählen und Sizing dokumentieren.
+:description: WAF++ Performance Efficiency – Select compute instance types based on data and document sizing decisions.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Compute Sizing | *Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency | *Severity:* High | *Category:* Compute Sizing | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Compute-Ressourcen MÜSSEN aktuelle Instanzgenerationen verwenden.
-Sizing-Entscheidungen MÜSSEN auf gemessenen CPU/Memory/Network-Baselines basieren, nicht auf Intuition.
-Überprovisionierte Ressourcen (CPU avg < 20% sustained) und unterprovisionierte Ressourcen
-(CPU P95 > 80% bei nicht-auto-skalierenden Workloads) MÜSSEN quartalsweise reviewed werden.
+All compute resources MUST use current instance generations.
+Sizing decisions MUST be based on measured CPU/memory/network baselines, not on intuition.
+Over-provisioned resources (CPU avg < 20% sustained) and under-provisioned resources
+(CPU P95 > 80% for non-auto-scaling workloads) MUST be reviewed quarterly.
 
-Kein Instanztyp-Upgrade ohne Performance-Messung. Kein Instanztyp-Downgrade ohne Risikoanalyse.
+No instance type upgrade without performance measurement. No instance type downgrade without risk analysis.
 
 == Rationale
 
-Falsch dimensionierte Instanzen sind die häufigste Ursache für gleichzeitige Performance-Probleme
-und Kostenverschwendung. Überprovisionierte Instanzen verschwenden Budget; unterprovisionierte
-verursachen Latenz-Spikes unter Last. Previous-Generation-Instanzen (t2, m4, c4) bieten bis zu 30%
-schlechtere Preis-Leistung als aktuelle Generationen und sollten migriert werden.
+Incorrectly sized instances are the most common cause of simultaneous performance problems
+and cost waste. Over-provisioned instances waste budget; under-provisioned instances
+cause latency spikes under load. Previous-generation instances (t2, m4, c4) offer up to 30%
+worse price-performance than current generations and should be migrated.
 
-Cloud Provider-Sizing-Empfehlungen (Compute Optimizer, Azure Advisor, GCP Recommender) bieten
-datenbasierte Rightsizing-Empfehlungen. Diese MÜSSEN in den Quartals-Review einbezogen werden.
+Cloud provider sizing recommendations (Compute Optimizer, Azure Advisor, GCP Recommender) provide
+data-driven rightsizing recommendations. These MUST be included in the quarterly review.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Performance-Degradation unter Last*
-|Unterprovisionierte Instanzen sättigen CPU/Memory bei Lastspitzen – Timeouts und Fehler kaskadieren.
+|*Performance Degradation Under Load*
+|Under-provisioned instances saturate CPU/memory during load spikes – timeouts and errors cascade.
 
-|*Kostenverschwendung*
-|Überprovisionierte Instanzen mit < 10% CPU-Auslastung zahlen für ungenutzte Kapazität.
+|*Cost Waste*
+|Over-provisioned instances with < 10% CPU utilization pay for unused capacity.
 
-|*Previous-Generation-Risiko*
-|t2/m4-Instanzen haben Burst-Mechanics und schlechtere Baseline-Performance; t3/m6i sind besser und günstiger.
+|*Previous-Generation Risk*
+|t2/m4 instances have burst mechanics and worse baseline performance; t3/m6i are better and cheaper.
 
-|*Undokumentiertes Sizing*
-|Wenn niemand weiß, warum eine Instanzgröße gewählt wurde, wird sie nie optimiert.
+|*Undocumented Sizing*
+|If nobody knows why an instance size was chosen, it will never be optimized.
 
 |===
 
-== Anforderung
+== Requirement
 
-* Alle Produktions-Compute-Ressourcen MÜSSEN aktuelle Instanzgenerationen verwenden
-* Sizing-Entscheidungen MÜSSEN durch gemessene Baselines belegt sein (Sizing-Dokument oder ADR)
-* Quarterly Review MUSS stattfinden; Ergebnis in einem Sizing-Report dokumentiert
-* Instanztyp-Auswahl MUSS das `sizing-reviewed` Tag mit Review-Datum tragen
+* All production compute resources MUST use current instance generations
+* Sizing decisions MUST be supported by measured baselines (sizing document or ADR)
+* Quarterly review MUST take place; result documented in a sizing report
+* Instance type selection MUST carry the `sizing-reviewed` tag with review date
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Baseline-Metriken sammeln*: 2–4 Wochen CPU/Memory/Network-Daten aus CloudWatch/Azure Monitor/GCP Monitoring
-. *Compute Optimizer aktivieren*: AWS Compute Optimizer, Azure Advisor oder GCP Recommender einschalten
-. *Sizing-Dokument erstellen*: `docs/sizing/<service>.yml` mit Messwerten und Begründung
-. *IaC aktualisieren*: Aktuelle Instanzgeneration im Terraform deklarieren; `sizing-reviewed` Tag setzen
-. *CI-Validation*: WAF++-Check für Previous-Generation-Instanzen in CI-Pipeline
-. *Quarterly Review*: Regelmäßige Wiederholung; Empfehlungen von Cloud Provider einbeziehen
+. *Collect baseline metrics*: 2–4 weeks of CPU/memory/network data from CloudWatch/Azure Monitor/GCP Monitoring
+. *Activate Compute Optimizer*: Enable AWS Compute Optimizer, Azure Advisor or GCP Recommender
+. *Create sizing document*: `docs/sizing/<service>.yml` with measured values and rationale
+. *Update IaC*: Declare current instance generation in Terraform; set `sizing-reviewed` tag
+. *CI validation*: WAF++ check for previous-generation instances in CI pipeline
+. *Quarterly review*: Regular repetition; include cloud provider recommendations
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
 |Ad-hoc Sizing
-|Keine Sizing-Dokumentation; Previous-Generation-Instanzen weit verbreitet; kein Review-Prozess.
+|No sizing documentation; previous-generation instances widespread; no review process.
 
 |*2*
 |Experience-based
-|Instanzgröße aus Erfahrung gewählt; gelegentliche Reviews; teilweise dokumentiert.
+|Instance size chosen from experience; occasional reviews; partially documented.
 
 |*3*
-|Gemessene Baseline
-|Datenbasiertes Sizing für Produktion; ADR/Sizing-Dokument; Quartals-Review; >= 90% aktuelle Generation.
+|Measured Baseline
+|Data-driven sizing for production; ADR/sizing document; quarterly review; >= 90% current generation.
 
 |*4*
 |Continuous Optimization
-|Compute Optimizer integriert; automatische Rightsizing-Tickets; 100% aktuelle Generation.
+|Compute Optimizer integrated; automatic rightsizing tickets; 100% current generation.
 
 |*5*
 |Predictive Sizing
-|ML-basiertes Sizing; Cost-per-Request als Metrik; Self-Optimizing Capacity.
+|ML-based sizing; cost-per-request as metric; self-optimizing capacity.
 
 |===
 
 == Terraform Checks
 
 === waf-perf-010.tf.aws.ec2-current-generation
-*Prüft:* AWS EC2-Instanzen dürfen keine Previous-Generation-Typen (t2, m4, c4, r4) verwenden.
+*Checks:* AWS EC2 instances must not use previous-generation types (t2, m4, c4, r4).
 
 [cols="1,1"]
 |===
@@ -124,49 +124,49 @@ resource "aws_instance" "app" {
 ----
 |===
 
-*Remediation:* Previous-Generation-Instanzen migrieren: t2.* → t3.* oder t4g.*, m4.* → m6i.*, c4.* → c6i.*.
-Vor Migration Compute Optimizer konsultieren. Migration ist online (Stop/Start der Instanz).
+*Remediation:* Migrate previous-generation instances: t2.* → t3.* or t4g.*, m4.* → m6i.*, c4.* → c6i.*.
+Consult Compute Optimizer before migration. Migration is online (stop/start of the instance).
 
 === waf-perf-010.tf.google.gce-machine-type-validated
-*Prüft:* GCP Compute-Instanzen dürfen keine N1-Series verwenden.
+*Checks:* GCP compute instances must not use N1 series.
 
 [source,hcl]
 ----
 # Compliant
 resource "google_compute_instance" "app" {
-  machine_type = "n2-standard-2"  # Aktuelle Generation
+  machine_type = "n2-standard-2"  # Current generation
 }
 # Non-Compliant
 resource "google_compute_instance" "app" {
-  machine_type = "n1-standard-2"  # N1 veraltet – WAF-PERF-010 Violation
+  machine_type = "n1-standard-2"  # N1 outdated – WAF-PERF-010 Violation
 }
 ----
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*Config*
-|✅ Pflicht
-|Sizing-Dokument oder ADR-Sektion mit gemessenen CPU/Memory-Baselines.
+|✅ Required
+|Sizing document or ADR section with measured CPU/memory baselines.
 
 |*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration mit aktueller Instanzgeneration und `sizing-reviewed` Tag.
+|✅ Required
+|Terraform configuration with current instance generation and `sizing-reviewed` tag.
 
 |*Process*
 |Optional
-|Quartalsbericht über Sizing-Reviews mit Rightsizing-Maßnahmen.
+|Quarterly sizing review report with rightsizing actions.
 
 |*Config*
 |Optional
-|Export aus AWS Compute Optimizer, Azure Advisor oder GCP Recommender.
+|Export from AWS Compute Optimizer, Azure Advisor or GCP Recommender.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
@@ -174,4 +174,4 @@ resource "google_compute_instance" "app" {
 
 == Best Practice
 
-* xref:../best-practices/bp-compute-sizing.adoc[Compute-Sizing & Instanzauswahl →]
+* xref:../best-practices/bp-compute-sizing.adoc[Compute Sizing & Instance Selection →]

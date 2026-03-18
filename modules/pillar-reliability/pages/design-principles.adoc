@@ -1,129 +1,129 @@
-= Design-Prinzipien: Reliability-Architektur
+= Design Principles: Reliability Architecture
 :page-toc: right
-:description: WAF++ Reliability – 8 technische Design-Prinzipien für resiliente Cloud-Architekturen (RD1–RD8).
+:description: WAF++ Reliability – 8 technical design principles for resilient cloud architectures (RD1–RD8).
 
-Die folgenden acht technischen Design-Prinzipien (RD1–RD8) übersetzen die
-xref:principles.adoc[7 Reliability-Prinzipien] in konkrete Architekturanforderungen.
+The following eight technical design principles (RD1–RD8) translate the
+xref:principles.adoc[7 Reliability Principles] into concrete architecture requirements.
 
-== RD1 – Idempotente Operationen
+== RD1 – Idempotent Operations
 
-Alle mutierenden Operationen (schreiben, löschen, aktualisieren) MÜSSEN idempotent sein.
-Eine Operation, die mehrfach ausgeführt wird, MUSS dasselbe Ergebnis liefern wie eine
-Einzelausführung.
+All mutating operations (write, delete, update) MUST be idempotent.
+An operation executed multiple times MUST produce the same result as a
+single execution.
 
-*Warum:* Retry-Logik und automatische Recovery erfordern, dass fehlgeschlagene
-Operationen sicher wiederholt werden können. Nicht-idempotente Operationen führen bei
-Retries zu Datenduplikation oder inkonsistenten Zuständen.
+*Why:* Retry logic and automatic recovery require that failed
+operations can be safely retried. Non-idempotent operations lead to
+data duplication or inconsistent states on retries.
 
-*Umsetzung:*
-* Unique Request IDs für alle API-Calls (Idempotency Keys)
-* Upsert-Semantik statt separate Create/Update-Pfade
-* Optimistic Locking mit Versions-/ETag-Prüfung
-
----
-
-== RD2 – Zustandslose Services (Stateless First)
-
-Services SOLLEN zustandslos sein. Zustand MUSS in dedizierten Datenspeichern
-gehalten werden, nicht in Service-Instanzen.
-
-*Warum:* Zustandslose Services können ohne Datenverlust neu gestartet, skaliert
-und ersetzt werden. Dies ist die Voraussetzung für Auto-Healing (RP3) und
-horizontale Skalierung.
-
-*Umsetzung:*
-* Sessions in Redis/Memcached oder JWT-basiert (kein lokaler In-Memory State)
-* Uploads direkt in Object Storage (S3, GCS, Azure Blob), nicht lokales Filesystem
-* Feature-Flags aus zentralem Service, nicht aus lokalem Config-File
+*Implementation:*
+* Unique request IDs for all API calls (idempotency keys)
+* Upsert semantics instead of separate create/update paths
+* Optimistic locking with version/ETag validation
 
 ---
 
-== RD3 – Graceful Degradation statt Totalausfall
+== RD2 – Stateless Services (Stateless First)
 
-Services MÜSSEN bei Ausfall nicht-kritischer Abhängigkeiten funktionsfähig bleiben,
-auch wenn mit reduziertem Funktionsumfang.
+Services SHOULD be stateless. State MUST be held in dedicated data stores,
+not in service instances.
 
-*Warum:* Totalausfälle bei Ausfall optionaler Features verletzen das Blast-Radius-Prinzip
-(RP5). Nutzer akzeptieren reduzierte Funktionalität deutlich besser als Systemausfälle.
+*Why:* Stateless services can be restarted, scaled
+and replaced without data loss. This is the prerequisite for auto-healing (RP3) and
+horizontal scaling.
 
-*Umsetzung:*
-* Feature Flags deaktivieren nicht-kritische Features bei Abhängigkeitsfehlern
-* Cached Response als Fallback bei Cache-Miss mit Abhängigkeitsausfall
-* Stub-Responses für optionale Enrichment-Services
+*Implementation:*
+* Sessions in Redis/Memcached or JWT-based (no local in-memory state)
+* Uploads directly to object storage (S3, GCS, Azure Blob), not local filesystem
+* Feature flags from a central service, not from local config files
 
 ---
 
-== RD4 – Bulkhead-Isolation von Ressourcen-Pools
+== RD3 – Graceful Degradation Instead of Complete Failure
 
-Verschiedene Abhängigkeitsklassen MÜSSEN separate Connection Pools, Thread Pools
-und Queue-Kapazitäten nutzen.
+Services MUST remain functional when non-critical dependencies fail,
+even if with reduced feature set.
 
-*Warum:* Ohne Bulkheads kann ein langsamer optionaler Service alle verfügbaren
-Threads erschöpfen und kritische Services blockieren (Cascading Failure).
+*Why:* Complete outages on failure of optional features violate the blast radius principle
+(RP5). Users accept reduced functionality far better than system outages.
 
-*Umsetzung:*
-* Separate Resilience4j/Hystrix Bulkheads pro Abhängigkeitsklasse
-* Separate HTTP-Client-Instanzen pro externe API
-* Separate Connection Pool-Konfiguration pro Datenbankinstanz
+*Implementation:*
+* Feature flags disable non-critical features on dependency failures
+* Cached response as fallback on cache miss with dependency failure
+* Stub responses for optional enrichment services
+
+---
+
+== RD4 – Bulkhead Isolation of Resource Pools
+
+Different dependency classes MUST use separate connection pools, thread pools
+and queue capacities.
+
+*Why:* Without bulkheads, a slow optional service can exhaust all available
+threads and block critical services (cascading failure).
+
+*Implementation:*
+* Separate Resilience4j/Hystrix bulkheads per dependency class
+* Separate HTTP client instances per external API
+* Separate connection pool configuration per database instance
 
 ---
 
 == RD5 – Immutable Infrastructure
 
-Produktionsinfrastruktur SOLL durch Ersatz, nicht durch Modifikation aktualisiert werden.
+Production infrastructure SHOULD be updated by replacement, not modification.
 
-*Warum:* Mutable Infrastructure akkumuliert Konfigurations-Drift, der Reliability
-beeinträchtigt und Recovery erschwert. Immutable Infrastructure ermöglicht
-deterministisches Verhalten und reproduzierbare Deployments.
+*Why:* Mutable infrastructure accumulates configuration drift, which impairs reliability
+and complicates recovery. Immutable infrastructure enables
+deterministic behavior and reproducible deployments.
 
-*Umsetzung:*
-* Kein SSH/RDP in Produktionsinstanzen für Konfigurationsänderungen
-* Alle Konfigurationsänderungen via IaC-Deploy, nicht in-place
-* Container Images immutable: kein Modifizieren laufender Container
-
----
-
-== RD6 – Defense in Depth für Datenpersistenz
-
-Datenpersistenz MUSS mehrere unabhängige Schutzschichten haben: Multi-AZ,
-Backup, Cross-Region-Replikation und PITR.
-
-*Warum:* Einzelne Schutzmaßnahmen scheitern. Die Kombination aus mehreren
-unabhängigen Ebenen reduziert das Risiko vollständigen Datenverlusts auf nahezu null.
-
-*Umsetzung:*
-* Multi-AZ Primär-Datenbank (synchrone Replikation, automatisches Failover)
-* Tägliche Backups in separates Account/Region (asynchrone Replikation)
-* PITR für Wiederherstellung auf transaktionsgenauem Zeitpunkt
-* Backup-Immutabilität durch WORM oder Vault Lock
+*Implementation:*
+* No SSH/RDP into production instances for configuration changes
+* All configuration changes via IaC deploy, not in-place
+* Container images immutable: no modifying running containers
 
 ---
 
-== RD7 – Observability vor Intervention
+== RD6 – Defense in Depth for Data Persistence
 
-Kein Produktionssystem DARF deployed werden, ohne dass Logs, Metriken und Traces
-für Incident Investigation verfügbar sind.
+Data persistence MUST have multiple independent protection layers: Multi-AZ,
+backup, cross-region replication and PITR.
 
-*Warum:* Recovery ohne Observability ist Blindflug. MTTR steigt dramatisch, wenn
-Diagnose-Daten fehlen oder erst nach Incident-Start konfiguriert werden müssen.
+*Why:* Individual protection measures fail. The combination of multiple
+independent layers reduces the risk of complete data loss to near zero.
 
-*Umsetzung:*
-* Structured JSON Logs mit korrelierter Request-ID
-* RED Metriken: Rate, Errors, Duration für jeden Service
-* Distributed Tracing (OpenTelemetry) für inter-service Abhängigkeiten
-* SLO-Dashboard vor Go-Live verfügbar
+*Implementation:*
+* Multi-AZ primary database (synchronous replication, automatic failover)
+* Daily backups in separate account/region (asynchronous replication)
+* PITR for recovery to transaction-precise point in time
+* Backup immutability via WORM or Vault Lock
+
+---
+
+== RD7 – Observability Before Intervention
+
+No production system MAY be deployed without logs, metrics and traces
+being available for incident investigation.
+
+*Why:* Recovery without observability is flying blind. MTTR increases dramatically when
+diagnostic data is missing or must first be configured after the incident has started.
+
+*Implementation:*
+* Structured JSON logs with correlated request ID
+* RED metrics: Rate, Errors, Duration for each service
+* Distributed tracing (OpenTelemetry) for inter-service dependencies
+* SLO dashboard available before go-live
 
 ---
 
 == RD8 – Chaos-Ready by Design
 
-Neue Services SOLLEN so designed werden, dass Chaos-Tests einfach durchführbar sind.
+New services SHOULD be designed so that chaos tests can be easily conducted.
 
-*Warum:* Services, die schwer testbar sind, werden nicht getestet. Chaos-Testbarkeit
-ist ein Design-Qualitätsmerkmal, das von Anfang an berücksichtigt werden muss.
+*Why:* Services that are difficult to test are not tested. Chaos testability
+is a design quality characteristic that must be considered from the beginning.
 
-*Umsetzung:*
-* Chaos-Endpoints (feature-flag-gesteuert) für Fault Injection in Staging
-* Explizite Timeout-Konfiguration (keine Hard-coded Werte)
-* Health Check Endpoints, die reale Abhängigkeitsstatus zurückgeben
-* Stop-Conditions für alle automatisierten Chaos-Tools dokumentiert
+*Implementation:*
+* Chaos endpoints (feature-flag-controlled) for fault injection in staging
+* Explicit timeout configuration (no hard-coded values)
+* Health check endpoints that return real dependency status
+* Stop conditions documented for all automated chaos tools

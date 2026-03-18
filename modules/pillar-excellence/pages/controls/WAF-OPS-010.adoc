@@ -5,96 +5,96 @@
 :severity: high
 :category: deployment-automation
 :automated: high
-:description: WAF++ Operational Excellence – Alle Produktions-Deployments müssen automatisiert durch eine versionierte CI/CD-Pipeline erfolgen.
+:description: WAF++ Operational Excellence – All production deployments must be performed automatically through a versioned CI/CD pipeline.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Deployment-Automatisierung | *Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* High | *Category:* Deployment Automation | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Jeder Produktions-Workload MUSS eine definierte, versionierte CI/CD-Pipeline haben.
-Manuelle Deployments in Produktion sind nicht zulässig.
-Pipeline-Definitionen MÜSSEN als Code im selben Repository wie die Applikation gespeichert sein.
+Every production workload MUST have a defined, versioned CI/CD pipeline.
+Manual deployments to production are not permitted.
+Pipeline definitions MUST be stored as code in the same repository as the application.
 
 == Rationale
 
-Manuelle Deployments sind die häufigste Ursache von Configuration Drift, Deployment-Fehlern
-und undokumentierten Änderungen. Automatisierte Pipelines erzwingen Konsistenz, reduzieren
-menschliche Fehler und liefern einen Audit-Trail für jede Änderung.
+Manual deployments are the most common cause of configuration drift, deployment errors,
+and undocumented changes. Automated pipelines enforce consistency, reduce
+human error, and provide an audit trail for every change.
 
-DORA-Elite-Teams deployen mehrfach täglich mit einer Change Failure Rate unter 5%.
-Manuelle Prozesse können diese Zuverlässigkeit nicht erreichen.
+DORA Elite teams deploy multiple times daily with a Change Failure Rate below 5%.
+Manual processes cannot achieve this level of reliability.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Undokumentierte manuelle Änderungen*
-|Manuelle Deployments hinterlassen keinen Audit-Trail; Debugging nach Incident ist erschwert.
+|*Undocumented manual changes*
+|Manual deployments leave no audit trail; debugging after an incident is harder.
 
-|*Inkonsistente Umgebungen*
-|Manuelles Deployment erzeugt Abweichungen zwischen Staging und Production (Snowflake-Problem).
+|*Inconsistent environments*
+|Manual deployment creates deviations between staging and production (snowflake problem).
 
-|*Fehlende Rollback-Fähigkeit*
-|Ohne Pipeline ist Rollback ein neuer manueller Deployment-Prozess statt automatischer Umkehrung.
+|*Missing rollback capability*
+|Without a pipeline, rollback is a new manual deployment process rather than an automated reversal.
 
-|*Compliance-Verletzung*
-|Change-Management-Anforderungen (SOC 2, ISO 20000) fordern dokumentierte Änderungskontrolle.
+|*Compliance violation*
+|Change management requirements (SOC 2, ISO 20000) require documented change control.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Pipeline-Definitionen MÜSSEN in Version-Control gespeichert sein
-* Alle Deployments in Produktion MÜSSEN durch die Pipeline ausgeführt werden
-* Direkte SSH-Zugriffe oder Console-Deployments in Produktion MÜSSEN verboten sein
-* Branch-Protection MUSS direkte Commits auf `main` oder Produktions-Branches verhindern
-* Approval-Gates MÜSSEN vor Production-Deployments konfiguriert sein
-* Artefakte MÜSSEN versioniert sein (Git-SHA oder semantische Version, nicht `latest`)
+* Pipeline definitions MUST be stored in version control
+* All production deployments MUST be executed through the pipeline
+* Direct SSH access or console deployments in production MUST be prohibited
+* Branch protection MUST prevent direct commits to `main` or production branches
+* Approval gates MUST be configured before production deployments
+* Artifacts MUST be versioned (Git SHA or semantic version, not `latest`)
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Pipeline-as-Code definieren:* `.github/workflows/`, `.gitlab-ci.yml`, `buildspec.yml` – im Repository, nicht extern
-. *Stages definieren:* Lint → Test → Security Scan → Build → Deploy Staging → Approval → Deploy Production
-. *Branch-Protection konfigurieren:* Mindestens 1 Reviewer, CODEOWNERS, direkte Commits verboten
-. *Artefakt-Versionierung:* Git-SHA als Container-Image-Tag; `latest` in Production verboten
-. *Approval-Gate aktivieren:* GitHub Environments, Azure DevOps Environment Checks, CodePipeline Manual Approval
-. *Deployment-Benachrichtigungen:* Pipeline-Failure-Alerts an Team-Kanal (Slack, Teams)
+. *Define pipeline-as-code:* `.github/workflows/`, `.gitlab-ci.yml`, `buildspec.yml` – in the repository, not externally
+. *Define stages:* Lint → Test → Security Scan → Build → Deploy Staging → Approval → Deploy Production
+. *Configure branch protection:* At least 1 reviewer, CODEOWNERS, direct commits prohibited
+. *Artifact versioning:* Git SHA as container image tag; `latest` prohibited in production
+. *Activate approval gate:* GitHub Environments, Azure DevOps Environment Checks, CodePipeline Manual Approval
+. *Deployment notifications:* Pipeline failure alerts to team channel (Slack, Teams)
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Manuelle Deployments
-|Keine Pipeline; Deployments via SSH oder Konsole; kein Audit-Trail.
+|Manual Deployments
+|No pipeline; deployments via SSH or console; no audit trail.
 
 |*2*
-|Basis-Pipeline
-|CI-Pipeline für Tests vorhanden; Deployments per Skript aber manuell ausgelöst.
+|Basic Pipeline
+|CI pipeline exists for tests; deployments via script but triggered manually.
 
 |*3*
-|Vollständige CI/CD mit Gates
-|Alle Deployments automatisiert; Branch-Protection; Approval-Gate für Production.
+|Full CI/CD with Gates
+|All deployments automated; branch protection; approval gate for production.
 
 |*4*
-|Metriken & Progressive Delivery
-|DORA-Metriken gemessen; Canary/Blue-Green; Auto-Rollback bei Fehler.
+|Metrics & Progressive Delivery
+|DORA metrics measured; canary/blue-green; auto-rollback on failure.
 
 |*5*
 |Continuous Deployment
-|Mehrfach täglich; Change Failure Rate < 5%; Feature Flags für risikolose Releases.
+|Multiple times daily; Change Failure Rate < 5%; feature flags for low-risk releases.
 
 |===
 
 == Terraform Checks
 
 === waf-ops-010.tf.aws.codepipeline-exists
-*Prüft:* AWS CodePipeline mit Source, Build und Deploy-Stage ist definiert.
+*Checks:* AWS CodePipeline with source, build, and deploy stage is defined.
 
 [cols="1,1"]
 |===
@@ -116,7 +116,7 @@ resource "aws_codepipeline" "app" {
 ----
 a|[source,hcl]
 ----
-# Kein Pipeline definiert
+# No pipeline defined
 # Deployments via SSH/Console
 # WAF-OPS-010 Violation
 ----
@@ -124,7 +124,7 @@ a|[source,hcl]
 |===
 
 === waf-ops-010.tf.google.cloudbuild-trigger-exists
-*Prüft:* Google Cloud Build Trigger mit Build-Konfigurationsdatei ist definiert.
+*Checks:* Google Cloud Build Trigger with build configuration file is defined.
 
 [source,hcl]
 ----
@@ -140,34 +140,34 @@ resource "google_cloudbuild_trigger" "app" {
 }
 ----
 
-*Remediation:* Eine `aws_codepipeline`, `azuredevops_build_definition` oder
-`google_cloudbuild_trigger` Ressource mit Repository-Referenz und Build-Konfiguration definieren.
+*Remediation:* Define an `aws_codepipeline`, `azuredevops_build_definition`, or
+`google_cloudbuild_trigger` resource with a repository reference and build configuration.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Pipeline-Definitions-Dateien (.github/workflows/, .gitlab-ci.yml) in Version-Control.
+|✅ Required
+|Pipeline definition files (.github/workflows/, .gitlab-ci.yml) in version control.
 
 |*Config*
-|✅ Pflicht
-|Branch-Protection-Konfiguration (min. Reviewer, CODEOWNERS, direkte Commits verboten).
+|✅ Required
+|Branch protection configuration (min. reviewer, CODEOWNERS, direct commits prohibited).
 
 |*Process*
 |Optional
-|DORA-Metriken-Report (Deployment Frequency, Lead Time for Changes).
+|DORA metrics report (Deployment Frequency, Lead Time for Changes).
 
 |*Governance*
 |Optional
-|Change-Management-Policy die manuelle Production-Deployments explizit verbietet.
+|Change management policy that explicitly prohibits manual production deployments.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-OPS-020.adoc[WAF-OPS-020 – Infrastructure as Code Enforced]
 * xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
@@ -175,4 +175,4 @@ resource "google_cloudbuild_trigger" "app" {
 
 == Best Practice
 
-* xref:best-practices/bp-cicd.adoc[CI/CD-Pipeline aufbauen und absichern →]
+* xref:best-practices/bp-cicd.adoc[Building and Securing a CI/CD Pipeline →]

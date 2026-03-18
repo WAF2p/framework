@@ -1,34 +1,34 @@
-= Best Practice: Observability-Stack aufbauen
+= Best Practice: Building an Observability Stack
 :page-toc: right
-:description: Structured Logging, Distributed Tracing und Metriken mit OpenTelemetry, CloudWatch, Azure Monitor und Google Cloud Operations Suite – den Observability-Stack aufbauen.
+:description: Structured logging, distributed tracing and metrics with OpenTelemetry, CloudWatch, Azure Monitor and Google Cloud Operations Suite – building the observability stack.
 
-== Kontext
+== Context
 
-Observability ist die Fähigkeit, den internen Zustand eines Systems aus seinen Ausgaben
-zu verstehen. Sie besteht aus drei Säulen: Logs, Metriken und Traces.
-Ein System ohne alle drei Säulen ist im Incident-Fall blind.
+Observability is the ability to understand the internal state of a system from its outputs.
+It consists of three pillars: logs, metrics, and traces.
+A system missing any of these three pillars is blind during an incident.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-OPS-030[WAF-OPS-030 – Observability Stack Configured]
 
-== Zielbild
+== Target State
 
-Ein vollständiger Observability-Stack:
+A complete observability stack:
 
-* Alle Services emittieren strukturierte JSON-Logs mit Trace-ID und Request-ID
-* Distributed Tracing ist via OpenTelemetry implementiert und visualisierbar
-* RED-Metriken (Rate, Errors, Duration) für jeden Service exportiert
-* Dashboards zeigen Service-Gesundheit auf einen Blick
-* Log-Retention-Policies steuern Kosten und Compliance
+* All services emit structured JSON logs with trace ID and request ID
+* Distributed tracing is implemented via OpenTelemetry and is visualizable
+* RED metrics (Rate, Errors, Duration) are exported for every service
+* Dashboards show service health at a glance
+* Log retention policies control costs and compliance
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Structured Logging einrichten
+=== Step 1: Set Up Structured Logging
 
 [source,javascript]
 ----
-// Node.js Beispiel mit Winston und OpenTelemetry
+// Node.js example with Winston and OpenTelemetry
 const winston = require('winston');
 const { trace, context } = require('@opentelemetry/api');
 
@@ -40,7 +40,7 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
-// Middleware: Trace-ID und Request-ID in jeden Log einbetten
+// Middleware: embed trace ID and request ID in every log
 function createLogContext() {
   const span = trace.getActiveSpan();
   const spanContext = span?.spanContext();
@@ -51,7 +51,7 @@ function createLogContext() {
   };
 }
 
-// Verwendung:
+// Usage:
 logger.info('Payment processed', {
   ...createLogContext(),
   service:    'payment-service',
@@ -61,7 +61,7 @@ logger.info('Payment processed', {
   currency:   payment.currency,
 });
 
-// Erwartetes Log-Ausgabe-Format:
+// Expected log output format:
 // {
 //   "timestamp": "2025-03-18T10:30:00.000Z",
 //   "level": "info",
@@ -75,11 +75,11 @@ logger.info('Payment processed', {
 // }
 ----
 
-=== Schritt 2: OpenTelemetry konfigurieren (AWS X-Ray Backend)
+=== Step 2: Configure OpenTelemetry (AWS X-Ray Backend)
 
 [source,javascript]
 ----
-// otel-setup.js – vor allem anderen importieren
+// otel-setup.js – import before everything else
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { AWSXRayPropagator } = require('@opentelemetry/propagator-aws-xray');
 const { AWSXRayIdGenerator } = require('@opentelemetry/id-generator-aws-xray');
@@ -105,14 +105,14 @@ sdk.start();
 process.on('SIGTERM', () => sdk.shutdown());
 ----
 
-=== Schritt 3: CloudWatch Log Groups mit Terraform konfigurieren
+=== Step 3: Configure CloudWatch Log Groups with Terraform
 
 [source,hcl]
 ----
-# CloudWatch Log Group für Applikation
+# CloudWatch Log Group for application
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/aws/ecs/${var.service_name}"
-  retention_in_days = 90  # 90 Tage für Applikations-Logs
+  retention_in_days = 90  # 90 days for application logs
 
   tags = {
     service     = var.service_name
@@ -121,10 +121,10 @@ resource "aws_cloudwatch_log_group" "app" {
   }
 }
 
-# CloudWatch Log Group für Security/Audit-Logs (längere Retention)
+# CloudWatch Log Group for security/audit logs (longer retention)
 resource "aws_cloudwatch_log_group" "audit" {
   name              = "/audit/${var.service_name}"
-  retention_in_days = 365  # 1 Jahr für Audit-Logs
+  retention_in_days = 365  # 1 year for audit logs
 
   tags = {
     service     = var.service_name
@@ -133,7 +133,7 @@ resource "aws_cloudwatch_log_group" "audit" {
   }
 }
 
-# CloudWatch Contributor Insights (Anomalie-Erkennung in Logs)
+# CloudWatch Contributor Insights (anomaly detection in logs)
 resource "aws_cloudwatch_log_metric_filter" "error_rate" {
   name           = "${var.service_name}-error-rate"
   pattern        = "{ $.level = \"ERROR\" }"
@@ -146,12 +146,12 @@ resource "aws_cloudwatch_log_metric_filter" "error_rate" {
   }
 }
 
-# X-Ray Sampling-Regel konfigurieren
+# Configure X-Ray sampling rule
 resource "aws_xray_sampling_rule" "payment_service" {
   rule_name      = "payment-service-sampling"
   priority       = 1000
-  reservoir_size = 5     # Minimum 5 Traces/Sekunde
-  fixed_rate     = 0.05  # 5% Sampling für normale Requests
+  reservoir_size = 5     # Minimum 5 traces/second
+  fixed_rate     = 0.05  # 5% sampling for normal requests
   url_path       = "/api/payment/*"
   host           = "*"
   http_method    = "*"
@@ -162,7 +162,7 @@ resource "aws_xray_sampling_rule" "payment_service" {
 }
 ----
 
-=== Schritt 4: Dashboard erstellen
+=== Step 4: Create a Dashboard
 
 [source,hcl]
 ----
@@ -209,57 +209,57 @@ resource "aws_cloudwatch_dashboard" "service_health" {
 }
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
 [cols="1,3"]
 |===
-|Fehlmuster |Problem
+|Anti-Pattern |Problem
 
-|Unstrukturiertes Logging (Text)
-|Nicht maschinell verarbeitbar; Log-Suche aufwändig; Trace-ID-Korrelation unmöglich
+|Unstructured logging (plain text)
+|Not machine-parseable; log searches are tedious; trace ID correlation impossible
 
-|Log ohne Trace-ID
-|Requests können nicht über Services verfolgt werden; Root-Cause-Analyse dauert Stunden
+|Logs without trace ID
+|Requests cannot be tracked across services; root cause analysis takes hours
 
-|Keine Log-Retention
-|Kosten wachsen unbegrenzt; Compliance-Verletzung (GDPR: keine unendliche Datenspeicherung)
+|No log retention
+|Costs grow without bound; compliance violation (GDPR: no unlimited data storage)
 
-|Sampling Rate 100% in Production
-|Tracing-Kosten explodieren bei hohem Traffic; Alternative: adaptive Sampling
+|100% sampling rate in production
+|Tracing costs explode under high traffic; alternative: adaptive sampling
 
-|Sensitive Daten in Logs
-|GDPR-Verstoß; PII, Passwörter, Tokens in Logs sind Security-Incident
+|Sensitive data in logs
+|GDPR violation; PII, passwords, tokens in logs are a security incident
 
-|Dashboard ohne Alerting
-|Dashboard wird nur beobachtet wenn jemand schaut; Symptome unbemerkt bis Nutzer klagen
+|Dashboard without alerting
+|Dashboard is only checked when someone looks; symptoms go unnoticed until users complain
 
 |===
 
-== Metriken
+== Metrics
 
-* *Log-Verfügbarkeit:* Sind Logs innerhalb von 60 Sekunden in der Aggregationsplattform? (Ziel: Ja)
-* *Trace-Abdeckung:* % der Services mit konfiguriertem Distributed Tracing (Ziel: 100%)
-* *MTTR-Korrelation:* Zeit bis zur Diagnose mit vs. ohne Tracing (messen bei Postmortems)
+* *Log availability:* Are logs available in the aggregation platform within 60 seconds? (target: yes)
+* *Trace coverage:* % of services with configured distributed tracing (target: 100%)
+* *MTTR correlation:* Time to diagnosis with vs. without tracing (measure at postmortems)
 
-== Reifegrad
+== Maturity Levels
 
 [cols="1,2"]
 |===
-|Stufe |Charakteristika
+|Level |Characteristics
 
 |*Level 1*
-|Unstrukturierte Logs in Dateien; kein zentrales Aggregation; kein Tracing.
+|Unstructured logs in files; no central aggregation; no tracing.
 
 |*Level 2*
-|Logs zentral aggregiert; Basis-Dashboards; kein Distributed Tracing; kein strukturiertes Format.
+|Logs centrally aggregated; basic dashboards; no distributed tracing; no structured format.
 
 |*Level 3*
-|Structured JSON Logs mit Trace-ID; Distributed Tracing konfiguriert; RED-Metriken; Log-Retention.
+|Structured JSON logs with trace ID; distributed tracing configured; RED metrics; log retention.
 
 |*Level 4*
-|OpenTelemetry vendor-agnostisch; SLO-basiertes Alerting auf Metriken; Trace-Sampling optimiert.
+|OpenTelemetry vendor-agnostic; SLO-based alerting on metrics; trace sampling optimized.
 
 |*Level 5*
-|Vollständige Korrelation Logs/Traces/Metriken; Observability-as-a-Product mit internen SLAs.
+|Full correlation of logs/traces/metrics; observability-as-a-product with internal SLAs.
 
 |===

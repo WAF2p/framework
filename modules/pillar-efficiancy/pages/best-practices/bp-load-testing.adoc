@@ -1,36 +1,36 @@
-= Best Practice: Lasttests & Stresstests
+= Best Practice: Load Tests & Stress Tests
 :page-toc: right
-:description: WAF++ Performance Efficiency – Lasttests mit k6 in die CI/CD-Pipeline integrieren und Akzeptanzkriterien definieren.
+:description: WAF++ Performance Efficiency – Integrate load tests with k6 into the CI/CD pipeline and define acceptance criteria.
 
-== Kontext
+== Context
 
-Performance-Regressions werden ohne Lasttests erst in Produktion entdeckt – oft durch Nutzerbeschweren
-oder Alerts. Ein Service ohne Lasttest-Validation ist ein ungetestetes Sicherheitsnetz:
-es klingt beruhigend, aber niemand weiß, ob es hält.
+Performance regressions are only discovered in production without load tests – often through user
+complaints or alerts. A service without load test validation is an untested safety net:
+it sounds reassuring, but nobody knows whether it holds.
 
-Typische Probleme ohne Lasttest-Prozess:
+Typical problems without a load testing process:
 
-* Auto-Scaling-Konfiguration nie unter Last validiert – Trigger greift zu spät
-* Datenbankabfrage-Plan ändert sich mit Datenmenge und wird erst bei 10M Einträgen langsam
-* Memory-Leak nur unter Extended Load sichtbar – in Unit-Tests nicht detektiert
-* Neues Feature verursacht 30% P99-Regression – geht unbemerkt in Produktion
+* Auto-scaling configuration never validated under load – trigger fires too late
+* Database query plan changes with data volume and becomes slow only at 10M entries
+* Memory leak only visible under extended load – not detected in unit tests
+* New feature causes 30% P99 regression – goes unnoticed into production
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-060[WAF-PERF-060] – Load & Stress Testing in CI/CD Pipeline
 
-== Zielbild
+== Target State
 
-Vollständig integrierter Lasttest-Prozess:
+Fully integrated load testing process:
 
-* *Automatisiert*: Lasttests laufen automatisch bei jedem Deployment
-* *Akzeptanzkriterien*: Klar definiert und technisch enforced
-* *Regression-Detection*: Baseline-Vergleich erkennt > 10% P99-Verschlechterung
-* *Stresstest-Kadenz*: Quartalsweise Kapazitätsgrenzen ermitteln
+* *Automated*: Load tests run automatically on every deployment
+* *Acceptance criteria*: Clearly defined and technically enforced
+* *Regression detection*: Baseline comparison detects > 10% P99 degradation
+* *Stress test cadence*: Quarterly determination of capacity limits
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: k6 Lasttest-Skript erstellen
+=== Step 1: Create k6 Load Test Script
 
 [source,javascript]
 ----
@@ -43,22 +43,22 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 const paymentErrors = new Counter('payment_errors');
 const paymentDuration = new Trend('payment_duration', true);
 
-// Akzeptanzkriterien als Thresholds
+// Acceptance criteria as thresholds
 export const options = {
   stages: [
     { duration: '2m', target: 10 },   // Warm-up
-    { duration: '5m', target: 50 },   // Normallast
-    { duration: '10m', target: 100 }, // Peak-Last
+    { duration: '5m', target: 50 },   // Normal load
+    { duration: '10m', target: 100 }, // Peak load
     { duration: '3m', target: 0 },    // Ramp-down
   ],
   thresholds: {
-    // SLO-Anforderungen als Gate
+    // SLO requirements as gate
     'http_req_duration{type:payment}': [
       'p(95)<200',   // P95 < 200ms
       'p(99)<500',   // P99 < 500ms
     ],
-    'http_req_failed': ['rate<0.001'],  // < 0.1% Fehler
-    'payment_errors': ['count<10'],     // Absolut max 10 Errors
+    'http_req_failed': ['rate<0.001'],  // < 0.1% errors
+    'payment_errors': ['count<10'],     // Absolute max 10 errors
   },
 };
 
@@ -66,13 +66,13 @@ const BASE_URL = __ENV.BASE_URL || 'https://api-staging.payment.example.com';
 const API_KEY = __ENV.API_KEY;
 
 export function setup() {
-  // Testdaten vorbereiten
+  // Prepare test data
   return { userId: '550e8400-e29b-41d4-a716-446655440000' };
 }
 
 export default function (data) {
   group('Payment API', () => {
-    // Scenario 1: Payment erstellen
+    // Scenario 1: Create payment
     group('create_payment', () => {
       const payload = JSON.stringify({
         amount: 100,
@@ -108,7 +108,7 @@ export default function (data) {
 
     sleep(0.5);
 
-    // Scenario 2: Zahlungsstatus abfragen
+    // Scenario 2: Query payment status
     group('get_payment_status', () => {
       const res = http.get(
         `${BASE_URL}/api/v1/payments?user_id=${data.userId}&status=pending`,
@@ -129,7 +129,7 @@ export default function (data) {
 }
 ----
 
-=== Schritt 2: CI/CD-Integration (GitHub Actions)
+=== Step 2: CI/CD Integration (GitHub Actions)
 
 [source,yaml]
 ----
@@ -152,7 +152,7 @@ jobs:
 
       - name: Deploy to Staging
         run: |
-          # Staging-Deployment (Terraform oder kubectl apply)
+          # Staging deployment (Terraform or kubectl apply)
           terraform -chdir=environments/staging apply -auto-approve
 
       - name: Wait for Staging Readiness
@@ -184,7 +184,7 @@ jobs:
           python scripts/compare-baseline.py \
             --current results/k6-results.json \
             --baseline results/baseline.json \
-            --regression-threshold 0.10  # 10% P99-Verschlechterung = Fail
+            --regression-threshold 0.10  # 10% P99 degradation = Fail
 
       - name: Update Baseline on Success
         if: success() && github.ref == 'refs/heads/main'
@@ -195,7 +195,7 @@ jobs:
           git push
 ----
 
-=== Schritt 3: Baseline-Vergleichs-Skript
+=== Step 3: Baseline Comparison Script
 
 [source,python]
 ----
@@ -244,43 +244,43 @@ if __name__ == '__main__':
     sys.exit(1 if regression else 0)
 ----
 
-=== Schritt 4: Stresstest-Kadenz
+=== Step 4: Stress Test Cadence
 
-Quartalsweise Stresstests ermitteln Kapazitätsgrenzen:
+Quarterly stress tests determine capacity limits:
 
 [source,javascript]
 ----
 // tests/performance/stress-test.js
 export const options = {
   stages: [
-    { duration: '5m',  target: 100  },  // Normallast
-    { duration: '5m',  target: 200  },  // 2x Peak
-    { duration: '5m',  target: 400  },  // 4x Peak
-    { duration: '10m', target: 600  },  // Bis zum Brechen
+    { duration: '5m',  target: 100  },  // Normal load
+    { duration: '5m',  target: 200  },  // 2x peak
+    { duration: '5m',  target: 400  },  // 4x peak
+    { duration: '10m', target: 600  },  // Until breaking point
     { duration: '5m',  target: 0    },  // Recovery
   ],
-  // Kein Threshold – wir wollen sehen wo es bricht, nicht Pass/Fail
+  // No threshold – we want to see where it breaks, not pass/fail
 };
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Lasttest nur vor Go-Live*: Performance-Regressions entstehen bei jeder Änderung, nicht nur beim Launch.
-* *Zu wenige VUs*: 5 VUs testen keine Concurrency-Probleme; realistische VU-Zahlen aus Produktionsanalyse ableiten.
-* *Test gegen Produktion*: Stresstest in Produktion ohne vorherige Staging-Validierung ist riskant.
-* *Thresholds zu locker*: P99 < 5000ms ist kein sinnvolles Akzeptanzkriterium.
+* *Load test only before go-live*: Performance regressions occur with every change, not just at launch.
+* *Too few VUs*: 5 VUs do not test concurrency problems; derive realistic VU numbers from production analysis.
+* *Testing against production*: Stress testing in production without prior staging validation is risky.
+* *Thresholds too loose*: P99 < 5000ms is not a meaningful acceptance criterion.
 
-== Metriken
+== Metrics
 
-* Anteil der CI/CD-Runs mit Lasttest als Gate (Ziel: 100% für Produktions-Deployments)
-* Performance-Regression-Rate (Anteil Deployments die Lasttest-Gate scheitern)
-* Zeit zwischen Deployment und Lasttest-Ergebnis (Ziel: < 20 Minuten)
-* Stresstest-Kapazitätsreserve (aktueller Max-Load / erwarteter Peak: Ziel >= 2x)
+* Proportion of CI/CD runs with load test as a gate (target: 100% for production deployments)
+* Performance regression rate (proportion of deployments that fail the load test gate)
+* Time between deployment and load test result (target: < 20 minutes)
+* Stress test capacity reserve (current max load / expected peak: target >= 2x)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Keine Lasttests; Performance unter Last unbekannt +
-Level 2 – Manuelle Lasttests vor Releases; keine CI-Integration +
-Level 3 – Automatisch im CI/CD-Gate; Akzeptanzkriterien enforced +
-Level 4 – Regression-Detection; quartalsweise Stresstests +
-Level 5 – Kontinuierliche Performance-Tests; Chaos Engineering integriert
+Level 1 – No load tests; performance under load unknown +
+Level 2 – Manual load tests before releases; no CI integration +
+Level 3 – Automated CI/CD gate; acceptance criteria enforced +
+Level 4 – Regression detection; quarterly stress tests +
+Level 5 – Continuous performance tests; chaos engineering integrated

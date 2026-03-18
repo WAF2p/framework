@@ -1,35 +1,35 @@
-= Best Practice: CI/CD-Pipeline aufbauen und absichern
+= Best Practice: Building and Securing a CI/CD Pipeline
 :page-toc: right
-:description: Wie man eine sichere, automatisierte CI/CD-Pipeline für Cloud-Workloads aufbaut – Pipeline-as-Code, Branch-Protection, Approval-Gates, Artefakt-Versionierung.
+:description: How to build a secure, automated CI/CD pipeline for cloud workloads – pipeline-as-code, branch protection, approval gates, artifact versioning.
 
-== Kontext
+== Context
 
-Eine CI/CD-Pipeline ist das Fundament jeder Operational-Excellence-Initiative.
-Ohne automatisierte Deployments sind alle anderen OpsEx-Maßnahmen aufwändiger,
-fehleranfälliger und schwerer zu skalieren.
+A CI/CD pipeline is the foundation of every Operational Excellence initiative.
+Without automated deployments, all other OpsEx measures are more effort-intensive,
+error-prone, and harder to scale.
 
-*Diese Best Practice beschreibt:* Den Aufbau einer produktionsreifen Pipeline von
-Pipeline-Definition bis Approval-Gate, Branch-Protection und Artefakt-Versionierung.
+*This best practice describes:* Building a production-ready pipeline from
+pipeline definition through approval gates, branch protection, and artifact versioning.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-OPS-010[WAF-OPS-010 – CI/CD Pipeline Defined & Automated]
 * xref:controls.adoc#WAF-OPS-050[WAF-OPS-050 – Change Management & Deployment Risk Assessment]
 
-== Zielbild
+== Target State
 
-Eine produktionsreife CI/CD-Pipeline:
+A production-ready CI/CD pipeline:
 
-* Ist vollständig als Code definiert (YAML, HCL) und in Version-Control gespeichert
-* Wird ausgeführt bei jedem Pull Request (Tests, Linting, Security Scans)
-* Deployed automatisch in Staging nach Merge auf main
-* Erfordert manuelle Approval für Production-Deployments
-* Verwendet versionierte, unveränderliche Artefakte
-* Hat Deployment-Freeze-Mechanismus für kritische Perioden
+* Is fully defined as code (YAML, HCL) and stored in version control
+* Runs on every pull request (tests, linting, security scans)
+* Deploys automatically to staging after merge to main
+* Requires manual approval for production deployments
+* Uses versioned, immutable artifacts
+* Has a deployment freeze mechanism for critical periods
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Pipeline-Struktur definieren
+=== Step 1: Define the Pipeline Structure
 
 [source,yaml]
 ----
@@ -145,7 +145,7 @@ jobs:
             --image "${{ needs.build.outputs.image-tag }}"
 ----
 
-=== Schritt 2: Branch-Protection konfigurieren
+=== Step 2: Configure Branch Protection
 
 [source,json]
 ----
@@ -171,12 +171,12 @@ resource "github_branch_protection" "main" {
 }
 ----
 
-=== Schritt 3: CODEOWNERS definieren
+=== Step 3: Define CODEOWNERS
 
 [source,text]
 ----
-# CODEOWNERS – jede Zeile: Pfad Owners
-# Änderungen an kritischen Pfaden erfordern Review der genannten Teams
+# CODEOWNERS – each line: path owners
+# Changes to critical paths require review from the listed teams
 
 # Terraform Infrastructure
 /infrastructure/  @platform-team @security-team
@@ -187,21 +187,21 @@ resource "github_branch_protection" "main" {
 # Application Code
 /src/ @payment-team
 
-# Security-sensitive Konfiguration
+# Security-sensitive configuration
 /infrastructure/security/ @security-team
 ----
 
-=== Schritt 4: Deployment-Freeze konfigurieren
+=== Step 4: Configure a Deployment Freeze
 
 [source,yaml]
 ----
-# GitHub Actions: Deployment-Freeze via Environment Protection
+# GitHub Actions: Deployment Freeze via Environment Protection
 # In GitHub Settings > Environments > production:
 # - Required reviewers: @tech-leads
 # - Deployment branches: main only
-# - Wait timer: 0 minutes (nur Reviewer-Pflicht)
+# - Wait timer: 0 minutes (reviewer requirement only)
 
-# Alternativ: programmatische Freeze-Prüfung im Pipeline
+# Alternative: programmatic freeze check in the pipeline
 - name: Check Deployment Freeze
   run: |
     FREEZE_START=$(date -d "2025-12-20" +%s)
@@ -214,60 +214,60 @@ resource "github_branch_protection" "main" {
     fi
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
 [cols="1,3"]
 |===
-|Fehlmuster |Problem
+|Anti-Pattern |Problem
 
-|`latest`-Tag in Production
-|Nicht reproduzierbar; jeder neue Build ändert das deployte Image ohne Deployment
+|`latest` tag in production
+|Not reproducible; every new build changes the deployed image without a deployment
 
-|Secrets in Pipeline-Code
-|GitHub Actions Logs sind sichtbar; Secrets in `env:` Block werden geloggt
+|Secrets in pipeline code
+|GitHub Actions logs are visible; secrets in `env:` block get logged
 
-|Kein Branch-Protection für `main`
-|Engineers pushen direkt; kein Review; kein Test
+|No branch protection for `main`
+|Engineers push directly; no review; no tests
 
-|Pipeline ohne Security Scan
-|Vulnerabilities werden erst in Production entdeckt
+|Pipeline without security scan
+|Vulnerabilities are only discovered in production
 
-|Manuelle Deployment-Schritte nach dem Build
-|"Halb-automatisch" ist nicht automatisch; erster manueller Schritt invertiert alle Automatisierungsgewinne
+|Manual deployment steps after the build
+|"Semi-automated" is not automated; the first manual step negates all automation gains
 
-|Pipeline-YAML nicht in Repository
-|"Deployment-Skripte" auf einem Server – kein Review, kein Versionsverlauf
+|Pipeline YAML not in repository
+|"Deployment scripts" on a server – no review, no version history
 
 |===
 
-== Metriken
+== Metrics
 
-Messe diese Metriken um den Pipeline-Reifegrad zu bewerten:
+Measure these metrics to evaluate pipeline maturity:
 
-* *Deployment Frequency:* Wie oft wird in Produktion deployt? (Ziel: täglich+)
-* *Lead Time for Changes:* Commit bis Production? (Ziel: < 1 Stunde für Hotfix, < 1 Tag für Feature)
-* *Pipeline-Durchlaufzeit:* Gesamtdauer der Pipeline (Ziel: < 15 Minuten)
-* *Pipeline-Erfolgsrate:* % der Pipelines die grün sind (Ziel: > 90%)
+* *Deployment Frequency:* How often is deployed to production? (target: daily+)
+* *Lead Time for Changes:* Commit to production? (target: < 1 hour for hotfix, < 1 day for feature)
+* *Pipeline throughput time:* Total pipeline duration (target: < 15 minutes)
+* *Pipeline success rate:* % of pipelines that are green (target: > 90%)
 
-== Reifegrad
+== Maturity Levels
 
 [cols="1,2"]
 |===
-|Stufe |Charakteristika
+|Level |Characteristics
 
 |*Level 1*
-|Deployments per SSH/Konsole. Keine Pipeline-Definition. Keine Tests automatisiert.
+|Deployments via SSH/console. No pipeline definition. No automated tests.
 
 |*Level 2*
-|CI Pipeline vorhanden. Tests laufen automatisch. Deployment-Skripte existieren aber manuell ausgeführt.
+|CI pipeline exists. Tests run automatically. Deployment scripts exist but are executed manually.
 
 |*Level 3*
-|Vollständige CI/CD. Branch-Protection. Approval-Gate für Production. Artefakte versioniert.
+|Full CI/CD. Branch protection. Approval gate for production. Artifacts versioned.
 
 |*Level 4*
-|Deployment-Metriken gemessen. Canary/Blue-Green Deployments. Automatischer Rollback.
+|Deployment metrics measured. Canary/Blue-Green deployments. Automatic rollback.
 
 |*Level 5*
-|DORA Elite: mehrfach täglich. Change Failure Rate < 5%. Continuous Deployment möglich.
+|DORA Elite: multiple times daily. Change Failure Rate < 5%. Continuous Deployment possible.
 
 |===

@@ -5,131 +5,130 @@
 :severity: critical
 :category: key-sovereignty
 :automated: high
-:description: WAF++ Sovereign – Schlüsseleigentümerschaft explizit definieren und durchsetzen; CMK/BYOK für sensitive Datenklassen; Key Rotation und Deletion Policy erzwingen.
+:description: WAF++ Sovereign – Explicitly define and enforce key ownership; CMK/BYOK for sensitive data classes; enforce key rotation and deletion policy.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Kategorie:* Key Sovereignty | *Automatisierbar:* Hoch
+*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Category:* Key Sovereignty | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Für alle Datenklassen MUSS das Schlüsseleigentümer-Modell explizit definiert und technisch
-durchgesetzt sein: Provider-Managed Keys (PMK), Customer-Managed Keys (CMK), Bring Your
-Own Key (BYOK) oder Hold Your Own Key (HYOK).
+The key ownership model MUST be explicitly defined and technically enforced for all data classes:
+Provider-Managed Keys (PMK), Customer-Managed Keys (CMK), Bring Your Own Key (BYOK), or
+Hold Your Own Key (HYOK).
 
-Key Rotation und Löschung MÜSSEN durch dokumentierte Verfahren geregelt sein. Alle Daten
-at rest MÜSSEN verschlüsselt sein; die Nutzung von provider-verwalteten Standardschlüsseln
-erfordert eine explizite Genehmigung für sensitive Datenklassen.
+Key rotation and deletion MUST be governed by documented procedures. All data at rest MUST be
+encrypted; the use of provider-managed default keys requires explicit approval for sensitive
+data classes.
 
 == Rationale
 
-Wenn ein Cloud-Provider die Verschlüsselungsschlüssel kontrolliert, hat er theoretisch die
-Möglichkeit, Daten zu entschlüsseln – unabhängig vom geografischen Standort der Daten.
-Echte Datensouveränität erfordert Souveränität über die Schlüssel, die diese Daten schützen.
+When a cloud provider controls encryption keys, they theoretically have the ability to decrypt
+data — regardless of the geographical location of the data. True data sovereignty requires
+sovereignty over the keys that protect that data.
 
-CMK/BYOK stellt sicher, dass selbst wenn ein Provider rechtlich gezwungen wird, Daten
-herauszugeben, diese kryptografisch unzugänglich bleiben ohne das vom Kunden verwaltete
-Schlüsselmaterial. Key Rotation und sichere Löschung sind entscheidend für die Begrenzung
-des Schadensradius bei einer Schlüsselkompromittierung.
+CMK/BYOK ensures that even if a provider is legally compelled to hand over data, it remains
+cryptographically inaccessible without the customer-managed key material. Key rotation and
+secure deletion are critical for limiting the blast radius of a key compromise.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Provider-kontrollierte Schlüssel*
-|Provider oder Strafverfolgungsbehörden können über PMK-Schlüssel auf Daten zugreifen.
+|*Provider-controlled keys*
+|Provider or law enforcement can access data via PMK keys.
 
-|*Unverschlüsselte Daten at rest*
-|Storage Services nutzen provider-standardmäßige Verschlüsselung ohne CMK.
+|*Unencrypted data at rest*
+|Storage services use provider-default encryption without a CMK.
 
-|*Schlüsselmaterial in Source Code*
-|Key Material in Terraform State, Umgebungsvariablen oder Anwendungscode exponiert.
+|*Key material in source code*
+|Key material exposed in Terraform state, environment variables, or application code.
 
-|*Deaktivierte Key Rotation*
-|Fehlende automatische Key Rotation erhöht den Schadensradius bei Schlüsselkompromittierung.
+|*Disabled key rotation*
+|Missing automatic key rotation increases the blast radius of a key compromise.
 
-|*Fehlende Deletion Policy*
-|Veraltetes Schlüsselmaterial bleibt nach Datenlöschung persistent; DSGVO Art. 17 nicht erfüllbar.
+|*Missing deletion policy*
+|Outdated key material persists after data deletion; GDPR Art. 17 cannot be fulfilled.
 
 |===
 
-== Regulatorisches Mapping
+== Regulatory Mapping
 
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 32 – Sicherheit der Verarbeitung (Verschlüsselung); Art. 17 – Recht auf Löschung (kryptografische Löschung via Key Deletion)
+|*GDPR*
+|Art. 32 – Security of processing (encryption); Art. 17 – Right to erasure (cryptographic erasure via key deletion)
 
 |*BSI C5:2020*
-|CRY-01 – Kryptografie-Richtlinie; CRY-02 – Schlüsselverwaltung
+|CRY-01 – Cryptography policy; CRY-02 – Key management
 
 |*EUCS (ENISA)*
 |CRY-01 – Encryption at rest; CRY-03 – Key Management; SOV-03 – Customer key control
 
 |*ISO 27001:2022*
-|A.8.24 – Einsatz von Kryptografie; A.8.25 – Sicherer Entwicklungslebenszyklus
+|A.8.24 – Use of cryptography; A.8.25 – Secure development lifecycle
 
 |*GAIA-X*
-|Sovereign Cloud – Kryptografische Selbstbestimmung
+|Sovereign Cloud – Cryptographic self-determination
 
 |===
 
-== Anforderung
+== Requirement
 
-* Das Schlüsseleigentümer-Modell MUSS pro Datenklasse in der Data-Residency-Policy definiert sein
-* Für PII-, Gesundheits- und Finanzdaten: CMK oder BYOK ist Pflicht; PMK explizit verboten
-* `enable_key_rotation = true` MUSS auf allen KMS-Schlüsseln gesetzt sein
-* `deletion_window_in_days` MUSS explizit auf mindestens 14 Tage gesetzt sein
-* S3-Buckets mit souveränen Daten MÜSSEN `aws:kms` (nicht `AES256`) verwenden
-* Alle EBS-Volumes und RDS-Instanzen MÜSSEN verschlüsselt sein
-* Schlüsselmaterial DARF NICHT in Terraform State, Umgebungsvariablen oder Code gespeichert werden
+* The key ownership model MUST be defined per data class in the data residency policy
+* For PII, health, and financial data: CMK or BYOK is mandatory; PMK explicitly prohibited
+* `enable_key_rotation = true` MUST be set on all KMS keys
+* `deletion_window_in_days` MUST be explicitly set to at least 14 days
+* S3 buckets with sovereign data MUST use `aws:kms` (not `AES256`)
+* All EBS volumes and RDS instances MUST be encrypted
+* Key material MUST NOT be stored in Terraform state, environment variables, or code
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Schlüsseleigentümer-Modell per Datenklasse definieren*: In der Data-Residency-Policy festlegen, welche Datenklassen CMK, BYOK oder PMK erfordern.
-. *CMK für sensitive Daten*: `aws_kms_key` / `azurerm_key_vault_key` / `google_kms_crypto_key` mit `enable_key_rotation = true` erstellen.
-. *BYOK/HYOK für kritische Daten*: Schlüsselmaterial in einem HSM außerhalb der Cloud-Provider-Kontrolle speichern (z.B. Thales, Utimaco).
-. *Deletion Window setzen*: `deletion_window_in_days >= 14` erzwingen, um versehentliche Schlüsselzerstörung zu verhindern.
-. *Schlüsselmaterial schützen*: Niemals in Terraform State, Umgebungsvariablen oder Anwendungscode speichern.
-. *IAM Key Policies*: Zugriff auf Schlüssel auf notwendige Services und Principals beschränken.
-. *Key Access Logging*: CloudTrail für KMS aktivieren; Alerts auf ungewöhnliche Entschlüsselungsmuster konfigurieren.
-. *Kryptografische Löschung testen*: DSGVO Art. 17 Compliance durch Löschung des Schlüssels und Verifikation der Datenunerreichbarkeit testen.
+. *Define key ownership model per data class*: Specify in the data residency policy which data classes require CMK, BYOK, or PMK.
+. *CMK for sensitive data*: Create `aws_kms_key` / `azurerm_key_vault_key` / `google_kms_crypto_key` with `enable_key_rotation = true`.
+. *BYOK/HYOK for critical data*: Store key material in an HSM outside cloud provider control (e.g. Thales, Utimaco).
+. *Set deletion window*: Enforce `deletion_window_in_days >= 14` to prevent accidental key destruction.
+. *Protect key material*: Never store in Terraform state, environment variables, or application code.
+. *IAM key policies*: Restrict key access to required services and principals.
+. *Key access logging*: Enable CloudTrail for KMS; configure alerts for unusual decryption patterns.
+. *Test cryptographic erasure*: Test GDPR Art. 17 compliance by deleting the key and verifying data inaccessibility.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Verschlüsselung mit provider-verwalteten Schlüsseln
-|Daten at rest sind verschlüsselt; Provider-Managed Keys werden als Standard verwendet.
+|Encryption with provider-managed keys
+|Data at rest is encrypted; provider-managed keys used as default.
 
 |*2*
-|CMK für sensitive Datenklassen
-|KMS CMKs für PII-, Finanz- und Gesundheitsdaten; Key Rotation aktiviert.
+|CMK for sensitive data classes
+|KMS CMKs for PII, financial, and health data; key rotation enabled.
 
 |*3*
-|Vollständige Key-Sovereignty-Posture
-|Kein PMK für sensitive Datenklassen; Key Policies schränken Zugriff auf notwendige Principals ein; Key Deletion Policy definiert und getestet.
+|Full key sovereignty posture
+|No PMK for sensitive data classes; key policies restrict access to required principals; key deletion policy defined and tested.
 
 |*4*
-|BYOK/HYOK für kritische Daten mit HSM-Backing
-|Kritische Datenklassen nutzen BYOK oder HYOK mit externem HSM; Schlüsselmaterial nie dem Cloud-Provider exponiert; Key Access Monitoring mit Anomalie-Erkennung.
+|BYOK/HYOK for critical data with HSM backing
+|Critical data classes use BYOK or HYOK with external HSM; key material never exposed to cloud provider; key access monitoring with anomaly detection.
 
 |*5*
-|Automatisierte Key Governance mit kryptografischer Löschfähigkeit
-|Kryptografische Löschung für DSGVO Art. 17 getestet; vollständig automatisierter und auditierbarer Key Lifecycle; HSM Key Ceremonies jährlich dokumentiert und auditiert.
+|Automated key governance with cryptographic erasure capability
+|Cryptographic erasure tested for GDPR Art. 17; fully automated and auditable key lifecycle; HSM key ceremonies annually documented and audited.
 
 |===
 
 == Terraform Checks
 
 === waf-sov-050.tf.aws.kms-key-rotation-enabled
-*Prüft:* KMS-Schlüssel müssen `enable_key_rotation = true` setzen.
+*Checks:* KMS keys must set `enable_key_rotation = true`.
 
 [cols="1,1"]
 |===
@@ -156,7 +155,7 @@ resource "aws_kms_key" "data" {
 ---
 
 === waf-sov-050.tf.aws.kms-key-deletion-window
-*Prüft:* `deletion_window_in_days` muss explizit gesetzt und >= 14 Tage sein.
+*Checks:* `deletion_window_in_days` must be explicitly set and >= 14 days.
 
 [cols="1,1"]
 |===
@@ -173,7 +172,7 @@ a|[source,hcl]
 ----
 resource "aws_kms_key" "data" {
   deletion_window_in_days = 7
-  # ❌ Zu kurz – kein ausreichendes Review-Fenster
+  # ❌ Too short – no sufficient review window
 }
 ----
 |===
@@ -181,7 +180,7 @@ resource "aws_kms_key" "data" {
 ---
 
 === waf-sov-050.tf.aws.s3-bucket-kms-encryption
-*Prüft:* S3-Buckets mit souveränen Daten müssen `aws:kms` (nicht `AES256`) verwenden.
+*Checks:* S3 buckets with sovereign data must use `aws:kms` (not `AES256`).
 
 [cols="1,1"]
 |===
@@ -207,7 +206,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
-      # ❌ Provider-Managed Key – nicht sovereign
+      # ❌ Provider-Managed Key – not sovereign
     }
   }
 }
@@ -217,7 +216,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
 ---
 
 === waf-sov-050.tf.aws.ebs-volume-encrypted
-*Prüft:* EBS-Volumes müssen `encrypted = true` setzen.
+*Checks:* EBS volumes must set `encrypted = true`.
 
 [cols="1,1"]
 |===
@@ -245,7 +244,7 @@ resource "aws_ebs_volume" "data" {
 ---
 
 === waf-sov-050.tf.aws.rds-storage-encrypted
-*Prüft:* RDS-Instanzen müssen `storage_encrypted = true` setzen.
+*Checks:* RDS instances must set `storage_encrypted = true`.
 
 [cols="1,1"]
 |===
@@ -270,7 +269,7 @@ resource "aws_db_instance" "db" {
 ---
 
 === waf-sov-050.tf.azurerm.key-vault-soft-delete
-*Prüft:* Azure Key Vault muss Soft Delete und Purge Protection aktiviert haben.
+*Checks:* Azure Key Vault must have soft delete and purge protection enabled.
 
 [cols="1,1"]
 |===
@@ -297,35 +296,35 @@ resource "azurerm_key_vault" "kv" {
 ----
 |===
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|KMS-Key-Ressourcen mit `enable_key_rotation = true` und explizitem Deletion-Window.
+|✅ Required
+|KMS key resources with `enable_key_rotation = true` and explicit deletion window.
 
 |*IaC*
-|✅ Pflicht
-|Verschlüsselungskonfigurationen für alle Datenressourcen (S3, RDS, EBS) mit CMK-ARN-Referenz.
+|✅ Required
+|Encryption configurations for all data resources (S3, RDS, EBS) with CMK ARN reference.
 
 |*Config*
 |Optional
-|KMS-Key-Policy-Export mit eingeschränktem Principal-Zugriff.
+|KMS key policy export with restricted principal access.
 
 |*Process*
 |Optional
-|Key-Rotation-Zeitplan und Löschverfahren-Dokumentation.
+|Key rotation schedule and deletion procedure documentation.
 
 |*Logs*
 |Optional
-|CloudTrail/KMS-Zugriffslogs mit Key-Nutzungsmustern.
+|CloudTrail/KMS access logs with key usage patterns.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
 * xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
@@ -334,4 +333,4 @@ resource "azurerm_key_vault" "kv" {
 
 == Best Practice
 
-* xref:best-practices/bp-key-sovereignty.adoc[Key Sovereignty implementieren →]
+* xref:best-practices/bp-key-sovereignty.adoc[Implement Key Sovereignty →]

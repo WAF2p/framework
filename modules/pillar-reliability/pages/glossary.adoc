@@ -1,181 +1,179 @@
-= Glossar: Reliability
+= Glossary: Reliability
 :page-toc: right
-:description: WAF++ Reliability – 25+ Fachbegriffe mit deutschen Erklärungen und englischer Notation.
+:description: WAF++ Reliability – 25+ technical terms with English explanations and notation.
 
 == A
 
-=== Availability (Verfügbarkeit)
-Prozentualer Anteil der Zeit, in der ein System korrekt auf Anfragen antwortet.
-Gemessen als `(uptime / total_time) * 100`. Typische Ziele: 99.9% (8.7h/Jahr Downtime),
-99.95% (4.4h/Jahr), 99.99% (52min/Jahr).
+=== Availability
+Percentage of time during which a system correctly responds to requests.
+Measured as `(uptime / total_time) * 100`. Typical targets: 99.9% (8.7h/year downtime),
+99.95% (4.4h/year), 99.99% (52min/year).
 
 === Availability Zone (AZ)
-Physisch isoliertes Rechenzentrum innerhalb einer Cloud-Region. AZ-Ausfälle betreffen
-nur Ressourcen in der betroffenen Zone; andere AZs bleiben davon unberührt.
+Physically isolated data center within a cloud region. AZ failures only affect
+resources in the affected zone; other AZs remain unaffected.
 
 == B
 
-=== Backup (Datensicherung)
-Kopie von Daten zu einem bestimmten Zeitpunkt zur Wiederherstellung bei Datenverlust.
-Backups werden durch RPO-Anforderungen getaktet. *Ungetestete Backups sind keine Backups.*
+=== Backup
+A copy of data at a specific point in time for recovery in case of data loss.
+Backups are scheduled according to RPO requirements. *Untested backups are not backups.*
 
-=== Blast Radius (Explosionsradius)
-Umfang des Schadens, den ein einzelner Fehler verursachen kann. Reliability-Design
-zielt darauf ab, den Blast Radius durch Bulkheads, Circuit Breaker und AZ-Isolation
-zu begrenzen.
+=== Blast Radius
+Extent of damage that a single failure can cause. Reliability design
+aims to limit the blast radius through bulkheads, circuit breakers and AZ isolation.
 
-=== Bulkhead (Schottung)
-Muster zur Ressourcen-Isolation: Jede Abhängigkeitsklasse erhält eigene Thread- und
-Connection Pools. Verhindert, dass ein langsamer Service alle Ressourcen erschöpft.
-Benannt nach den wasserdichten Schotten in Schiffen.
+=== Bulkhead
+A resource isolation pattern: each dependency class receives its own thread and
+connection pools. Prevents a slow service from exhausting all resources.
+Named after the watertight bulkheads in ships.
 
 == C
 
-=== Chaos Engineering (Chaos-Entwicklung)
-Disziplin des Experimentierens mit Produktionssystemen durch kontrollierte Fehlerinjektion,
-um systemische Schwächen aufzudecken. Hypothesis-driven: "Wenn X ausfällt, passiert Y."
+=== Chaos Engineering
+The discipline of experimenting on production systems through controlled fault injection
+to uncover systemic weaknesses. Hypothesis-driven: "If X fails, Y happens."
 
-=== Circuit Breaker (Leistungsschutzschalter)
-Muster für Ausfalltoleranz: Wenn Fehlerrate einen Schwellenwert überschreitet, werden
-Anfragen sofort abgelehnt (open state), ohne das fehlerhafte System weiter zu belasten.
-Nach Timeout wird Partial-Traffic erlaubt (half-open); bei Erfolg reset (closed).
+=== Circuit Breaker
+A fault tolerance pattern: when the error rate exceeds a threshold, requests are immediately
+rejected (open state) without further stressing the failed system.
+After a timeout, partial traffic is permitted (half-open); on success, reset (closed).
 
 === Continuous Data Protection – CDP
-Backup-Methode, die Datenänderungen in Echtzeit repliziert, anstatt periodische Snapshots
-zu erstellen. Ermöglicht RPO nahe null.
+A backup method that replicates data changes in real time instead of creating periodic snapshots.
+Enables RPO near zero.
 
 == D
 
-=== Dependency (Abhängigkeit)
-Jeder externe Service, jede API oder jedes System, von dem ein Workload für seine
-Funktion abhängt. Kritische Abhängigkeiten: Ausfall führt zu Workload-Ausfall.
-Optionale Abhängigkeiten: Ausfall führt zu Feature-Verlust, nicht Totalausfall.
+=== Dependency
+Any external service, API or system that a workload depends on for its function.
+Critical dependencies: failure leads to workload failure.
+Optional dependencies: failure leads to feature loss, not complete outage.
 
 === Disaster Recovery – DR
-Gesamtheit aller Pläne, Prozesse und Systeme zur Wiederherstellung nach einem
-katastrophalen Ausfall (Region-Ausfall, Ransomware, Naturkatastrophe).
+The totality of all plans, processes and systems for recovery after a
+catastrophic failure (region failure, ransomware, natural disaster).
 
 == E
 
-=== Error Budget (Fehlerbudget)
-Verbleibende Fehlertoleranz bis zur SLO-Verletzung. Berechnung: `(1 - SLO) * Messfenster`.
-Bei 99.9% SLO und 30-Tage-Fenster: 43.2 Minuten Error Budget pro Monat.
+=== Error Budget
+Remaining error tolerance until an SLO violation. Calculation: `(1 - SLO) * measurement_window`.
+With a 99.9% SLO and a 30-day window: 43.2 minutes error budget per month.
 
 === Error Budget Burn Rate
-Geschwindigkeit, mit der das Error Budget verbraucht wird. Burn Rate 14x bedeutet:
-Das monatliche Budget wird in 2 Tagen aufgebraucht.
+The rate at which the error budget is being consumed. Burn rate 14x means:
+the monthly budget will be exhausted in 2 days.
 
 == F
 
-=== Failover (Umschaltung)
-Automatischer Wechsel auf eine Standby-Ressource bei Ausfall der Primärressource.
-Bei RDS Multi-AZ: Automatischer Failover zur Standby-Instanz in <2 Minuten.
+=== Failover
+Automatic switch to a standby resource when the primary resource fails.
+With RDS Multi-AZ: automatic failover to the standby instance in < 2 minutes.
 
-=== Fault Injection (Fehlerinjektion)
-Kontrolliertes Einführen von Fehlern in ein System zu Testzwecken. Werkzeuge:
+=== Fault Injection
+Controlled introduction of failures into a system for testing purposes. Tools:
 AWS FIS, Azure Chaos Studio, Chaos Monkey.
 
 == G
 
 === GameDay
-Strukturiertes, teamweites Chaos-Ereignis zur Validierung der Resilienz des Gesamtsystems.
-Typisch: halbtägige Übung mit gezielten Szenarien und festgelegten Rollen.
+A structured, team-wide chaos event to validate the resilience of the overall system.
+Typically: a half-day exercise with targeted scenarios and defined roles.
 
-=== Graceful Degradation (Sanfter Abbau)
-Fähigkeit eines Systems, bei Ausfall von Teilkomponenten eingeschränkt, aber
-funktionsfähig zu bleiben. Gegenteil: Fail-Fast/Totalausfall.
+=== Graceful Degradation
+The ability of a system to remain operational in a limited capacity when partial components fail.
+Opposite: fail-fast/complete outage.
 
 == H
 
-=== Health Check (Gesundheitsprüfung)
-Endpoint oder Probe, der den Zustand einer Service-Instanz prüft. Typen:
-Liveness (lebt der Prozess?), Readiness (nimmt der Service Traffic an?),
-Startup (ist der Service gestartet?).
+=== Health Check
+An endpoint or probe that checks the state of a service instance. Types:
+Liveness (is the process alive?), Readiness (is the service accepting traffic?),
+Startup (has the service started?).
 
 == I
 
-=== Idempotenz (Idempotency)
-Eigenschaft einer Operation, die bei mehrfacher Ausführung dasselbe Ergebnis liefert.
-Essenziell für sichere Retry-Logik.
+=== Idempotency
+The property of an operation that produces the same result when executed multiple times.
+Essential for safe retry logic.
 
 == L
 
 === Liveness Probe
-Kubernetes-Probe, die prüft, ob ein Container noch lebt. Bei Fehlschlag:
-Container wird neu gestartet. Erkennt Deadlocks und Infinite Loops.
+A Kubernetes probe that checks whether a container is still alive. On failure:
+the container is restarted. Detects deadlocks and infinite loops.
 
 == M
 
-=== Maturity Model (Reifegrad-Modell)
-Framework zur Bewertung des aktuellen Stands einer Disziplin auf einer definierten Skala.
-WAF++ Reliability: 5 Stufen (Chaotisch → Selbstheilend).
+=== Maturity Model
+A framework for assessing the current state of a discipline on a defined scale.
+WAF++ Reliability: 5 stages (Chaotic → Self-Healing).
 
-=== Mean Time Between Failures – MTBF (Mittlere Zeit zwischen Ausfällen)
-Durchschnittliche Zeit zwischen zwei aufeinanderfolgenden Ausfällen. Je höher, desto
-zuverlässiger. Relevant für Hardware und langlebige Systeme.
+=== Mean Time Between Failures – MTBF
+The average time between two consecutive failures. The higher, the more
+reliable. Relevant for hardware and long-lived systems.
 
-=== Mean Time to Recovery – MTTR (Mittlere Wiederherstellungszeit)
-Durchschnittliche Zeit vom Eintreten eines Fehlers bis zur vollständigen Wiederherstellung.
-Enthält Erkennungszeit (MTTD) + Diagnosezeit + Behebungszeit.
+=== Mean Time to Recovery – MTTR
+The average time from the occurrence of a failure to full recovery.
+Includes detection time (MTTD) + diagnostic time + remediation time.
 
-=== Mean Time to Detect – MTTD (Mittlere Erkennungszeit)
-Durchschnittliche Zeit vom Auftreten eines Fehlers bis zur Erkennung durch Monitoring
-oder Nutzer. Gutes Monitoring reduziert MTTD auf < 5 Minuten.
+=== Mean Time to Detect – MTTD
+The average time from failure occurrence to detection by monitoring
+or users. Good monitoring reduces MTTD to < 5 minutes.
 
-=== Mean Time to Failure – MTTF (Mittlere Ausfallzeit)
-Erwartete Betriebsdauer bis zum ersten Ausfall. Wird für nicht-reparierbare Systeme
-(Hardware-Bauteile) verwendet.
+=== Mean Time to Failure – MTTF
+The expected operating time until the first failure. Used for non-repairable systems
+(hardware components).
 
 == P
 
 === Point-in-Time Recovery – PITR
-Fähigkeit, eine Datenbank auf einen beliebigen Zeitpunkt in der Vergangenheit
-wiederherzustellen. Erfordert kontinuierliche Transaction Log Archivierung.
+The ability to restore a database to any point in the past.
+Requires continuous transaction log archiving.
 
 == R
 
 === Readiness Probe
-Kubernetes-Probe, die prüft, ob ein Container bereit ist, Traffic anzunehmen.
-Bei Fehlschlag: Pod wird aus dem Service-Endpoint entfernt, aber nicht neu gestartet.
-Verhindert premature Traffic Routing während Startup.
+A Kubernetes probe that checks whether a container is ready to accept traffic.
+On failure: the pod is removed from the service endpoint, but not restarted.
+Prevents premature traffic routing during startup.
 
-=== Recovery Point Objective – RPO (Wiederherstellungspunkt-Ziel)
-Maximaler akzeptabler Datenverlust bei einem Ausfall, gemessen in Zeit.
-RPO = 1h: Bis zu 1 Stunde Datenverlust akzeptabel. Bestimmt Backup-Frequenz.
+=== Recovery Point Objective – RPO
+The maximum acceptable data loss in a failure scenario, measured in time.
+RPO = 1h: up to 1 hour of data loss is acceptable. Determines backup frequency.
 
-=== Recovery Time Objective – RTO (Wiederherstellungszeit-Ziel)
-Maximale akzeptable Zeit für die vollständige Wiederherstellung nach einem Ausfall.
-RTO = 30min: Der Service muss innerhalb von 30 Minuten wiederhergestellt sein.
+=== Recovery Time Objective – RTO
+The maximum acceptable time for full recovery after a failure.
+RTO = 30min: the service must be restored within 30 minutes.
 
-=== Reliability Debt (Zuverlässigkeitsschuld)
-Bekannte Schwächen oder deferred Reliability-Improvements, die das Risiko von
-Ausfällen erhöhen. Analog zu technischer Schuld; wird im WAF-REL-100 Register erfasst.
+=== Reliability Debt
+Known weaknesses or deferred reliability improvements that increase the risk of
+failures. Analogous to technical debt; tracked in the WAF-REL-100 register.
 
 === Retry with Exponential Backoff
-Wiederholungsstrategie: Wartezeit zwischen Versuchen verdoppelt sich exponentiell.
-Verhindert Retry Storms. Mit Jitter: Zufällige Variation verhindert synchronisierte
-Retries vieler Clients.
+A retry strategy where the wait time between attempts doubles exponentially.
+Prevents retry storms. With jitter: random variation prevents synchronized
+retries from many clients.
 
 === Runbook
-Dokumentierter Schritt-für-Schritt-Leitfaden zur Diagnose und Behebung
-eines spezifischen Incidents oder Alert-Typs. Muss direkt aus Alert-Notifications
-verlinkt sein.
+A documented step-by-step guide for diagnosing and resolving
+a specific incident or alert type. Must be directly linked from alert notifications.
 
 == S
 
-=== Service Level Agreement – SLA (Servicelevel-Vereinbarung)
-Vertragliche Vereinbarung über die Verfügbarkeit und Qualität eines Service.
-SLAs referenzieren SLOs und definieren Konsequenzen bei Nicht-Erfüllung.
+=== Service Level Agreement – SLA
+A contractual agreement on the availability and quality of a service.
+SLAs reference SLOs and define consequences for non-fulfillment.
 
-=== Service Level Indicator – SLI (Servicelevel-Indikator)
-Konkrete Metrik, die einen Aspekt der Service-Qualität misst. Beispiele:
-Verfügbarkeit (%), Latenz (p99 ms), Fehlerrate (%), Durchsatz (req/s).
+=== Service Level Indicator – SLI
+A concrete metric that measures an aspect of service quality. Examples:
+availability (%), latency (p99 ms), error rate (%), throughput (req/s).
 
-=== Service Level Objective – SLO (Servicelevel-Ziel)
-Internes Ziel für einen SLI. Beispiel: "HTTP-Verfügbarkeit >= 99.9% über 30 Tage."
-SLOs leiten Error Budgets und Reliability-Entscheidungen.
+=== Service Level Objective – SLO
+An internal target for an SLI. Example: "HTTP availability >= 99.9% over 30 days."
+SLOs drive error budgets and reliability decisions.
 
-=== Single Point of Failure – SPOF (Einzelner Ausfallpunkt)
-Eine Komponente, deren Ausfall das gesamte System oder einen SLO-relevanten
-Teil unverfügbar macht. SPOFs sind architektonische Schuld und werden in
-WAF-REL-100 erfasst.
+=== Single Point of Failure – SPOF
+A component whose failure renders the entire system or an SLO-relevant
+part unavailable. SPOFs are architectural debt and are tracked in
+WAF-REL-100.

@@ -1,36 +1,36 @@
 = Best Practice: Incident Response & Runbooks
 :page-toc: right
-:description: WAF++ Reliability – Incident Response Planung, On-Call Rotation, Runbooks und Blameless Post-Mortems.
+:description: WAF++ Reliability – Incident response planning, on-call rotation, runbooks and blameless post-mortems.
 
-== Kontext
+== Context
 
-Ohne strukturierten Incident Response-Prozess verbringen On-Call-Engineers wertvolle
-Minuten damit, Severity-Einordnungen zu diskutieren, Kontakte zu suchen und Diagnose-Schritte
-zu rekonstruieren, die bereits einmal durchgeführt wurden. Jede Minute Unklarheit im Incident
-kostet MTTR – und damit Verfügbarkeit.
+Without a structured incident response process, on-call engineers spend valuable
+minutes discussing severity classifications, looking up contacts and reconstructing
+diagnostic steps that have already been performed before. Every minute of uncertainty
+in an incident costs MTTR – and thus availability.
 
-Häufige Probleme ohne strukturierten IR-Prozess:
+Common problems without a structured IR process:
 
-* SEV1-Incident wird als Minor behandelt, weil Severity-Kriterien unklar sind
-* Key-Engineer nicht erreichbar; kein Backup definiert
-* Gleicher Incident tritt zum dritten Mal auf, weil Post-Mortem-Actions nicht verfolgt wurden
-* Runbook existiert, ist aber 18 Monate alt und referenziert gelöschte Services
+* SEV1 incident treated as minor because severity criteria are unclear
+* Key engineer unreachable; no backup defined
+* Same incident occurs for the third time because post-mortem actions were not tracked
+* Runbook exists but is 18 months old and references deleted services
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-REL-060[WAF-REL-060] – Incident Response & Runbook Readiness
 
-== Zielbild
+== Target State
 
-* Klar definierte Severity-Stufen mit objektiven Kriterien
-* On-Call-Rotation mit primärem und sekundärem Kontakt
-* Runbooks für die häufigsten 5 Alerts je Service – verlinkt aus Alert-Body
-* Blameless Post-Mortems für SEV1/SEV2 innerhalb 5 Werktage
-* MTTR als getracktes Reliability-Metric
+* Clearly defined severity levels with objective criteria
+* On-call rotation with primary and secondary contact
+* Runbooks for the top 5 alerts per service – linked from the alert body
+* Blameless post-mortems for SEV1/SEV2 within 5 business days
+* MTTR as a tracked reliability metric
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Severity-Definitionen
+=== Step 1: Severity Definitions
 
 [source,yaml]
 ----
@@ -85,7 +85,7 @@ severity_levels:
       primary: "Development team via ticket"
 ----
 
-=== Schritt 2: PagerDuty Konfiguration via Terraform
+=== Step 2: PagerDuty Configuration via Terraform
 
 [source,hcl]
 ----
@@ -99,7 +99,7 @@ resource "pagerduty_schedule" "primary" {
     name                         = "weekly-rotation"
     start                        = "2026-01-01T08:00:00+01:00"
     rotation_virtual_start       = "2026-01-06T08:00:00+01:00"
-    rotation_turn_length_seconds = 604800  # 7 Tage
+    rotation_turn_length_seconds = 604800  # 7 days
 
     users = [
       pagerduty_user.engineer1.id,
@@ -146,7 +146,7 @@ resource "pagerduty_service" "payment_api" {
 }
 ----
 
-=== Schritt 3: Runbook-Struktur
+=== Step 3: Runbook Structure
 
 [source,markdown]
 ----
@@ -158,20 +158,20 @@ resource "pagerduty_service" "payment_api" {
 **Last Updated:** 2026-03-01
 
 ## Symptom
-CloudWatch Alarm `slo-payment-api-fast-burn` ausgelöst.
-Error Rate > 2% über 5 Minuten.
+CloudWatch Alarm `slo-payment-api-fast-burn` triggered.
+Error Rate > 2% over 5 minutes.
 
-## Hypothesen (nach Häufigkeit sortiert)
-1. Downstream Payment Gateway degradiert
-2. Database Connection Pool erschöpft
-3. Ungültiges Deployment ausgerollt
+## Hypotheses (sorted by frequency)
+1. Downstream Payment Gateway degraded
+2. Database Connection Pool exhausted
+3. Invalid deployment rolled out
 
-## Diagnose
+## Diagnosis
 
-### 1. Dashboard öffnen
+### 1. Open dashboard
 https://grafana.example.com/d/payment-api-slo
 
-### 2. Fehlertypen prüfen
+### 2. Check error types
 ```
 # CloudWatch Insights
 fields @timestamp, @message
@@ -181,11 +181,11 @@ fields @timestamp, @message
 | limit 20
 ```
 
-### 3. Payment Gateway Status prüfen
+### 3. Check Payment Gateway status
 - Status Page: https://status.payment-gateway.example.com
 - Circuit Breaker State: `curl https://api.payment.internal/actuator/circuitbreaker`
 
-### 4. DB Connection Pool prüfen
+### 4. Check DB Connection Pool
 ```
 SELECT count(*), state FROM pg_stat_activity GROUP BY state;
 SELECT * FROM pg_stat_database WHERE datname = 'payment_db';
@@ -193,25 +193,25 @@ SELECT * FROM pg_stat_database WHERE datname = 'payment_db';
 
 ## Remediation
 
-### A: Payment Gateway degradiert
-1. Circuit Breaker manuell öffnen wenn nicht automatisch: `POST /admin/circuitbreaker/open`
-2. Queued-Payment-Mode aktivieren: `POST /admin/features/queued-payments/enable`
-3. Status-Page aktualisieren
+### A: Payment Gateway degraded
+1. Manually open circuit breaker if not automatic: `POST /admin/circuitbreaker/open`
+2. Activate Queued-Payment-Mode: `POST /admin/features/queued-payments/enable`
+3. Update status page
 
-### B: DB Connection Pool erschöpft
-1. `kubectl get pods -n payment | grep -E 'Terminating|Error'` – hängende Pods finden
-2. Hängende Pods löschen: `kubectl delete pod <pod-name> -n payment --grace-period=0`
-3. DB Connection Limit prüfen: `SHOW max_connections;` in DB
+### B: DB Connection Pool exhausted
+1. `kubectl get pods -n payment | grep -E 'Terminating|Error'` – find hanging pods
+2. Delete hanging pods: `kubectl delete pod <pod-name> -n payment --grace-period=0`
+3. Check DB connection limit: `SHOW max_connections;` in DB
 
-## Eskalation
-Nach 20 Minuten ohne Fortschritt: @engineering-manager via Slack
-Nach 45 Minuten: SEV1 erwägen, VP Engineering informieren
+## Escalation
+After 20 minutes without progress: @engineering-manager via Slack
+After 45 minutes: Consider SEV1, inform VP Engineering
 
 ## Post-Mortem Template
 https://wiki.example.com/post-mortem-template
 ----
 
-=== Schritt 4: CloudWatch Alarm mit Runbook-Link
+=== Step 4: CloudWatch Alarm with Runbook Link
 
 [source,hcl]
 ----
@@ -227,7 +227,7 @@ resource "aws_cloudwatch_metric_alarm" "api_error_rate" {
   statistic   = "Sum"
   threshold   = 10
 
-  # Runbook-URL im Alert-Body: direkt navigierbar für On-Call
+  # Runbook URL in alert body: directly navigable for on-call
   alarm_description = jsonencode({
     severity  = "SEV2"
     service   = "payment-api"
@@ -246,61 +246,61 @@ resource "aws_cloudwatch_metric_alarm" "api_error_rate" {
 
 [source,markdown]
 ----
-# Post-Mortem: [Service] – [Kurzbeschreibung]
+# Post-Mortem: [Service] – [Short description]
 
-**Datum:** YYYY-MM-DD
+**Date:** YYYY-MM-DD
 **Severity:** SEV1/SEV2
-**Duration:** X Stunden Y Minuten
+**Duration:** X hours Y minutes
 **Impacted Users:** ~N users / % traffic
 **Author:** @name
 
 ## Timeline
 
-| Zeit | Ereignis |
-|------|----------|
-| HH:MM | Alarm ausgelöst |
-| HH:MM | On-Call antwortet |
-| HH:MM | Root Cause identifiziert |
+| Time | Event |
+|------|-------|
+| HH:MM | Alarm triggered |
+| HH:MM | On-call responds |
+| HH:MM | Root cause identified |
 | HH:MM | Mitigation deployed |
 | HH:MM | Service fully restored |
 
 ## Root Cause
-[Einstufiger Satz: "Der Ausfall wurde verursacht durch..."]
+[One-sentence statement: "The outage was caused by..."]
 
 ## Contributing Factors
-- [Faktor 1]
-- [Faktor 2]
+- [Factor 1]
+- [Factor 2]
 
 ## What Went Well
-- [Positiv 1]
-- [Positiv 2]
+- [Positive 1]
+- [Positive 2]
 
 ## Action Items
 
-| Priorität | Aktion | Owner | Due Date |
-|-----------|--------|-------|----------|
+| Priority | Action | Owner | Due Date |
+|----------|--------|-------|----------|
 | P1 | ... | @name | YYYY-MM-DD |
 | P2 | ... | @name | YYYY-MM-DD |
 ----
 
-== Typische Fehlmuster
+== Typical Anti-Patterns
 
-* *Runbook veraltet*: Runbook referenziert Service-Namen oder Endpoints, die nicht mehr existieren
-* *Keine OK-Action*: Alarm löst aus wenn es schlimm wird, aber kein Signal wenn es besser wird → False Recovery
-* *Post-Mortem ohne Action Items*: Reviews ohne konkrete Tasks verhindern keine Wiederholung
-* *Severity-Eskalation zu früh*: Führungskräfte werden unnötig oft für SEV3 paginiert
+* *Runbook outdated*: Runbook references service names or endpoints that no longer exist
+* *No OK action*: Alarm fires when things get bad, but no signal when things improve → false recovery
+* *Post-mortem without action items*: Reviews without concrete tasks do not prevent recurrence
+* *Severity escalation too early*: Executives are unnecessarily paged for SEV3
 
-== Metriken
+== Metrics
 
-* MTTR: Mittlere Zeit von Alarm bis Service-Restore (Ziel: < 30 Minuten für SEV2)
-* MTTD: Zeit von erstem Fehler bis Alarm ausgelöst (Ziel: < 5 Minuten)
-* Post-Mortem Compliance Rate: % der SEV1/SEV2 Incidents mit dokumentiertem Post-Mortem (Ziel: 100%)
-* Action Item Closure Rate: % der Post-Mortem Action Items innerhalb des Zieldatums abgeschlossen
+* MTTR: Mean time from alarm to service restore (target: < 30 minutes for SEV2)
+* MTTD: Time from first error to alarm triggered (target: < 5 minutes)
+* Post-Mortem Compliance Rate: % of SEV1/SEV2 incidents with documented post-mortem (target: 100%)
+* Action Item Closure Rate: % of post-mortem action items completed by the target date
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Ad-hoc Incident Response, kein Prozess +
-Level 2 – Severity definiert, On-Call konfiguriert, Basis-Runbooks +
-Level 3 – Alle Critical-Alerts mit Runbook-Link; MTTR getrackt; Post-Mortems für SEV1/SEV2 +
-Level 4 – Automatisierte Diagnose-Datensammlung; Runbooks teilweise automatisiert +
-Level 5 – AIOps-Incident-Correlation; MTTR < 5 Minuten für bekannte Fehlerklassen
+Level 1 – Ad-hoc incident response, no process +
+Level 2 – Severity defined, on-call configured, basic runbooks +
+Level 3 – All critical alerts with runbook link; MTTR tracked; post-mortems for SEV1/SEV2 +
+Level 4 – Automated diagnostic data collection; runbook steps partially automated +
+Level 5 – AIOps incident correlation; MTTR < 5 minutes for known error classes

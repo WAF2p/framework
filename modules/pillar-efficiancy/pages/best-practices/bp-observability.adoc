@@ -1,38 +1,38 @@
-= Best Practice: Performance-Observability & SLOs
+= Best Practice: Performance Observability & SLOs
 :page-toc: right
-:description: WAF++ Performance Efficiency – SLOs definieren, SLIs instrumentieren und Error-Budgets verwalten.
+:description: WAF++ Performance Efficiency – Define SLOs, instrument SLIs and manage error budgets.
 
-== Kontext
+== Context
 
-Ohne definierte SLOs gibt es kein objektives Kriterium für "unsere Performance ist gut genug".
-Teams diskutieren subjektiv, ob Latenz "akzeptabel" ist. Ohne Error Budgets gibt es keine
-objektive Grundlage für die Entscheidung "wir müssen Reliability-Arbeit priorisieren" vs.
-"wir können weiter Features bauen".
+Without defined SLOs there is no objective criterion for "our performance is good enough".
+Teams debate subjectively whether latency is "acceptable". Without error budgets there is no
+objective basis for the decision "we need to prioritize reliability work" vs.
+"we can keep building features".
 
-Typische Probleme ohne SLO-basiertes Performance-Monitoring:
+Typical problems without SLO-based performance monitoring:
 
-* Durchschnittswerte maskieren P99-Spitzen: Avg = 50ms, P99 = 5000ms – User leiden, Dashboard sieht gut aus
-* Performance-Degradation als "Baseline" akzeptiert, weil kein historischer Vergleich existiert
-* On-Call-Team wird bei falschen Schwellwerten alarmiert (zu sensitiv oder zu tolerant)
-* Deployments erfolgen, ohne zu wissen ob die Performance schlechter wurde
+* Averages mask P99 spikes: Avg = 50ms, P99 = 5000ms – users suffer, dashboard looks fine
+* Performance degradation accepted as "baseline" because no historical comparison exists
+* On-call team is alerted with wrong thresholds (too sensitive or too tolerant)
+* Deployments happen without knowing whether performance got worse
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-050[WAF-PERF-050] – Performance Monitoring & SLO Definition
 * xref:../controls.adoc#WAF-PERF-100[WAF-PERF-100] – Performance Debt Register & Quarterly Review
 
-== Zielbild
+== Target State
 
-SLO-basiertes Performance-Management:
+SLO-based performance management:
 
-* *Definiert*: SLOs für alle Produktions-Services mit P95/P99, Fehlerrate, Verfügbarkeit
-* *Instrumentiert*: SLIs werden kontinuierlich gemessen (nicht nur Stichproben)
-* *Alerting*: Burn-Rate-Alerts statt statischer Schwellenwerte
-* *Error Budget*: Deployment-Entscheidungen basieren auf Budget-Status
+* *Defined*: SLOs for all production services with P95/P99, error rate, availability
+* *Instrumented*: SLIs are continuously measured (not just sampled)
+* *Alerting*: Burn-rate alerts instead of static thresholds
+* *Error Budget*: Deployment decisions are based on budget status
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: SLO-Dokument erstellen
+=== Step 1: Create SLO Document
 
 [source,yaml]
 ----
@@ -81,7 +81,7 @@ deployment_policy:
 review_cadence: "quarterly"
 ----
 
-=== Schritt 2: CloudWatch SLO-Dashboard (AWS)
+=== Step 2: CloudWatch SLO Dashboard (AWS)
 
 [source,hcl]
 ----
@@ -111,10 +111,10 @@ resource "aws_cloudwatch_metric_alarm" "p99_slo_burn" {
   ok_actions                = [aws_sns_topic.slo_alerts.arn]
   insufficient_data_actions = [aws_sns_topic.slo_alerts.arn]
 
-  treat_missing_data = "breaching"  # Missing data = SLO verletzt (fail safe)
+  treat_missing_data = "breaching"  # Missing data = SLO violated (fail safe)
 }
 
-# Composite Alarm: Beide Bedingungen für "SLO breached"
+# Composite Alarm: Both conditions for "SLO breached"
 resource "aws_cloudwatch_composite_alarm" "slo_breach" {
   alarm_name        = "payment-api-slo-breach"
   alarm_description = "Payment API SLO breached – P99 > 500ms AND error rate > 0.1%"
@@ -123,17 +123,17 @@ resource "aws_cloudwatch_composite_alarm" "slo_breach" {
 }
 ----
 
-=== Schritt 3: Multi-Window Burn Rate Alerts (Google SRE Methode)
+=== Step 3: Multi-Window Burn Rate Alerts (Google SRE Method)
 
 [source,python]
 ----
 # scripts/slo-burn-rate-check.py
-# Implementiert das Google SRE multi-window burn rate alert pattern
+# Implements the Google SRE multi-window burn rate alert pattern
 
 SLO_TARGET = 0.999  # 99.9% availability
 ERROR_BUDGET_RATIO = 1 - SLO_TARGET  # 0.001 = 0.1%
 
-# Burn Rate Windows (Google SRE Empfehlung)
+# Burn Rate Windows (Google SRE recommendation)
 ALERT_WINDOWS = [
     # (short_window_hours, long_window_hours, burn_rate_threshold, severity)
     (1, 6, 14.4, "page"),    # 1h window, 6h window, 14.4x burn rate
@@ -142,7 +142,7 @@ ALERT_WINDOWS = [
 ]
 
 def calculate_burn_rate(error_rate: float, window_hours: float) -> float:
-    """Burn Rate = aktuelle Fehlerrate / Fehlerrate, die Budget genau aufbraucht."""
+    """Burn rate = current error rate / error rate that exactly exhausts the budget."""
     slo_error_rate = 1 - SLO_TARGET
     return error_rate / slo_error_rate
 
@@ -159,7 +159,7 @@ def check_burn_rates(short_error_rate: float, long_error_rate: float,
     return False
 ----
 
-=== Schritt 4: Error-Budget-Dashboard
+=== Step 4: Error Budget Dashboard
 
 [source,json]
 ----
@@ -203,35 +203,35 @@ def check_burn_rates(short_error_rate: float, long_error_rate: float,
 ----
 ## Performance Debt Register – Payment Service
 
-| ID | Beschreibung | Impact | Betroffene Services | Owner | Priorität | Zieldatum |
-|----|--------------|--------|---------------------|-------|-----------|-----------|
-| PERF-001 | CDN nicht konfiguriert – statische Assets direkt von Origin | +50ms für static-assets | payment-frontend | @platform-team | Medium | Q2 2026 |
-| PERF-002 | gp2 EBS Volume auf db-payment-staging | Burst-Depletion Risiko | payment-db | @dba-team | High | 2026-04-01 |
-| PERF-003 | Kein Connection Pooling vor RDS | Pool-Erschöpfung bei > 200 concurrent users | payment-api | @payments-team | High | 2026-03-31 |
+| ID | Description | Impact | Affected Services | Owner | Priority | Target Date |
+|----|-------------|--------|-------------------|-------|----------|-------------|
+| PERF-001 | CDN not configured – static assets served directly from origin | +50ms for static-assets | payment-frontend | @platform-team | Medium | Q2 2026 |
+| PERF-002 | gp2 EBS Volume on db-payment-staging | Burst-depletion risk | payment-db | @dba-team | High | 2026-04-01 |
+| PERF-003 | No connection pooling before RDS | Pool exhaustion at > 200 concurrent users | payment-api | @payments-team | High | 2026-03-31 |
 
 ### Review History
-- 2026-03-18: Quarterly Review – PERF-003 hinzugefügt, PERF-001 repriorisiert
-- 2025-12-15: PERF-002 identifiziert nach Storage I/O Incident
+- 2026-03-18: Quarterly Review – PERF-003 added, PERF-001 reprioritized
+- 2025-12-15: PERF-002 identified after storage I/O incident
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Alerting auf Durchschnittswerte*: Average-Latenz-Alerts verpassen P99-Spitzen; immer auf Percentile alerten.
-* *Zu viele Alerts*: Alert Fatigue führt zu ignorierten Alerts; Prioritäten nach Severity und Burn Rate.
-* *SLOs ohne Review*: SLOs die nie angepasst werden werden irrelevant – quartalsweise reviewen.
-* *Error Budget nur beobachten, nicht nutzen*: Budget ohne Policy ("bei < 10%: Feature-Freeze") hat keinen Wert.
+* *Alerting on averages*: Average latency alerts miss P99 spikes; always alert on percentiles.
+* *Too many alerts*: Alert fatigue leads to ignored alerts; prioritize by severity and burn rate.
+* *SLOs without review*: SLOs that are never adjusted become irrelevant – review quarterly.
+* *Error budget observed but not used*: A budget without a policy ("at < 10%: feature freeze") has no value.
 
-== Metriken
+== Metrics
 
-* SLO-Compliance-Rate (Anteil Tage in der letzten 30 Tage mit erfülltem SLO)
-* Error-Budget-Burn-Rate (aktuell; Alarm bei > 6x)
-* Alert-Precision (Anteil Alerts, die tatsächlich actionable sind; Ziel: > 80%)
-* Time-to-Detect Performance Degradation (von Beginn bis Alert; Ziel: < 5 Minuten)
+* SLO compliance rate (proportion of days in the last 30 days with SLO met)
+* Error budget burn rate (current; alert at > 6x)
+* Alert precision (proportion of alerts that are actually actionable; target: > 80%)
+* Time to detect performance degradation (from onset to alert; target: < 5 minutes)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Kein SLO; Performance-Degradation durch Users entdeckt +
-Level 2 – Informelle Ziele; Durchschnittswert-Alerting +
-Level 3 – Formale SLOs; P99-Alerting; instrumentierte SLIs +
-Level 4 – Error-Budget-Management; Deployment-Gates +
-Level 5 – Prädiktive Burn-Rate-Alerts; automatische Kapazitätsanpassung
+Level 1 – No SLO; performance degradation discovered by users +
+Level 2 – Informal targets; average value alerting +
+Level 3 – Formal SLOs; P99 alerting; instrumented SLIs +
+Level 4 – Error budget management; deployment gates +
+Level 5 – Predictive burn-rate alerts; automatic capacity adjustment

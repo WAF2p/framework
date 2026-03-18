@@ -5,123 +5,122 @@
 :severity: high
 :category: observability
 :automated: medium
-:description: WAF++ Sovereign – Logs, Traces und Metriken in genehmigten Regionen halten; externe Exports kontrollieren; VPC Flow Logs aktivieren.
+:description: WAF++ Sovereign – Keep logs, traces, and metrics in approved regions; control external exports; enable VPC Flow Logs.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Kategorie:* Observability | *Automatisierbar:* Mittel
+*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Observability | *Automatable:* Medium
 
-== Beschreibung
+== Description
 
-Alle Observability-Daten – Logs, Traces und Metriken – MÜSSEN in genehmigten souveränen
-Regionen gespeichert werden. Exporte zu externen Plattformen (SaaS-Observability, SIEM)
-MÜSSEN explizit genehmigt, dokumentiert und technisch kontrolliert sein.
+All observability data — logs, traces, and metrics — MUST be stored in approved sovereign
+regions. Exports to external platforms (SaaS observability, SIEM) MUST be explicitly approved,
+documented, and technically controlled.
 
-Log-Retention-Perioden MÜSSEN definiert und erzwungen werden. VPC Flow Logs MÜSSEN für
-alle Produktions-VPCs aktiviert sein, um forensische Rekonstruktion zu ermöglichen.
+Log retention periods MUST be defined and enforced. VPC Flow Logs MUST be enabled for all
+production VPCs to enable forensic reconstruction.
 
 == Rationale
 
-Logs und Telemetrie enthalten häufig sensitive operative Daten: IP-Adressen, Request-Payloads,
-Nutzer-Identifier und Timing-Muster. Ein SIEM-Agent oder Log-Shipper, der zu einem
-nicht-souveränen Endpunkt sendet, exportiert diese Daten stillschweigend ausserhalb der
-Jurisdiktionsgrenzen.
+Logs and telemetry frequently contain sensitive operational data: IP addresses, request payloads,
+user identifiers, and timing patterns. A SIEM agent or log shipper sending to a non-sovereign
+endpoint silently exports this data outside jurisdictional boundaries.
 
-CloudTrail und Audit-Logs enthalten spezifisch Informationen über privilegierte Aktionen,
-Schlüsselnutzung und Datenzugriffsmuster – ihre Residency ist eine direkte Compliance-Anforderung.
+CloudTrail and audit logs specifically contain information about privileged actions, key usage,
+and data access patterns — their residency is a direct compliance requirement.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*SaaS SIEM in US-Jurisdiktion*
-|SIEM-Agent sendet Audit-Logs an US-basierten Dienst ohne rechtliche Grundlage.
+|*SaaS SIEM in US jurisdiction*
+|SIEM agent sends audit logs to a US-based service without a legal basis.
 
-|*CloudTrail-Replikation*
-|CloudTrail S3-Bucket mit automatischer Cross-Region-Replikation in nicht-souveräne Region.
+|*CloudTrail replication*
+|CloudTrail S3 bucket with automatic cross-region replication to a non-sovereign region.
 
-|*Log-Agent ohne Kontrolle*
-|Datadog-, Splunk- oder Elastic-Agent schickt sensitive Telemetrie in nicht-genehmigte Ziele.
+|*Log agent without control*
+|Datadog, Splunk, or Elastic agent sends sensitive telemetry to non-approved destinations.
 
-|*Deaktivierte Flow Logs*
-|Kein VPC Flow Logging verhindert forensische Rekonstruktion bei Datenpanne.
+|*Disabled flow logs*
+|No VPC Flow Logging prevents forensic reconstruction in case of a data breach.
 
 |*Retention 0 (never expire)*
-|Log-Groups ohne Retention-Policy verstoßen gegen DSGVO-Datenminimieriungspflicht.
+|Log groups without a retention policy violate the GDPR data minimization obligation.
 
 |===
 
-== Regulatorisches Mapping
+== Regulatory Mapping
 
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 32 – Sicherheit der Verarbeitung; Art. 44–46 – Übermittlungen in Drittländer; Art. 5(1)(e) – Speicherbegrenzung
+|*GDPR*
+|Art. 32 – Security of processing; Art. 44–46 – Transfers to third countries; Art. 5(1)(e) – Storage limitation
 
 |*BSI C5:2020*
-|LOG-01 – Protokollierung; LOG-02 – Schutz von Protokolldaten; OPS-04 – Datenverwaltung
+|LOG-01 – Logging; LOG-02 – Protection of log data; OPS-04 – Data management
 
 |*EUCS (ENISA)*
-|LOG-01 – Audit Logging; IVS-09 – Netzwerkprotokollierung
+|LOG-01 – Audit logging; IVS-09 – Network logging
 
 |*ISO 27001:2022*
-|A.8.15 – Protokollierung; A.8.16 – Überwachungsaktivitäten
+|A.8.15 – Logging; A.8.16 – Monitoring activities
 
 |===
 
-== Anforderung
+== Requirement
 
-* CloudTrail MUSS als Multi-Region-Trail mit Log-File-Validation konfiguriert sein
-* Alle CloudWatch Log Groups MÜSSEN eine `retention_in_days` > 0 und >= 30 gesetzt haben
-* VPC Flow Logs MÜSSEN für alle Produktions-VPCs aktiviert sein
-* Keine externen Log-Exporte ohne explizite Genehmigung und DPA-Absicherung
-* Audit- und Sicherheits-Log-Groups MÜSSEN mit CMK verschlüsselt sein
+* CloudTrail MUST be configured as a multi-region trail with log file validation
+* All CloudWatch Log Groups MUST have `retention_in_days` > 0 and >= 30
+* VPC Flow Logs MUST be enabled for all production VPCs
+* No external log exports without explicit approval and DPA coverage
+* Audit and security log groups MUST be encrypted with a CMK
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *CloudTrail konfigurieren*: Multi-Region, Log-File-Validation, Global-Service-Events; S3-Bucket in genehmigter Region.
-. *CloudWatch Log Group Retention setzen*: Minimum 90 Tage für Audit-Logs, 30 Tage für Anwendungs-Logs.
-. *VPC Flow Logs aktivieren*: Für alle VPCs; S3-Destination in genehmigter Region oder CloudWatch mit Retention.
-. *Log-Gruppen mit CMK verschlüsseln*: Besonders Audit-, Security- und CloudTrail-Logs.
-. *Externe Observability-Plattformen prüfen*: DPA für jeden SaaS-Dienst; EU-Region des Dienstes verifizieren.
-. *Log-Shipper-Konfiguration kontrollieren*: Allow-List aller externen Destinations; Alerts auf neue Ziele.
-. *Log-Gruppen taggen*: `data-class: audit`, `data-residency: eu-only` für alle relevanten Gruppen.
+. *Configure CloudTrail*: Multi-region, log file validation, global service events; S3 bucket in approved region.
+. *Set CloudWatch Log Group retention*: Minimum 90 days for audit logs, 30 days for application logs.
+. *Enable VPC Flow Logs*: For all VPCs; S3 destination in approved region or CloudWatch with retention.
+. *Encrypt log groups with CMK*: Especially audit, security, and CloudTrail logs.
+. *Review external observability platforms*: DPA for every SaaS service; verify EU region of the service.
+. *Control log shipper configuration*: Allow-list of all external destinations; alerts on new targets.
+. *Tag log groups*: `data-class: audit`, `data-residency: eu-only` for all relevant groups.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Basis-Logging aktiviert, Residency unkontrolliert
-|CloudTrail aktiviert; Log-Standort nicht explizit validiert.
+|Basic logging enabled, residency uncontrolled
+|CloudTrail enabled; log location not explicitly validated.
 
 |*2*
-|Log-Residency in IaC definiert
-|CloudTrail S3-Bucket in genehmigter Region; Log-Groups mit Retention; VPC Flow Logs für Prod-VPCs.
+|Log residency defined in IaC
+|CloudTrail S3 bucket in approved region; log groups with retention; VPC Flow Logs for prod VPCs.
 
 |*3*
-|Alle Observability-Pipelines sovereign kontrolliert
-|Kein ungenehmigter externer Log-Export; DPA für Drittanbieter; automatisierte Checks für Log-Standorte.
+|All observability pipelines sovereignly controlled
+|No unapproved external log exports; DPA for third parties; automated checks for log locations.
 
 |*4*
-|Kontinuierliches Monitoring und Anomalie-Erkennung
-|Alerts auf neue ungeplante Log-Destinations; Log-Vollständigkeits-Monitoring; regelmäßiger Review aller aktiven Ziele.
+|Continuous monitoring and anomaly detection
+|Alerts on new unplanned log destinations; log completeness monitoring; regular review of all active targets.
 
 |*5*
-|Sovereign Observability-Platform mit vollständiger Evidence-Chain
-|Alle Telemetrie end-to-end innerhalb souveräner Grenzen; Log-Integritätsprüfung automatisiert; Forensik-Rekonstruktion quartalsweise getestet.
+|Sovereign observability platform with full evidence chain
+|All telemetry end-to-end within sovereign boundaries; log integrity verification automated; forensic reconstruction tested quarterly.
 
 |===
 
 == Terraform Checks
 
 === waf-sov-040.tf.aws.cloudtrail-multi-region
-*Prüft:* CloudTrail muss Multi-Region mit Log-File-Validation und Global-Service-Events konfiguriert sein.
+*Checks:* CloudTrail must be configured as multi-region with log file validation and global service events.
 
 [cols="1,1"]
 |===
@@ -144,7 +143,7 @@ resource "aws_cloudtrail" "trail" {
   name           = "my-trail"
   s3_bucket_name = "my-logs"
   # ❌ Defaults: single-region,
-  #    kein Validation, kein CW
+  #    no validation, no CW
 }
 ----
 |===
@@ -152,7 +151,7 @@ resource "aws_cloudtrail" "trail" {
 ---
 
 === waf-sov-040.tf.aws.cloudwatch-log-group-retention
-*Prüft:* Log Group Retention darf nicht 0 (never expire) sein und muss >= 30 Tage betragen.
+*Checks:* Log group retention must not be 0 (never expire) and must be >= 30 days.
 
 [cols="1,1"]
 |===
@@ -174,8 +173,8 @@ a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
   name = "/app/logs"
-  # ❌ retention_in_days nicht gesetzt
-  #    → Logs verfallen nie
+  # ❌ retention_in_days not set
+  #    → logs never expire
 }
 ----
 |===
@@ -183,7 +182,7 @@ resource "aws_cloudwatch_log_group" "app" {
 ---
 
 === waf-sov-040.tf.aws.vpc-flow-logs-enabled
-*Prüft:* Jede `aws_vpc` muss eine zugehörige `aws_flow_log`-Ressource haben.
+*Checks:* Every `aws_vpc` must have an associated `aws_flow_log` resource.
 
 [cols="1,1"]
 |===
@@ -205,8 +204,8 @@ a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
-  # ❌ Kein Flow Log –
-  #    kein Netzwerk-Audit
+  # ❌ No flow log –
+  #    no network audit
 }
 ----
 |===
@@ -214,11 +213,11 @@ resource "aws_vpc" "main" {
 ---
 
 === waf-sov-040.tf.aws.log-group-kms-encryption
-*Prüft:* Audit- und Security-Log-Groups müssen `kms_key_id` setzen.
+*Checks:* Audit and security log groups must set `kms_key_id`.
 
 [source,hcl]
 ----
-# Compliant: Audit-Log-Group mit CMK verschlüsselt
+# Compliant: Audit log group encrypted with CMK
 resource "aws_cloudwatch_log_group" "security" {
   name              = "/sovereign/security"
   retention_in_days = 365
@@ -226,31 +225,31 @@ resource "aws_cloudwatch_log_group" "security" {
 }
 ----
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform CloudTrail- und Log-Group-Konfigurationen mit allen erforderlichen Attributen.
+|✅ Required
+|Terraform CloudTrail and log group configurations with all required attributes.
 
 |*Config*
-|✅ Pflicht
-|Liste aller aktiven Log-Destinations mit Region-Nachweis.
+|✅ Required
+|List of all active log destinations with region proof.
 
 |*Logs*
 |Optional
-|Beispiel-Log-Delivery-Bestätigungen mit In-Region-Speicherungsnachweis.
+|Sample log delivery confirmations with in-region storage proof.
 
 |*Process*
 |Optional
-|Genehmigungsprotokoll für externe Log-Export-Destinations.
+|Approval record for external log export destinations.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
 * xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]

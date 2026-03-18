@@ -1,244 +1,244 @@
-= Geltungsbereich (Security)
+= Scope (Security)
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Security – Geltungsbereich und Anwendbarkeit der WAF-SEC Controls. Was ist in Scope, was nicht, und welche Controls gelten für welche Workload-Typen.
+:description: WAF++ Security – Scope and applicability of WAF-SEC controls. What is in scope, what is not, and which controls apply to which workload types.
 
-Die WAF-SEC Controls sind spezifisch auf *IaC-verwaltete Cloud-Infrastruktur* ausgerichtet.
-Dieser Abschnitt definiert präzise, was in Scope ist – und was bewusst ausgeschlossen wurde.
+The WAF-SEC controls are specifically aimed at *IaC-managed cloud infrastructure*.
+This section defines precisely what is in scope – and what has been deliberately excluded.
 
 == In Scope
 
-=== IaC-verwaltete Infrastruktur
+=== IaC-Managed Infrastructure
 
-Alle Ressourcen, die über Terraform, OpenTofu, Pulumi oder vergleichbare IaC-Tools
-verwaltet werden, sind vollständig im Scope aller WAF-SEC Controls.
+All resources managed via Terraform, OpenTofu, Pulumi or comparable IaC tools
+are fully within scope of all WAF-SEC controls.
 
-Das umfasst:
+This includes:
 
 * *Compute*: EC2, ECS, EKS, Lambda, Azure VMs, GCP Compute
 * *Storage*: S3, EBS, RDS, DynamoDB, Azure Blob, GCS
-* *Netzwerk*: VPC, Security Groups, NACLs, Load Balancer, Route 53, CloudFront
-* *IAM*: IAM Roles, Policies, Instance Profiles, OIDC-Konfigurationen
+* *Network*: VPC, security groups, NACLs, load balancers, Route 53, CloudFront
+* *IAM*: IAM roles, policies, instance profiles, OIDC configurations
 * *Secrets*: AWS Secrets Manager, Parameter Store, Azure Key Vault, GCP Secret Manager
 * *Monitoring*: CloudTrail, CloudWatch, GuardDuty, Security Hub, Azure Monitor
 
-=== Cloud-Workloads (Produktion und Non-Produktion)
+=== Cloud Workloads (Production and Non-Production)
 
-Alle Umgebungen sind im Scope – nicht nur Produktion:
+All environments are in scope – not just production:
 
-* Production-Umgebungen: voller Controls-Scope
-* Staging/Pre-Production: voller Controls-Scope (da oft mit Produktionsdaten oder -Services verbunden)
-* Development: Reduzierter Scope (kritische Controls wie WAF-SEC-010, WAF-SEC-060 gelten immer)
-* Feature-Branch-Umgebungen: Mindestanforderungen (WAF-SEC-010, WAF-SEC-060)
+* Production environments: full controls scope
+* Staging/pre-production: full controls scope (as they are often connected to production data or services)
+* Development: reduced scope (critical controls like WAF-SEC-010, WAF-SEC-060 always apply)
+* Feature branch environments: minimum requirements (WAF-SEC-010, WAF-SEC-060)
 
-=== CI/CD-Pipelines
+=== CI/CD Pipelines
 
-CI/CD-Pipelines sind eine der kritischsten Angriffsflächen moderner Cloud-Umgebungen.
-Im Scope:
+CI/CD pipelines are one of the most critical attack surfaces in modern cloud environments.
+In scope:
 
 * GitHub Actions, GitLab CI, Jenkins, CircleCI, AWS CodePipeline
-* Verwendung von Secrets in Pipelines (WAF-SEC-060)
-* OIDC-basierter AWS-Zugriff statt statischer Keys (WAF-SEC-010)
-* Container-Image-Scanning vor dem Push (WAF-SEC-070)
-* Policy-as-Code als Pipeline-Gate (WAF-SEC-090)
+* Use of secrets in pipelines (WAF-SEC-060)
+* OIDC-based AWS access instead of static keys (WAF-SEC-010)
+* Container image scanning before push (WAF-SEC-070)
+* Policy-as-Code as pipeline gate (WAF-SEC-090)
 
-=== Container-Workloads
+=== Container Workloads
 
-Container bringen spezifische Sicherheitsanforderungen. Im Scope:
+Containers bring specific security requirements. In scope:
 
-* Container-Images in ECR, Azure Container Registry, GCR, Docker Hub
-* Kubernetes-Cluster (EKS, AKS, GKE)
-* ECS Tasks und Fargate-Workloads
-* Container-Scanning, SBOM-Generierung, Image-Signierung
+* Container images in ECR, Azure Container Registry, GCR, Docker Hub
+* Kubernetes clusters (EKS, AKS, GKE)
+* ECS tasks and Fargate workloads
+* Container scanning, SBOM generation, image signing
 
-=== Drittanbieter-Integrationen (IaC-verwaltet)
+=== Third-Party Integrations (IaC-Managed)
 
-Drittanbieter-Ressourcen, die über IaC-Provider verwaltet werden:
+Third-party resources managed via IaC providers:
 
-* Monitoring-Integrationen (Datadog-Provider in Terraform)
-* DNS-Provider (Route53, Cloudflare)
-* Externe Secrets-Stores (HashiCorp Vault via Vault Provider)
+* Monitoring integrations (Datadog provider in Terraform)
+* DNS providers (Route53, Cloudflare)
+* External secret stores (HashiCorp Vault via Vault provider)
 
-== Nicht in Scope
+== Not in Scope
 
-=== Anwendungssicherheit (OWASP Top 10)
+=== Application Security (OWASP Top 10)
 
-WAF++ adressiert *Infrastruktursicherheit*, nicht Anwendungssicherheit. Folgendes ist
-bewusst ausgeschlossen:
+WAF++ addresses *infrastructure security*, not application security. The following is
+deliberately excluded:
 
-* SQL Injection, XSS, CSRF und andere Anwendungsschwachstellen
-* Input-Validation-Logik in Anwendungen
-* Authentifizierungs-Implementierung in Anwendungscode
-* API-Design-Sicherheit
+* SQL injection, XSS, CSRF and other application vulnerabilities
+* Input validation logic in applications
+* Authentication implementation in application code
+* API design security
 
-NOTE: Für Anwendungssicherheit empfiehlt WAF++ den OWASP Application Security Verification
-Standard (ASVS) und entsprechende SAST/DAST-Tools.
+NOTE: For application security, WAF++ recommends the OWASP Application Security Verification
+Standard (ASVS) and corresponding SAST/DAST tools.
 
-=== Physische Sicherheit
+=== Physical Security
 
-Physische Sicherheit liegt vollständig im Shared-Responsibility-Bereich des Cloud-Anbieters:
+Physical security is entirely within the shared responsibility area of the cloud provider:
 
-* Rechenzentrum-Zutrittskontrolle
-* Hardware-Sicherheit
-* Physische Vernichtung von Datenträgern
+* Data center access control
+* Hardware security
+* Physical destruction of data carriers
 
-=== Endpoint-Sicherheit
+=== Endpoint Security
 
-Client-seitige Sicherheit ist nicht im Scope:
+Client-side security is not in scope:
 
-* Laptop/Desktop-Security, EDR, MDM
-* Browser-Sicherheit
-* VPN-Client-Konfigurationen der Endnutzer
+* Laptop/desktop security, EDR, MDM
+* Browser security
+* VPN client configurations of end users
 
-NOTE: BYOD-Policies und Endpoint-Security-Standards sind Aufgabe des Information Security
-Management Systems (ISMS), nicht der Cloud-Infrastructure-Controls.
+NOTE: BYOD policies and endpoint security standards are the responsibility of the Information Security
+Management System (ISMS), not cloud infrastructure controls.
 
-=== Manuell erstellte Ressourcen
+=== Manually Created Resources
 
-Ressourcen, die manuell in der Cloud-Konsole erstellt werden, können von WAF-SEC Controls
-nicht automatisch geprüft werden. WAF++ empfiehlt:
+Resources created manually in the cloud console cannot be automatically checked by WAF-SEC controls.
+WAF++ recommends:
 
-* SCPs (Service Control Policies) oder Azure Policies, die manuelle Deployments verhindern
-* Drift-Detection-Tools, die manuelle Änderungen erkennen
-* Eine Policy, dass keine Produktions-Ressourcen manuell erstellt werden dürfen
+* SCPs (Service Control Policies) or Azure Policies that prevent manual deployments
+* Drift detection tools that detect manual changes
+* A policy that no production resources may be created manually
 
-=== Nicht-Cloud-Infrastruktur
+=== Non-Cloud Infrastructure
 
-* On-Premises-Server, die nicht über IaC verwaltet werden
-* Legacy-Systeme ohne Cloud-API
-* Netzwerk-Hardware (Switches, physische Firewalls)
+* On-premises servers not managed via IaC
+* Legacy systems without cloud API
+* Network hardware (switches, physical firewalls)
 
-== Provider-Abdeckung
+== Provider Coverage
 
 [cols="1,2,1"]
 |===
-|Provider |Abdeckungsgrad |Hinweis
+|Provider |Coverage Level |Note
 
 |*AWS*
-|Primär (vollständig)
-|Alle 10 WAF-SEC Controls mit AWS-spezifischen Checks
+|Primary (complete)
+|All 10 WAF-SEC controls with AWS-specific checks
 
 |*Azure*
-|Teilweise
-|Kerncontrols (IAM, Encryption, Network) mit Azure-äquivalenten Checks
+|Partial
+|Core controls (IAM, encryption, network) with Azure-equivalent checks
 
 |*GCP*
-|Eingeschränkt
-|Ausgewählte Controls; Erweiterung geplant
+|Limited
+|Selected controls; expansion planned
 
 |*HashiCorp Vault*
-|Integriert
-|WAF-SEC-060 (Secrets) mit Vault-spezifischen Checks
+|Integrated
+|WAF-SEC-060 (Secrets) with Vault-specific checks
 
 |*Kubernetes*
-|Partiell
-|Über Helm/Terraform; Security Contexts, RBAC, Network Policies
+|Partial
+|Via Helm/Terraform; security contexts, RBAC, network policies
 
 |===
 
 == Brownfield vs. Greenfield
 
-=== Greenfield (neue Plattform)
+=== Greenfield (New Platform)
 
-Bei neuen Cloud-Plattformen empfehlen wir, von Anfang an alle WAF-SEC Controls zu implementieren.
-Die Reihenfolge:
+For new cloud platforms we recommend implementing all WAF-SEC controls from the start.
+The order:
 
-. WAF-SEC-010 + WAF-SEC-020 (IAM-Baseline und Least Privilege)
-. WAF-SEC-060 (Secrets-Management – niemals mit hardcodierten Credentials starten)
-. WAF-SEC-050 (Netzwerk-Design von Anfang an sicher gestalten)
-. WAF-SEC-030 + WAF-SEC-040 (Verschlüsselung von Tag 1)
-. WAF-SEC-080 + WAF-SEC-090 + WAF-SEC-100 (Monitoring und Response)
-. WAF-SEC-070 (Vulnerability Management in CI/CD integrieren)
+. WAF-SEC-010 + WAF-SEC-020 (IAM baseline and least privilege)
+. WAF-SEC-060 (Secrets management – never start with hardcoded credentials)
+. WAF-SEC-050 (Secure network design from the beginning)
+. WAF-SEC-030 + WAF-SEC-040 (Encryption from day 1)
+. WAF-SEC-080 + WAF-SEC-090 + WAF-SEC-100 (Monitoring and response)
+. WAF-SEC-070 (Integrate vulnerability management in CI/CD)
 
-=== Brownfield (bestehende Plattform)
+=== Brownfield (Existing Platform)
 
-Bei bestehenden Plattformen ist eine risikobasierte Priorisierung notwendig.
-Empfohlene Vorgehensweise:
+For existing platforms a risk-based prioritization is necessary.
+Recommended approach:
 
-. *Assessment*: WAF++ Checker gegen bestehende IaC ausführen → Findings-Liste
-. *Priorisierung*: Kritische Findings zuerst (WAF-SEC-010, WAF-SEC-020, WAF-SEC-060)
-. *Inkrementelle Migration*: Pro Sprint 1-2 Controls adressieren
-. *IaC-Erfassung*: Manuell erstellte Ressourcen in IaC migrieren (Terraform Import)
+. *Assessment*: Run WAF++ checker against existing IaC → findings list
+. *Prioritization*: Critical findings first (WAF-SEC-010, WAF-SEC-020, WAF-SEC-060)
+. *Incremental migration*: Address 1-2 controls per sprint
+. *IaC capture*: Migrate manually created resources to IaC (Terraform import)
 
-WARNING: Bei Brownfield-Plattformen: Niemals sofort alle Permissions entfernen.
-Least Privilege (WAF-SEC-020) schrittweise einführen, um Produktions-Disruption zu vermeiden.
+WARNING: For brownfield platforms: never remove all permissions at once.
+Introduce least privilege (WAF-SEC-020) incrementally to avoid production disruption.
 
-== Anwendbarkeitstabelle nach Workload-Typ
+== Applicability Table by Workload Type
 
 [cols="2,1,1,1,1,1"]
 |===
-|Control |Web-App |Batch/ETL |Data Platform |Microservices |Serverless
+|Control |Web App |Batch/ETL |Data Platform |Microservices |Serverless
 
 |WAF-SEC-010 IAM Baseline
-|Ja
-|Ja
-|Ja
-|Ja
-|Ja
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
 
 |WAF-SEC-020 Least Privilege
-|Ja
-|Ja
-|Ja
-|Ja
-|Ja
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
 
 |WAF-SEC-030 Encryption at Rest
-|Ja
-|Ja
-|Ja (kritisch)
-|Ja
-|Bedingt
+|Yes
+|Yes
+|Yes (critical)
+|Yes
+|Conditional
 
 |WAF-SEC-040 TLS Enforcement
-|Ja (kritisch)
-|Bedingt
-|Ja
-|Ja (kritisch)
-|Ja
+|Yes (critical)
+|Conditional
+|Yes
+|Yes (critical)
+|Yes
 
 |WAF-SEC-050 Network Segmentation
-|Ja
-|Ja
-|Ja
-|Ja (kritisch)
-|Bedingt
+|Yes
+|Yes
+|Yes
+|Yes (critical)
+|Conditional
 
 |WAF-SEC-060 Secrets Management
-|Ja (kritisch)
-|Ja (kritisch)
-|Ja (kritisch)
-|Ja (kritisch)
-|Ja (kritisch)
+|Yes (critical)
+|Yes (critical)
+|Yes (critical)
+|Yes (critical)
+|Yes (critical)
 
 |WAF-SEC-070 Vulnerability Mgmt
-|Ja
-|Ja
-|Ja
-|Ja
-|Ja
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
 
 |WAF-SEC-080 Security Monitoring
-|Ja
-|Ja
-|Ja
-|Ja
-|Ja
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
 
 |WAF-SEC-090 Policy-as-Code
-|Ja
-|Ja
-|Ja
-|Ja
-|Ja
+|Yes
+|Yes
+|Yes
+|Yes
+|Yes
 
 |WAF-SEC-100 Incident Response
-|Ja
-|Bedingt
-|Ja
-|Ja
-|Bedingt
+|Yes
+|Conditional
+|Yes
+|Yes
+|Conditional
 
 |===
 
-*Legende:* Ja = vollständig anwendbar | Bedingt = teilweise anwendbar, angepasste Implementierung | (kritisch) = besonders hohe Priorität für diesen Workload-Typ
+*Legend:* Yes = fully applicable | Conditional = partially applicable, adapted implementation | (critical) = particularly high priority for this workload type

@@ -1,42 +1,42 @@
-= Best Practice: Infrastructure as Code konsequent umsetzen
+= Best Practice: Implementing Infrastructure as Code Consistently
 :page-toc: right
-:description: Terraform-Struktur, Remote-State, Modul-Bibliotheken, Drift-Erkennung und Brownfield-Migration – IaC vollständig und nachhaltig umsetzen.
+:description: Terraform structure, remote state, module libraries, drift detection and brownfield migration – implementing IaC fully and sustainably.
 
-== Kontext
+== Context
 
-Infrastructure as Code ist mehr als "Terraform schreiben". Es ist ein Disziplin-Paradigma:
-Infrastruktur existiert nur wenn sie in Version-Control ist, reviewed wurde und durch
-CI/CD deployt wurde. Ohne diese Disziplin akkumuliert Configuration Drift und
-das Team verliert die Kontrolle über seine Umgebung.
+Infrastructure as Code is more than "writing Terraform". It is a discipline paradigm:
+infrastructure only exists when it is in version control, has been reviewed, and was
+deployed through CI/CD. Without this discipline, configuration drift accumulates and
+the team loses control over its environment.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-OPS-020[WAF-OPS-020 – Infrastructure as Code Enforced]
 * xref:controls.adoc#WAF-OPS-090[WAF-OPS-090 – Configuration Drift Detection & Remediation]
 
-== Zielbild
+== Target State
 
-Vollständige IaC-Umsetzung bedeutet:
+Full IaC implementation means:
 
-* Alle Produktions-Ressourcen sind in Terraform (oder Pulumi/CDK) definiert
-* Remote-State mit Locking verhindert parallele State-Änderungen
-* Modul-Bibliothek ermöglicht Code-Wiederverwendung ohne Copy-Paste
-* Drift-Erkennung läuft täglich und alarmiert bei Abweichungen
-* Disaster Recovery ist aus IaC in < 2 Stunden reproduzierbar
+* All production resources are defined in Terraform (or Pulumi/CDK)
+* Remote state with locking prevents concurrent state changes
+* Module library enables code reuse without copy-paste
+* Drift detection runs daily and alerts on deviations
+* Disaster recovery can be reproduced from IaC in < 2 hours
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Repository-Struktur
+=== Step 1: Repository Structure
 
 [source,text]
 ----
 infrastructure/
-├── modules/           # Wiederverwendbare Module
+├── modules/           # Reusable modules
 │   ├── networking/    # VPC, Subnets, Security Groups
 │   ├── compute/       # ECS Cluster, Auto Scaling, EC2
 │   ├── database/      # RDS, ElastiCache
 │   ├── observability/ # CloudWatch, X-Ray, Dashboards
-│   └── mandatory-tags/# Pflicht-Tags (shared across teams)
+│   └── mandatory-tags/# Mandatory tags (shared across teams)
 ├── environments/
 │   ├── dev/
 │   │   ├── main.tf
@@ -47,7 +47,7 @@ infrastructure/
 └── live/              # Atlantis/Terragrunt live configs (optional)
 ----
 
-=== Schritt 2: Remote-State konfigurieren
+=== Step 2: Configure Remote State
 
 [source,hcl]
 ----
@@ -63,7 +63,7 @@ terraform {
   }
 }
 
-# S3-Bucket und DynamoDB Lock-Table (einmalig als Bootstrap)
+# S3 bucket and DynamoDB lock table (one-time bootstrap)
 resource "aws_s3_bucket" "terraform_state" {
   bucket = "myorg-terraform-state-prod"
 
@@ -91,7 +91,7 @@ resource "aws_dynamodb_table" "terraform_lock" {
 }
 ----
 
-=== Schritt 3: Drift-Erkennung automatisieren
+=== Step 3: Automate Drift Detection
 
 [source,yaml]
 ----
@@ -100,7 +100,7 @@ name: Terraform Drift Detection
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Täglich um 06:00 UTC
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -148,82 +148,82 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_OPS_WEBHOOK }}
 ----
 
-=== Schritt 4: Brownfield-Migration (Import bestehender Ressourcen)
+=== Step 4: Brownfield Migration (Importing Existing Resources)
 
 [source,hcl]
 ----
-# Schritt 1: Bestehende Ressource als Terraform-Code schreiben
+# Step 1: Write the existing resource as Terraform code
 resource "aws_security_group" "app" {
   name        = "payment-service-sg"
   description = "Security group for payment service"
   vpc_id      = aws_vpc.main.id
-  # ... Regeln entsprechend dem aktuellen Zustand
+  # ... rules matching the current state
 }
 
-# Schritt 2: Import-Block (Terraform 1.5+)
+# Step 2: Import block (Terraform 1.5+)
 import {
   to = aws_security_group.app
   id = "sg-0123456789abcdef0"  # Actual AWS resource ID
 }
 
-# Schritt 3: Import ausführen
-# terraform plan -generate-config-out=generated.tf  # Code generieren lassen
+# Step 3: Run the import
+# terraform plan -generate-config-out=generated.tf  # Generate code
 # terraform import aws_security_group.app sg-0123456789abcdef0  # Classic import
-# terraform apply  # Nur Plan prüfen, nichts ändern wenn korrekt
+# terraform apply  # Only verify the plan, change nothing if correct
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
 [cols="1,3"]
 |===
-|Fehlmuster |Problem
+|Anti-Pattern |Problem
 
-|Lokaler Terraform-State
-|Kein Sharing, kein Locking, verloren wenn Laptop kaputt geht
+|Local Terraform state
+|No sharing, no locking, lost if laptop breaks
 
-|`terraform apply` lokal ausführen
-|Kein Review, kein Audit-Trail, Konflikte mit CI/CD
+|Running `terraform apply` locally
+|No review, no audit trail, conflicts with CI/CD
 
-|Module ohne Version-Pinning
-|Unkontrollierte Upstream-Änderungen brechen Deployments
+|Modules without version pinning
+|Uncontrolled upstream changes break deployments
 
-|Console-Änderungen als "quick fix"
-|Beginnt die Drift-Akkumulation; wird nie in IaC überführt
+|Console changes as a "quick fix"
+|Starts drift accumulation; never gets moved to IaC
 
-|Alle Ressourcen in einem `main.tf`
-|Schwer zu reviewen, langsame State-Operationen, fehlende Modularität
+|All resources in a single `main.tf`
+|Hard to review, slow state operations, no modularity
 
-|`-auto-approve` in CI ohne Plan-Review
-|Ungeplante Änderungen werden blindlings applied
+|`-auto-approve` in CI without plan review
+|Unplanned changes are applied blindly
 
 |===
 
-== Metriken
+== Metrics
 
-* *IaC-Coverage:* % der Produktions-Ressourcen unter IaC-Verwaltung (Ziel: 100%)
-* *Drift-Rate:* % der Ressourcen mit aktivem Drift (Ziel: < 2%)
-* *Time-to-Detect-Drift:* Zeit zwischen Drift-Entstehung und Erkennung (Ziel: < 24h)
-* *Time-to-Remediate-Drift:* Zeit zwischen Erkennung und Behebung (Ziel: < SLA pro Severity)
+* *IaC coverage:* % of production resources under IaC management (target: 100%)
+* *Drift rate:* % of resources with active drift (target: < 2%)
+* *Time-to-detect drift:* Time between drift occurrence and detection (target: < 24h)
+* *Time-to-remediate drift:* Time between detection and resolution (target: < SLA per severity)
 
-== Reifegrad
+== Maturity Levels
 
 [cols="1,2"]
 |===
-|Stufe |Charakteristika
+|Level |Characteristics
 
 |*Level 1*
-|Keine IaC; alle Infrastruktur manuell in Konsole erstellt.
+|No IaC; all infrastructure created manually in the console.
 
 |*Level 2*
-|Teile der Infrastruktur als IaC; manuelle Ressourcen koexistieren; kein Remote State.
+|Parts of the infrastructure as IaC; manual resources coexist; no remote state.
 
 |*Level 3*
-|100% Produktions-Infrastruktur als IaC; Remote State; Drift-Erkennung täglich; manuelle Änderungen eingeschränkt.
+|100% production infrastructure as IaC; remote state; drift detection daily; manual changes restricted.
 
 |*Level 4*
-|GitOps-Workflow; Drift-Alerts; SLA-basierte Remediation; Modul-Bibliothek in Verwendung.
+|GitOps workflow; drift alerts; SLA-based remediation; module library in use.
 
 |*Level 5*
-|Automatische Drift-Remediation für sichere Muster; volle GitOps-Pipeline; 0 ungelöste Drift > 48h.
+|Automatic drift remediation for safe patterns; full GitOps pipeline; 0 unresolved drift > 48h.
 
 |===

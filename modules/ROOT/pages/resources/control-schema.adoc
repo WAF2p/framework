@@ -1,106 +1,106 @@
-= Control-Schema Referenz
-:description: Vollständige YAML-Schema-Dokumentation für WAF++ Controls – für Autoren und Contributor
+= Control Schema Reference
+:description: Complete YAML schema documentation for WAF++ controls – for authors and contributors
 :toc: left
 :toclevels: 3
 
-WAF++ Controls sind maschinenlesbare YAML-Dateien.
-Sie definieren, *was* geprüft wird, *wie* geprüft wird, und *welche Evidenz* erwartet wird.
-Diese Seite dokumentiert die vollständige Schema-Struktur für Control-Autoren und Contributors.
+WAF++ controls are machine-readable YAML files.
+They define *what* is checked, *how* it is checked, and *what evidence* is expected.
+This page documents the complete schema structure for control authors and contributors.
 
-== Dateikonventionen
+== File Conventions
 
-* Ablageort: `modules/controls/controls/`
-* Dateiname: `+WAF-{PILLAR}-{NNN}.yml+` (z.B. `WAF-SOV-010.yml`, `WAF-COST-040.yml`)
+* Storage location: `modules/controls/controls/`
+* Filename: `+WAF-{PILLAR}-{NNN}.yml+` (e.g. `WAF-SOV-010.yml`, `WAF-COST-040.yml`)
 * Encoding: UTF-8
-* Sprache: Englisch (Control-Dateien), unabhängig von der Sprache der Narrative-Seiten
+* Language: English (control files), independent of the language of narrative pages
 
-=== ID-Schema
+=== ID Schema
 
 [source]
 ----
 WAF - \{PILLAR} - \{NNN}
  │       │         │
- │       │         └── Dreistellige Nummer (010, 020, ..., 100)
- │       └──────────── Pillar-Kürzel (SOV, COST, SEC, REL, OPS, PERF, SUS)
- └──────────────────── Präfix: Well Architected Framework
+ │       │         └── Three-digit number (010, 020, ..., 100)
+ │       └──────────── Pillar abbreviation (SOV, COST, SEC, REL, OPS, PERF, SUS)
+ └──────────────────── Prefix: Well Architected Framework
 ----
 
 ---
 
-== Top-Level Felder
+== Top-Level Fields
 
 [source,yaml]
 ----
-id:          # string  – eindeutige Control-ID (WAF-SOV-010)
-title:       # string  – kurzer, aktiver Titel ("Data Residency Policy Defined")
-pillar:      # string  – Pillar-Name (sovereign | cost | security | reliability | operations | architecture | governance)
+id:          # string  – unique control ID (WAF-SOV-010)
+title:       # string  – short, active title ("Data Residency Policy Defined")
+pillar:      # string  – pillar name (sovereign | cost | security | reliability | operations | architecture | governance)
 status:      # string  – active | deprecated | draft
 severity:    # string  – critical | high | medium | low
-category:    # string  – Kategorisierung innerhalb des Pillars (z.B. "data-residency", "cost-allocation")
+category:    # string  – categorization within the pillar (e.g. "data-residency", "cost-allocation")
 type:        # list    – [governance, configuration, automation, process, architecture]
-tags:        # list    – freie Tags für Suche und Filterung
+tags:        # list    – free tags for search and filtering
 
-description: # >       – Was dieses Control fordert (normativ, z.B. "MUST carry tags")
-rationale:   # >       – Warum dieses Control existiert (Risikobegründung)
-threat:      # list    – Konkrete Bedrohungen bei Nicht-Einhaltung
+description: # >       – What this control requires (normative, e.g. "MUST carry tags")
+rationale:   # >       – Why this control exists (risk justification)
+threat:      # list    – Concrete threats when not compliant
 
-regulatory_mapping:    # list – Zuordnung zu Compliance-Rahmenwerken (siehe unten)
-implementation_guidance: # list – Konkrete Umsetzungsschritte (Checkliste)
-maturity_levels:       # map  – 5 Reifegradebenen (level_1 bis level_5)
-evidence:              # map  – required + optional Evidenzarten
+regulatory_mapping:    # list – mapping to compliance frameworks (see below)
+implementation_guidance: # list – concrete implementation steps (checklist)
+maturity_levels:       # map  – 5 maturity levels (level_1 to level_5)
+evidence:              # map  – required + optional evidence types
 
-checks:      # list    – Automatisierte und manuelle Prüfschritte (siehe unten)
-references:  # map     – Links zu Narrative-Seiten und verwandten Controls
+checks:      # list    – automated and manual check steps (see below)
+references:  # map     – links to narrative pages and related controls
 ----
 
 === severity
 
 [cols="1,4", options="header"]
 |===
-| Wert | Bedeutung
+| Value | Meaning
 
 | `critical`
-| Unmittelbares Sicherheits- oder Compliance-Risiko. Kein Deploy ohne Remediation.
+| Immediate security or compliance risk. No deploy without remediation.
 
 | `high`
-| Erhebliches Risiko. Kurzfristige Remediation erforderlich (max. 2 Wochen).
+| Significant risk. Short-term remediation required (max. 2 weeks).
 
 | `medium`
-| Verbesserungsbedarf. Mittelfristig adressieren (nächstes Quartal).
+| Improvement needed. Address medium-term (next quarter).
 
 | `low`
-| Best-Practice-Abweichung. Opportunistisch beheben.
+| Best-practice deviation. Fix opportunistically.
 |===
 
 === type
 
-Ein Control kann mehrere Typen haben:
+A control can have multiple types:
 
 [cols="1,4", options="header"]
 |===
-| Wert | Bedeutung
+| Value | Meaning
 
 | `governance`
-| Organisatorische Anforderung (Policies, Prozesse, Dokumentation)
+| Organizational requirement (policies, processes, documentation)
 
 | `configuration`
-| Technische Konfiguration in IaC oder Cloud-Diensten
+| Technical configuration in IaC or cloud services
 
 | `automation`
-| Erfordert automatisierte Prüfung oder Durchsetzung
+| Requires automated checking or enforcement
 
 | `process`
-| Wiederkehrender Prozess (z.B. monatlicher Review)
+| Recurring process (e.g. monthly review)
 
 | `architecture`
-| Architekturentscheidung auf System- oder Plattformebene
+| Architectural decision at system or platform level
 |===
 
 ---
 
 == regulatory_mapping
 
-Ordnet das Control einem oder mehreren Compliance-Rahmenwerken zu.
+Maps the control to one or more compliance frameworks.
 
 [source,yaml]
 ----
@@ -123,109 +123,109 @@ regulatory_mapping:
       - "Sovereign Cloud – Data location requirements"
 ----
 
-Unterstützte Rahmenwerke: `GDPR`, `BSI C5:2020`, `ISO 27001:2022`, `EUCS (ENISA)`, `GAIA-X`, `FinOps Foundation`, `ISO 20000`, `Internal Governance`.
+Supported frameworks: `GDPR`, `BSI C5:2020`, `ISO 27001:2022`, `EUCS (ENISA)`, `GAIA-X`, `FinOps Foundation`, `ISO 20000`, `Internal Governance`.
 
 ---
 
 == maturity_levels
 
-Fünf Reifegradebenen mit Beschreibung und messbaren Kriterien.
+Five maturity levels with description and measurable criteria.
 
 [source,yaml]
 ----
 maturity_levels:
   level_1:
-    description: "Ad hoc – keine strukturierten Controls"
+    description: "Ad hoc – no structured controls"
     criteria:
-      - "Erste messbare Bedingung auf Level 1"
+      - "First measurable condition at level 1"
   level_2:
-    description: "Standardisiert – manuell umgesetzt"
+    description: "Standardized – manually implemented"
     criteria:
       - "..."
   level_3:
-    description: "Integriert – automatisiert und in CI geprüft"
+    description: "Integrated – automated and checked in CI"
     criteria:
       - "..."
   level_4:
-    description: "Souverän – vollständig auditierbar"
+    description: "Sovereign – fully auditable"
     criteria:
       - "..."
   level_5:
-    description: "Optimiert – kontinuierliche Verbesserung"
+    description: "Optimized – continuous improvement"
     criteria:
       - "..."
 ----
 
-Jedes Level baut auf dem vorherigen auf.
-Level 3+ erfordern in der Regel automatisierte Prüfung (wafpass oder äquivalent).
+Each level builds on the previous one.
+Level 3+ generally requires automated checking (wafpass or equivalent).
 
 ---
 
 == evidence
 
-Definiert die Evidenzarten, die bei einem Audit erwartet werden.
+Defines the evidence types expected during an audit.
 
 [source,yaml]
 ----
 evidence:
   required:
     - kind: "governance"
-      description: "Policy-Dokument, version-controlled."
+      description: "Policy document, version-controlled."
     - kind: "iac"
-      description: "Terraform-Konfiguration, die die Anforderung umsetzt."
+      description: "Terraform configuration implementing the requirement."
   optional:
     - kind: "architecture"
-      description: "Architekturdiagramm mit Datenflüssen."
+      description: "Architecture diagram with data flows."
     - kind: "process"
-      description: "Protokoll des letzten Reviews."
+      description: "Minutes of the last review."
     - kind: "config"
-      description: "Export aus Cloud-Konsole oder Inventory-Tool."
+      description: "Export from cloud console or inventory tool."
 ----
 
-=== Erlaubte kind-Werte
+=== Allowed kind Values
 
 [cols="1,4", options="header"]
 |===
-| kind | Typische Evidenz
+| kind | Typical evidence
 
 | `governance`
-| Policy-Dokumente, ADRs, Entscheidungsregister (versioniert in Git)
+| Policy documents, ADRs, decision registers (version-controlled in Git)
 
 | `iac`
-| Terraform-Konfiguration, Helm-Charts, Kustomize-Manifeste
+| Terraform configuration, Helm charts, Kustomize manifests
 
 | `architecture`
-| Architekturdiagramme, Datenfluss-Diagramme, Netzwerktopologien
+| Architecture diagrams, data flow diagrams, network topologies
 
 | `process`
-| Meeting-Protokolle, Review-Berichte, Audit-Logs, Kalendereinträge
+| Meeting minutes, review reports, audit logs, calendar entries
 
 | `config`
-| Cloud-Konsolen-Screenshots, CLI-Outputs, Inventory-Exports, API-Responses
+| Cloud console screenshots, CLI outputs, inventory exports, API responses
 |===
 
 ---
 
 == checks
 
-Eine Liste von Prüfschritten.
-Jeder Check ist entweder automatisiert (ausführbar durch `wafpass`) oder manuell.
+A list of check steps.
+Each check is either automated (executable by `wafpass`) or manual.
 
 [source,yaml]
 ----
 checks:
-  - id: "waf-sov-010.tf.aws.provider-region-explicit"   # eindeutige Check-ID
+  - id: "waf-sov-010.tf.aws.provider-region-explicit"   # unique check ID
     engine: "terraform"                                  # terraform | manual | api
     provider: "aws"                                      # aws | azurerm | google | any
     automated: true                                      # true | false
     severity: "critical"                                 # critical | high | medium | low
     title: "AWS provider must have 'region' explicitly set"
     description: >
-      Kurze Beschreibung, was dieser Check prüft und warum.
+      Brief description of what this check verifies and why.
     scope:
       block_type: "provider"                             # resource | provider | variable | terraform | module
-      provider_name: "aws"                               # nur bei block_type: provider
-      resource_types:                                    # nur bei block_type: resource
+      provider_name: "aws"                               # only for block_type: provider
+      resource_types:                                    # only for block_type: resource
         - "aws_s3_bucket"
     assertions:
       - attribute: "region"
@@ -245,199 +245,199 @@ checks:
         }
 ----
 
-=== id-Konvention für Checks
+=== ID Convention for Checks
 
 [source]
 ----
-{control-id}.{engine}.{provider}.{kurzbeschreibung}
+{control-id}.{engine}.{provider}.{short-description}
       │           │        │              │
-      │           │        │              └── Kebab-case, max 40 Zeichen
+      │           │        │              └── kebab-case, max 40 characters
       │           │        └─────────────── aws | azurerm | google | any | manual
       │           └──────────────────────── terraform | manual | api
-      └──────────────────────────────────── z.B. waf-sov-010 (lowercase)
+      └──────────────────────────────────── e.g. waf-sov-010 (lowercase)
 ----
 
-Beispiel: `waf-cost-010.tf.aws.compute-mandatory-tags`
+Example: `waf-cost-010.tf.aws.compute-mandatory-tags`
 
 === engine
 
 [cols="1,4", options="header"]
 |===
-| Wert | Bedeutung
+| Value | Meaning
 
 | `terraform`
-| Check wird gegen HCL2-Terraform-Dateien ausgeführt (wafpass)
+| Check is run against HCL2 Terraform files (wafpass)
 
 | `manual`
-| Manueller Review erforderlich; `automated: false` ist immer gesetzt
+| Manual review required; `automated: false` is always set
 
 | `api`
-| Prüfung erfordert Live-Abfrage der Cloud-API (wafpass unterstützt dies noch nicht)
+| Check requires live query of cloud API (wafpass does not yet support this)
 |===
 
 === scope
 
-Definiert, welche Terraform-Blöcke geprüft werden:
+Defines which Terraform blocks are checked:
 
 [cols="1,3,3", options="header"]
 |===
-| block_type | Zusatzfelder | Beschreibung
+| block_type | Additional fields | Description
 
 | `resource`
 | `resource_types: [list]`
-| Terraform `resource`-Blöcke des angegebenen Typs (z.B. `aws_s3_bucket`)
+| Terraform `resource` blocks of the specified type (e.g. `aws_s3_bucket`)
 
 | `provider`
 | `provider_name: string`
-| Terraform `provider`-Blöcke (z.B. `provider "aws" {}`)
+| Terraform `provider` blocks (e.g. `provider "aws" {}`)
 
 | `variable`
 | –
-| Alle `variable`-Blöcke in der Konfiguration
+| All `variable` blocks in the configuration
 
 | `terraform`
 | –
-| Der `terraform`-Block (required_providers, required_version)
+| The `terraform` block (required_providers, required_version)
 
 | `module`
 | –
-| Alle `module`-Blöcke
+| All `module` blocks
 |===
 
 ---
 
 == assertions
 
-Jede Assertion definiert eine einzelne Bedingung, die ein Terraform-Block erfüllen muss.
-Alle Assertions eines Checks müssen bestehen, damit der Check als PASS gilt.
+Each assertion defines a single condition that a Terraform block must satisfy.
+All assertions of a check must pass for the check to be considered PASS.
 
 [source,yaml]
 ----
 assertions:
-  - attribute: "tags"            # Attributpfad (dot-notation für verschachtelte Werte)
-    op: "key_exists"             # Operator (siehe Tabelle unten)
-    key: "cost-center"           # für key_exists
-    expected: "COST"             # für equals, not_equals, in, not_in, greater_than_or_equal, less_than_or_equal
-    pattern: "^eu-"              # für matches, not_matches (Regex)
-    fallback_attribute: "region" # für attribute_exists_or_fallback
+  - attribute: "tags"            # attribute path (dot-notation for nested values)
+    op: "key_exists"             # operator (see table below)
+    key: "cost-center"           # for key_exists
+    expected: "COST"             # for equals, not_equals, in, not_in, greater_than_or_equal, less_than_or_equal
+    pattern: "^eu-"              # for matches, not_matches (regex)
+    fallback_attribute: "region" # for attribute_exists_or_fallback
     message: "Resource is missing the mandatory 'cost-center' tag."
 ----
 
-=== Assertion-Felder
+=== Assertion Fields
 
 [cols="2,1,4", options="header"]
 |===
-| Feld | Pflicht | Beschreibung
+| Field | Required | Description
 
 | `attribute`
-| Ja
-| Attributpfad im Terraform-Block. Dot-notation für verschachtelte Werte: `tags.cost-center`, `logging_config.bucket`.
+| Yes
+| Attribute path in the Terraform block. Dot-notation for nested values: `tags.cost-center`, `logging_config.bucket`.
 
 | `op`
-| Ja
-| Operator (siehe Tabelle unten).
+| Yes
+| Operator (see table below).
 
 | `key`
-| Nur bei `key_exists`
-| Schlüsselname innerhalb einer Map (z.B. Tag-Key).
+| Only for `key_exists`
+| Key name within a map (e.g. tag key).
 
 | `expected`
-| Operator-abhängig
-| Erwarteter Wert. Bei `in`/`not_in` eine Liste. Bei `greater_than_or_equal`/`less_than_or_equal` eine Zahl.
+| Operator-dependent
+| Expected value. For `in`/`not_in` a list. For `greater_than_or_equal`/`less_than_or_equal` a number.
 
 | `pattern`
-| Nur bei `matches`/`not_matches`
-| Regulärer Ausdruck (Python re-Syntax).
+| Only for `matches`/`not_matches`
+| Regular expression (Python re syntax).
 
 | `fallback_attribute`
-| Nur bei `attribute_exists_or_fallback`
-| Alternatives Attribut, das geprüft wird, wenn das primäre fehlt.
+| Only for `attribute_exists_or_fallback`
+| Alternative attribute checked when the primary is missing.
 
 | `message`
-| Nein
-| Fehlermeldung bei FAIL. Wird im wafpass-Output angezeigt. Wenn weggelassen, generiert die Engine eine Standard-Meldung.
+| No
+| Error message on FAIL. Displayed in wafpass output. If omitted, the engine generates a default message.
 |===
 
-=== Operator-Referenz
+=== Operator Reference
 
 [cols="2,2,3", options="header"]
 |===
-| Operator | Benötigte Felder | Prüft
+| Operator | Required fields | Checks
 
 | `attribute_exists`
 | `attribute`
-| Attribut vorhanden und nicht `null`
+| Attribute present and not `null`
 
 | `attribute_exists_or_fallback`
 | `attribute`, `fallback_attribute`
-| Primär- oder Fallback-Attribut vorhanden
+| Primary or fallback attribute present
 
 | `not_empty`
 | `attribute`
-| Attribut vorhanden, nicht `null`, nicht `""` / `[]` / `{}`
+| Attribute present, not `null`, not `""` / `[]` / `{}`
 
 | `equals`
 | `attribute`, `expected`
-| Attributwert == `expected`
+| Attribute value == `expected`
 
 | `not_equals`
 | `attribute`, `expected`
-| Attributwert != `expected`
+| Attribute value != `expected`
 
 | `in`
-| `attribute`, `expected` (Liste)
-| Attributwert ist in der erlaubten Liste
+| `attribute`, `expected` (list)
+| Attribute value is in the allowed list
 
 | `not_in`
-| `attribute`, `expected` (Liste)
-| Attributwert ist nicht in der verbotenen Liste
+| `attribute`, `expected` (list)
+| Attribute value is not in the prohibited list
 
 | `is_true`
 | `attribute`
-| Attributwert ist `true` (auch als String)
+| Attribute value is `true` (also as string)
 
 | `is_false`
 | `attribute`
-| Attributwert ist `false` (auch als String)
+| Attribute value is `false` (also as string)
 
 | `greater_than_or_equal`
-| `attribute`, `expected` (Zahl)
-| Numerischer Attributwert >= `expected`
+| `attribute`, `expected` (number)
+| Numeric attribute value >= `expected`
 
 | `less_than_or_equal`
-| `attribute`, `expected` (Zahl)
-| Numerischer Attributwert <= `expected`
+| `attribute`, `expected` (number)
+| Numeric attribute value <= `expected`
 
 | `matches`
 | `attribute`, `pattern`
-| Attributwert entspricht dem Regex-Pattern
+| Attribute value matches the regex pattern
 
 | `not_matches`
 | `attribute`, `pattern`
-| Attributwert entspricht dem Regex-Pattern nicht
+| Attribute value does not match the regex pattern
 
 | `key_exists`
 | `attribute`, `key`
-| Schlüssel `key` existiert in der Map `attribute` (z.B. in `tags`)
+| Key `key` exists in map `attribute` (e.g. in `tags`)
 
 | `block_exists`
 | –
-| Terraform-Block des angegebenen Typs existiert (Scope-Match genügt)
+| Terraform block of the specified type exists (scope match sufficient)
 
 | `has_associated_resource`
 | `attribute`
-| Eine andere Ressource referenziert diesen Block (z.B. Flow Log referenziert VPC)
+| Another resource references this block (e.g. flow log references VPC)
 
 | `not_contains`
 | `attribute`, `expected`
-| Attributwert enthält den Substring `expected` nicht
+| Attribute value does not contain the substring `expected`
 |===
 
 ---
 
 == references
 
-Verknüpft das Control mit der Narrative-Dokumentation.
+Links the control to the narrative documentation.
 
 [source,yaml]
 ----
@@ -451,9 +451,9 @@ references:
 
 ---
 
-== Vollständiges Beispiel-Control
+== Complete Example Control
 
-Das folgende Beispiel zeigt ein minimal-vollständiges Control, das alle Pflichtfelder enthält und direkt von `wafpass` ausgewertet werden kann:
+The following example shows a minimally complete control containing all required fields and directly evaluable by `wafpass`:
 
 [source,yaml]
 ----
@@ -588,23 +588,23 @@ references:
 
 ---
 
-== Neues Control einreichen
+== Submitting a New Control
 
-. **ID vergeben** – nächste freie Nummer im Pillar (z.B. `WAF-COST-110`); Nummern werden nicht wiederverwendet.
-. **YAML erstellen** – Datei nach obigem Schema anlegen, alle Pflichtfelder befüllen.
-. **Automated Checks validieren** – lokal testen:
+. **Assign an ID** – next free number in the pillar (e.g. `WAF-COST-110`); numbers are not reused.
+. **Create the YAML** – create the file according to the schema above, fill in all required fields.
+. **Validate automated checks** – test locally:
 +
 [source,bash]
 ----
 wafpass check ./tests/fixtures/ --controls WAF-COST-110
 ----
-. **Narrative-Seite erstellen** – passende `.adoc`-Datei im Pillar-Modul anlegen und in `references.narrative` verlinken.
-. **Pull Request öffnen** – Control-YAML + Narrative-Seite gemeinsam einreichen. Der PR-Titel sollte die Control-ID enthalten.
+. **Create the narrative page** – create the matching `.adoc` file in the pillar module and link it in `references.narrative`.
+. **Open a pull request** – submit control YAML + narrative page together. The PR title should contain the control ID.
 
 ---
 
-== Weiterführende Seiten
+== Further Reading
 
-* xref:resources/wafpass.adoc[WAF++ PASS – CLI Referenz] – wie Controls ausgeführt werden
-* xref:controls:catalog.adoc[Controls-Katalog] – alle vorhandenen Controls
-* xref:best-practises/index.adoc[Assessment-Methodik] – Controls im Assessment-Kontext
+* xref:resources/wafpass.adoc[WAF++ PASS – CLI Reference] – how controls are executed
+* xref:controls:catalog.adoc[Controls Catalog] – all existing controls
+* xref:best-practises/index.adoc[Assessment Methodology] – controls in the assessment context

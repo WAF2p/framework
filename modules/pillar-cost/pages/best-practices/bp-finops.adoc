@@ -1,61 +1,61 @@
-= Best Practice: FinOps-Prozesse implementieren
+= Best Practice: Implementing FinOps Processes
 :page-toc: right
-:description: WAF++ Cost Optimization – Review-Zyklen, Rollen, Tooling und Metriken für FinOps-Prozesse.
+:description: WAF++ Cost Optimization – Review cycles, roles, tooling, and metrics for FinOps processes.
 
-== Kontext
+== Context
 
-FinOps scheitert nicht an fehlendem Tooling. Es scheitert an fehlenden Prozessen, unklaren
-Verantwortlichkeiten und mangelnder Verbindung zwischen Kostendaten und Handlungen.
-Diese Best Practice zeigt, wie strukturierte FinOps-Prozesse von Grund auf etabliert werden –
-von der ersten monatlichen Review bis zum Architecture-Board-Quartalszyklus.
+FinOps does not fail because of missing tooling. It fails because of missing processes, unclear
+responsibilities, and a lack of connection between cost data and actions.
+This best practice shows how structured FinOps processes are established from scratch –
+from the first monthly review to the architecture board quarterly cycle.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-COST-060[WAF-COST-060] – FinOps Review Cadence
 
-== Zielbild
+== Target State
 
-* Monatliche Engineering-Reviews laufen routinemäßig mit klaren Action Items
-* Quarterly Architecture-Board-Reviews verbinden Cost-Debt-Governance mit strategischen Entscheidungen
-* Teams empfangen aktionierbare Kostendaten – nicht rohe Billing-Reports
-* Kostenverantwortung ist klar: Engineering-Teams, unterstützt durch FinOps-Team
+* Monthly engineering reviews run routinely with clear action items
+* Quarterly architecture board reviews connect cost debt governance with strategic decisions
+* Teams receive actionable cost data – not raw billing reports
+* Cost responsibility is clear: engineering teams, supported by the FinOps team
 
-== Monatlichen Engineering-Review aufsetzen
+== Setting Up the Monthly Engineering Review
 
-=== Review-Format (30–45 Minuten)
+=== Review Format (30–45 minutes)
 
-*Teilnehmer:* Tech Lead / Engineering Manager des Teams + FinOps-Support
+*Participants:* Tech Lead / Engineering Manager of the team + FinOps support
 
 *Agenda:*
 
 [source,text]
 ----
-1. Aktueller Kostenstand (5 Min)
-   - Gesamtkosten des Monats vs. Budget
-   - Abweichung zum Vormonat (absolut und %)
-   - Prognose für Monatsende
+1. Current cost status (5 min)
+   - Total costs for the month vs. budget
+   - Deviation from previous month (absolute and %)
+   - Forecast for end of month
 
-2. Top-3-Kostentreiber (10 Min)
-   - Welche Services / Ressourcen treiben die Kosten?
-   - Anomalien und unerwartete Veränderungen
-   - Budget-Alert-Events des Monats
+2. Top 3 cost drivers (10 min)
+   - Which services / resources are driving costs?
+   - Anomalies and unexpected changes
+   - Budget alert events for the month
 
-3. Rightsizing-Empfehlungen (10 Min)
-   - Compute Optimizer / Azure Advisor / GCP Recommender: neue Empfehlungen
-   - Idle-Resource-Liste: Instanzen < 5% CPU über 7 Tage
-   - Entscheidung pro Empfehlung: Umsetzen / Ablehnen (mit Begründung)
+3. Rightsizing recommendations (10 min)
+   - Compute Optimizer / Azure Advisor / GCP Recommender: new recommendations
+   - Idle resource list: instances < 5% CPU over 7 days
+   - Decision per recommendation: implement / reject (with rationale)
 
-4. Action Items (10 Min)
-   - Neue Action Items aus Review
-   - Status offener Action Items aus Vormonat
-   - Owner und Fälligkeitsdatum für jeden neuen Item
+4. Action items (10 min)
+   - New action items from review
+   - Status of open action items from previous month
+   - Owner and due date for each new item
 
-5. Cost-Debt-Hinweise (5 Min)
-   - Neue potenzielle Cost-Debt-Einträge identifiziert?
-   - Für Quarterly Review vormerken
+5. Cost debt notes (5 min)
+   - New potential cost debt entries identified?
+   - Flag for quarterly review
 ----
 
-=== Action-Item-Template
+=== Action Item Template
 
 [source,yaml]
 ----
@@ -65,14 +65,14 @@ team: "platform-team"
 
 action_items:
   - id: AI-2025-03-001
-    title: "3 idle dev-Instanzen abschalten (EC2 t3.large)"
+    title: "Shut down 3 idle dev instances (EC2 t3.large)"
     owner: "platform-team"
     due: "2025-03-31"
     expected_saving_eur_month: 180
     status: "open"  # open | in-progress | done | cancelled
 
   - id: AI-2025-03-002
-    title: "CloudWatch Log Group 'app-debug' Retention von unbegrenzt auf 30d setzen"
+    title: "Set CloudWatch Log Group 'app-debug' retention from unlimited to 30d"
     owner: "platform-team"
     due: "2025-03-15"
     expected_saving_eur_month: 45
@@ -81,57 +81,57 @@ action_items:
     actual_saving_eur_month: 42
 ----
 
-== Quarterly Architecture-Board-Review etablieren
+== Establishing the Quarterly Architecture Board Review
 
-=== Vorbereitung durch FinOps-Team
+=== Preparation by the FinOps Team
 
-2 Wochen vor Review erstellt das FinOps-Team:
+2 weeks before the review, the FinOps team prepares:
 
-. Quartalskostenbericht (Gesamtkosten, Trend, Top-10-Kostentreiber)
-. Cost-Debt-Register-Update mit Vorschlägen für neue Einträge
-. ADR-Liste des Quartals mit Lock-in-Scores
-. Reservierungsportfolio-Analyse (RI/SP-Utilization, Auslaufende RIs)
-. Empfehlungsliste für strategische Maßnahmen
+. Quarterly cost report (total costs, trend, top 10 cost drivers)
+. Cost debt register update with proposals for new entries
+. ADR list for the quarter with lock-in scores
+. Reservation portfolio analysis (RI/SP utilization, expiring RIs)
+. Recommendation list for strategic measures
 
-=== Review-Agenda (75 Minuten)
+=== Review Agenda (75 minutes)
 
 [source,text]
 ----
-1. Quartalsbericht (15 Min)
-   - Gesamtkosten Q vs. Budget
-   - Kostentrend YoY und QoQ
-   - Größte Kostenveränderungen des Quartals
+1. Quarterly report (15 min)
+   - Total costs Q vs. budget
+   - Cost trend YoY and QoQ
+   - Biggest cost changes for the quarter
 
-2. Cost-Debt-Register (25 Min)
-   - Neue Einträge: Bestätigung, Owner, Status
-   - Bestehende Einträge: Paydown-Fortschritt, Status-Updates
-   - Acceptance-Entscheidungen mit Begründung
+2. Cost debt register (25 min)
+   - New entries: confirmation, owner, status
+   - Existing entries: paydown progress, status updates
+   - Acceptance decisions with rationale
 
-3. ADR-Reviews (15 Min)
-   - ADRs mit Lock-in-Score >= 4: Bestätigung oder Rückweisung
-   - Kostenwirkung der letzten Quartalsentscheidungen
+3. ADR reviews (15 min)
+   - ADRs with lock-in score >= 4: confirmation or rejection
+   - Cost impact of last quarter's decisions
 
-4. Strategische Maßnahmen (15 Min)
-   - Reservierungsstrategie für nächstes Quartal
-   - Multi-Cloud/Multi-Provider-Kostenentscheidungen
-   - Open-Source-vs.-Proprietary-Entscheidungen mit Impact
+4. Strategic measures (15 min)
+   - Reservation strategy for the next quarter
+   - Multi-cloud/multi-provider cost decisions
+   - Open-source vs. proprietary decisions with impact
 
-5. Sign-off und nächste Schritte (5 Min)
-   - Priorisierte Paydown-Maßnahmen
-   - Nächster Review-Termin bestätigen
+5. Sign-off and next steps (5 min)
+   - Prioritized paydown measures
+   - Confirm next review date
 ----
 
-== Tooling-Empfehlungen
+== Tooling Recommendations
 
 [cols="1,2,2"]
 |===
-|Bereich |AWS |Azure / GCP
+|Area |AWS |Azure / GCP
 
-|*Cost-Reporting*
+|*Cost Reporting*
 |AWS Cost Explorer, Cost & Usage Report (CUR)
 |Azure Cost Management + Billing, GCP Billing
 
-|*Budget-Management*
+|*Budget Management*
 |AWS Budgets (IaC: `aws_budgets_budget`)
 |Azure Budgets (`azurerm_consumption_budget_*`), GCP Billing Budgets
 
@@ -139,16 +139,16 @@ action_items:
 |AWS Compute Optimizer, Trusted Advisor
 |Azure Advisor, GCP Recommender
 
-|*Anomalie-Detection*
+|*Anomaly Detection*
 |AWS Cost Anomaly Detection
 |Azure Cost Alerts, GCP Budget Alerts
 
-|*FinOps-Plattformen (Multi-Cloud)*
-|CloudHealth, Apptio Cloudability, FOCUS-basierte Tools
+|*FinOps Platforms (Multi-Cloud)*
+|CloudHealth, Apptio Cloudability, FOCUS-based tools
 |CloudHealth, Apptio, Spot.io
 
-|*Dashboard-Integration*
-|Cost Explorer Embedded, Grafana (CUR-Data in S3)
+|*Dashboard Integration*
+|Cost Explorer Embedded, Grafana (CUR data in S3)
 |Power BI + Azure Cost Management, Looker + GCP Billing
 
 |===
@@ -162,7 +162,7 @@ name: Monthly FinOps Report
 
 on:
   schedule:
-    - cron: '0 8 1 * *'  # 1. des Monats, 8 Uhr
+    - cron: '0 8 1 * *'  # 1st of each month, 8:00
 
 jobs:
   generate-report:
@@ -170,7 +170,7 @@ jobs:
     steps:
       - name: Generate Cost Report
         run: |
-          # Kosten des letzten Monats aus AWS Cost Explorer
+          # Costs for last month from AWS Cost Explorer
           aws ce get-cost-and-usage \
             --time-period Start=$(date -d "1 month ago" +%Y-%m-01),End=$(date +%Y-%m-01) \
             --granularity MONTHLY \
@@ -202,38 +202,38 @@ jobs:
             });
 ----
 
-== KPIs und Tracking
+== KPIs and Tracking
 
 [source,yaml]
 ----
-# metrics/finops-kpis.yml – Monatliches KPI-Tracking
+# metrics/finops-kpis.yml – Monthly KPI tracking
 month: "2025-03"
 team: "platform-team"
 
 kpis:
-  tagging_compliance_pct: 96.2        # Ziel >= 95%
-  budget_variance_pct: 4.1            # Ziel < ±10%
-  untagged_cost_pct: 3.8              # Ziel < 5%
-  rightsizing_coverage_pct: 82        # Ziel >= 80%
-  idle_resource_rate_pct: 1.9         # Ziel < 3%
-  observability_cost_pct_of_total: 17 # Ziel < 20%
-  ri_utilization_pct: 84              # Ziel >= 80%
+  tagging_compliance_pct: 96.2        # Target >= 95%
+  budget_variance_pct: 4.1            # Target < ±10%
+  untagged_cost_pct: 3.8              # Target < 5%
+  rightsizing_coverage_pct: 82        # Target >= 80%
+  idle_resource_rate_pct: 1.9         # Target < 3%
+  observability_cost_pct_of_total: 17 # Target < 20%
+  ri_utilization_pct: 84              # Target >= 80%
 
 quarterly_kpis:
   cost_debt_register_entries: 5
-  cost_debt_paydown_pct: 60           # Ziel >= 50%
-  tco_tracked_workloads_pct: 75       # Ziel >= 80%
+  cost_debt_paydown_pct: 60           # Target >= 50%
+  tco_tracked_workloads_pct: 75       # Target >= 80%
 ----
 
 == Anti-Patterns
 
-* *FinOps als Polizei*: Reviews, bei denen Teams verteidigen müssen, schaffen Widerstand
-* *Kosten ohne Kontext*: Steigende Kosten können durch wachsende Nutzung gerechtfertigt sein
-* *Action Items ohne Owner*: Unzugeordnete Items werden nicht erledigt
-* *Tooling vor Prozess*: Teure FinOps-Plattformen nützen nichts ohne Review-Zyklus
+* *FinOps as police*: reviews where teams have to defend themselves create resistance
+* *Costs without context*: rising costs can be justified by growing usage
+* *Action items without owners*: unassigned items are never completed
+* *Tooling before process*: expensive FinOps platforms are useless without a review cycle
 
-== Metriken
+== Metrics
 
-* Review-Durchführungsrate: % der geplanten Reviews, die stattgefunden haben (Ziel: 100%)
-* Action-Item-Erledigungsrate: % der Action Items, die fristgerecht erledigt wurden (Ziel: >= 80%)
-* Ø Einsparung pro Review: Summe realisierter Einsparungen ÷ Anzahl Reviews
+* Review completion rate: % of planned reviews that took place (target: 100%)
+* Action item completion rate: % of action items completed on time (target: >= 80%)
+* Average saving per review: sum of realized savings ÷ number of reviews

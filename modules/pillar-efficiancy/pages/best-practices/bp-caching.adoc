@@ -1,37 +1,37 @@
-= Best Practice: Caching-Strategie implementieren
+= Best Practice: Implement a Caching Strategy
 :page-toc: right
-:description: WAF++ Performance Efficiency – Mehrschichtige Caching-Strategie mit Redis, CDN und Application Cache.
+:description: WAF++ Performance Efficiency – Multi-layer caching strategy with Redis, CDN and application cache.
 
-== Kontext
+== Context
 
-Caching ist eine der wirkungsvollsten Performance-Optimierungen. Ein gut konfigurierter Cache
-kann Datenbankauslastung um 60–90% reduzieren und P99-Latenz um eine Größenordnung verbessern.
-Ohne Caching-Strategie entstehen jedoch häufig neue Probleme: veraltete Daten, Stampede-Probleme
-und schwer diagnostizierbare Inkonsistenzen.
+Caching is one of the most effective performance optimizations. A well-configured cache
+can reduce database load by 60–90% and improve P99 latency by an order of magnitude.
+Without a caching strategy, however, new problems frequently arise: stale data, stampede issues,
+and hard-to-diagnose inconsistencies.
 
-Typische Probleme ohne Caching-Strategie:
+Typical problems without a caching strategy:
 
-* Identische Datenbankabfragen werden hundertfach pro Sekunde ausgeführt
-* Cache-Entries verfallen synchron → Thundering Herd → Datenbankausfall
-* Caching von veränderlichen Daten ohne Invalidierungslogik → Stale Data
-* In-Process-Cache nicht shared zwischen Instanzen → kein konsistentes Caching beim Scale-out
+* Identical database queries are executed hundreds of times per second
+* Cache entries expire synchronously → Thundering Herd → database failure
+* Caching mutable data without invalidation logic → stale data
+* In-process cache not shared between instances → no consistent caching during scale-out
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-030[WAF-PERF-030] – Caching Strategy Defined & Implemented
 
-== Zielbild
+== Target State
 
-Eine reife Caching-Strategie:
+A mature caching strategy:
 
-* *Mehrschichtig*: L1 (In-Process), L2 (Distributed/Redis), L3 (CDN)
-* *Dokumentiert*: Welche Daten, welche TTL, welche Invalidierungslogik
-* *Gemessen*: Cache-Hit-Raten werden kontinuierlich überwacht
-* *Sicher*: Keine sicherheitsrelevanten Entscheidungen aus dem Cache
+* *Multi-layer*: L1 (in-process), L2 (distributed/Redis), L3 (CDN)
+* *Documented*: Which data, which TTL, which invalidation logic
+* *Measured*: Cache hit rates are continuously monitored
+* *Secure*: No security-relevant decisions are made from the cache
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Caching-Strategie-Dokument
+=== Step 1: Caching Strategy Document
 
 [source,yaml]
 ----
@@ -69,7 +69,7 @@ do_not_cache:
   - "User-specific sensitive financial data"
 ----
 
-=== Schritt 2: ElastiCache Redis in Terraform
+=== Step 2: ElastiCache Redis in Terraform
 
 [source,hcl]
 ----
@@ -89,7 +89,7 @@ resource "aws_elasticache_replication_group" "main" {
   transit_encryption_enabled = true
   auth_token                 = var.redis_auth_token  # TLS + Auth
 
-  # Snapshot für Debugging und Warm-up
+  # Snapshot for debugging and warm-up
   snapshot_retention_limit = 1
   snapshot_window          = "03:00-04:00"
 
@@ -103,7 +103,7 @@ resource "aws_elasticache_replication_group" "main" {
 }
 ----
 
-=== Schritt 3: Cache-Aside Pattern in Python
+=== Step 3: Cache-Aside Pattern in Python
 
 [source,python]
 ----
@@ -130,7 +130,7 @@ class CacheManager:
         )
 
     def invalidate(self, pattern: str) -> int:
-        """Alle Keys löschen die dem Pattern entsprechen."""
+        """Delete all keys matching the pattern."""
         keys = self.redis.keys(pattern)
         if keys:
             return self.redis.delete(*keys)
@@ -138,13 +138,13 @@ class CacheManager:
 
     def get_or_compute(self, key: str, compute_fn: Callable,
                        ttl: int = None) -> dict:
-        """Cache-Aside mit Stampede-Schutz via Lock."""
-        # Cache-Hit
+        """Cache-aside with stampede protection via lock."""
+        # Cache hit
         cached = self.get(key)
         if cached is not None:
             return cached
 
-        # Lock gegen Stampede (nx=True: nur setzen wenn nicht existiert)
+        # Lock against stampede (nx=True: only set if not exists)
         lock_key = f"lock:{key}"
         lock_acquired = self.redis.set(lock_key, "1", nx=True, ex=10)
 
@@ -156,12 +156,12 @@ class CacheManager:
             finally:
                 self.redis.delete(lock_key)
         else:
-            # Warten und nochmal lesen (anderer Thread füllt Cache)
+            # Wait and re-read (another thread is filling the cache)
             import time
             time.sleep(0.05)
             return self.get(key) or compute_fn()
 
-# Verwendung
+# Usage
 cache = CacheManager(redis_url=REDIS_URL)
 
 def get_payment_method(user_id: str) -> dict:
@@ -169,17 +169,17 @@ def get_payment_method(user_id: str) -> dict:
     return cache.get_or_compute(
         key=cache_key,
         compute_fn=lambda: db.query_payment_method(user_id),
-        ttl=900  # 15 Minuten TTL
+        ttl=900  # 15 minute TTL
     )
 
-# Cache-Invalidierung bei Datenmutation
+# Cache invalidation on data mutation
 def update_payment_method(user_id: str, data: dict) -> dict:
     result = db.update_payment_method(user_id, data)
-    cache.invalidate(f"payment_method:user:{user_id}")  # Sofort invalidieren
+    cache.invalidate(f"payment_method:user:{user_id}")  # Invalidate immediately
     return result
 ----
 
-=== Schritt 4: CDN-Cache-Rules in Terraform (CloudFront)
+=== Step 4: CDN Cache Rules in Terraform (CloudFront)
 
 [source,hcl]
 ----
@@ -187,7 +187,7 @@ resource "aws_cloudfront_distribution" "api" {
   enabled             = true
   default_root_object = "index.html"
 
-  # Statische Assets: Langzeit-Caching mit Cache-Busting
+  # Static assets: long-term caching with cache-busting
   ordered_cache_behavior {
     path_pattern     = "/static/*"
     allowed_methods  = ["GET", "HEAD"]
@@ -195,17 +195,17 @@ resource "aws_cloudfront_distribution" "api" {
     target_origin_id = "s3-static"
 
     forwarded_values {
-      query_string = false  # Keine Query-Strings für statische Assets
+      query_string = false  # No query strings for static assets
       cookies { forward = "none" }
     }
 
-    min_ttl     = 86400       # 1 Tag minimum
-    default_ttl = 31536000    # 1 Jahr default
-    max_ttl     = 31536000    # 1 Jahr maximum
+    min_ttl     = 86400       # 1 day minimum
+    default_ttl = 31536000    # 1 year default
+    max_ttl     = 31536000    # 1 year maximum
     compress    = true
   }
 
-  # API-Responses: Kurzes Caching mit Cache-Control-Header
+  # API responses: short caching with Cache-Control header
   default_cache_behavior {
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods   = ["GET", "HEAD"]
@@ -213,18 +213,18 @@ resource "aws_cloudfront_distribution" "api" {
 
     forwarded_values {
       query_string = true
-      headers      = ["Authorization", "Accept", "Origin"]  # Vary-Headers
+      headers      = ["Authorization", "Accept", "Origin"]  # Vary headers
       cookies { forward = "none" }
     }
 
     min_ttl     = 0
-    default_ttl = 0       # Kein Default-Caching für APIs
-    max_ttl     = 60      # Max 1 Minute wenn Cache-Control: max-age=60
+    default_ttl = 0       # No default caching for APIs
+    max_ttl     = 60      # Max 1 minute if Cache-Control: max-age=60
   }
 }
 ----
 
-== Cache-Monitoring mit CloudWatch
+== Cache Monitoring with CloudWatch
 
 [source,hcl]
 ----
@@ -269,24 +269,24 @@ resource "aws_cloudwatch_metric_alarm" "cache_hit_rate_low" {
 }
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Caching von sicherheitsrelevanten Entscheidungen*: Berechtigungen dürfen nicht aus dem Cache kommen. Immer frisch prüfen.
-* *Zu lange TTLs für veränderliche Daten*: Preis-Daten mit 24h TTL – Nutzer sehen veraltete Preise.
-* *Kein Stampede-Schutz*: Cache-Expiry um 3 Uhr → alle Threads gleichzeitig → Datenbankausfall.
-* *Caching ohne Monitoring*: Hit-Rate nie gemessen → falsches Vertrauen in Cache-Effektivität.
+* *Caching security-relevant decisions*: Permissions must never come from the cache. Always check fresh.
+* *TTLs too long for mutable data*: Price data with 24h TTL – users see outdated prices.
+* *No stampede protection*: Cache expires at 3am → all threads simultaneously → database failure.
+* *Caching without monitoring*: Hit rate never measured → false confidence in cache effectiveness.
 
-== Metriken
+== Metrics
 
-* Cache Hit Rate (Ziel: >= 80% für Applikations-Cache, >= 95% für CDN-Static)
-* Cache Latency P99 (Ziel: < 1ms für Redis-Lookups im selben AZ)
-* Anzahl Evictions pro Stunde (hohe Eviction-Rate = Cache zu klein)
-* Memory Utilization (Ziel: < 80% für Headroom)
+* Cache hit rate (target: >= 80% for application cache, >= 95% for CDN static)
+* Cache latency P99 (target: < 1ms for Redis lookups in the same AZ)
+* Number of evictions per hour (high eviction rate = cache too small)
+* Memory utilization (target: < 80% for headroom)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Kein Cache; alle Anfragen auf Origin +
-Level 2 – Ad-hoc Caching ohne Strategie; TTLs arbitrary +
-Level 3 – Dokumentierte Strategie; Hit-Rates >= 80%; CDN aktiv +
-Level 4 – Automatische Cache-Invalidierung; Stampede-Schutz +
-Level 5 – Adaptive TTLs; ML-gestützte Cache-Warming
+Level 1 – No cache; all requests to origin +
+Level 2 – Ad-hoc caching without strategy; arbitrary TTLs +
+Level 3 – Documented strategy; hit rates >= 80%; CDN active +
+Level 4 – Automatic cache invalidation; stampede protection +
+Level 5 – Adaptive TTLs; ML-assisted cache warming

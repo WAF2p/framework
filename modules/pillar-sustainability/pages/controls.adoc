@@ -1,19 +1,19 @@
 = Controls (WAF-SUS)
 :page-toc: right
-:description: WAF++ – Vollständiger Controls-Katalog der Sustainability-Säule (WAF-SUS-010 bis WAF-SUS-100).
+:description: WAF++ – Complete controls catalog of the Sustainability pillar (WAF-SUS-010 to WAF-SUS-100).
 
-Die Sustainability-Säule wird durch 10 messbare Controls operationalisiert.
-Jeder Control hat eine eindeutige ID im Format `WAF-SUS-NNN`, eine Severity-Einstufung,
-maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+The Sustainability pillar is operationalized through 10 measurable controls.
+Each control has a unique ID in the format `WAF-SUS-NNN`, a severity rating,
+machine-readable YAML checks and a maturity level breakdown.
 
-Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-SUS-*.yml`
-und können vom WAF++ Checker Tool direkt ausgeführt werden.
+The YAML source files are located under `modules/controls/controls/WAF-SUS-*.yml`
+and can be executed directly by the WAF++ Checker Tool.
 
-== Controls-Übersicht
+== Controls Overview
 
 [cols="1,3,1,1"]
 |===
-|Control ID |Titel |Severity |Kategorie
+|Control ID |Title |Severity |Category
 
 |xref:controls/WAF-SUS-010.adoc[WAF-SUS-010]
 |Carbon Footprint Measurement & Reporting
@@ -67,157 +67,157 @@ und können vom WAF++ Checker Tool direkt ausgeführt werden.
 
 |===
 
-== Detailbeschreibungen
+== Detailed Descriptions
 
 [#WAF-SUS-010]
 === WAF-SUS-010 – Carbon Footprint Measurement & Reporting
 
-*Severity*: High | *Kategorie*: Carbon Measurement | *Automatisierbar*: Hoch
+*Severity*: High | *Category*: Carbon Measurement | *Automatable*: High
 
-Organisationen MÜSSEN die CO₂-Emissionen ihrer Cloud-Workloads messen und reporten.
-Cloud-Provider Carbon-Footprint-Tools (AWS Customer Carbon Footprint Tool, Azure Emissions
-Impact Dashboard, GCP Carbon Footprint) MÜSSEN aktiviert und mindestens monatlich ausgewertet
-werden. Emissionsdaten MÜSSEN mit Workload-Tags verknüpft und für ESG-Reporting aufbewahrt werden.
+Organizations MUST measure and report the CO₂ emissions of their cloud workloads.
+Cloud provider carbon footprint tools (AWS Customer Carbon Footprint Tool, Azure Emissions
+Impact Dashboard, GCP Carbon Footprint) MUST be activated and evaluated at least monthly.
+Emission data MUST be linked to workload tags and retained for ESG reporting.
 
-*CSRD-Relevanz*: Hoch — ESRS E1-6 verlangt explizit Scope-3-Emissionen inkl. Cloud-IT.
+*CSRD Relevance*: High — ESRS E1-6 explicitly requires Scope 3 emissions including cloud IT.
 
-xref:controls/WAF-SUS-010.adoc[→ Control-Detail: WAF-SUS-010]
+xref:controls/WAF-SUS-010.adoc[→ Control Detail: WAF-SUS-010]
 
 ---
 
 [#WAF-SUS-020]
 === WAF-SUS-020 – Energy-Efficient Compute Selection
 
-*Severity*: High | *Kategorie*: Compute Efficiency | *Automatisierbar*: Hoch
+*Severity*: High | *Category*: Compute Efficiency | *Automatable*: High
 
-Alle Compute-Ressourcen MÜSSEN energieeffiziente Prozessor-Architekturen bevorzugen
-(ARM64/Graviton für AWS, Ampere Altra für Azure, T2A für GCP).
-AWS Lambda-Funktionen MÜSSEN arm64 nutzen. EC2-Instanzen DÜRFEN NICHT previous-generation
-Familien (t2, m4, c4, r4) für Neudeployments verwenden. ARM/Graviton liefern 20–40%
-bessere Performance-per-Watt im Vergleich zu äquivalenten x86-Instanzen.
+All compute resources MUST prefer energy-efficient processor architectures
+(ARM64/Graviton for AWS, Ampere Altra for Azure, T2A for GCP).
+AWS Lambda functions MUST use arm64. EC2 instances MUST NOT use previous-generation
+families (t2, m4, c4, r4) for new deployments. ARM/Graviton delivers 20–40%
+better performance-per-watt compared to equivalent x86 instances.
 
-xref:controls/WAF-SUS-020.adoc[→ Control-Detail: WAF-SUS-020]
+xref:controls/WAF-SUS-020.adoc[→ Control Detail: WAF-SUS-020]
 
 ---
 
 [#WAF-SUS-030]
 === WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement
 
-*Severity*: Medium | *Kategorie*: Region Selection | *Automatisierbar*: Mittel
+*Severity*: Medium | *Category*: Region Selection | *Automatable*: Medium
 
-Workloads ohne Data-Residency-Anforderungen MÜSSEN Carbon Intensity von Cloud-Regionen
-in Placement-Entscheidungen berücksichtigen. Regionsauswahl-Entscheidungen MÜSSEN
-Sustainability-Aspekte dokumentieren. Batch-Workloads mit flexiblem Placement MÜSSEN
-grüne Regionsalternativen evaluieren.
+Workloads without data residency requirements MUST take the carbon intensity of cloud regions
+into account in placement decisions. Region selection decisions MUST
+document sustainability aspects. Batch workloads with flexible placement MUST
+evaluate green region alternatives.
 
-*Emissionspotenzial*: Gleicher Workload in eu-north-1 statt ap-east-1 kann 60–80% weniger CO₂ emittieren.
+*Emission potential*: The same workload in eu-north-1 instead of ap-east-1 can emit 60–80% less CO₂.
 
-xref:controls/WAF-SUS-030.adoc[→ Control-Detail: WAF-SUS-030]
+xref:controls/WAF-SUS-030.adoc[→ Control Detail: WAF-SUS-030]
 
 ---
 
 [#WAF-SUS-040]
 === WAF-SUS-040 – Idle & Underutilized Resource Elimination
 
-*Severity*: High | *Kategorie*: Resource Efficiency | *Automatisierbar*: Hoch
+*Severity*: High | *Category*: Resource Efficiency | *Automatable*: High
 
-Alle Compute-Ressourcen MÜSSEN auf Auslastung überwacht werden. Ressourcen mit CPU
-< 5% für 14+ Tage MÜSSEN als Idle markiert und einer Stop/Terminate-Review unterzogen werden.
-Non-Production-Umgebungen MÜSSEN Scheduled-Shutdown-Policies haben.
-Autoscaling MUSS für alle zustandslosen Workloads konfiguriert sein.
+All compute resources MUST be monitored for utilization. Resources with CPU
+< 5% for 14+ days MUST be flagged as idle and subjected to a stop/terminate review.
+Non-production environments MUST have scheduled shutdown policies.
+Autoscaling MUST be configured for all stateless workloads.
 
-*Typischer Impact*: 30–45% Cloud Compute läuft idle — Elimination = direkte Emissionsreduktion.
+*Typical impact*: 30–45% of cloud compute runs idle — elimination = direct emission reduction.
 
-xref:controls/WAF-SUS-040.adoc[→ Control-Detail: WAF-SUS-040]
+xref:controls/WAF-SUS-040.adoc[→ Control Detail: WAF-SUS-040]
 
 ---
 
 [#WAF-SUS-050]
 === WAF-SUS-050 – Storage Lifecycle & Data Minimization
 
-*Severity*: Medium | *Kategorie*: Storage Efficiency | *Automatisierbar*: Hoch
+*Severity*: Medium | *Category*: Storage Efficiency | *Automatable*: High
 
-Alle Storage-Ressourcen (S3, EBS, Azure Blob, GCS) MÜSSEN Lifecycle-Policies haben.
-Daten MÜSSEN automatisch in kosteneffiziente Cold-Storage-Tiers überführt werden.
-Log-Daten MÜSSEN Retention-Limits haben. Temporäre Daten MÜSSEN Ablaufdaten haben.
+All storage resources (S3, EBS, Azure Blob, GCS) MUST have lifecycle policies.
+Data MUST be automatically transitioned into cost-efficient cold storage tiers.
+Log data MUST have retention limits. Temporary data MUST have expiration dates.
 
-*DSGVO-Synergie*: Data Minimization ist sowohl Sustainability- als auch DSGVO-Art.-5-Anforderung.
+*GDPR synergy*: Data minimization is both a sustainability and a GDPR Art. 5 requirement.
 
-xref:controls/WAF-SUS-050.adoc[→ Control-Detail: WAF-SUS-050]
+xref:controls/WAF-SUS-050.adoc[→ Control Detail: WAF-SUS-050]
 
 ---
 
 [#WAF-SUS-060]
 === WAF-SUS-060 – Workload Scheduling & Time-Shifting
 
-*Severity*: Low | *Kategorie*: Workload Scheduling | *Automatisierbar*: Mittel
+*Severity*: Low | *Category*: Workload Scheduling | *Automatable*: Medium
 
-Batch-Workloads, Report-Generierung und Datenverarbeitungs-Pipelines MÜSSEN auf Off-Peak-Stunden
-(22:00–06:00 UTC) geplant werden. Flexible-Time-Windows SOLLTEN für alle nicht-latenz-sensitiven
-Jobs aktiviert werden. Carbon-Intensity-APIs KÖNNEN für dynamisches Scheduling integriert werden.
+Batch workloads, report generation and data processing pipelines MUST be scheduled
+for off-peak hours (22:00–06:00 UTC). Flexible time windows SHOULD be activated for
+all non-latency-sensitive jobs. Carbon intensity APIs MAY be integrated for dynamic scheduling.
 
-*Emissionspotenzial*: Temporal Shifting kann 20–60% der Batch-Emissionen reduzieren.
+*Emission potential*: Temporal shifting can reduce 20–60% of batch emissions.
 
-xref:controls/WAF-SUS-060.adoc[→ Control-Detail: WAF-SUS-060]
+xref:controls/WAF-SUS-060.adoc[→ Control Detail: WAF-SUS-060]
 
 ---
 
 [#WAF-SUS-070]
 === WAF-SUS-070 – Sustainable Software Design Standards
 
-*Severity*: Medium | *Kategorie*: Software Efficiency | *Automatisierbar*: Teilweise
+*Severity*: Medium | *Category*: Software Efficiency | *Automatable*: Partial
 
-Software MUSS mit Energie-Effizienz als explizitem Qualitätsmerkmal entworfen werden.
-ADRs MÜSSEN Energie-Effizienz-Überlegungen enthalten. Dependencies MÜSSEN auf Effizienz
-geprüft werden. SCI SOLLTE für kritische Workloads gemessen werden.
+Software MUST be designed with energy efficiency as an explicit quality attribute.
+ADRs MUST include energy efficiency considerations. Dependencies MUST be
+reviewed for efficiency. SCI SHOULD be measured for critical workloads.
 
-*SCI-Formel*: `SCI = ((E × I) + M) / R` — misst gCO₂e pro funktionaler Einheit.
+*SCI formula*: `SCI = ((E × I) + M) / R` — measures gCO₂e per functional unit.
 
-xref:controls/WAF-SUS-070.adoc[→ Control-Detail: WAF-SUS-070]
+xref:controls/WAF-SUS-070.adoc[→ Control Detail: WAF-SUS-070]
 
 ---
 
 [#WAF-SUS-080]
 === WAF-SUS-080 – Network & Data Transfer Efficiency
 
-*Severity*: Medium | *Kategorie*: Network Efficiency | *Automatisierbar*: Hoch
+*Severity*: Medium | *Category*: Network Efficiency | *Automatable*: High
 
-Alle Datentransfers MÜSSEN für minimale Netzwerkbelastung ausgelegt sein. CDN MUSS für
-alle user-facing statischen Inhalte genutzt werden. HTTP-Kompression MUSS für alle
-API-Antworten > 1KB aktiviert sein. VPC Endpoints MÜSSEN für AWS-Service-Kommunikation genutzt werden.
+All data transfers MUST be designed for minimal network load. CDN MUST be used for
+all user-facing static content. HTTP compression MUST be enabled for all
+API responses > 1KB. VPC endpoints MUST be used for AWS service communication.
 
-*Quick Win*: CDN-Kompression aktivieren = 60–80% Transfer-Reduktion ohne Code-Änderung.
+*Quick win*: Activate CDN compression = 60–80% transfer reduction without code changes.
 
-xref:controls/WAF-SUS-080.adoc[→ Control-Detail: WAF-SUS-080]
+xref:controls/WAF-SUS-080.adoc[→ Control Detail: WAF-SUS-080]
 
 ---
 
 [#WAF-SUS-090]
 === WAF-SUS-090 – ESG Reporting & Compliance Automation
 
-*Severity*: Medium | *Kategorie*: ESG Reporting | *Automatisierbar*: Mittel
+*Severity*: Medium | *Category*: ESG Reporting | *Automatable*: Medium
 
-CSRD-pflichtige Organisationen MÜSSEN dokumentierte Prozesse für das Erfassen und Reporten
-von Cloud-IT-Emissionen als Scope-3-GHG-Inventar haben. Cloud-IT-Emissionsdaten MÜSSEN
-mindestens quartalsweise exportiert werden. CSRD-Emissionsreduktionsziele MÜSSEN
-dokumentiert und verfolgt werden.
+Organizations subject to CSRD MUST have documented processes for collecting and reporting
+cloud IT emissions as Scope 3 GHG inventory. Cloud IT emission data MUST
+be exported at least quarterly. CSRD emission reduction targets MUST
+be documented and tracked.
 
-*CSRD-Pflicht*: Für in-scope Unternehmen ist dieser Control keine Empfehlung — er ist Gesetz.
+*CSRD obligation*: For in-scope organizations this control is not a recommendation — it is law.
 
-xref:controls/WAF-SUS-090.adoc[→ Control-Detail: WAF-SUS-090]
+xref:controls/WAF-SUS-090.adoc[→ Control Detail: WAF-SUS-090]
 
 ---
 
 [#WAF-SUS-100]
 === WAF-SUS-100 – Sustainability Debt Register & Quarterly Review
 
-*Severity*: Low | *Kategorie*: Sustainability Governance | *Automatisierbar*: Niedrig
+*Severity*: Low | *Category*: Sustainability Governance | *Automatable*: Low
 
-Organisationen MÜSSEN ein Sustainability-Debt-Register führen, das alle bekannten Lücken
-zwischen aktuellem Zustand und Zielzustand dokumentiert. Das Register MUSS mindestens
-quartalsweise reviewed werden. Jeder Eintrag MUSS geschätzten CO₂-Impact, Owner und
-Ziel-Auflösungsdatum enthalten.
+Organizations MUST maintain a sustainability debt register that documents all known gaps
+between current state and target state. The register MUST be reviewed at least
+quarterly. Each entry MUST contain estimated CO₂ impact, owner and
+target resolution date.
 
-*CSRD-Governance-Nachweis*: Aktives Debt-Register ist Nachweis für CSRD-Governance-Anforderungen.
+*CSRD governance evidence*: An active debt register is evidence for CSRD governance requirements.
 
-xref:controls/WAF-SUS-100.adoc[→ Control-Detail: WAF-SUS-100]
+xref:controls/WAF-SUS-100.adoc[→ Control Detail: WAF-SUS-100]

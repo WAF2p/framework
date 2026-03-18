@@ -1,37 +1,37 @@
-= Best Practice: Datenbankperformance optimieren
+= Best Practice: Optimize Database Performance
 :page-toc: right
-:description: WAF++ Performance Efficiency – Slow-Query-Analyse, Indexstrategien und Performance-Insights für Produktionsdatenbanken.
+:description: WAF++ Performance Efficiency – Slow query analysis, index strategies and Performance Insights for production databases.
 
-== Kontext
+== Context
 
-Datenbankperformance-Probleme sind die häufigste Ursache für Anwendungslatenz-Degradation.
-Ein einziger fehlender Index auf einer hochfrequentierten Tabelle kann I/O sättigen,
-Connection-Pools erschöpfen und Cascading-Timeouts durch die gesamte Anwendung auslösen.
+Database performance problems are the most common cause of application latency degradation.
+A single missing index on a high-traffic table can saturate I/O,
+exhaust connection pools, and trigger cascading timeouts throughout the entire application.
 
-Typische Probleme ohne strukturiertes Datenbankperformance-Management:
+Typical problems without structured database performance management:
 
-* Full Table Scans auf Millionen-Zeilen-Tabellen in der kritischen Query-Path
-* Connection-Pool-Erschöpfung durch langläufige Queries, die Verbindungen blockieren
-* Query-Performance-Regression nach Schema-Änderungen unbemerkt in Produktion gelangt
-* Performance Insights nicht aktiv – Diagnose nur über Incident-getriebene Analyse möglich
+* Full table scans on million-row tables in the critical query path
+* Connection pool exhaustion caused by long-running queries that block connections
+* Query performance regressions after schema changes silently reaching production
+* Performance Insights not active – diagnosis only possible through incident-driven analysis
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-040[WAF-PERF-040] – Database Performance Baseline & Index Strategy
 * xref:../controls.adoc#WAF-PERF-090[WAF-PERF-090] – Storage I/O Performance & Throughput Optimization
 
-== Zielbild
+== Target State
 
-Performance-reife Datenbankumgebung:
+Performance-mature database environment:
 
-* *Baseline bekannt*: P50/P95/P99 Ausführungszeiten der Top-20-Queries dokumentiert
-* *Indizes strategisch*: Alle hochfrequenten Abfragen nutzen Indizes; keine Full-Table-Scans
-* *Monitoring aktiv*: Performance Insights und Slow-Query-Log laufen kontinuierlich
-* *Connection Pools*: Explizit dimensioniert und mit PgBouncer/ProxySQL abgesichert
+* *Baseline known*: P50/P95/P99 execution times for the top 20 queries documented
+* *Indexes strategic*: All high-frequency queries use indexes; no full table scans
+* *Monitoring active*: Performance Insights and slow query log running continuously
+* *Connection pools*: Explicitly dimensioned and protected with PgBouncer/ProxySQL
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Performance Insights aktivieren (AWS RDS)
+=== Step 1: Activate Performance Insights (AWS RDS)
 
 [source,hcl]
 ----
@@ -46,17 +46,17 @@ resource "aws_db_instance" "main" {
 
   # Performance Insights
   performance_insights_enabled          = true
-  performance_insights_retention_period = 7   # 7 Tage kostenlos; 731 Tage kostenpflichtig
+  performance_insights_retention_period = 7   # 7 days free; 731 days paid
 
   # Enhanced Monitoring
-  monitoring_interval = 60  # Sekunden
+  monitoring_interval = 60  # seconds
   monitoring_role_arn = aws_iam_role.rds_monitoring.arn
 
   # Slow Query Logs
   enabled_cloudwatch_logs_exports = ["postgresql"]
   parameter_group_name            = aws_db_parameter_group.main.name
 
-  # Sicherheit
+  # Security
   deletion_protection    = true
   skip_final_snapshot    = false
   multi_az               = true
@@ -82,16 +82,16 @@ resource "aws_db_parameter_group" "main" {
   }
   parameter {
     name  = "auto_explain.log_min_duration"
-    value = "5000"  # EXPLAIN ANALYZE für Queries > 5s
+    value = "5000"  # EXPLAIN ANALYZE for queries > 5s
   }
 }
 ----
 
-=== Schritt 2: Slow Queries analysieren
+=== Step 2: Analyze Slow Queries
 
 [source,sql]
 ----
--- PostgreSQL: Top-20 Queries nach Gesamtausführungszeit
+-- PostgreSQL: Top-20 queries by total execution time
 SELECT
     left(query, 100) as query_snippet,
     calls,
@@ -104,7 +104,7 @@ FROM pg_stat_statements
 ORDER BY total_exec_time DESC
 LIMIT 20;
 
--- Fehlende Indizes identifizieren (sequentielle Scans auf großen Tabellen)
+-- Identify missing indexes (sequential scans on large tables)
 SELECT
     schemaname,
     tablename,
@@ -115,16 +115,16 @@ SELECT
     round(seq_tup_read::numeric / NULLIF(seq_scan, 0), 0) as avg_rows_per_seq_scan
 FROM pg_stat_user_tables
 WHERE seq_scan > 0
-  AND seq_tup_read > 10000  -- Nur Tabellen mit signifikanten Scans
+  AND seq_tup_read > 10000  -- Only tables with significant scans
 ORDER BY seq_tup_read DESC;
 
--- Beste Index-Kandidaten (häufige WHERE-Spalten ohne Index)
+-- Best index candidates (frequent WHERE columns without index)
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT * FROM payments WHERE user_id = $1 AND status = 'pending';
--- → Wenn "Seq Scan" erscheint: Index auf (user_id, status) fehlt!
+-- → If "Seq Scan" appears: index on (user_id, status) is missing!
 ----
 
-=== Schritt 3: Index-Strategie dokumentieren
+=== Step 3: Document the Index Strategy
 
 [source,yaml]
 ----
@@ -165,16 +165,16 @@ review_schedule: "quarterly"
 next_review: "2026-06-18"
 ----
 
-=== Schritt 4: Index in Migration erstellen
+=== Step 4: Create Index in Migration
 
 [source,sql]
 ----
--- Concurrent Index Creation (kein Table-Lock in PostgreSQL)
+-- Concurrent index creation (no table lock in PostgreSQL)
 CREATE INDEX CONCURRENTLY idx_payments_user_status
 ON payments (user_id, status)
-WHERE status IN ('pending', 'processing');  -- Partial Index für aktive Zahlungen
+WHERE status IN ('pending', 'processing');  -- Partial index for active payments
 
--- Index-Größe und Effizienz prüfen
+-- Check index size and efficiency
 SELECT
     indexname,
     pg_size_pretty(pg_relation_size(indexname::regclass)) as index_size,
@@ -186,7 +186,7 @@ WHERE tablename = 'payments'
 ORDER BY idx_scan DESC;
 ----
 
-=== Schritt 5: Connection Pooling mit PgBouncer
+=== Step 5: Connection Pooling with PgBouncer
 
 [source,ini]
 ----
@@ -195,37 +195,37 @@ ORDER BY idx_scan DESC;
 payment_db = host=db-payment.cluster.local port=5432 dbname=payment_prod
 
 [pgbouncer]
-pool_mode = transaction     # Transaction-Pooling für stateless APIs
+pool_mode = transaction     # Transaction pooling for stateless APIs
 listen_port = 5432
 listen_addr = 0.0.0.0
-max_client_conn = 1000      # Maximale Client-Verbindungen
-default_pool_size = 20      # Verbindungen zur Datenbank pro Pool
-min_pool_size = 5           # Mindest-Verbindungen warm halten
-reserve_pool_size = 5       # Reserve für Peaks
+max_client_conn = 1000      # Maximum client connections
+default_pool_size = 20      # Connections to database per pool
+min_pool_size = 5           # Minimum connections to keep warm
+reserve_pool_size = 5       # Reserve for peaks
 server_idle_timeout = 600
 client_idle_timeout = 600
 log_connections = 1
 log_disconnections = 1
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Index auf falsche Spalten*: Index auf `created_at` allein, aber Queries filtern immer auf `user_id AND created_at`.
-* *Zu viele Indizes*: Jede zusätzliche Write-Operation muss alle Indizes aktualisieren → Write-Overhead.
-* *Performance Insights nur bei Incidents aktiviert*: Zu spät; historische Daten fehlen.
-* *max_connections = 100 bei 50 App-Instanzen*: 2 Verbindungen pro Instanz – Connection-Pool-Erschöpfung vorprogrammiert.
+* *Index on wrong columns*: Index on `created_at` alone, but queries always filter on `user_id AND created_at`.
+* *Too many indexes*: Every additional write operation must update all indexes → write overhead.
+* *Performance Insights only activated during incidents*: Too late; historical data is missing.
+* *max_connections = 100 with 50 app instances*: 2 connections per instance – connection pool exhaustion is inevitable.
 
-== Metriken
+== Metrics
 
-* P50/P95/P99 Query-Ausführungszeit für Top-20-Queries (monatlich dokumentieren)
-* Connection-Pool-Utilization (Ziel: < 80% sustained)
-* DB CPU-Auslastung (Ziel: < 70% sustained)
-* Anzahl Slow Queries > 1s pro Stunde (Ziel: sinkende Tendenz)
+* P50/P95/P99 query execution time for the top 20 queries (document monthly)
+* Connection pool utilization (target: < 80% sustained)
+* DB CPU utilization (target: < 70% sustained)
+* Number of slow queries > 1s per hour (target: declining trend)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Keine Analyse; Datenbankperformance unbekannt +
-Level 2 – Slow-Query-Log aktiv; ad-hoc Reviews +
-Level 3 – Performance Insights aktiv; Index-Strategie dokumentiert; monatlicher Review +
-Level 4 – Automatische Regression-Detection; Query-Performance-Tests in CI +
-Level 5 – Query-SLOs; automatisches Tuning; Capacity-Forecasting
+Level 1 – No analysis; database performance unknown +
+Level 2 – Slow query log active; ad-hoc reviews +
+Level 3 – Performance Insights active; index strategy documented; monthly review +
+Level 4 – Automatic regression detection; query performance tests in CI +
+Level 5 – Query SLOs; automatic tuning; capacity forecasting

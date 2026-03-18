@@ -1,10 +1,10 @@
-= WAF++ PASS – CLI Referenz
-:description: Vollständige Referenz für das wafpass Kommandozeilenwerkzeug
+= WAF++ PASS – CLI Reference
+:description: Complete reference for the wafpass command-line tool
 :toc: left
 :toclevels: 3
 
-`wafpass` ist das offizielle CLI-Werkzeug des WAF++ Frameworks.
-Es liest die maschinenlesbaren YAML-Controls und prüft Terraform-Konfigurationen automatisiert gegen die definierten Assertions.
+`wafpass` is the official CLI tool of the WAF++ Framework.
+It reads the machine-readable YAML controls and automatically checks Terraform configurations against the defined assertions.
 
 == Installation
 
@@ -13,91 +13,91 @@ Es liest die maschinenlesbaren YAML-Controls und prüft Terraform-Konfiguratione
 pip install wafpass
 ----
 
-Version prüfen:
+Check version:
 
 [source,bash]
 ----
 wafpass --version
 ----
 
-=== Voraussetzungen
+=== Prerequisites
 
 * Python 3.10+
-* Terraform-Konfiguration als `.tf`-Dateien (HCL2)
-* WAF++ YAML-Controls (standardmäßig aus dem Verzeichnis `controls/`)
+* Terraform configuration as `.tf` files (HCL2)
+* WAF++ YAML controls (by default from the `controls/` directory)
 
 ---
 
-== Befehle
+== Commands
 
 === `wafpass check`
 
-Der einzige Befehl der aktuellen Version. Prüft Terraform-Dateien gegen WAF++ Controls.
+The only command in the current version. Checks Terraform files against WAF++ controls.
 
 [source,bash]
 ----
-wafpass check <PATH> [OPTIONEN]
+wafpass check <PATH> [OPTIONS]
 ----
 
-==== Argumente
+==== Arguments
 
 [cols="2,4", options="header"]
 |===
-| Argument | Beschreibung
+| Argument | Description
 
 | `PATH`
-| Pfad zu einem Terraform-Verzeichnis oder einer einzelnen `.tf`-Datei. Muss existieren.
+| Path to a Terraform directory or a single `.tf` file. Must exist.
 |===
 
-==== Optionen
+==== Options
 
 [cols="2,1,4", options="header"]
 |===
-| Option | Standard | Beschreibung
+| Option | Default | Description
 
 | `--controls-dir PATH`
 | `controls/`
-| Pfad zum Verzeichnis mit den WAF++ YAML-Control-Dateien.
+| Path to the directory containing the WAF++ YAML control files.
 
 | `--pillar NAME`
-| _(alle)_
-| Nur Controls eines bestimmten Pillars laden.
-Erlaubte Werte: `cost`, `sovereign`, `security`, `reliability`, `operations`, `architecture`, `governance`.
+| _(all)_
+| Load only controls for a specific pillar.
+Allowed values: `cost`, `sovereign`, `security`, `reliability`, `operations`, `architecture`, `governance`.
 
 | `--controls ID,ID,...`
-| _(alle)_
-| Kommagetrennte Liste von Control-IDs, die geprüft werden sollen.
-Beispiel: `WAF-COST-010,WAF-SOV-020`
+| _(all)_
+| Comma-separated list of control IDs to check.
+Example: `WAF-COST-010,WAF-SOV-020`
 
 | `--severity LEVEL`
-| _(alle)_
-| Mindest-Schweregrad für die Auswertung.
-Erlaubte Werte: `low`, `medium`, `high`, `critical`.
-Checks unterhalb des Schwellenwerts werden übersprungen.
+| _(all)_
+| Minimum severity level for evaluation.
+Allowed values: `low`, `medium`, `high`, `critical`.
+Checks below the threshold are skipped.
 
 | `--verbose` / `-v`
 | `false`
-| Alle Ergebnisse ausgeben, auch PASSes.
-Standard: nur FAILs und SKIPs werden angezeigt.
+| Output all results, including PASSes.
+Default: only FAILs and SKIPs are displayed.
 
 | `--summary`
 | `false`
-| Nur die Summary-Tabelle ausgeben, keine per-Control-Details.
+| Output only the summary table, no per-control details.
 
 | `--fail-on MODE`
 | `fail`
-| Bedingung für Exit Code 1 (Fehler). +
-`fail` – bei mindestens einem FAIL +
-`skip` – bei mindestens einem FAIL oder SKIP +
-`any` – wie `skip`
+| Condition for exit code 1 (error). +
+`fail` – on at least one FAIL +
+`skip` – on at least one FAIL or SKIP +
+`any` – same as `skip`
 
 | `--output FORMAT`
 | `console`
-| Ausgabeformat. Aktuell nur `console` unterstützt. Weitere Formate geplant.
+| Output format. Currently only `console` supported. More formats planned.
 
 | `--version` / `-V`
 | –
-| Version ausgeben und beenden.
+| Print version and exit.
 |===
 
 ---
@@ -106,23 +106,23 @@ Standard: nur FAILs und SKIPs werden angezeigt.
 
 [cols="1,3", options="header"]
 |===
-| Code | Bedeutung
+| Code | Meaning
 
 | `0`
-| Alle Checks bestanden (gemäß `--fail-on`-Bedingung).
+| All checks passed (according to `--fail-on` condition).
 
 | `1`
-| Mindestens ein FAIL (oder SKIP bei `--fail-on skip/any`).
+| At least one FAIL (or SKIP with `--fail-on skip/any`).
 
 | `2`
-| Fehler beim Laden der Controls oder Parsen der Terraform-Dateien.
+| Error loading controls or parsing Terraform files.
 |===
 
 ---
 
-== Ausgabeformat
+== Output Format
 
-=== Standard (nur FAILs)
+=== Default (FAILs only)
 
 [source]
 ----
@@ -158,7 +158,7 @@ Standard: nur FAILs und SKIPs werden angezeigt.
 
 === Verbose (`--verbose`)
 
-Mit `--verbose` werden zusätzlich PASSes und Remediation-Hinweise ausgegeben:
+With `--verbose`, PASSes and remediation hints are additionally output:
 
 [source]
 ----
@@ -171,179 +171,179 @@ Mit `--verbose` werden zusätzlich PASSes und Remediation-Hinweise ausgegeben:
      Remediation: Add 'data-residency' and 'data-class' tags to all data resources.
 ----
 
-=== SKIP-Status
+=== SKIP Status
 
-Ein Check erhält `SKIP`, wenn:
+A check receives `SKIP` when:
 
-* Keine passenden Terraform-Ressourcen im Scope gefunden wurden
-* Der Check Assertion-Operatoren verwendet, die nicht automatisiert auswertbar sind (z.B. `json_not_contains_pattern`, `region_in_arn_matches`)
+* No matching Terraform resources were found in scope
+* The check uses assertion operators that cannot be evaluated automatically (e.g. `json_not_contains_pattern`, `region_in_arn_matches`)
 
-`SKIP` ist kein Fehler — es bedeutet, dass der Check manuell geprüft werden sollte.
+`SKIP` is not an error — it means the check should be verified manually.
 
 ---
 
-== Assertion-Operatoren
+== Assertion Operators
 
-Die folgende Tabelle listet alle Operatoren, die in WAF++ YAML-Controls verwendet werden können:
+The following table lists all operators that can be used in WAF++ YAML controls:
 
-=== Automatisiert auswertbar
+=== Automatically evaluable
 
 [cols="2,4,2", options="header"]
 |===
-| Operator | Beschreibung | Beispiel-Use-Case
+| Operator | Description | Example Use Case
 
 | `attribute_exists`
-| Attribut existiert und ist nicht `null`
-| `enable_key_rotation` vorhanden?
+| Attribute exists and is not `null`
+| `enable_key_rotation` present?
 
 | `attribute_exists_or_fallback`
-| Primär- oder Fallback-Attribut existiert
-| `kms_key_id` oder `kms_master_key_id`
+| Primary or fallback attribute exists
+| `kms_key_id` or `kms_master_key_id`
 
 | `not_empty`
-| Attribut existiert und ist nicht leer (`""`, `[]`, `{}`)
-| Region nicht leer?
+| Attribute exists and is not empty (`""`, `[]`, `{}`)
+| Region not empty?
 
 | `equals`
-| Attributwert == erwartetem Wert
+| Attribute value == expected value
 | `budget_type == "COST"`
 
 | `not_equals`
-| Attributwert != erwartetem Wert
+| Attribute value != expected value
 | `policy_arn != AdministratorAccess`
 
 | `in`
-| Attributwert ist in erlaubter Liste
+| Attribute value is in the allowed list
 | `sse_algorithm in ["aws:kms"]`
 
 | `not_in`
-| Attributwert ist nicht in verbotener Liste
+| Attribute value is not in the forbidden list
 | `engine not_in ["mysql4"]`
 
 | `is_true`
-| Attribut ist `true` (auch als String)
+| Attribute is `true` (also as string)
 | `is_multi_region_trail = true`
 
 | `is_false`
-| Attribut ist `false`
+| Attribute is `false`
 | `publicly_accessible = false`
 
 | `greater_than_or_equal`
-| Numerischer Wert >= Schwellenwert
+| Numeric value >= threshold
 | `backup_retention_period >= 7`
 
 | `less_than_or_equal`
-| Numerischer Wert <= Schwellenwert
+| Numeric value <= threshold
 | `retention_in_days <= 365`
 
 | `matches`
-| Attributwert entspricht Regex-Pattern
+| Attribute value matches regex pattern
 | `name matches "^eu-"`
 
 | `not_matches`
-| Attributwert entspricht Regex-Pattern nicht
+| Attribute value does not match regex pattern
 | `region not_matches "us-.*"`
 
 | `key_exists`
-| Schlüssel existiert in einer Map (z.B. `tags`)
-| `tags.cost-center` vorhanden?
+| Key exists in a map (e.g. `tags`)
+| `tags.cost-center` present?
 
 | `block_exists`
-| Terraform-Block des angegebenen Typs existiert
-| `aws_budgets_budget` vorhanden?
+| Terraform block of the specified type exists
+| `aws_budgets_budget` present?
 
 | `has_associated_resource`
-| Eine andere Ressource referenziert diesen Block
-| VPC hat Flow Log oder Endpoint?
+| Another resource references this block
+| VPC has flow log or endpoint?
 
 | `not_contains`
-| Attributwert enthält den Substring nicht
-| String enthält keine unerwünschten Muster
+| Attribute value does not contain the substring
+| String contains no unwanted patterns
 |===
 
-=== Automatisiert übersprungen (SKIP)
+=== Automatically skipped (SKIP)
 
-Diese Operatoren erfordern Laufzeit-Informationen oder Cross-Resource-Analyse, die über statische HCL-Auswertung hinausgehen:
+These operators require runtime information or cross-resource analysis that goes beyond static HCL evaluation:
 
 [cols="2,4", options="header"]
 |===
-| Operator | Grund für SKIP
+| Operator | Reason for SKIP
 
 | `json_not_contains_pattern`
-| Erfordert JSON-Parsing des IAM-Policy-Strings zur Laufzeit
+| Requires JSON parsing of the IAM policy string at runtime
 
 | `region_in_arn_matches`
-| ARN enthält Account-ID und Region, die erst nach `terraform plan` bekannt sind
+| ARN contains account ID and region, which are only known after `terraform plan`
 
 | `in_variable`
-| Variablenwerte sind erst nach `terraform apply` vollständig auflösbar
+| Variable values are only fully resolvable after `terraform apply`
 
 | `has_associated_metric_filter`
-| Erfordert Cross-Resource-Lookup zwischen CloudWatch-Log-Group und Metric-Filter
+| Requires cross-resource lookup between CloudWatch Log Group and Metric Filter
 
 | `references_cloudtrail_bucket`
-| Erfordert Cross-Resource-Auflösung von S3-Bucket-Referenzen
+| Requires cross-resource resolution of S3 bucket references
 
 | `not_equals_with_sibling`
-| Benötigt Kenntnis eines Geschwister-Attributs
+| Requires knowledge of a sibling attribute
 
 | `not_all_true_with`
-| Multi-Attribut-Bedingung
+| Multi-attribute condition
 
 | `attribute_exists_on_all_providers`
-| Mehrere Provider-Blöcke müssen gemeinsam ausgewertet werden
+| Multiple provider blocks must be evaluated together
 
 | `attribute_exists_if`
-| Bedingte Assertion abhängig von einem anderen Attributwert
+| Conditional assertion depending on another attribute value
 |===
 
 ---
 
-== Beispiele
+== Examples
 
-=== Vollständiger Check aller Controls
+=== Full check of all controls
 
 [source,bash]
 ----
 wafpass check ./infrastructure/
 ----
 
-=== Nur Sovereign-Controls, kritische Severity
+=== Sovereign controls only, critical severity
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --pillar sovereign --severity critical
 ----
 
-=== Einzelne Controls prüfen
+=== Check individual controls
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
 ----
 
-=== Nur Summary ausgeben
+=== Output summary only
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --summary
 ----
 
-=== Eigenes Controls-Verzeichnis
+=== Custom controls directory
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --controls-dir /path/to/custom-controls/
 ----
 
-=== CI/CD: Nur critical als Blocking
+=== CI/CD: Only critical as blocking
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --fail-on critical
 ----
 
-=== CI/CD: Auch SKIPs als Fehler behandeln
+=== CI/CD: Treat SKIPs as errors too
 
 [source,bash]
 ----
@@ -352,7 +352,7 @@ wafpass check ./infrastructure/ --fail-on skip
 
 ---
 
-== CI/CD-Integration
+== CI/CD Integration
 
 === GitHub Actions
 
@@ -424,17 +424,17 @@ fi
 
 ---
 
-== Controls-Verzeichnis
+== Controls Directory
 
-`wafpass` erwartet YAML-Dateien im Format `WAF-*.yml` im Controls-Verzeichnis.
-Standardmäßig sucht es im Unterverzeichnis `controls/` relativ zum Arbeitsverzeichnis.
+`wafpass` expects YAML files in the format `WAF-*.yml` in the controls directory.
+By default it looks in the `controls/` subdirectory relative to the working directory.
 
-Jede YAML-Datei entspricht einem Control. Die vollständige Schema-Dokumentation ist unter xref:resources/control-schema.adoc[Control-Schema Referenz] verfügbar.
+Each YAML file corresponds to one control. The complete schema documentation is available at xref:resources/control-schema.adoc[Control Schema Reference].
 
 ---
 
-== Weiterführende Seiten
+== Further Reading
 
-* xref:best-practises/index.adoc[Assessment-Methodik] – wie wafpass in den Assessment-Prozess eingebettet wird
-* xref:controls:catalog.adoc[Controls-Katalog] – alle verfügbaren Controls mit Assertions
-* xref:resources/control-schema.adoc[Control-Schema Referenz] – YAML-Struktur für eigene Controls
+* xref:best-practises/index.adoc[Assessment Methodology] – how wafpass is embedded in the assessment process
+* xref:controls:catalog.adoc[Controls Catalog] – all available controls with assertions
+* xref:resources/control-schema.adoc[Control Schema Reference] – YAML structure for custom controls

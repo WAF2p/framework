@@ -1,44 +1,43 @@
 = Best Practice: Chaos Engineering & Fault Injection
 :page-toc: right
-:description: WAF++ Reliability – Strukturierte Chaos-Experimente mit AWS FIS, Azure Chaos Studio und GameDay-Durchführung.
+:description: WAF++ Reliability – Structured chaos experiments with AWS FIS, Azure Chaos Studio and GameDay execution.
 
-== Kontext
+== Context
 
-Chaos Engineering ist die Disziplin des kontrollierten Brechens von Systemen, um
-Resilienz-Schwächen zu entdecken, bevor echte Störungen sie aufdecken. Der Begriff
-wurde von Netflix mit der Einführung von Chaos Monkey geprägt, aber der Ansatz ist
-universell anwendbar.
+Chaos Engineering is the discipline of deliberately breaking systems in a controlled way to
+discover resilience weaknesses before real failures expose them. The term was coined by
+Netflix with the introduction of Chaos Monkey, but the approach is universally applicable.
 
-Häufige Probleme ohne Chaos Engineering:
+Common problems without Chaos Engineering:
 
-* Circuit Breaker konfiguriert, aber nie ausgelöst – unbekannt ob korrekt funktioniert
-* Multi-AZ deployed, aber AZ-Failover nie getestet – tatsächliche Failover-Zeit unbekannt
-* Backup-Recovery vorhanden, aber Recovery-Zeit 4x länger als RTO-Ziel
-* Service behauptet graceful degradation zu unterstützen, aber optionale Deps reißen ihn mit
+* Circuit breaker configured, but never triggered – unknown whether it works correctly
+* Multi-AZ deployed, but AZ failover never tested – actual failover time unknown
+* Backup recovery available, but recovery time is 4x longer than the RTO target
+* Service claims to support graceful degradation, but optional deps bring it down
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-REL-090[WAF-REL-090] – Chaos Engineering & Fault Injection
 
-== Zielbild
+== Target State
 
-* Quartalsweise strukturierte Chaos-Experimente mit dokumentierten Hypothesen
-* Experiments beginnen in Staging, werden schrittweise auf Produktion ausgedehnt
-* Stop Conditions verhindern unkontrollierten Blast Radius
-* GameDay-Events (halbtägig, jährlich) für ganzheitliche Resilienz-Validierung
+* Quarterly structured chaos experiments with documented hypotheses
+* Experiments start in staging and are gradually extended to production
+* Stop conditions prevent uncontrolled blast radius
+* GameDay events (half-day, annual) for holistic resilience validation
 
-== Prinzipien für Chaos Engineering
+== Principles for Chaos Engineering
 
-. *Hypothesis First*: "Wenn X ausfällt, erwarten wir Y innerhalb von Z Sekunden"
-. *Small Blast Radius*: Start mit 10% der Instanzen, nicht 100%
-. *Staging First*: Jedes Experiment zuerst in Staging, dann schrittweise in Produktion
-. *Stop Conditions*: Automatischer Abbruch wenn SLO-Alarm ausgelöst wird
-. *Monitoring Before*: Dashboards offen, bevor das Experiment startet
-. *Document Results*: Hypothese, Ergebnis, Aktion dokumentieren
+. *Hypothesis First*: "If X fails, we expect Y within Z seconds"
+. *Small Blast Radius*: Start with 10% of instances, not 100%
+. *Staging First*: Every experiment first in staging, then gradually in production
+. *Stop Conditions*: Automatic abort when SLO alarm fires
+. *Monitoring Before*: Dashboards open before the experiment starts
+. *Document Results*: Document hypothesis, outcome, and action
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: Experiment-Dokumentation
+=== Step 1: Experiment Documentation
 
 [source,yaml]
 ----
@@ -80,7 +79,7 @@ actions:
     status: "completed"
 ----
 
-=== Schritt 2: AWS FIS Experiment Template
+=== Step 2: AWS FIS Experiment Template
 
 [source,hcl]
 ----
@@ -106,7 +105,7 @@ resource "aws_iam_role_policy_attachment" "fis_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
-# Stop Condition: SLO-Alarm löst aus
+# Stop condition: SLO alarm fires
 resource "aws_cloudwatch_metric_alarm" "fis_stop_condition" {
   alarm_name          = "fis-stop-condition-error-rate"
   comparison_operator = "GreaterThanThreshold"
@@ -115,10 +114,10 @@ resource "aws_cloudwatch_metric_alarm" "fis_stop_condition" {
   namespace           = "AWS/ApiGateway"
   period              = 60
   statistic           = "Sum"
-  threshold           = 50  # 50 Fehler/min = ~0.8% bei 6k req/min
+  threshold           = 50  # 50 errors/min = ~0.8% at 6k req/min
 }
 
-# Experiment: 25% der Instanzen in AZ1 terminieren
+# Experiment: terminate 25% of instances in AZ1
 resource "aws_fis_experiment_template" "az1_instance_termination" {
   description = "EXP-001: Terminate 25% of instances in AZ1 – validate auto-recovery < 60s"
   role_arn    = aws_iam_role.fis.arn
@@ -134,7 +133,7 @@ resource "aws_fis_experiment_template" "az1_instance_termination" {
 
     parameter {
       key   = "startInstancesAfterDuration"
-      value = "PT0S"  # Nicht auto-restart
+      value = "PT0S"  # No auto-restart
     }
 
     target {
@@ -171,7 +170,7 @@ resource "aws_fis_experiment_template" "az1_instance_termination" {
 }
 ----
 
-=== Schritt 3: Azure Chaos Studio
+=== Step 3: Azure Chaos Studio
 
 [source,hcl]
 ----
@@ -218,66 +217,66 @@ resource "azurerm_chaos_studio_experiment" "pod_failure" {
 }
 ----
 
-=== Schritt 4: GameDay Agenda Template
+=== Step 4: GameDay Agenda Template
 
 [source,markdown]
 ----
 # GameDay: Payment Service Reliability – Q1 2026
 
-**Datum:** 2026-03-21
-**Dauer:** 4 Stunden (09:00–13:00)
-**Team:** payments-team (8 Personen)
+**Date:** 2026-03-21
+**Duration:** 4 hours (09:00–13:00)
+**Team:** payments-team (8 people)
 **Moderator:** @alice
 **Observer:** @bob (Engineering Manager)
 
-## 09:00 – Briefing (30 Min)
-- Tagesablauf erklären
-- Rollen zuweisen: Chaos-Operator, Incident Commander, Observer
-- Dashboards öffnen, Baseline messen
+## 09:00 – Briefing (30 min)
+- Explain the day's agenda
+- Assign roles: Chaos Operator, Incident Commander, Observer
+- Open dashboards, measure baseline
 
 ## 09:30 – Experiment 1: Single Pod Failure (EXP-001)
-- Hypothese: Service recovered in < 30s
-- Tool: kubectl delete pod (ein Pod)
-- Erwartung: Keine SLO-Verletzung
+- Hypothesis: Service recovered in < 30s
+- Tool: kubectl delete pod (one pod)
+- Expectation: No SLO violation
 
 ## 10:00 – Experiment 2: Database Connection Flood (EXP-002)
-- Hypothese: Circuit Breaker öffnet bei > 80% DB-Fehlerrate
-- Tool: AWS FIS – blockiere Security Group Rule zur DB
-- Stop Condition: SLO-Alarm
+- Hypothesis: Circuit Breaker opens at > 80% DB error rate
+- Tool: AWS FIS – block Security Group Rule to DB
+- Stop Condition: SLO alarm
 
-## 10:30 – Pause & Analyse (30 Min)
+## 10:30 – Break & Analysis (30 min)
 
 ## 11:00 – Experiment 3: AZ-Level Failure (EXP-003)
-- Hypothese: Service recovered in < 60s nach 25% Instanz-Terminierung in AZ1
+- Hypothesis: Service recovered in < 60s after 25% instance termination in AZ1
 - Tool: AWS FIS Experiment Template az1_instance_termination
-- Beobachte: Auto Scaling, LB Health Checks
+- Observe: Auto Scaling, LB Health Checks
 
-## 12:00 – Retrospektive (60 Min)
-- Was haben wir gelernt?
-- Welche Hypothesen haben sich bestätigt / widerlegt?
-- Action Items dokumentieren
+## 12:00 – Retrospective (60 min)
+- What did we learn?
+- Which hypotheses were confirmed / refuted?
+- Document action items
 
-## 13:00 – Ende
+## 13:00 – End
 ----
 
-== Typische Fehlmuster
+== Typical Anti-Patterns
 
-* *Chaos ohne Stop Conditions*: Experiment läuft unkontrolliert weiter, SLO-Budget wird vollständig aufgebraucht
-* *Nur in Staging, nie in Produktion*: Produktions-spezifische Konfigurationen werden nie validiert
-* *Chaos ohne Dokumentation*: Erkenntnisse gehen verloren; gleiche Fehler werden nicht gefunden
-* *Zu großer Blast Radius beim ersten Experiment*: 100% der Instanzen in AZ1 statt 25% → echter Outage
+* *Chaos without stop conditions*: Experiment runs uncontrolled, SLO budget is fully exhausted
+* *Only in staging, never in production*: Production-specific configurations are never validated
+* *Chaos without documentation*: Insights are lost; the same failures are not found again
+* *Blast radius too large for the first experiment*: 100% of instances in AZ1 instead of 25% → real outage
 
-== Metriken
+== Metrics
 
-* Experiment Frequency: Anzahl dokumentierter Chaos-Experimente pro Quartal (Ziel: >= 3)
-* Hypothesis Validation Rate: % der Experimente, bei denen Hypothese bestätigt wurde (beides informativ)
-* Action Item Closure Rate: % der aus Experimenten erzeugten Actions, die within 2 Sprints umgesetzt wurden
-* Recovery Time Actual vs. RTO: Tatsächliche Recovery-Zeit im Experiment vs. RTO-Ziel
+* Experiment Frequency: Number of documented chaos experiments per quarter (target: >= 3)
+* Hypothesis Validation Rate: % of experiments where the hypothesis was confirmed (both are informative)
+* Action Item Closure Rate: % of actions generated from experiments completed within 2 sprints
+* Recovery Time Actual vs. RTO: Actual recovery time in the experiment vs. RTO target
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Keine Chaos-Tests; Resilienz nur durch Produktions-Incidents bekannt +
-Level 2 – Gelegentliche manuelle Tests (Container neu starten) ohne Dokumentation +
-Level 3 – Strukturierte Experimente mit Hypothesen und Dokumentation, quartalsweise +
-Level 4 – Produktions-Chaos mit Stop Conditions; GameDay jährlich; FIS/Chaos Studio aktiv +
-Level 5 – Kontinuierliche, automatisierte Low-Blast-Radius Experimente; ML-basierte Anomalieerkennung
+Level 1 – No chaos tests; resilience only known through production incidents +
+Level 2 – Occasional manual tests (restarting containers) without documentation +
+Level 3 – Structured experiments with hypotheses and documentation, quarterly +
+Level 4 – Production chaos with stop conditions; GameDay annually; FIS/Chaos Studio active +
+Level 5 – Continuous, automated low-blast-radius experiments; ML-based anomaly detection
