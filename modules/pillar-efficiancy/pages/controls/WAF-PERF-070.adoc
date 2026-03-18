@@ -1,0 +1,164 @@
+= WAF-PERF-070 – Network Latency & Topology Optimization
+:page-toc: right
+:control-id: WAF-PERF-070
+:pillar: performance
+:severity: medium
+:category: network-performance
+:automated: medium
+:description: WAF++ Performance Efficiency – Netzwerktopologie latenzoptimieren, CDN einsetzen und VPC Endpoints konfigurieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Network Performance | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Produktions-Workloads MÜSSEN mit latenzoptimierter Netzwerktopologie deployed werden.
+CDN MUSS für alle öffentlichen statischen und cachefähigen Inhalte konfiguriert sein.
+VPC Endpoints MÜSSEN für alle Cloud-Service-API-Zugriffe aus privaten Subnetzen verwendet werden.
+Cross-AZ-Traffic in latenz-sensitiven Pfaden MUSS minimiert werden.
+Netzwerklatenz-Baselines MÜSSEN für Service-Kommunikationspfade dokumentiert sein.
+
+== Rationale
+
+Netzwerklatenz addiert sich kumulativ über Service-Hops. In einer Microservices-Architektur
+können 10 interne Service-Calls mit je 1–2ms Cross-AZ-Overhead bereits 20ms unnötige Latenz erzeugen.
+Fehlende VPC Endpoints bedeuten, dass Cloud-Service-Traffic (S3, DynamoDB, SSM) das öffentliche
+Internet passiert – unnötige Latenz und Egress-Kosten. CDN-Fehlen bedeutet, dass statische Assets
+von Origin geliefert werden – 100–500ms zusätzliche Latenz für internationale Nutzer.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Cross-AZ-Latenz-Akkumulation*
+|Häufige Service-Calls zwischen AZs akkumulieren Latenz in der Request-Chain.
+
+|*Kein VPC Endpoint*
+|S3/DynamoDB/SSM-Traffic über Internet → erhöhte Latenz + Egress-Kosten.
+
+|*Fehlendes CDN*
+|Statische Assets von Origin geladen → hohe Latenz für internationale Nutzer.
+
+|*DNS-Resolution-Overhead*
+|Fehlende DNS-Caching-Konfiguration → 10–50ms pro DNS-Lookup in hot paths.
+
+|===
+
+== Anforderung
+
+* CDN MUSS für alle öffentlichen statischen und cachefähigen Inhalte konfiguriert sein
+* VPC Endpoints MÜSSEN für S3, DynamoDB und weitere frequently-accessed Cloud Services existieren
+* Netzwerktopologie MUSS dokumentiert sein (Diagramm mit Service-Placement und Traffic-Routing)
+* CDN-Cache-Hit-Rate MUSS gemessen werden (Ziel: >= 95% für statische Assets)
+
+== Implementierungsanleitung
+
+. *Service-Kommunikationsmuster kartieren*: Welche Services kommunizieren häufig? Mit welcher Latenz-Anforderung?
+. *VPC Endpoints anlegen*: Gateway-Endpoints für S3 und DynamoDB; Interface-Endpoints für ECR, SSM, Secrets Manager
+. *CDN konfigurieren*: CloudFront/Azure CDN/Cloud CDN mit Cache-Policies für statische und dynamische Inhalte
+. *AZ-Affinität planen*: Häufig kommunizierende Services bevorzugt in derselben AZ
+. *Connection Reuse*: HTTP/2 und Connection Keepalive für alle Service-zu-Service-Verbindungen
+. *Latenz-Baseline messen*: RTT zwischen Service-Paaren messen; in Dokument erfassen
+. *CDN-Hit-Rate monitoren*: CloudFront-Cache-Hit-Rate in CloudWatch; Alert bei < 90% für static
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Topology-Design
+|Services ohne Topologie-Überlegungen deployed; kein CDN; keine VPC Endpoints.
+
+|*2*
+|Basisabsicherung
+|CDN für statische Assets; VPC teilweise konfiguriert; keine Latenz-Baseline.
+
+|*3*
+|Optimierte Topologie
+|Vollständige VPC Endpoints; CDN für static + dynamic; AZ-Affinität dokumentiert.
+
+|*4*
+|Gemessene und verbesserte Topologie
+|Latenz-Baseline pro Service-Pair; CDN-Hit-Rate >= 95%; Connection Reuse überall.
+
+|*5*
+|Intelligentes Routing
+|Anycast; Edge-Computing; automatische Topologie-Empfehlungen.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-070.tf.aws.vpc-endpoint-s3
+*Prüft:* VPCs mit privaten Subnetzen sollten S3 Gateway VPC Endpoints haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+----
+a|[source,hcl]
+----
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+}
+# Keine VPC Endpoints definiert
+# S3-Traffic über Internet
+# WAF-PERF-070 Advisory
+----
+|===
+
+*Remediation:* Gateway-Endpoints für S3 und DynamoDB anlegen (kostenlos).
+Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig, aber Latenz-Vorteil).
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit CDN und VPC Endpoints für Cloud-Service-Zugriffe.
+
+|*Governance*
+|✅ Pflicht
+|Netzwerktopologie-Diagramm mit Service-Placement, AZ-Verteilung, Traffic-Routing.
+
+|*Config*
+|Optional
+|Netzwerk-Latenz-Baseline (Service-zu-Service RTT nach AZ-Kombination).
+
+|*Process*
+|Optional
+|CDN-Cache-Hit-Rate-Bericht.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-030.adoc[WAF-PERF-030 – Caching Strategy Defined & Implemented]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-080.adoc[WAF-PERF-080 – Serverless & Managed Services for Variable Load]
+
+== Best Practice
+
+* xref:../best-practices/bp-network-performance.adoc[Netzwerk-Performance optimieren →]

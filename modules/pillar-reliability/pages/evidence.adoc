@@ -1,0 +1,198 @@
+= Evidenz & Audit: Reliability
+:page-toc: right
+:description: WAF++ Reliability – Evidenzanforderungen für die 10 WAF-REL Controls nach Typ gegliedert.
+
+Dieser Abschnitt beschreibt die Evidenzanforderungen für alle 10 WAF-REL Controls,
+gegliedert nach Evidenztyp. Evidenz wird für interne Audits, externe Zertifizierungen
+(ISO 27001, BSI C5) und regulatorische Reviews (GDPR) benötigt.
+
+== Governance-Evidenz
+
+Governance-Evidenz umfasst Policies, Prozessdokumente und strategische Entscheidungen.
+
+[cols="2,2,4"]
+|===
+|Control |Typ |Beschreibung
+
+|WAF-REL-010
+|Pflicht
+|SLO-Dokument pro Workload: Availability-%, Latenz-Ziele, Fehlerrate, Messfenster – versioniert.
+
+|WAF-REL-010
+|Optional
+|SLA-Vertrag, der SLO-Definitionen referenziert mit Eskalations- und Kompensationsklauseln.
+
+|WAF-REL-060
+|Pflicht
+|Incident Response Plan mit Severity-Definitionen, Eskalationspfaden und On-Call-Struktur.
+
+|WAF-REL-070
+|Pflicht
+|DR-Plan mit RTO/RPO-Zielen, Testplan und Datum der letzten Überprüfung.
+
+|WAF-REL-080
+|Pflicht
+|Dependency Register mit Kritikalität, SLA und Fallback-Verhalten aller Produktionsabhängigkeiten.
+
+|WAF-REL-090
+|Pflicht
+|Chaos-Engineering-Charter oder Policy mit Genehmigungsprozess und Blast-Radius-Limits.
+
+|WAF-REL-100
+|Pflicht
+|Versioniertes Reliability Debt Register mit Owner, Severity und Zieldatum pro Eintrag.
+
+|===
+
+== IaC-Evidenz (Infrastructure-as-Code)
+
+IaC-Evidenz umfasst Terraform-Konfigurationen und Kubernetes-Manifeste.
+
+[cols="2,2,4"]
+|===
+|Control |Typ |Beschreibung
+
+|WAF-REL-020
+|Pflicht
+|Terraform oder Kubernetes-Manifeste mit readinessProbe- und livenessProbe-Konfigurationen.
+
+|WAF-REL-020
+|Pflicht
+|Load Balancer Terraform-Code (ALB, Azure LB, GCP LB) mit explizitem health_check-Block.
+
+|WAF-REL-030
+|Pflicht
+|Terraform mit Multi-AZ-Konfiguration für Compute, Datenbanken und Load Balancer.
+
+|WAF-REL-040
+|Pflicht
+|Terraform mit Backup-Konfiguration: Retention, PITR, Cross-Account-Storage.
+
+|WAF-REL-050
+|Pflicht
+|Terraform oder Service Mesh-Konfiguration mit Timeout- und Circuit-Breaker-Einstellungen.
+
+|WAF-REL-070
+|Optional
+|Automatisierungsskripte oder Terraform-Konfigurationen für DR-Failover-Verfahren.
+
+|WAF-REL-090
+|Optional
+|AWS FIS Experiment Templates oder Azure Chaos Studio Workflow-Konfigurationen.
+
+|===
+
+== Prozess-Evidenz
+
+Prozess-Evidenz umfasst Meeting-Protokolle, Testergebnisse und Reviewdokumentationen.
+
+[cols="2,2,4"]
+|===
+|Control |Typ |Beschreibung
+
+|WAF-REL-010
+|Optional
+|Quartalsweise SLO-Review-Protokolle mit Anpassungen auf Basis der Incident-Historie.
+
+|WAF-REL-040
+|Pflicht
+|Vierteljährlicher Backup-Restore-Testbericht mit RTO, Datenintegrität und Unterschrift.
+
+|WAF-REL-060
+|Pflicht
+|Post-Incident Review Protokolle für alle SEV1/SEV2 Incidents der letzten 12 Monate.
+
+|WAF-REL-070
+|Pflicht
+|DR-Testberichte der letzten 12 Monate mit tatsächlich erreichtem RTO/RPO und Unterschrift.
+
+|WAF-REL-080
+|Optional
+|Quartalsweise Dependency-Review-Protokolle mit Unterschrift.
+
+|WAF-REL-090
+|Pflicht
+|Quartalsweise Chaos-Experiment-Berichte mit Hypothese, erwartetem Ergebnis, Ist-Ergebnis und Remediation.
+
+|WAF-REL-100
+|Pflicht
+|Quarterly-Review-Protokolle mit Registerprüfung, Abschlüssen und neuen Einträgen.
+
+|===
+
+== Config-Evidenz
+
+Config-Evidenz umfasst Monitoring-Dashboards, Alert-Konfigurationen und Betriebstools.
+
+[cols="2,2,4"]
+|===
+|Control |Typ |Beschreibung
+
+|WAF-REL-010
+|Pflicht
+|Monitoring-Dashboard mit SLO-Compliance und Error Budget Burn Rate in Echtzeit.
+
+|WAF-REL-020
+|Optional
+|Monitoring-Dashboard mit Health Check Pass/Fail Rate im Zeitverlauf.
+
+|WAF-REL-030
+|Optional
+|Monitoring-Dashboard mit AZ-Verteilung aller deployten Instanzen.
+
+|WAF-REL-040
+|Optional
+|Backup-Monitoring-Alerts mit Benachrichtigung bei Job-Fehler oder überaltertem Backup.
+
+|WAF-REL-060
+|Optional
+|On-Call-Schedule in PagerDuty/OpsGenie mit aktueller Rotation.
+
+|WAF-REL-070
+|Optional
+|DR-Testkalender mit geplanten Übungen für die nächsten 12 Monate.
+
+|WAF-REL-080
+|Optional
+|Service Mesh Dependency-Graph mit allen inter-service Verbindungen.
+
+|===
+
+== Evidenz-Mapping: ISO 27001 Annex A
+
+[cols="2,3,2"]
+|===
+|ISO 27001 Control |WAF-REL Controls |Evidenztyp
+
+|A.17.1 – Informationssicherheitskontinuität
+|REL-010, REL-030, REL-070
+|Governance, Prozess
+
+|A.17.2 – Redundanzen
+|REL-030, REL-040
+|IaC, Config
+
+|A.8.13 – Datensicherung
+|REL-040
+|IaC, Prozess
+
+|A.16.1 – Management von IS-Vorfällen
+|REL-060
+|Governance, Prozess
+
+|A.15.1 – IS in Lieferantenbeziehungen
+|REL-080
+|Governance
+
+|===
+
+== Mindestanforderungen für Compliance-Audits
+
+Für einen ISO 27001 Compliance-Audit (Annex A.17) werden folgende Mindest-Evidenzen benötigt:
+
+. *SLO-Dokumente* für alle kritischen Systeme (WAF-REL-010)
+. *Backup-Restore-Testbericht* der letzten 12 Monate (WAF-REL-040)
+. *DR-Plan* mit dokumentiertem letzten Test (WAF-REL-070)
+. *Incident Response Plan* mit Severity-Definitionen (WAF-REL-060)
+. *Post-Incident Reviews* für alle SEV1/SEV2 der letzten 12 Monate (WAF-REL-060)
+. *Dependency Register* mit Kritikalitätsbewertung (WAF-REL-080)

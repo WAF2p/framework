@@ -1,0 +1,196 @@
+= Prinzipien der Operational Excellence
+:page-toc: right
+:description: Die 7 Grundprinzipien der Operational Excellence im WAF++ – von Automatisierung über Observability bis zu Operational Debt als technischem Risiko.
+
+Die sieben Prinzipien definieren die philosophische Grundlage für die Operational-Excellence-Säule.
+Sie sind nicht technische Anforderungen (dafür gibt es Controls), sondern *Leitprinzipien*
+für Entscheidungen auf Team- und Architekturebene.
+
+== OP1 – Automate Everything Repeatable
+
+*Tagline:* Wenn du etwas zweimal manuell tust, ist es einmal zu viel.
+
+=== Erklärung
+
+Jede Aufgabe, die wiederholt ausgeführt wird, ist ein Kandidat für Automatisierung.
+Manuelle, wiederholbare Aufgaben sind per Definition Toil – sie sind fehleranfällig,
+zeitaufwändig und skalieren nicht mit dem Wachstum der Organisation.
+
+Automatisierung schafft Freiheit: Wenn routinierte Aufgaben von Systemen erledigt werden,
+können Engineers an Problemen arbeiten, die menschliches Urteil erfordern.
+
+=== Implikationen
+
+* Deployments sind automatisiert oder existieren nicht (für Produktion)
+* Infrastrukturprovisionierung ist automatisiert über IaC
+* Incident-Benachrichtigungen sind automatisiert via Alertmanager/PagerDuty
+* Certificate-Renewal, AMI-Patching, Credential-Rotation sind automatisiert
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-010[WAF-OPS-010 – CI/CD Pipeline]
+* xref:controls.adoc#WAF-OPS-020[WAF-OPS-020 – Infrastructure as Code]
+* xref:controls.adoc#WAF-OPS-100[WAF-OPS-100 – Operational Debt Register]
+
+---
+
+== OP2 – Infrastructure as Code First
+
+*Tagline:* Wenn es nicht in Git ist, existiert es nicht.
+
+=== Erklärung
+
+Alle Infrastruktur muss aus Code reproduzierbar sein. Nicht "wir haben meistens IaC" –
+sondern "alle Infrastruktur ist IaC und manuelle Änderungen sind verboten".
+
+IaC First bedeutet: Bevor die erste Ressource erstellt wird, existiert der Terraform-Code.
+Es bedeutet auch: Wenn eine Notfall-Änderung manuell vorgenommen wird, wird sie innerhalb
+von 24 Stunden in IaC überführt.
+
+=== Implikationen
+
+* Remote-State mit Locking ist die einzige akzeptierte State-Strategie
+* Console-Zugriff für Infrastruktur-Änderungen ist eingeschränkt (SCP/IAM)
+* Drift-Erkennung ist automatisiert und alarmiert
+* Disaster Recovery ist aus IaC testbar
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-020[WAF-OPS-020 – Infrastructure as Code]
+* xref:controls.adoc#WAF-OPS-090[WAF-OPS-090 – Configuration Drift Detection]
+
+---
+
+== OP3 – Observability Before Features
+
+*Tagline:* Bevor ein Feature in Produktion geht, muss es beobachtbar sein.
+
+=== Erklärung
+
+Ein System, das nicht beobachtbar ist, kann nicht zuverlässig betrieben werden.
+Observability ist keine nachträgliche Ergänzung – sie ist eine Grundvoraussetzung
+für den Produktionsbetrieb.
+
+"Observability before features" bedeutet: Kein neues Feature wird deployed, das nicht
+structured Logs emittiert, Metriken exponiert und in die Tracing-Infrastruktur integriert ist.
+
+=== Implikationen
+
+* Observability-Anforderungen sind Teil der Definition of Done für jedes Feature
+* Log-Format und Trace-ID-Propagation sind in der Service-Vorlage definiert
+* RED-Metriken (Rate, Errors, Duration) sind für jeden Service konfiguriert
+* Dashboards existieren für jeden Service bevor er kritischen Traffic erhält
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-030[WAF-OPS-030 – Observability Stack]
+* xref:controls.adoc#WAF-OPS-040[WAF-OPS-040 – Symptom-basiertes Alerting]
+
+---
+
+== OP4 – Fail Fast, Learn Faster
+
+*Tagline:* Fehler sind keine Katastrophen – fehlende Lernprozesse sind es.
+
+=== Erklärung
+
+In komplexen verteilten Systemen sind Fehler unvermeidlich. Die Frage ist nicht, ob
+ein System ausfällt, sondern wie schnell es erkannt wird, wie schnell es wiederhergestellt
+wird und was die Organisation daraus lernt.
+
+Blameless Culture ist die kulturelle Grundlage: Wenn Fehler zu Bestrafungen führen,
+werden sie versteckt. Wenn Fehler zu Lernprozessen führen, werden sie offen kommuniziert.
+
+=== Implikationen
+
+* Jeder Incident mit Nutzerauswirkung erhält ein Postmortem
+* Postmortems sind blameless – Fokus auf Systeme, nicht Personen
+* Action Items aus Postmortems werden in JIRA/GitHub verfolgt
+* Repeat Incidents der gleichen Klasse sind ein Führungsversagen, kein Ingenieurversagen
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-070[WAF-OPS-070 – Post-Incident Review]
+
+---
+
+== OP5 – Minimize Toil
+
+*Tagline:* Toil ist der unsichtbare Feind der operativen Exzellenz.
+
+=== Erklärung
+
+Toil ist manuelle, wiederholbare, automatisierbare Arbeit ohne dauerhaften Wert.
+Toil ist nicht Overhead oder unerwünschte Arbeit – es ist spezifisch:
+repetitiv, manuell, ohne nachhaltige Wirkung, proportional zum Traffic-Wachstum.
+
+Google SRE definiert das Ziel: weniger als 20% der Engineering-Zeit sollten für Toil verwendet werden.
+Wenn ein Team mehr Toil als Features produziert, ist es in der Schuldenspirale.
+
+=== Implikationen
+
+* Toil wird gemessen: Stunden pro Woche pro Ingenieur für manuelle Aufgaben
+* Operational Debt Register katalogisiert alle bekannten Toil-Quellen
+* Automatisierung von Toil ist ein explizites Sprint-Ziel
+* On-Call-Belastung durch Toil ist ein Team-Health-Indikator
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-100[WAF-OPS-100 – Operational Debt Register]
+* xref:controls.adoc#WAF-OPS-060[WAF-OPS-060 – Runbooks & Dokumentation]
+
+---
+
+== OP6 – Safe by Default
+
+*Tagline:* Deployment-Sicherheit ist kein Opt-in – sie ist der Standard.
+
+=== Erklärung
+
+Sichere Deployments sind der Standard, nicht die Ausnahme. Progressive Delivery
+(Canary, Blue/Green, Feature Flags) ist nicht optional für Teams, die häufig deployen.
+
+"Safe by Default" bedeutet: Das Team muss aktiv entscheiden, einen unsicheren
+Deployment-Pfad zu wählen – nicht aktiv, um einen sicheren zu aktivieren.
+
+=== Implikationen
+
+* Deployment-Konfiguration verwendet Canary oder Blue/Green als Standard
+* Rollback ist in < 5 Minuten möglich ohne neues Deployment
+* Feature Flags ermöglichen Rollback ohne Deployment-Zyklus
+* Deployment-Freeze ist automatisch konfiguriert für kritische Geschäftsperioden
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-080[WAF-OPS-080 – Feature Flags & Safe Deployments]
+* xref:controls.adoc#WAF-OPS-050[WAF-OPS-050 – Change Management]
+
+---
+
+== OP7 – Operational Debt ist technisches Risiko
+
+*Tagline:* Untrackierter Operational Debt ist eine tickende Bombe.
+
+=== Erklärung
+
+Operational Debt ist wie technische Schuld – er akkumuliert Zinsen in Form von
+erhöhter Incident-Rate, verlängerter MTTR, On-Call-Burnout und Abhängigkeit
+von spezifischen Personen.
+
+Der Unterschied: Technische Schuld ist in Code sichtbar. Operational Debt ist oft
+*unsichtbar* – er lebt in den Köpfen von Ingenieuren, in informellen Prozessen,
+in "das machen wir immer so"-Kulturen.
+
+Sichtbar machen, quantifizieren, priorisieren – das ist die erste Maßnahme.
+
+=== Implikationen
+
+* Alle bekannten Toil-Quellen und Workarounds sind im Register dokumentiert
+* Quarterly-Review stellt sicher, dass Debt nicht akkumuliert
+* Sprint-Kapazität für Debt-Abbau ist explizit zugewiesen
+* Neuer Operational Debt wird bewusst akzeptiert – nicht blind akkumuliert
+
+=== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-100[WAF-OPS-100 – Operational Debt Register]
+* xref:controls.adoc#WAF-OPS-070[WAF-OPS-070 – Post-Incident Review]

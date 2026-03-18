@@ -1,0 +1,229 @@
+id: WAF-PERF-100
+title: "Performance Debt Register & Quarterly Review"
+pillar: "performance"
+status: "active"
+severity: "medium"
+category: "performance-governance"
+type: ['governance', 'configuration']
+tags: ['performance-debt', 'governance', 'review', 'backlog', 'technical-debt', 'performance-register']
+
+description: >
+  All known performance limitations, anti-patterns, and deferred optimizations MUST be
+  documented in a Performance Debt Register. Each entry MUST include: ID, description of
+  the performance issue, estimated impact (latency increase, throughput reduction, cost),
+  affected services, owner, priority, and a remediation plan or acceptance rationale.
+  The Performance Debt Register MUST be reviewed quarterly by engineering leadership.
+  New performance anti-patterns identified in postmortems, load tests, or reviews MUST
+  be added to the register within 30 days of identification.
+
+rationale: >
+  Performance debt accumulates like technical debt: individual deferred optimizations are
+  rational decisions, but untracked they become invisible technical risk. A team without a
+  performance debt register cannot make informed decisions about when to invest in performance
+  optimization vs. new features. The register provides visibility into accumulated risk,
+  enables prioritization, and creates organizational memory of known performance limitations.
+  Quarterly reviews prevent the register from becoming a graveyard of forgotten issues.
+
+threat:
+  - "Invisible performance risk accumulating through untracked deferred optimizations"
+  - "Performance anti-patterns normalized through lack of documentation and review"
+  - "Performance issues recurring because root causes were not documented after postmortems"
+  - "Organizational knowledge loss when engineers leave without documenting known limitations"
+  - "Performance budget exceeded because cumulative debt impact was never aggregated"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Capacity"
+  - framework: "ISO/IEC 12207"
+    controls:
+      - "Software Maintenance – Risk Management"
+  - framework: "ITIL 4"
+    controls:
+      - "Service Level Management – Continual Improvement"
+  - framework: "DORA"
+    controls:
+      - "Continuous improvement – Technical debt management"
+
+implementation_guidance:
+  - "Create a Performance Debt Register in the team's wiki, Jira, or version-controlled document."
+  - "Minimum fields per entry: ID, title, description, affected services, estimated impact, owner, priority, target date."
+  - "Categorize debt by type: sizing, caching, database, network, architecture, load-testing."
+  - "Establish quarterly Performance Debt Review meeting with engineering leads and product."
+  - "Add performance debt creation to postmortem process: every performance incident generates a debt entry."
+  - "Link debt entries to relevant WAF-PERF control findings for traceability."
+  - "Report debt status in engineering metrics dashboards alongside SLO compliance."
+
+maturity_levels:
+  level_1:
+    description: "No performance debt register; issues undocumented"
+    criteria:
+      - "Known performance issues are tribal knowledge, not documented"
+      - "No formal review process for performance optimization backlog"
+      - "Performance anti-patterns re-introduced because limitations not documented"
+  level_2:
+    description: "Informal tracking in project management tools"
+    criteria:
+      - "Performance issues tracked in tickets but no structured register"
+      - "No quarterly review cadence; reviews happen ad-hoc"
+      - "No impact estimation; issues tracked but not prioritized by performance impact"
+  level_3:
+    description: "Structured register with quarterly review"
+    criteria:
+      - "Performance Debt Register maintained with all required fields"
+      - "Quarterly review cadence established with engineering leadership"
+      - "New debt entries created from postmortems and load test findings"
+      - "Debt linked to WAF-PERF control findings"
+  level_4:
+    description: "Active debt management with business impact visibility"
+    criteria:
+      - "Debt entries include quantified business impact (latency, cost, availability)"
+      - "Debt paydown is part of sprint planning and prioritized against features"
+      - "Trend analysis shows debt accumulation vs. paydown rate"
+      - "Performance debt featured in quarterly business reviews"
+  level_5:
+    description: "Proactive performance governance integrated into delivery"
+    criteria:
+      - "Performance debt budget defined: maximum acceptable accumulated risk"
+      - "Automatic debt creation from monitoring alerts and SLO violations"
+      - "Performance debt paydown velocity tracked as engineering KPI"
+      - "Architecture decisions evaluated for performance debt creation potential"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Performance Debt Register document with all entries including ID, description, impact, owner, and priority."
+    - kind: "process"
+      description: "Quarterly review meeting notes or calendar showing regular review cadence."
+  optional:
+    - kind: "process"
+      description: "Sprint/backlog records showing performance debt tickets prioritized alongside feature work."
+    - kind: "config"
+      description: "Dashboard showing performance debt metrics (open items, age distribution, paydown rate)."
+
+checks:
+  - id: "waf-perf-100.tf.aws.config-performance-rules"
+    engine: "terraform"
+    provider: "aws"
+    automated: false
+    severity: "low"
+    title: "AWS Config rules should include performance governance checks"
+    description: >
+      AWS Config should have rules configured that detect common performance anti-patterns
+      such as previous-generation instance types, missing performance insights, or unencrypted
+      volumes that reduce throughput. This enables automated detection of performance debt.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_config_config_rule"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "AWS Config rules must have descriptive names."
+      - attribute: "source"
+        op: "not_empty"
+        message: "AWS Config rules must have a source (AWS managed or custom Lambda)."
+    on_fail: "advisory"
+    remediation: >
+      Create AWS Config rules for performance governance: desired-instance-type,
+      rds-enhanced-monitoring-enabled, ec2-ebs-encryption-by-default.
+      Use AWS Security Hub for centralized findings aggregation.
+    example:
+      compliant: |
+        resource "aws_config_config_rule" "rds_performance_insights" {
+          name        = "rds-performance-insights-enabled"
+          description = "WAF-PERF-040: Checks RDS instances have Performance Insights enabled"
+          source {
+            owner             = "AWS"
+            source_identifier = "RDS_INSTANCE_PUBLIC_ACCESS_CHECK"
+          }
+          tags = {
+            pillar  = "performance"
+            control = "WAF-PERF-040"
+          }
+        }
+      non_compliant: |
+        # No AWS Config rules for performance governance
+        # Performance anti-patterns not automatically detected – WAF-PERF-100 advisory
+
+  - id: "waf-perf-100.tf.azurerm.policy-performance-governance"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: false
+    severity: "low"
+    title: "Azure Policy should include performance governance initiatives"
+    description: >
+      Azure Policy should include policy definitions or initiatives that detect and audit
+      performance anti-patterns such as non-Premium storage for databases or missing
+      Application Insights deployments.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_resource_group_policy_assignment"
+        - "azurerm_subscription_policy_assignment"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Policy assignment must be named."
+    on_fail: "advisory"
+    remediation: >
+      Create Azure Policy assignments for performance governance. Use built-in policies
+      like "Storage accounts should use geo-redundant storage" or custom policies for
+      performance requirements specific to your organization.
+    example:
+      compliant: |
+        resource "azurerm_resource_group_policy_assignment" "perf_monitoring" {
+          name                 = "require-application-insights"
+          resource_group_id    = azurerm_resource_group.main.id
+          policy_definition_id = var.require_app_insights_policy_id
+          description          = "WAF-PERF-050: Require Application Insights for all web applications"
+        }
+      non_compliant: |
+        # No performance governance policies assigned
+        # Performance anti-patterns not systematically audited – WAF-PERF-100 advisory
+
+  - id: "waf-perf-100.tf.google.security-health-analytics"
+    engine: "terraform"
+    provider: "google"
+    automated: false
+    severity: "low"
+    title: "GCP Security Command Center should monitor performance governance findings"
+    description: >
+      GCP Security Command Center or Cloud Asset Inventory should be configured to track
+      performance governance findings and provide a consolidated view of performance risk.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_scc_notification_config"
+      block_type_fallback:
+        - "google_project_service"
+    assertions:
+      - attribute: "streaming_config"
+        op: "not_empty"
+        message: "SCC notification config must have streaming_config defined."
+    on_fail: "advisory"
+    remediation: >
+      Enable Security Command Center findings export to Pub/Sub for performance-related
+      findings. Configure asset inventory queries for performance governance.
+    example:
+      compliant: |
+        resource "google_scc_notification_config" "performance_findings" {
+          config_id    = "perf-governance-notifications"
+          organization = var.org_id
+          description  = "Notifications for performance governance findings"
+          pubsub_topic = google_pubsub_topic.security_notifications.id
+          streaming_config {
+            filter = "category = \"INSTANCE_TYPE_RECOMMENDATION\" OR category = \"DISK_TYPE_RECOMMENDATION\""
+          }
+        }
+      non_compliant: |
+        # No SCC notification config for performance findings
+        # Performance recommendations not surfaced to engineering – WAF-PERF-100 advisory
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-100"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-observability.adoc"
+  related_controls:
+    - "WAF-PERF-050"
+    - "WAF-PERF-060"
+    - "WAF-PERF-010"

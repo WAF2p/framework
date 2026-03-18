@@ -1,0 +1,132 @@
+= Definition: Operational Excellence
+:page-toc: right
+:description: Was ist Operational Excellence als Disziplin? Definition, Spektrum, Zielbild und Abgrenzung im WAF++ Kontext.
+
+== Was ist Operational Excellence?
+
+Operational Excellence ist die Fähigkeit einer Organisation, ihre Softwaresysteme in Produktion
+*reproduzierbar, automatisiert, beobachtbar und kontinuierlich verbessert* zu betreiben.
+
+Es geht nicht darum, Probleme schnell zu lösen – es geht darum, eine Organisation aufzubauen,
+die Probleme *systematisch verhindert* und aus jedem Fehler *organisationales Wissen* erzeugt.
+
+[NOTE]
+====
+*Kern-Definition:* Operational Excellence ist die Disziplin, die sicherstellt, dass eine
+Organisation weiß, *was* in ihren Systemen passiert, *warum* Änderungen vorgenommen werden,
+*wie* Fehler behandelt werden sollen – und dass dieses Wissen in *Code, Prozessen und Kultur*
+verankert ist, nicht nur in einzelnen Köpfen.
+====
+
+== Das OpsEx-Spektrum
+
+Organisationen befinden sich auf einem Kontinuum operationaler Reife:
+
+[cols="1,2,3"]
+|===
+|Stufe |Bezeichnung |Charakteristika
+
+|*1*
+|*Manuell & Heroisch*
+|Deployments per SSH und Konsole. "Der Florian weiß wie man das neu startet."
+On-Call-Kultur geprägt von Helden, die nie schlafen. Hohe Fluktuation.
+
+|*2*
+|*Dokumentiert*
+|Runbooks existieren, aber veralten schnell. Deployments folgen Skripten aber nicht Pipelines.
+Incidents werden diskutiert aber nicht systematisch reviewed.
+
+|*3*
+|*Automatisiert*
+|CI/CD für alle Deployments. IaC für alle Infrastruktur. Strukturiertes Logging und Alerting.
+Runbooks mit Alerts verknüpft. Post-Incident Reviews stattfindend.
+
+|*4*
+|*Gemessen*
+|DORA-Metriken werden gemessen und verbessert. SLO-basiertes Alerting. Toil wird quantifiziert.
+Operational Debt ist sichtbar und wird priorisiert abgebaut.
+
+|*5*
+|*Kontinuierlich verbessert*
+|Deployment mehrfach täglich. Change Failure Rate < 5%. MTTR < 1 Stunde.
+Systeme lernen aus sich selbst. Toil < 20% der Ingenieurzeit.
+
+|===
+
+== Was Operational Excellence NICHT ist
+
+Häufige Missverständnisse:
+
+*Nicht nur Monitoring:*
+Monitoring ist eine Komponente von Observability – aber Observability ist nur einer von sieben
+OpsEx-Dimensionen. Eine Organisation kann exzellentes Monitoring haben und trotzdem schlechte
+Change-Prozesse, fehlende Runbooks und akkumulierende Operational Debt haben.
+
+*Nicht nur DevOps-Tooling:*
+Tools (Jenkins, Terraform, Datadog) sind Enabler, keine Lösung. Tooling ohne Prozess und Kultur
+erzeugt komplexe Werkzeugketten ohne operationale Reife.
+
+*Nicht nur ITIL-Compliance:*
+ITIL beschreibt Prozesse, nicht Ergebnisse. Eine Organisation kann vollständige CAB-Prozesse haben
+und trotzdem eine hohe Change-Failure-Rate. Operational Excellence misst Ergebnisse (DORA-Metriken),
+nicht Prozesse.
+
+*Nicht nur für DevOps-Teams:*
+Operational Excellence ist für jeden, der Software in Produktion betreibt – ob Platform Team,
+Anwendungsteam, oder Operations-Team.
+
+== Zielbild: Reife Operations-Organisation
+
+Eine Organisation mit exzellenten Operations hat folgende Eigenschaften:
+
+=== Technisch
+
+* Jeder Produktions-Workload ist vollständig durch IaC beschrieben und über CI/CD deployt
+* Alle Services emittieren strukturierte Logs, Metriken und Traces – vollständig via OpenTelemetry
+* Alle Alerts sind symptombasiert mit verknüpften Runbooks
+* Kein Engineer muss manuell SSH in Produktionsserver – Änderungen gehen durch Pipeline oder Runbook-Automation
+* Configuration Drift wird innerhalb von Stunden erkannt und behoben
+
+=== Prozessual
+
+* Jeder Incident mit Nutzerauswirkung hat ein Postmortem innerhalb von 5 Arbeitstagen
+* Postmortems sind blameless und produzieren nachverfolgbare Action Items
+* Quarterly Review des Operational Debt Registers mit Sprint-Kapazitätszuweisung
+* Runbook Coverage > 90% für kritische Services
+
+=== Kulturell
+
+* Blameless Culture: Fehler sind Lerngelegenheiten, nicht Bestrafungsanlässe
+* Toil-Reduktion ist explizites Teamziel (OKR/KPI)
+* On-Call ist fair verteilt, rotierend und nicht mit Burnout verbunden
+* Engineers verbringen < 20% ihrer Zeit auf Toil (Google SRE-Ziel)
+
+== Operational Excellence im WAF++ Kontext
+
+Operational Excellence interagiert mit allen anderen WAF++-Säulen:
+
+[cols="1,3"]
+|===
+|Säule |Interaktion mit Operational Excellence
+
+|*Reliability*
+|SLOs (Reliability) werden durch Observability und Alerting (OpsEx) überwacht.
+Incident Response (Reliability) wird durch Runbooks und Postmortems (OpsEx) verbessert.
+
+|*Security*
+|Security Controls (Security) werden durch IaC (OpsEx) erzwungen.
+Security Incidents werden durch Observability (OpsEx) erkannt und durch Postmortem-Prozess (OpsEx) gelernt.
+
+|*Architecture*
+|Architekturentscheidungen (Architecture) beeinflussen Observability-Komplexität (OpsEx).
+OpsEx-Erkenntnisse (Drift, Toil, Incidents) sollten Architektur-Reviews informieren.
+
+|*Governance*
+|Change Management (OpsEx) ist Grundlage für Governance-Compliance.
+Operational Debt Register (OpsEx) informiert Governance-Priorisierung.
+
+|*Cost*
+|Observability-Kosten werden durch OpsEx-Controls gesteuert (Log-Retention, Trace-Sampling).
+Operational Debt erzeugt versteckte Kosten durch manuellen Aufwand.
+
+|===

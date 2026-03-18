@@ -1,0 +1,281 @@
+id: WAF-REL-070
+title: "Disaster Recovery Testing"
+pillar: "reliability"
+status: "active"
+severity: "high"
+category: "disaster-recovery"
+type: ['governance', 'configuration', 'automation']
+tags: ['disaster-recovery', 'dr-test', 'rto', 'rpo', 'failover', 'business-continuity', 'restore']
+
+description: >
+  All production workloads classified as critical or high availability MUST undergo
+  documented Disaster Recovery (DR) testing at minimum twice per year. DR tests MUST
+  validate actual RTO and RPO targets defined in the DR plan. Tests MUST cover
+  complete failure scenarios: full region failover, database restore, and service
+  reconstruction from IaC. Results MUST be documented and deviation from targets MUST
+  trigger remediation within 30 days. DR plans MUST be reviewed and updated after
+  every significant architecture change.
+
+rationale: >
+  An untested DR plan is a hope, not a plan. DR plans that have never been exercised
+  consistently fail in real disasters due to outdated runbooks, missing automation,
+  infrastructure drift, and undocumented manual steps. DR tests are the only way to
+  validate that RTO and RPO targets are achievable. Regular testing also reveals
+  improvements needed before a real disaster strikes. Compliance frameworks including
+  ISO 27001 and GDPR explicitly require demonstrable recovery capability.
+
+threat:
+  - "DR plan untested for 18+ months while architecture has changed significantly"
+  - "Database restore procedure fails in real incident due to missing manual step"
+  - "Region failover takes 4x longer than RTO due to undocumented dependencies"
+  - "Backup encryption key not available during restore (stored in failed region)"
+  - "IaC assumes resources that no longer exist in target region"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1.3 – Verify, review and evaluate information security continuity"
+  - framework: "GDPR"
+    controls:
+      - "Article 32 – Security of processing (resilience and recovery testing)"
+  - framework: "BSI C5:2022"
+    controls:
+      - "RB-04 – Data Backup and Recovery"
+      - "RB-05 – Disaster Recovery"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 14 – Plan for disaster recovery"
+      - "REL 13 – Test resiliency"
+  - framework: "ITIL 4"
+    controls:
+      - "Service Continuity Management"
+
+implementation_guidance:
+  - "Define DR test scope: full regional failover, partial failover, or isolated component restore."
+  - "Run DR tests in a production-like environment, not a shared staging environment."
+  - "Measure actual RTO (time to restore service) and actual RPO (data loss window)."
+  - "Automate DR failover procedures using IaC to reduce manual steps and errors."
+  - "Include DNS failover, certificate rotation, and dependent service configuration in DR tests."
+  - "Document each DR test: start time, end time, steps executed, issues found, RTO/RPO achieved."
+  - "Schedule DR tests after every major architecture change, not only on a calendar basis."
+  - "Use GameDay events to involve the full team in DR exercises."
+
+maturity_levels:
+  level_1:
+    description: "No DR plan or testing"
+    criteria:
+      - "No documented disaster recovery plan"
+      - "Recovery has never been tested"
+  level_2:
+    description: "DR plan documented, tested annually at best"
+    criteria:
+      - "DR plan exists with RTO/RPO targets"
+      - "Annual DR test performed"
+      - "Results not systematically documented"
+  level_3:
+    description: "Bi-annual DR tests with documented results"
+    criteria:
+      - "DR tested at least twice per year"
+      - "Results documented with actual RTO/RPO achieved"
+      - "Deviations tracked with remediation plan"
+      - "DR plan updated after architecture changes"
+  level_4:
+    description: "Automated DR runbooks with quarterly testing"
+    criteria:
+      - "DR procedures automated via IaC scripts"
+      - "Quarterly DR tests including chaos-driven scenarios"
+      - "DR test execution time < 2 hours"
+      - "Automated validation of restore completeness"
+  level_5:
+    description: "Continuous DR validation with GameDay culture"
+    criteria:
+      - "Monthly DR component tests automated"
+      - "Annual full-scale GameDay event with cross-team participation"
+      - "DR runbooks self-generating from infrastructure state"
+      - "RTO < 15 minutes demonstrated for all critical workloads"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "DR test reports from the last 12 months showing RTO/RPO achieved, issues found, and sign-off."
+    - kind: "governance"
+      description: "DR plan document with RTO/RPO targets, test schedule, and last review date."
+  optional:
+    - kind: "iac"
+      description: "Automation scripts or Terraform configurations for DR failover procedures."
+    - kind: "process"
+      description: "DR test calendar showing scheduled exercises for the next 12 months."
+
+checks:
+  - id: "waf-rel-070.tf.aws.route53-health-check-failover"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Route 53 failover routing must be configured for DR"
+    description: >
+      Production DNS entries for critical workloads must use Route 53 health check
+      failover routing policies to enable automated DNS failover during regional events.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_route53_health_check"
+    assertions:
+      - attribute: "type"
+        op: "not_empty"
+        message: "Route 53 health check type must be specified."
+      - attribute: "failure_threshold"
+        op: "attribute_exists"
+        message: "Health check failure threshold must be explicitly defined."
+      - attribute: "request_interval"
+        op: "attribute_exists"
+        message: "Health check request interval must be defined."
+    on_fail: "violation"
+    remediation: >
+      Configure aws_route53_health_check with type, fqdn, port, resource_path,
+      failure_threshold, and request_interval. Link to Route 53 failover records.
+    example:
+      compliant: |
+        resource "aws_route53_health_check" "primary" {
+          fqdn              = "api.payment-service.example.com"
+          port              = 443
+          type              = "HTTPS"
+          resource_path     = "/health/ready"
+          failure_threshold = 3
+          request_interval  = 10
+          tags = {
+            Name = "payment-api-health-check"
+          }
+        }
+
+        resource "aws_route53_record" "primary" {
+          zone_id = var.hosted_zone_id
+          name    = "api.payment-service.example.com"
+          type    = "A"
+          failover_routing_policy {
+            type = "PRIMARY"
+          }
+          set_identifier  = "primary"
+          health_check_id = aws_route53_health_check.primary.id
+          alias {
+            name                   = aws_lb.primary.dns_name
+            zone_id                = aws_lb.primary.zone_id
+            evaluate_target_health = true
+          }
+        }
+      non_compliant: |
+        resource "aws_route53_record" "api" {
+          zone_id = var.hosted_zone_id
+          name    = "api.payment-service.example.com"
+          type    = "A"
+          ttl     = 300
+          records = [var.primary_ip]
+          # No failover routing, no health check – WAF-REL-070 violation
+        }
+
+  - id: "waf-rel-070.tf.azurerm.traffic-manager-profile"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Traffic Manager must be configured for failover routing"
+    description: >
+      Azure Traffic Manager profiles for critical workloads must use failover or
+      performance routing methods with health checks enabled on all endpoints.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_traffic_manager_profile"
+    assertions:
+      - attribute: "traffic_routing_method"
+        op: "not_in"
+        values: ["Weighted"]
+        message: "Traffic Manager should use Failover or Priority routing for DR, not only Weighted."
+      - attribute: "monitor_config"
+        op: "attribute_exists"
+        message: "Traffic Manager must define monitor_config for endpoint health checking."
+    on_fail: "violation"
+    remediation: >
+      Configure azurerm_traffic_manager_profile with traffic_routing_method = "Priority"
+      and a monitor_config block with protocol, port, and path for health checks.
+    example:
+      compliant: |
+        resource "azurerm_traffic_manager_profile" "main" {
+          name                   = "payment-api-dr"
+          resource_group_name    = azurerm_resource_group.main.name
+          traffic_routing_method = "Priority"
+
+          dns_config {
+            relative_name = "payment-api"
+            ttl           = 30
+          }
+
+          monitor_config {
+            protocol                     = "HTTPS"
+            port                         = 443
+            path                         = "/health/ready"
+            interval_in_seconds          = 10
+            timeout_in_seconds           = 9
+            tolerated_number_of_failures = 3
+          }
+        }
+      non_compliant: |
+        resource "azurerm_traffic_manager_profile" "main" {
+          name                   = "payment-api-dr"
+          resource_group_name    = azurerm_resource_group.main.name
+          traffic_routing_method = "Weighted"
+          dns_config {
+            relative_name = "payment-api"
+            ttl           = 300
+          }
+          # Missing: monitor_config – no health checking
+          # WAF-REL-070 violation
+        }
+
+  - id: "waf-rel-070.tf.google.dns-managed-zone-failover"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Cloud DNS must have low TTL for disaster recovery scenarios"
+    description: >
+      GCP Cloud DNS records for production services must use TTL values <= 60 seconds
+      to enable rapid DNS-based failover during disaster recovery.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_dns_record_set"
+    assertions:
+      - attribute: "ttl"
+        op: "less_than_or_equal"
+        value: 60
+        message: "DNS record TTL must be <= 60 seconds for DR scenarios to enable rapid failover."
+    on_fail: "violation"
+    remediation: >
+      Set ttl = 30 on google_dns_record_set for production service endpoints.
+      Lower TTL reduces the DNS propagation window during failover events.
+    example:
+      compliant: |
+        resource "google_dns_record_set" "api" {
+          name         = "api.payment-service.example.com."
+          type         = "A"
+          ttl          = 30
+          managed_zone = google_dns_managed_zone.main.name
+          rrdatas      = [google_compute_global_forwarding_rule.primary.ip_address]
+        }
+      non_compliant: |
+        resource "google_dns_record_set" "api" {
+          name         = "api.payment-service.example.com."
+          type         = "A"
+          ttl          = 3600  # WAF-REL-070 violation: 1 hour TTL prevents rapid DR
+          managed_zone = google_dns_managed_zone.main.name
+          rrdatas      = [var.primary_ip]
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-070"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-backup-recovery.adoc"
+  related_controls:
+    - "WAF-REL-040"
+    - "WAF-REL-060"
+    - "WAF-REL-090"

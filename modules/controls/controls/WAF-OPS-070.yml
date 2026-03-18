@@ -1,0 +1,211 @@
+id: WAF-OPS-070
+title: "Post-Incident Review Process"
+pillar: "operations"
+status: "active"
+severity: "medium"
+category: "incident-learning"
+type: ['governance', 'configuration', 'automation']
+tags: ['postmortem', 'incident-review', 'blameless', 'learning', 'mttr', 'continuous-improvement']
+
+description: >
+  Every production incident with user-visible impact or SLO violation MUST trigger a
+  post-incident review (postmortem) within 5 business days. Postmortems MUST be blameless,
+  structured, and result in documented action items with owners and due dates tracked
+  through completion. Postmortem findings MUST be shared across teams to prevent
+  recurrence of the same class of incidents.
+
+rationale: >
+  Without systematic post-incident learning, organizations repeat the same classes of
+  incidents. Post-incident reviews convert operational failures into organizational
+  knowledge. Blameless culture is critical: blame suppresses information sharing,
+  causing teams to hide incidents and prevent learning. Organizations with mature
+  postmortem processes see a 30–50% reduction in repeat incidents over 12 months.
+  Action items left untracked close the feedback loop on paper only.
+
+threat:
+  - "Repeat incidents of the same class due to root causes never addressed"
+  - "Blame culture suppressing incident reporting and accurate timeline reconstruction"
+  - "Action items identified in postmortems never completed due to lack of tracking"
+  - "Knowledge from incidents siloed in the team that experienced them"
+  - "Systemic weaknesses accumulating because individual incidents are treated in isolation"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Incident management"
+      - "Continual improvement"
+  - framework: "ITIL 4"
+    controls:
+      - "Problem management"
+      - "Continual improvement"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 9: How do you understand how your operations are performing?"
+  - framework: "Google SRE Book"
+    controls:
+      - "Chapter 15: Postmortem Culture: Learning from Failure"
+  - framework: "SOC 2 Type II"
+    controls:
+      - "CC9.2 – Risk Assessment and Communication"
+
+implementation_guidance:
+  - "Define postmortem trigger criteria: all SEV-1/P1 incidents, all SLO violations > error budget burn rate threshold, all data loss events."
+  - "Create a postmortem template: title, date, severity, impact, timeline, root cause, contributing factors, action items."
+  - "Establish blameless postmortem culture: focus on systems, not individuals; psychological safety is prerequisite."
+  - "Schedule postmortem meetings within 48 hours of incident resolution; document findings within 5 business days."
+  - "Track action items in JIRA/GitHub Issues with owner, due date, and severity; include in team sprint planning."
+  - "Publish postmortems to a shared channel or wiki within 1 week; notify affected teams of relevant findings."
+  - "Conduct monthly postmortem trend review: most common incident categories, completion rate of action items."
+
+maturity_levels:
+  level_1:
+    description: "No postmortem process"
+    criteria:
+      - "Incidents resolved without structured review"
+      - "No documentation of incident timelines or root causes"
+      - "Blame culture or no culture around incidents"
+  level_2:
+    description: "Informal incident review"
+    criteria:
+      - "Some incidents discussed informally after resolution"
+      - "Inconsistent documentation; no standard template"
+      - "Action items identified but not tracked to completion"
+  level_3:
+    description: "Structured blameless postmortems"
+    criteria:
+      - "Postmortem template defined and used for all qualifying incidents"
+      - "Blameless culture explicitly adopted and practiced"
+      - "Action items tracked in JIRA or equivalent with owners"
+      - "Postmortems completed within 5 business days for all SEV-1 incidents"
+  level_4:
+    description: "Postmortems drive systemic improvement"
+    criteria:
+      - "Monthly trend analysis on postmortem findings"
+      - "Action item completion rate >= 80%"
+      - "Cross-team postmortem sharing process"
+      - "Recurring incident classes tracked and prioritized for systemic fix"
+  level_5:
+    description: "Organizational learning at scale"
+    criteria:
+      - "Postmortem database searchable for all engineers"
+      - "Automated incident classification links new incidents to related postmortems"
+      - "Repeat incident rate decreasing year-over-year (tracked metric)"
+      - "Postmortem culture embedded in engineering onboarding"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "Post-incident review policy defining trigger criteria, timeline, template, and publication requirements."
+    - kind: "governance"
+      description: "Postmortem archive showing completed postmortems for last 3 months with action items and completion status."
+  optional:
+    - kind: "process"
+      description: "Monthly incident trend report showing categories, frequency, and action item completion rate."
+    - kind: "governance"
+      description: "Team retrospective notes or OKR showing repeat incident reduction as a tracked goal."
+
+checks:
+  - id: "waf-ops-070.tf.aws.incident-management-sns-topic"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "SNS incident notification topic must be configured for production alarms"
+    description: >
+      An SNS topic for incident notifications MUST exist and MUST be referenced by
+      production CloudWatch alarms. This ensures incidents are captured and tracked.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_sns_topic"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "SNS topic must have a non-empty name."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_sns_topic for incident notifications and reference it in
+      all production CloudWatch alarm alarm_actions.
+    example:
+      compliant: |
+        resource "aws_sns_topic" "incidents" {
+          name         = "production-incident-notifications"
+          display_name = "Production Incidents"
+        }
+
+        resource "aws_sns_topic_subscription" "pagerduty" {
+          topic_arn = aws_sns_topic.incidents.arn
+          protocol  = "https"
+          endpoint  = var.pagerduty_endpoint
+        }
+
+        resource "aws_cloudwatch_metric_alarm" "critical_error" {
+          alarm_name    = "payment-service-critical"
+          alarm_actions = [aws_sns_topic.incidents.arn]
+          /* ... */
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "critical_error" {
+          alarm_name = "payment-service-critical"
+          # No alarm_actions – incidents not captured
+          # WAF-OPS-070 Violation
+        }
+
+  - id: "waf-ops-070.tf.azurerm.action-group-incident"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Monitor action group must be configured for incident routing"
+    description: >
+      Azure Monitor action groups for production incident routing MUST include at least
+      one receiver (email, webhook, or PagerDuty) to ensure incidents are captured
+      and reviewed.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_monitor_action_group"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Action group must have a non-empty name."
+      - attribute: "short_name"
+        op: "not_empty"
+        message: "Action group must have a short_name for SMS notifications."
+    on_fail: "violation"
+    remediation: >
+      Define an azurerm_monitor_action_group with at least one receiver type
+      (email_receiver, webhook_receiver, or azure_app_push_receiver).
+    example:
+      compliant: |
+        resource "azurerm_monitor_action_group" "oncall" {
+          name                = "production-oncall"
+          resource_group_name = azurerm_resource_group.main.name
+          short_name          = "oncall"
+
+          email_receiver {
+            name          = "oncall-engineer"
+            email_address = var.oncall_email
+          }
+
+          webhook_receiver {
+            name        = "pagerduty"
+            service_uri = var.pagerduty_webhook_url
+          }
+        }
+      non_compliant: |
+        resource "azurerm_monitor_action_group" "oncall" {
+          name                = "production-oncall"
+          resource_group_name = azurerm_resource_group.main.name
+          short_name          = "oncall"
+          # No receivers configured – incidents not routed
+          # WAF-OPS-070 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-070"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-postmortem.adoc"
+  related_controls:
+    - "WAF-OPS-040"
+    - "WAF-OPS-060"
+    - "WAF-OPS-100"

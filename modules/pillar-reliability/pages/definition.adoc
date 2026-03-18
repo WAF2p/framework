@@ -1,0 +1,125 @@
+= Definition: Reliability als Disziplin
+:page-toc: right
+:description: WAF++ – Was ist Reliability? Abgrenzung, Spektrum und Zielbild der Reliability-Säule.
+
+== Was ist Reliability?
+
+*Reliability* bezeichnet die Fähigkeit eines Systems, seine vereinbarte Funktion innerhalb
+definierter Parameter über einen bestimmten Zeitraum zuverlässig auszuführen – auch unter
+Fehler- und Ausfall-Bedingungen.
+
+Im Cloud-Kontext bedeutet das konkret:
+
+* Das System ist verfügbar, wenn Nutzer es benötigen
+* Fehler werden toleriert, nicht verhindert
+* Ausfälle werden entdeckt, isoliert und behoben – automatisch, wo möglich
+* Daten können im Fehlerfall wiederhergestellt werden
+* Recovery-Verfahren sind nachweislich funktionsfähig
+
+=== Das Reliability-Spektrum
+
+Organisationen durchlaufen typischerweise fünf Reifestufen auf dem Weg zur vollständigen Reliability:
+
+[cols="1,2,3"]
+|===
+|Stufe |Bezeichnung |Merkmale
+
+|1
+|*Chaotisch*
+|Ausfälle unbekannt, keine Ziele, reaktive Behebung, keine Dokumentation
+
+|2
+|*Dokumentiert*
+|SLOs vorhanden, Backups konfiguriert, Prozesse beschrieben – aber ungetestet
+
+|3
+|*Durchgesetzt*
+|Multi-AZ, Health Checks, Circuit Breaker in IaC erzwungen; Backups getestet
+
+|4
+|*Gemessen*
+|SLOs mit Error Budget, MTTR getrackt, Chaos Tests quartalsweise, DR getestet
+
+|5
+|*Selbstheilend*
+|Automatische Remediation, adaptive SLOs, kontinuierliche Chaos-Validierung
+
+|===
+
+== Was Reliability NICHT ist
+
+Klare Abgrenzung zu benachbarten Disziplinen:
+
+=== Nicht Sicherheit (Security)
+
+Security behandelt *wer* auf Systeme zugreifen darf und wie Daten geschützt werden.
+Reliability behandelt *ob* Systeme funktionieren und sich von Ausfällen erholen.
+Ein System kann sicher, aber unzuverlässig sein – und umgekehrt.
+
+=== Nicht Operations
+
+Operations behandelt *wie* Systeme deployed, gewartet und geändert werden.
+Reliability behandelt *was passiert, wenn diese Operationen fehlschlagen* – und wie
+das System damit umgeht.
+
+=== Nicht Performance
+
+Performance behandelt *Geschwindigkeit* unter nominaler Last.
+Reliability behandelt *Stabilität* unter Fehler- und Ausfall-Bedingungen.
+Ein schnelles System kann unzuverlässig sein, wenn es bei Lastspitzen zusammenbricht.
+
+=== Nicht Monitoring allein
+
+Monitoring ist ein *Werkzeug* für Reliability. Aber Monitoring ohne SLOs,
+Runbooks und Incident Response ist nur Datensammlung ohne Konsequenz.
+
+== Reliability im WAF++ Kontext
+
+Das WAF++ behandelt Reliability als eine eigenständige Säule, weil:
+
+. *Messbarkeit erfordert eigene Controls*: SLOs, RTO/RPO, MTTR, Error Budget haben
+  keine Entsprechung in anderen Säulen
+. *Reliability-Schuld ist strukturell*: Deferred resilience improvements akkumulieren
+  wie technische Schuld und werden ohne Tracking unsichtbar
+. *Testing ist fundamental*: Reliability ohne regelmäßige Chaos- und DR-Tests ist
+  eine unvalidierte Behauptung
+. *Abhängigkeiten begrenzen Zuverlässigkeit*: Die Reliability eines Systems ist
+  begrenzt durch die schwächste kritische Abhängigkeit
+
+=== Wechselwirkung mit anderen Säulen
+
+[cols="1,3"]
+|===
+|Säule |Wechselwirkung
+
+|*Security*
+|Incident-Response-Prozesse überschneiden sich; Datenverlust ist sowohl ein Security- als auch ein Reliability-Ereignis.
+
+|*Cost*
+|Multi-AZ und DR erhöhen Kosten; Reliability Debt muss im Cost Debt Register berücksichtigt werden.
+
+|*Operations*
+|Deployment-Prozesse müssen Reliability-Tests (Canary, Blue/Green) integrieren.
+
+|*Architecture*
+|Architekturentscheidungen müssen Reliability-Implikationen dokumentieren (ADR).
+
+|*Governance*
+|SLAs sind vertragliche Verpflichtungen; Compliance-Audits erfordern Nachweise.
+
+|===
+
+== Zielbild
+
+Das Zielbild der Reliability-Säule ist eine Organisation, in der:
+
+* *Jeder Workload* ein dokumentiertes, gemessenes und überwachtes SLO hat
+* *Ausfälle einkalkuliert* und durch Design toleriert werden – nicht verhindert zu werden versucht
+* *Recovery nachweislich funktioniert* durch regelmäßige Tests, nicht Hoffnung
+* *Reliability-Schuld sichtbar* und aktiv gemanaged ist
+* *Chaos Engineering* zur normalen Ingenieurpraxis gehört, nicht zur Ausnahme
+* *Jede signifikante Architekturentscheidung* die Reliability-Implikation dokumentiert
+
+Ein System, das dieses Zielbild erreicht, kann SLA-Zusagen gegenüber Kunden, Regulatoren
+und internen Stakeholdern mit empirischen Belegen untermauern – nicht nur mit architektonischen
+Behauptungen.

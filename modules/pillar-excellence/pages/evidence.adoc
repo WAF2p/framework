@@ -1,0 +1,211 @@
+= Evidenz & Audit: Operational Excellence
+:page-toc: right
+:description: Evidenzanforderungen für die Operational Excellence Säule – nach Typ kategorisiert mit Pflicht- und optionalen Nachweisen.
+
+Diese Seite beschreibt die Evidenz, die für einen Audit der Operational Excellence Säule
+erforderlich ist. Evidenz wird nach Typ kategorisiert.
+
+== Evidenz nach Typ
+
+=== IaC-Evidenz (Infrastructure as Code)
+
+[cols="1,1,2,1"]
+|===
+|Beschreibung |Pflicht |Zugehöriger Control |Format
+
+|Pipeline-Definitionen (.github/workflows/, .gitlab-ci.yml, buildspec.yml)
+|Pflicht
+|WAF-OPS-010
+|Datei-Link in Git
+
+|Terraform Remote-State-Konfiguration
+|Pflicht
+|WAF-OPS-020
+|Terraform-Code mit backend-Block
+
+|S3-State-Bucket mit Versioning (oder Azure/GCP Äquivalent)
+|Pflicht
+|WAF-OPS-020
+|Terraform-Ressource
+
+|CloudWatch Log Groups mit Retention (oder Azure/GCP Äquivalent)
+|Pflicht
+|WAF-OPS-030
+|Terraform-Ressource
+
+|Load-Balancer-Konfiguration für Blue/Green oder Canary
+|Optional
+|WAF-OPS-080
+|Terraform-Ressource
+
+|AWS Config Recorder / Azure Policy Assignment
+|Pflicht
+|WAF-OPS-090
+|Terraform-Ressource
+
+|===
+
+=== Config-Evidenz (Systemkonfiguration)
+
+[cols="1,1,2,1"]
+|===
+|Beschreibung |Pflicht |Zugehöriger Control |Format
+
+|Branch-Protection-Konfiguration (min. Reviewer, CODEOWNERS)
+|Pflicht
+|WAF-OPS-010, WAF-OPS-050
+|GitHub/GitLab Settings Screenshot oder API-Output
+
+|Alert-Definitionen mit symptom-basierten Metriken
+|Pflicht
+|WAF-OPS-040
+|Alert-Regel-YAML oder Terraform-Code
+
+|Alert-Definitionen mit Runbook-URLs
+|Pflicht
+|WAF-OPS-060
+|Alert-Regel-YAML mit `runbook_url`-Annotation
+
+|AWS AppConfig / Feature Flag Service-Konfiguration
+|Optional
+|WAF-OPS-080
+|Terraform-Ressource oder API-Export
+
+|AWS CloudTrail Konfiguration (multi-region, validiert)
+|Pflicht
+|WAF-OPS-090
+|Terraform-Ressource
+
+|===
+
+=== Process-Evidenz (Prozessnachweise)
+
+[cols="1,1,2,1"]
+|===
+|Beschreibung |Pflicht |Zugehöriger Control |Format
+
+|DORA-Metriken-Report (Deployment Frequency, Lead Time, MTTR, CFR)
+|Optional
+|WAF-OPS-010
+|Dashboard-Screenshot oder CSV-Export
+
+|Runbook-Verzeichnis mit allen Service-Runbooks
+|Pflicht
+|WAF-OPS-060
+|Wiki-Link oder Git-Verzeichnis
+
+|Runbook Coverage Report (Services mit Runbooks / Gesamt)
+|Pflicht
+|WAF-OPS-060
+|Prozentsatz-Report oder Tabelle
+
+|Postmortem-Archiv (letzte 3 Monate)
+|Pflicht
+|WAF-OPS-070
+|Wiki-Link oder Dokumenten-Liste
+
+|Action-Item-Tracking aus Postmortems
+|Pflicht
+|WAF-OPS-070
+|JIRA-Filter oder GitHub-Issues-Export
+
+|Quarterly Operational Debt Review Protokoll
+|Pflicht
+|WAF-OPS-100
+|Meeting-Notes oder Ticket-History
+
+|Alert-Noise-Report (Pages/Woche, Actionability-Rate)
+|Optional
+|WAF-OPS-040
+|PagerDuty/OpsGenie Analytics oder CSV
+
+|===
+
+=== Governance-Evidenz (Richtlinien und Entscheidungsnachweise)
+
+[cols="1,1,2,1"]
+|===
+|Beschreibung |Pflicht |Zugehöriger Control |Format
+
+|Change-Management-Policy (Kategorien, Approval-Anforderungen, Freezes)
+|Pflicht
+|WAF-OPS-050
+|Dokumenten-Link (Wiki, Confluence, PDF)
+
+|Post-Incident-Review-Policy (Trigger, Timeline, Template, Publikation)
+|Pflicht
+|WAF-OPS-070
+|Dokumenten-Link
+
+|Operational Debt Register (version-controlled)
+|Pflicht
+|WAF-OPS-100
+|Git-Datei (ops-debt-register.yml)
+
+|SLO-Definitionen für alle kritischen Services
+|Pflicht
+|WAF-OPS-040
+|Dokumenten-Link oder YAML-Datei
+
+|Deployment-Freeze-Richtlinie (kritische Geschäftsperioden)
+|Optional
+|WAF-OPS-050
+|Kalender-Konfiguration oder Richtlinien-Dokument
+
+|===
+
+=== Metrics-Evidenz (Messnachweise)
+
+[cols="1,1,2,1"]
+|===
+|Beschreibung |Pflicht |Zugehöriger Control |Format
+
+|Drift-Detection-Log (letzte 90 Tage mit Resolutionszeiten)
+|Optional
+|WAF-OPS-090
+|CSV-Export oder Ticket-History
+
+|Toil-Stunden-Report (Wöchentlich pro Ingenieur)
+|Optional
+|WAF-OPS-100
+|Tabelle oder Survey-Ergebnisse
+
+|Repeat-Incident-Rate (gleiche Incident-Klasse wiederholend)
+|Optional
+|WAF-OPS-070
+|Incident-Management-System-Report
+
+|Sprint-Kapazitäts-Zuweisung für Debt-Abbau
+|Optional
+|WAF-OPS-100
+|Sprint-Planning-Export
+
+|===
+
+== Audit-Checkliste
+
+Eine schnelle Checkliste für Auditoren und selbst-bewertende Teams:
+
+=== Automation & IaC
+
+* [ ] Pipeline-Definitionen sind in Version-Control und verwenden keine Inline-Secrets
+* [ ] Terraform-Remote-State ist konfiguriert und hat kein lokales State-File
+* [ ] Branch-Protection verhindert direkte Commits zu main/master
+
+=== Observability & Alerting
+
+* [ ] Log Groups haben Retention-Policies (mindestens 30 Tage)
+* [ ] Alerts referenzieren symptom-basierte Metriken (Fehlerrate, Latenz)
+* [ ] Alle paging Alerts haben Runbook-URLs in der Beschreibung
+
+=== Prozesse
+
+* [ ] Postmortem-Archiv hat mindestens 3 Einträge aus den letzten 6 Monaten
+* [ ] Action Items aus Postmortems haben Owners und Due Dates
+* [ ] Operational Debt Register ist aktuell (letzte Änderung < 90 Tage)
+
+=== Change Management
+
+* [ ] Change-Management-Policy ist dokumentiert
+* [ ] Production Deployments haben Approval-Gates
+* [ ] CloudTrail / Azure Activity Log ist für alle Regionen aktiv

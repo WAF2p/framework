@@ -1,0 +1,221 @@
+= Sustainability-Prinzipien (SP1–SP7)
+:page-toc: right
+:description: WAF++ Sustainability – 7 Grundprinzipien nachhaltiger IT-Architektur: Messen, Effizienz, Carbon-Awareness, Datenminimierung, Rightsizing, Langlebigkeit, Sustainability Debt.
+
+Die sieben Sustainability-Prinzipien des WAF++ definieren die *grundlegenden Denkweisen*,
+die nachhaltigen Architekturentscheidungen zugrunde liegen. Sie sind keine Regeln, sondern
+*Leitlinien*, die in jede technische Entscheidung einfließen sollten.
+
+== SP1 – Measure Before You Optimize
+
+*Tagline*: Keine Reduktion ohne Messung.
+
+=== Erläuterung
+
+Jede Sustainability-Initiative, die nicht auf Messdaten basiert, ist bestenfalls wirkungslos —
+und schlimmstenfalls Greenwashing. Die Frage "Wie viel CO₂ verursacht dieser Workload?"
+muss *beantwortbar* sein, bevor Optimierungsmaßnahmen ergriffen werden.
+
+Cloud-Provider stellen die notwendigen Werkzeuge bereit:
+AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard, GCP Carbon Footprint.
+Diese müssen *aktiviert, regelmäßig abgefragt und in ESG-Reports integriert* werden.
+
+=== Implikationen für Architekten
+
+* Workload-Tagging ist Voraussetzung für Emissions-Attribution — ohne Tags keine Zuordnung
+* SCI (Software Carbon Intensity) als Qualitätsattribut in Architecture Reviews etablieren
+* Baseline festlegen, bevor Optimierungen gestartet werden (sonst kein Nachweis der Wirkung)
+* Carbon-Budgets pro Workload definieren, analog zu Cost-Budgets
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
+* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
+
+---
+
+== SP2 – Efficiency is Sustainability
+
+*Tagline*: Das Effizienteste ist meist das Grünste.
+
+=== Erläuterung
+
+Energieeffizienz und Nachhaltigkeit sind strukturell ausgerichtet. Eine optimierte Lambda-Funktion,
+die in 100ms statt 500ms läuft, verbraucht 80% weniger Energie. Eine Graviton-Instanz, die
+die gleiche Last wie eine x86-Instanz bei 30% niedrigerem Energieverbrauch bewältigt, ist
+sowohl günstiger als auch grüner.
+
+Das bedeutet: *Jede Performance-Optimierung, jede Rightsizing-Maßnahme, jede Idle-Elimination
+ist auch eine Sustainability-Maßnahme* — selbst wenn das nicht der primäre Motivator ist.
+
+=== Implikationen für Architekten
+
+* Performance-Verbesserungen und Sustainability-Ziele kombiniert priorisieren
+* Rightsizing-Cadence als Sustainability-Governance-Prozess verstehen
+* Über-Provisionierung als Energieverschwendung behandeln — nicht nur als Kostenproblem
+* Effizienz-Metriken (CPU-Utilization, Response Time, Throughput/Watt) in Dashboards aufnehmen
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+
+---
+
+== SP3 – Carbon-Aware Architecture
+
+*Tagline*: Workloads dorthin, wo saubere Energie ist.
+
+=== Erläuterung
+
+Gleiche Workloads haben unterschiedliche CO₂-Emissionen je nach Ausführungsort und -zeitpunkt.
+Ein identischer Batch-Job, der in Stockholm (95% erneuerbare Energie) statt in Hong Kong (hohe
+Kohleintensität) läuft, kann 60-80% weniger CO₂ emittieren — ohne Codeänderung.
+
+Carbon-aware Architecture bedeutet, *Ort (Region) und Zeit (Scheduling-Fenster)* als
+Sustainability-Parameter in Architekturentscheidungen zu integrieren.
+
+=== Implikationen für Architekten
+
+* Regionsauswahl muss Carbon Intensity als expliziten Faktor neben Latenz und Kosten berücksichtigen
+* Batch-Workloads zeitlich in emissionsarme Fenster verschieben (Temporal Shifting)
+* Bei Daten ohne Residency-Anforderungen: Grüne Regionen als Default
+* Carbon-Aware Computing APIs (WattTime, electricityMaps) für dynamisches Scheduling evaluieren
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
+* xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 – Workload Scheduling & Time-Shifting]
+
+---
+
+== SP4 – Minimize Data
+
+*Tagline*: Weniger Daten = weniger Energie = weniger Emissionen.
+
+=== Erläuterung
+
+Jedes gespeicherte Byte verbraucht Energie — im Hot-Storage-Tier mehr als im Cold-Tier,
+und mehr über Zeit, wenn keine Lifecycle-Regeln existieren. Jedes über das Netzwerk
+transferierte Byte verbraucht Netzwerk-Energie.
+
+Das Prinzip der Datenminimierung — ursprünglich aus dem Datenschutz (GDPR Art. 5) — ist
+zugleich ein Sustainability-Prinzip: *Store only what you need, for as long as you need it,
+in the most efficient tier.* Und: übermittele nur die Daten, die der Empfänger tatsächlich benötigt.
+
+=== Implikationen für Architekten
+
+* Lifecycle-Policies auf *alle* Storage-Ressourcen — keine Ausnahmen ohne Begründung
+* API-Antworten auf notwendige Felder beschränken (Projection, Field Filtering)
+* Kompression als Default-Konfiguration für alle HTTP-Antworten und Datei-Transfers
+* CDN für statische Inhalte: eliminiert redundante Long-Haul-Transfers für gleiche Inhalte
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-050.adoc[WAF-SUS-050 – Storage Lifecycle & Data Minimization]
+* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+
+---
+
+== SP5 – Right-Size for Sustainability
+
+*Tagline*: Überprovisionierung ist Energieverschwendung.
+
+=== Erläuterung
+
+Eine EC2-Instanz, die bei 5% CPU-Utilization läuft, verbraucht fast die gleiche Energie
+wie eine unter 80% Last — aber liefert nur einen Bruchteil des wirtschaftlichen Wertes.
+Überprovisionierung ist daher eine Form der Energieverschwendung, die durch fehlende
+Rightsizing-Governance entsteht.
+
+Das Gegenmodell: *Ressourcen so dimensionieren, dass die tatsächliche Auslastung
+den Energieverbrauch rechtfertigt*. Autoscaling, Serverless, und Spot-Instanzen sind
+technische Enabler dieses Prinzips.
+
+=== Implikationen für Architekten
+
+* Autoscaling für alle zustandslosen Compute-Workloads als Architektur-Standard
+* Serverless (Lambda, Cloud Run) für Event-getriebene und Burst-Workloads bevorzugen
+* Regelmäßige Rightsizing-Reviews: Compute Optimizer, Azure Advisor, GCP Recommender
+* Non-Production-Umgebungen: Scale-to-Zero als Default, nicht als Ausnahme
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+
+---
+
+== SP6 – Design for Longevity
+
+*Tagline*: Langlebige Software reduziert Rewrite-Energie.
+
+=== Erläuterung
+
+Jedes Software-Rewrite verbraucht erhebliche Engineering-Energie: Infrastruktur aufbauen,
+Parallelentwicklung, Migrations-Compute, Testläufe. Software, die so entworfen ist, dass
+sie *10 Jahre wartbar und erweiterbar* bleibt, ist nachhaltiger als Software, die nach
+3 Jahren komplett ersetzt werden muss.
+
+Dieses Prinzip schließt auch Hardware ein: Überengineering, das Hardware-Upgrades erzwingt,
+ist weniger nachhaltig als ein Design, das auf aktueller Infrastruktur effizient läuft.
+
+=== Implikationen für Architekten
+
+* Einfachheit als Designziel: weniger Schichten, weniger Dependencies, weniger Komplexität
+* Modulare Architektur erlaubt inkrementelle Verbesserung statt Big-Bang-Rewrite
+* Technologieentscheidungen auf Langfristigkeits-Kostenminimierung bewerten (TCO inkl. Rewrite-Energie)
+* Dependencies auf Langlebigkeit prüfen: Abhängigkeit von Frameworks mit 18-Monats-EOL-Zyklus ist Sustainability-Risiko
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
+* xref:controls/WAF-SUS-100.adoc[WAF-SUS-100 – Sustainability Debt Register & Quarterly Review]
+
+---
+
+== SP7 – Sustainability Debt is Regulatory Risk
+
+*Tagline*: Undokumentierte CO₂-Schulden = CSRD-Lücken.
+
+=== Erläuterung
+
+Technische Schulden sind bekannte Abweichungen vom Zielzustand, die bewusst toleriert werden.
+*Sustainability Debt* ist das Äquivalent für bekannte CO₂-ineffiziente Architekturentscheidungen:
+x86-Instanzen, die aus Kompatibilitätsgründen noch nicht auf Graviton migriert wurden;
+S3-Buckets ohne Lifecycle-Policies; Batch-Jobs, die immer noch zu Peak-Zeiten laufen.
+
+Der entscheidende Unterschied zu technischer Schuld: *Sustainability Debt ist unter CSRD ein
+Governance-Risiko*. Wenn bekannte Ineffizienzen nicht dokumentiert und adressiert werden,
+entstehen Lücken in der ESG-Berichterstattung und fehlende Nachweise für aktive Governance —
+beides Schwachpunkte in CSRD-Prüfungen.
+
+=== Implikationen für Architekten
+
+* Sustainability Debt Register führen und vierteljährlich reviewen
+* Jede bekannte Sustainability-Lücke dokumentieren: Geschätzte CO₂-Wirkung, Owner, Zieldatum
+* Sustainability Debt in Engineering-Backlogs als erste Klasse von Arbeit priorisieren
+* ESG-Reports müssen aktive Governance nachweisen — nicht nur Ziele, sondern Prozesse
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-100.adoc[WAF-SUS-100 – Sustainability Debt Register & Quarterly Review]
+* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
+
+---
+
+== Zusammenfassung: Die 7 Prinzipien auf einen Blick
+
+[cols="1,2,3"]
+|===
+|Prinzip |Kurzform |Kernaussage
+
+|SP1 |Measure First |Kein CO₂ ohne Messung; Baseline vor Optimierung
+|SP2 |Efficiency = Sustainability |Jede Performance-Optimierung ist auch grün
+|SP3 |Carbon-Aware |Region und Zeitpunkt sind Sustainability-Parameter
+|SP4 |Minimize Data |Weniger Daten = weniger Energie; Lifecycle überall
+|SP5 |Right-Size |Idle-Compute ist Energieverschwendung; Autoscaling als Standard
+|SP6 |Longevity |Einfache, langlebige Software vermeidet Rewrite-Emissionen
+|SP7 |Debt = Risk |Sustainability-Schulden sind CSRD-Governance-Risiken
+
+|===

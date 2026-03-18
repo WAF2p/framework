@@ -1,0 +1,365 @@
+= Design-Prinzipien für nachhaltige Architektur (SD1–SD8)
+:page-toc: right
+:description: WAF++ Sustainability – 8 technische Design-Prinzipien: ARM/Graviton, Serverless, Time-Shifting, Caching, Datentransfer, Storage-Lifecycle, Algorithmen-First, Green Regions.
+
+Die acht technischen Design-Prinzipien übersetzen die xref:principles.adoc[Sustainability-Prinzipien (SP1–SP7)]
+in *konkrete Architekturanforderungen und -entscheidungen*.
+Jedes Design-Prinzip ist mit spezifischen WAF-SUS-Controls verknüpft und zeigt
+praktische Implikationen für Cloud-Architekturen.
+
+== SD1 – Prefer ARM/Graviton
+
+*Tagline*: 30–40% bessere Energieeffizienz ohne Funktionsverlust.
+
+=== Technischer Hintergrund
+
+ARM-basierte Prozessoren (AWS Graviton2/3, Azure Ampere Altra, GCP T2A) erreichen durch
+ihre RISC-Architektur eine deutlich bessere *Performance-per-Watt*-Ratio im Vergleich zu
+äquivalenten x86-Prozessoren. Bei AWS ist Graviton3 (m7g, c7g, r7g) im Vergleich zu
+Graviton2 nochmals 25% energieeffizienter.
+
+[cols="1,2,2"]
+|===
+|Instanzfamilie |x86-Äquivalent |Energieeffizienz
+
+|`m7g` (Graviton3)
+|`m6i` (Ice Lake)
+|~40% bessere Performance/Watt
+
+|`c7g` (Graviton3)
+|`c6i`
+|~35% bessere CPU-Performance/Watt
+
+|`r7g` (Graviton3)
+|`r6i`
+|~40% besser für Memory-Workloads
+
+|`t4g` (Graviton2)
+|`t3`
+|~20% besser bei Burst-Workloads
+
+|Lambda arm64 (Graviton2)
+|Lambda x86_64
+|~20% weniger Energie pro Invocation
+
+|===
+
+=== Anwendungsregel
+
+*Neu-Deployments*: ARM/Graviton als Default; x86 nur mit dokumentierter Ausnahme (z.B. x86-Only-Binaries).
+*Brownfield*: Priorität auf Lambda (einfachste Migration), dann Container-Workloads, dann EC2.
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+
+---
+
+== SD2 – Use Managed Serverless for Bursty Workloads
+
+*Tagline*: Kein Idle-Compute durch Scale-to-Zero.
+
+=== Technischer Hintergrund
+
+Serverless-Compute (AWS Lambda, Azure Functions, GCP Cloud Functions/Run) unterscheidet sich
+von containerbasiertem Compute durch das *Scale-to-Zero-Prinzip*: Wenn keine Requests kommen,
+laufen keine Ressourcen — es wird keine Energie verbraucht.
+
+Für Workloads mit starken Burst-Profilen (APIs mit Tages/Nacht-Rhythmus, Event-Trigger,
+Webhook-Handler) ist Serverless die energieeffizientere Wahl im Vergleich zu always-on
+Containern oder EC2-Instanzen.
+
+=== Wann Serverless, wann Container?
+
+[cols="1,3,1"]
+|===
+|Charakteristik |Serverless (Lambda/Functions) bevorzugt |Container/EC2 bevorzugt
+
+|Traffic-Profil
+|Burst, unregelmäßig, Event-getrieben
+|Konstant hoch, vorhersehbar
+
+|Latenz-Anforderung
+|< 100ms Cold-Start akzeptabel
+|Sub-10ms konsistent erforderlich
+
+|Laufzeit
+|Kurz (< 15 Minuten)
+|Lang-laufend (Background-Worker)
+
+|Energie
+|Pay-per-use; Zero-Idle
+|Idle-Energie bei geringer Auslastung
+
+|===
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
+
+---
+
+== SD3 – Time-Shift Batch Workloads to Low-Carbon Windows
+
+*Tagline*: Gleiche Last — 20–60% weniger CO₂ durch richtigen Zeitpunkt.
+
+=== Technischer Hintergrund
+
+Der *Carbon Intensity* des Stromnetzes variiert je nach Tageszeit und Jahreszeit erheblich:
+
+* *Solar*: Peaks mittags, fällt nachts auf null → höhere Intensität am frühen Morgen/Abend ohne Solar
+* *Wind*: Variabel, aber statistisch nachts in vielen Regionen stärker
+* *Grundlast*: Kohle/Gas nachts oft anteilig höher in kohleabhängigen Regionen
+
+Die Green Software Foundation bezeichnet dies als *Temporal Shifting*: Batch-Jobs in das
+Zeitfenster mit der niedrigsten Carbon Intensity verschieben.
+
+=== Umsetzungsoptionen
+
+[cols="1,2,2"]
+|===
+|Methode |Beschreibung |Werkzeug
+
+|*Fixed Off-Peak Scheduling*
+|Jobs auf 22:00–06:00 UTC verschoben; statistisch niedriger
+|EventBridge, Cron, Cloud Scheduler
+
+|*Flexible Windows*
+|EventBridge Flexible Time Window ±2h um Zielpunkt
+|`aws_scheduler_schedule.flexible_time_window`
+
+|*Dynamic Carbon Scheduling*
+|Echtzeit-Carbon-Intensity-API bestimmt Ausführungszeitpunkt
+|electricityMaps API, WattTime API
+
+|===
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 – Workload Scheduling & Time-Shifting]
+
+---
+
+== SD4 – Cache Aggressively to Reduce Compute Cycles
+
+*Tagline*: Eine gecachte Antwort ist die energieeffizienteste Antwort.
+
+=== Technischer Hintergrund
+
+Caching ist die effektivste Maßnahme, um Compute-Energie pro ausgelieferter Antwort zu reduzieren.
+Ein CDN-Hit für eine statische Seite verbraucht Bruchteile der Energie eines Origin-Hits, der
+Datenbankabfragen, Application-Server-Compute und Netzwerk-Egress auslöst.
+
+=== Cache-Ebenen und Sustainability-Impact
+
+[cols="1,2,2"]
+|===
+|Cache-Ebene |Implementierung |Sustainability-Impact
+
+|*CDN (Edge)*
+|CloudFront, Azure CDN, Cloud CDN
+|Eliminiert Long-Haul-Netzwerk + Origin-Compute für gecachte Inhalte
+
+|*Application-Cache*
+|Redis/Elasticache, Memcached
+|Eliminiert wiederholte DB-Queries; 10-100x Energiereduktion pro Cache-Hit
+
+|*Query-Result-Cache*
+|DB Query Cache, materialized views
+|Schwere Aggregationen nur einmal berechnen
+
+|*Browser-Cache*
+|Cache-Control Headers (max-age, ETag)
+|Clientseitig; eliminiert Netzwerk-Anfrage komplett
+
+|===
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
+
+---
+
+== SD5 – Minimize Data Transfer
+
+*Tagline*: Jedes Byte überträgt Energie — übertrageminus so wenig wie möglich.
+
+=== Technischer Hintergrund
+
+Netzwerk-Energie entsteht proportional zum Datenvolumen: Switch-Energie, Router-Energie,
+Unterseekabel-Energie, Last-Mile-Energie. Cross-Region-Transfers verbrauchen mehr Energie
+als Same-Region-Transfers (mehr Netzwerk-Hops, längere Distanz).
+
+=== Konkrete Maßnahmen
+
+* *HTTP-Kompression*: gzip/brotli reduzieren Text-Payloads um 70–90%
+* *VPC Endpoints*: AWS-Service-Traffic bleibt im AWS-Backbone; kein Internet-Gateway
+* *Same-Region Co-location*: Datenbanken und Application-Server in gleicher AZ
+* *Field Filtering*: GraphQL, OData $select, Sparse Fieldsets; nur angeforderte Felder übertragen
+* *Binary Protocols*: Protocol Buffers, MessagePack statt JSON für interne Services (20–50% kleiner)
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+
+---
+
+== SD6 – Store Only What You Need
+
+*Tagline*: Storage-Lifecycle-Policies sind Sustainability-Controls.
+
+=== Technischer Hintergrund
+
+Datenspeicherung verbraucht Energie proportional zu Volumen und Tier:
+Hot Storage (S3 Standard, Premium SSD) verbraucht mehr Energie pro GB als Cold Storage
+(Glacier, Archive, Cool Tier). Infinite Retention in Hot-Storage-Tiers ist damit eine
+kontinuierliche Energieverschwendung.
+
+=== Lifecycle-Strategie
+
+[cols="1,2,1"]
+|===
+|Datenkategorie |Lifecycle-Regel |WAF-SUS-Referenz
+
+|Logs (Betrieb)
+|90 Tage Standard → löschen; oder 90d Standard → 365d Glacier → löschen
+|WAF-SUS-050
+
+|Business-Daten
+|30d Standard → 90d IA → 365d Glacier → per Policy-Ablauf
+|WAF-SUS-050
+
+|Audit/CSRD-Daten
+|365d Standard → Glacier → 7 Jahre (CSRD-Pflicht) → löschen
+|WAF-SUS-090
+
+|Temporäre Daten (Build-Artefakte, Caches)
+|7–30 Tage → automatisch löschen
+|WAF-SUS-050
+
+|Backups
+|Generation-basiert (z.B. 7 täglich, 4 wöchentlich, 12 monatlich) → automatisch ablaufen
+|WAF-SUS-050
+
+|===
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-050.adoc[WAF-SUS-050 – Storage Lifecycle & Data Minimization]
+
+---
+
+== SD7 – Optimize Algorithms Before Scaling Hardware
+
+*Tagline*: Ein effizienter Algorithmus ist grüner als mehr Hardware.
+
+=== Technischer Hintergrund
+
+Algorithmische Komplexität hat einen direkten Einfluss auf Energieverbrauch.
+Ein Algorithmus mit O(n²) Komplexität, der bei 10.000 Elementen läuft,
+führt 100 Millionen Operationen durch — ein O(n log n) Algorithmus nur ~133.000.
+Dieser Faktor 750 schlägt sich direkt in CPU-Zeit und Energieverbrauch nieder.
+
+=== Praktische Optimierungshebel
+
+[cols="1,3"]
+|===
+|Muster |Sustainability-Wirkung
+
+|*N+1 Queries eliminieren*
+|100 DB-Queries zu 1 Bulk-Query → 99% Datenbankenergie-Reduktion für diesen Code-Pfad
+
+|*Pagination statt Full-Table-Scans*
+|Nur die ersten 20 Zeilen statt 10.000 übertragen und verarbeiten
+
+|*Indizes für häufige Abfragen*
+|Index-Hit statt Full-Table-Scan → Faktor 100-1000 schneller, proportional weniger Energie
+
+|*Batch-Verarbeitung*
+|100 Items in einem Lambda-Aufruf statt 100 separate Invocations → 99% weniger Cold-Start-Energie
+
+|*Lazy Loading*
+|Daten erst laden wenn benötigt; nicht alle Assoziationen vorab laden (ORM eagerness)
+
+|===
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
+
+---
+
+== SD8 – Choose Regions by Carbon Intensity, Not Just Latency
+
+*Tagline*: Grüne Energie ist ein Architekturparameter — kein Luxus.
+
+=== Technischer Hintergrund
+
+Regionen unterscheiden sich erheblich in ihrer *Carbon Intensity* (gCO₂eq/kWh):
+
+[cols="1,2,2,2"]
+|===
+|Region (AWS) |Standort |Erneuerbare Energie (ca.) |CO₂-Intensität
+
+|`eu-north-1`
+|Stockholm, Schweden
+|~95% (Wasser/Wind)
+|Sehr niedrig
+
+|`eu-west-1`
+|Dublin, Irland
+|~80% (Wind)
+|Niedrig
+
+|`us-west-2`
+|Oregon, USA
+|~89% (Wasser/Wind)
+|Niedrig
+
+|`eu-central-1`
+|Frankfurt, Deutschland
+|~60% (Wind/Solar/Mix)
+|Mittel
+
+|`us-east-1`
+|N. Virginia, USA
+|~40% (Mix)
+|Mittel-hoch
+
+|`ap-east-1`
+|Hong Kong
+|~25% (Mix mit Kohle)
+|Hoch
+
+|===
+
+=== Entscheidungsframework für Region-Auswahl
+
+. *Gibt es regulatorische Residency-Anforderungen?* → Wenn ja, dominierende Anforderung
+. *Gibt es harte Latenz-SLAs?* → Maximale akzeptable Region-Auswahl
+. *Innerhalb der verbleibenden Regionen*: Carbon Intensity als Tiebreaker
+
+=== Verwandte Controls
+
+* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
+
+---
+
+== Zusammenfassung der Design-Prinzipien
+
+[cols="1,2,3,2"]
+|===
+|Prinzip |Kurzform |Kern-Entscheidung |Primary Control
+
+|SD1 |ARM First |Graviton/ARM als Default; x86 nur mit Begründung |WAF-SUS-020
+|SD2 |Serverless for Bursts |Scale-to-Zero für Event-Workloads |WAF-SUS-040
+|SD3 |Time-Shift Batch |Off-Peak-Scheduling + Carbon-Aware APIs |WAF-SUS-060
+|SD4 |Cache Aggressively |CDN + App-Cache + Query-Cache |WAF-SUS-080
+|SD5 |Minimize Transfer |Kompression + VPC Endpoints + Same-Region |WAF-SUS-080
+|SD6 |Store Only Needed |Lifecycle-Policies überall; Data Minimization |WAF-SUS-050
+|SD7 |Algorithm First |Effizienz vor Hardware; N+1 eliminieren |WAF-SUS-070
+|SD8 |Green Region |Carbon Intensity als Architektur-Parameter |WAF-SUS-030
+
+|===

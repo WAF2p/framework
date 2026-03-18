@@ -1,0 +1,302 @@
+id: WAF-REL-090
+title: "Chaos Engineering & Fault Injection"
+pillar: "reliability"
+status: "active"
+severity: "medium"
+category: "chaos-engineering"
+type: ['automation', 'governance']
+tags: ['chaos-engineering', 'fault-injection', 'game-day', 'resilience-testing', 'failure-simulation', 'aws-fis']
+
+description: >
+  Production and staging workloads MUST undergo structured chaos engineering experiments
+  at minimum quarterly. Experiments MUST be based on hypothesis-driven testing against
+  defined failure modes. Results MUST be documented and deviations from expected
+  behavior MUST trigger reliability improvements. Chaos experiments MUST be run in
+  staging before production. Production chaos MUST have defined blast radius limits,
+  rollback procedures, and active monitoring during execution. Ad-hoc or unsanctioned
+  "accidental chaos" is not a substitute.
+
+rationale: >
+  Chaos engineering reveals reliability weaknesses before real failures do. Systems
+  that have never been deliberately broken often fail unexpectedly in ways that
+  automated health checks and synthetic monitoring cannot predict. Hypothesis-driven
+  fault injection tests specific reliability claims (e.g., "the service handles a
+  single AZ failure within 30 seconds") and provides empirical evidence for the SLO.
+  Regular chaos practice also builds engineering confidence and institutional knowledge
+  about system failure modes.
+
+threat:
+  - "Unknown failure modes discovered only during real production incidents"
+  - "Reliability claims in SLOs not validated by actual failure testing"
+  - "Recovery procedures untested until a real disaster requires them"
+  - "Hidden coupling between services not visible until fault injection reveals it"
+  - "Compliance claims about resilience not backed by evidence"
+
+regulatory_mapping:
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 12 – Test reliability"
+      - "REL 13 – Test resiliency"
+  - framework: "ITIL 4"
+    controls:
+      - "Problem Management"
+      - "Service Continuity Management"
+  - framework: "SRE Book (Google)"
+    controls:
+      - "Chapter 33 – Lessons Learned from Other Industries"
+      - "DiRT (Disaster Recovery Testing)"
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1.3 – Verify, review and evaluate information security continuity"
+
+implementation_guidance:
+  - "Start with small, reversible experiments: terminate a single instance, not a whole AZ."
+  - "Define a hypothesis before each experiment: 'When X fails, Y should happen within Z seconds.'"
+  - "Use AWS FIS, Azure Chaos Studio, or GCP Fault Injection Testing for cloud-native experiments."
+  - "Run all experiments first in staging, then progressively in production with limited blast radius."
+  - "Define a stop condition: if error budget > 50% consumed, abort the experiment."
+  - "Document experiments in a chaos runbook: hypothesis, expected result, actual result, next steps."
+  - "Run GameDay events (half-day structured chaos) at minimum annually."
+  - "Do not run chaos experiments during planned high-traffic events."
+
+maturity_levels:
+  level_1:
+    description: "No chaos engineering, failures discovered in production"
+    criteria:
+      - "No deliberate fault injection performed"
+      - "Resilience only known from production incident history"
+  level_2:
+    description: "Ad-hoc resilience tests in staging"
+    criteria:
+      - "Occasional manual tests (kill a container, block a port)"
+      - "No structured hypothesis or documentation"
+  level_3:
+    description: "Structured chaos experiments with documentation"
+    criteria:
+      - "Hypothesis-driven experiments documented and run quarterly"
+      - "AWS FIS, Azure Chaos Studio, or equivalent tool in use"
+      - "Results reviewed and remediation tracked"
+      - "Experiments run in staging before production"
+  level_4:
+    description: "Production chaos with blast radius control"
+    criteria:
+      - "Production chaos with defined stop conditions and monitoring"
+      - "Chaos experiments integrated into release pipeline"
+      - "GameDay events conducted annually"
+  level_5:
+    description: "Continuous chaos with automated hypothesis validation"
+    criteria:
+      - "Chaos experiments run continuously in production (low blast radius)"
+      - "Automated hypothesis validation with SLO correlation"
+      - "Chaos runbook library maintained and shared across teams"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "Quarterly chaos experiment reports with hypothesis, expected result, actual result, and remediation."
+    - kind: "governance"
+      description: "Chaos engineering charter or policy defining experiment approval process and blast radius limits."
+  optional:
+    - kind: "iac"
+      description: "AWS FIS experiment templates or Azure Chaos Studio workflow configurations."
+    - kind: "process"
+      description: "GameDay event report from the last 12 months."
+
+checks:
+  - id: "waf-rel-090.tf.aws.fis-experiment-template"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS FIS experiment templates must define stop conditions"
+    description: >
+      AWS Fault Injection Simulator experiment templates must define stop_condition
+      blocks to automatically abort experiments when error budget thresholds are exceeded.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_fis_experiment_template"
+    assertions:
+      - attribute: "description"
+        op: "not_empty"
+        message: "FIS experiment must have a descriptive description with hypothesis."
+      - attribute: "stop_condition"
+        op: "attribute_exists"
+        message: "FIS experiment must define at least one stop_condition."
+      - attribute: "role_arn"
+        op: "not_empty"
+        message: "FIS experiment must specify an IAM role ARN."
+    on_fail: "violation"
+    remediation: >
+      Add a stop_condition block to the aws_fis_experiment_template referencing
+      a CloudWatch alarm that triggers when error budget is consumed.
+    example:
+      compliant: |
+        resource "aws_fis_experiment_template" "az_failure" {
+          description = "Hypothesis: Service recovers from AZ failure within 60s without SLO violation"
+          role_arn    = aws_iam_role.fis.arn
+
+          stop_condition {
+            source = "aws:cloudwatch:alarm"
+            value  = aws_cloudwatch_metric_alarm.slo_burn_rate.arn
+          }
+
+          action {
+            name      = "terminate-instances-az1"
+            action_id = "aws:ec2:terminate-instances"
+            target {
+              key   = "Instances"
+              value = "az1-instances"
+            }
+          }
+
+          target {
+            name           = "az1-instances"
+            resource_type  = "aws:ec2:instance"
+            selection_mode = "PERCENT(25)"
+            resource_tag {
+              key   = "availability-zone"
+              value = "eu-west-1a"
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_fis_experiment_template" "az_failure" {
+          description = "AZ failure test"
+          role_arn    = aws_iam_role.fis.arn
+          # Missing: stop_condition – experiment has no abort mechanism
+          # WAF-REL-090 violation
+          action {
+            name      = "terminate-instances"
+            action_id = "aws:ec2:terminate-instances"
+            target {
+              key   = "Instances"
+              value = "all-instances"
+            }
+          }
+          target {
+            name           = "all-instances"
+            resource_type  = "aws:ec2:instance"
+            selection_mode = "ALL"
+          }
+        }
+
+  - id: "waf-rel-090.tf.azurerm.chaos-studio-experiment"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Chaos Studio experiments must target non-production environments first"
+    description: >
+      Azure Chaos Studio experiments must have a name and location configured and
+      should target resources tagged with the correct environment.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_chaos_studio_experiment"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Chaos Studio experiment must have a descriptive name."
+      - attribute: "location"
+        op: "not_empty"
+        message: "Chaos Studio experiment must specify a location."
+      - attribute: "identity"
+        op: "attribute_exists"
+        message: "Chaos Studio experiment must define an identity for execution."
+    on_fail: "violation"
+    remediation: >
+      Configure azurerm_chaos_studio_experiment with name, resource_group_name,
+      location, and identity. Define the experiment steps in the schema_version block.
+    example:
+      compliant: |
+        resource "azurerm_chaos_studio_experiment" "pod_failure" {
+          name                = "payment-api-pod-failure-staging"
+          location            = azurerm_resource_group.staging.location
+          resource_group_name = azurerm_resource_group.staging.name
+
+          identity {
+            type = "SystemAssigned"
+          }
+
+          schema_version = "2.0"
+          steps {
+            name = "pod-failure-step"
+            branches {
+              name = "main-branch"
+              actions {
+                action_urn = "urn:csci:microsoft:azureKubernetesServiceChaosMesh:podChaos/2.2"
+                duration   = "PT5M"
+              }
+            }
+          }
+        }
+      non_compliant: |
+        # No chaos experiments configured – WAF-REL-090 violation
+        # Resilience claims not validated by fault injection
+
+  - id: "waf-rel-090.tf.google.fault-injection-test"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Cloud Run services should have fault injection testing configured"
+    description: >
+      GCP workloads should use Traffic Director or Cloud Service Mesh fault injection
+      to validate resilience patterns. Alternatively, load testing pipelines should
+      include fault scenarios.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_url_map"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "URL map must have a name."
+      - attribute: "default_route_action"
+        op: "attribute_exists"
+        message: "URL map should define default_route_action for fault injection testing."
+    on_fail: "violation"
+    remediation: >
+      Configure fault_injection_policy in the default_route_action of the URL map
+      to inject delays or abort responses for chaos testing.
+    example:
+      compliant: |
+        resource "google_compute_url_map" "api" {
+          name = "payment-api-url-map"
+
+          default_route_action {
+            fault_injection_policy {
+              delay {
+                fixed_delay {
+                  seconds = 5
+                  nanos   = 0
+                }
+                percentage = 10  # 10% of requests get 5s delay
+              }
+              abort {
+                http_status = 503
+                percentage  = 5  # 5% abort for chaos testing
+              }
+            }
+            weighted_backend_services {
+              backend_service = google_compute_backend_service.api.id
+              weight          = 1000
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_compute_url_map" "api" {
+          name            = "payment-api-url-map"
+          default_service = google_compute_backend_service.api.id
+          # No fault injection configured – resilience not testable
+          # WAF-REL-090 violation
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-090"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-chaos-engineering.adoc"
+  related_controls:
+    - "WAF-REL-050"
+    - "WAF-REL-060"
+    - "WAF-REL-070"

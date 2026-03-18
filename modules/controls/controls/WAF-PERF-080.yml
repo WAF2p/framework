@@ -1,0 +1,265 @@
+id: WAF-PERF-080
+title: "Serverless & Managed Services for Variable Load"
+pillar: "performance"
+status: "active"
+severity: "low"
+category: "compute-architecture"
+type: ['governance', 'configuration']
+tags: ['serverless', 'lambda', 'functions', 'managed-services', 'fargate', 'paas', 'variable-load']
+
+description: >
+  Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be
+  evaluated for serverless or fully managed compute architectures. Where serverless is
+  appropriate, Lambda, Cloud Functions, Azure Functions, or managed container services
+  (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency,
+  and cold-start mitigation strategies. Serverless function configurations MUST be
+  optimized to avoid under-memory allocation, excessive timeouts, and uncontrolled concurrency.
+
+rationale: >
+  Serverless architectures shift capacity management to the cloud provider, eliminate
+  idle-capacity costs, and scale instantaneously to demand. For variable-load workloads,
+  serverless can be significantly more cost-efficient and performant than auto-scaled VMs.
+  However, serverless functions misconfigured with too little memory, excessive timeouts,
+  or missing concurrency limits can have unpredictable performance, cost, and availability
+  characteristics. Managed services (RDS, Aurora Serverless, DynamoDB) remove infrastructure
+  management overhead and often provide built-in performance scaling.
+
+threat:
+  - "Cold start latency for Lambda functions not mitigated through provisioned concurrency"
+  - "Memory under-allocation slowing Lambda execution and increasing cost (CPU scales with memory)"
+  - "Uncontrolled Lambda concurrency consuming all available account concurrency"
+  - "Timeout configuration too long causing zombie executions and cost accumulation"
+  - "Missed opportunity to reduce cost and improve scaling by not using serverless for spike workloads"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Capacity"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 1 – How do you select the best performing architecture?"
+      - "COST 8 – How do you use managed services to improve efficiency?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Use platform-as-a-service"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Managed services – Use fully managed services where possible"
+
+implementation_guidance:
+  - "Profile Lambda memory allocation using AWS Lambda Power Tuning to find optimal memory-to-cost ratio."
+  - "Set function timeout to 2x the measured P99 execution time, not the maximum allowed timeout."
+  - "Configure reserved concurrency for critical functions to prevent them consuming all account concurrency."
+  - "Use provisioned concurrency for latency-sensitive functions to eliminate cold starts."
+  - "For Azure Functions: use Premium plan or Dedicated plan for production; Consumption plan for truly event-driven."
+  - "For Cloud Run: set min-instances > 0 for latency-sensitive services to avoid cold starts."
+  - "Evaluate Aurora Serverless v2 for databases with variable query loads."
+
+maturity_levels:
+  level_1:
+    description: "Serverless used without optimization; default configurations"
+    criteria:
+      - "Lambda functions deployed with default memory (128MB) without profiling"
+      - "Timeouts set to maximum (15 min) without measurement"
+      - "No concurrency limits; no cold start mitigation"
+  level_2:
+    description: "Serverless configured but not systematically optimized"
+    criteria:
+      - "Memory allocation adjusted based on experience, not measurement"
+      - "Some timeout tuning based on expected execution time"
+      - "Cold starts acknowledged but not mitigated"
+  level_3:
+    description: "Optimized serverless configuration with measured baselines"
+    criteria:
+      - "Memory allocation optimized via power tuning for production functions"
+      - "Timeout set to 2x measured P99; documented in code comments"
+      - "Reserved concurrency configured for critical functions"
+      - "Cold start mitigation evaluated and applied where SLO requires it"
+  level_4:
+    description: "Advanced serverless patterns with cost optimization"
+    criteria:
+      - "Provisioned concurrency for latency-critical functions"
+      - "Function runtime and dependency size optimized for cold start speed"
+      - "Serverless vs. container cost analysis documented for all major workloads"
+      - "Aurora Serverless or DynamoDB on-demand used for variable database loads"
+  level_5:
+    description: "Fully managed architecture maximizing cloud provider capabilities"
+    criteria:
+      - "Function performance monitored and auto-tuned continuously"
+      - "Cost-per-invocation tracked and optimized continuously"
+      - "Architectural decision framework for serverless vs. container documented and followed"
+      - "Edge functions (Lambda@Edge, Cloudflare Workers) used for ultra-low latency"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing Lambda/function resource with explicit memory, timeout, and concurrency settings."
+    - kind: "governance"
+      description: "Documentation explaining serverless adoption rationale for variable-load workloads."
+  optional:
+    - kind: "config"
+      description: "Lambda Power Tuning results or equivalent memory optimization analysis."
+    - kind: "process"
+      description: "Cost comparison analysis (serverless vs. EC2/container) for spike workloads."
+
+checks:
+  - id: "waf-perf-080.tf.aws.lambda-memory-timeout-configured"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS Lambda functions must have explicit memory and timeout configuration"
+    description: >
+      Lambda functions must not use default memory (128MB) or default timeout (3s) for
+      production use. Both must be explicitly configured based on measured performance profiles.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lambda_function"
+    assertions:
+      - attribute: "memory_size"
+        op: "greater_than_or_equal"
+        value: 256
+        message: "Lambda memory_size must be explicitly set >= 256MB for production functions (default 128MB is rarely optimal)."
+      - attribute: "timeout"
+        op: "greater_than_or_equal"
+        value: 10
+        message: "Lambda timeout must be explicitly set (not default 3s) and sized appropriately."
+      - attribute: "reserved_concurrent_executions"
+        op: "not_equals"
+        value: -1
+        message: "Lambda reserved_concurrent_executions should be configured to control account concurrency usage."
+    on_fail: "violation"
+    remediation: >
+      Run AWS Lambda Power Tuning to find optimal memory allocation.
+      Set timeout = 2x measured P99 execution time.
+      Set reserved_concurrent_executions to limit blast radius on account concurrency.
+    example:
+      compliant: |
+        resource "aws_lambda_function" "payment_processor" {
+          function_name = "payment-processor"
+          runtime       = "python3.12"
+          handler       = "handler.process"
+          filename      = data.archive_file.lambda.output_path
+          memory_size   = 512    # Tuned with Lambda Power Tuning
+          timeout       = 30     # 2x measured P99 of 15s
+          reserved_concurrent_executions = 100  # Prevent consuming all account concurrency
+          environment {
+            variables = {
+              LOG_LEVEL = "INFO"
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_lambda_function" "payment_processor" {
+          function_name = "payment-processor"
+          runtime       = "python3.12"
+          handler       = "handler.process"
+          filename      = data.archive_file.lambda.output_path
+          # memory_size defaults to 128MB – not profiled – WAF-PERF-080 violation
+          # timeout defaults to 3s – may cause timeouts
+          # No reserved_concurrent_executions – uncontrolled concurrency
+        }
+
+  - id: "waf-perf-080.tf.azurerm.function-app-plan-configured"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "low"
+    title: "Azure Function Apps for production should use Premium or Dedicated plan"
+    description: >
+      Azure Function Apps in production should use Premium or Dedicated (App Service) plan
+      to avoid cold starts, enable VNet integration, and provide predictable performance.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_service_plan"
+    assertions:
+      - attribute: "sku_name"
+        op: "not_in"
+        values: ["Y1"]
+        message: "Production Function Apps should not use Y1 (Consumption) plan due to cold starts and unpredictable performance."
+    on_fail: "advisory"
+    remediation: >
+      For production latency-sensitive functions, use EP1/EP2/EP3 (Premium) or P1v3/P2v3 (Dedicated).
+      Consumption plan (Y1) is acceptable for truly event-driven, non-latency-critical workloads.
+    example:
+      compliant: |
+        resource "azurerm_service_plan" "functions" {
+          name                = "plan-payment-functions"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          os_type             = "Linux"
+          sku_name            = "EP1"  # Premium plan – consistent performance, no cold starts
+        }
+      non_compliant: |
+        resource "azurerm_service_plan" "functions" {
+          name     = "plan-payment-functions"
+          os_type  = "Linux"
+          sku_name = "Y1"  # Consumption – cold starts for production latency SLO – advisory
+        }
+
+  - id: "waf-perf-080.tf.google.cloud-run-min-instances"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Cloud Run services with latency SLOs must set min-instances > 0"
+    description: >
+      GCP Cloud Run services that have latency SLOs must configure minimum instances > 0
+      to eliminate cold starts. Services scaling to zero will experience cold start latency
+      that may violate P99 SLO targets.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloud_run_service"
+        - "google_cloud_run_v2_service"
+    assertions:
+      - attribute: "template.metadata.annotations[\"autoscaling.knative.dev/minScale\"]"
+        op: "not_empty"
+        message: "Cloud Run service should set minimum instance annotation to prevent cold starts."
+    on_fail: "advisory"
+    remediation: >
+      Set the autoscaling.knative.dev/minScale annotation to >= 1 for latency-sensitive services.
+      For cost optimization, consider min=1 during business hours and scheduled scaling to 0 overnight.
+    example:
+      compliant: |
+        resource "google_cloud_run_v2_service" "app" {
+          name     = "payment-api"
+          location = "europe-west3"
+          template {
+            scaling {
+              min_instance_count = 1
+              max_instance_count = 50
+            }
+            containers {
+              image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
+              resources {
+                limits = {
+                  cpu    = "2"
+                  memory = "512Mi"
+                }
+              }
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_cloud_run_v2_service" "app" {
+          name     = "payment-api"
+          location = "europe-west3"
+          template {
+            # No scaling config – scales to zero, cold starts – WAF-PERF-080 advisory
+            containers {
+              image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
+            }
+          }
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-080"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-autoscaling.adoc"
+  related_controls:
+    - "WAF-PERF-010"
+    - "WAF-PERF-020"
+    - "WAF-PERF-050"

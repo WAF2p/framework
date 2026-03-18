@@ -1,0 +1,171 @@
+= WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline
+:page-toc: right
+:control-id: WAF-PERF-060
+:pillar: performance
+:severity: medium
+:category: load-testing
+:automated: medium
+:description: WAF++ Performance Efficiency – Lasttests automatisch in die CI/CD-Pipeline integrieren und als Deployment-Gate betreiben.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Load Testing | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle produktionskritischen Services MÜSSEN Lasttests mit definierten Akzeptanzkriterien
+als Bestandteil der CI/CD-Pipeline haben. Deployment in Produktion MUSS durch bestandenen
+Lasttest freigegeben werden. Performance-Regressionen (> 10% P99-Verschlechterung gegenüber Baseline)
+MÜSSEN automatisch erkannt und als Deployment-Blocker behandelt werden.
+Stresstests MÜSSEN mindestens quartalsweise durchgeführt werden, um Kapazitätsgrenzen zu ermitteln.
+
+== Rationale
+
+Performance-Probleme, die in der Produktion entdeckt werden, sind 10–100x teurer als in der
+Vorproduktionsphase. Jedes Deployment ohne Lasttest ist ein Experiment mit Nutzern als Probanden.
+Auto-Scaling, Connection Pools, Datenbankabfrage-Pläne und Caching-Konfigurationen müssen
+alle unter realistischer gleichzeitiger Last validiert werden.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Performance-Regression in Produktion*
+|Neues Feature verursacht 30% P99-Anstieg → entdeckt erst nach Nutzerbeschweren.
+
+|*Auto-Scaling-Versagen*
+|Scaling-Konfiguration greift zu spät oder gar nicht → entdeckt erst beim echten Traffic-Peak.
+
+|*Connection-Pool-Erschöpfung*
+|Concurrent-Load sättigt Connection Pool → entdeckt erst bei Production-Incident.
+
+|*Unbekannte Kapazitätsgrenzen*
+|Kein Stresstest → niemand weiß, bei welcher Last der Service versagt.
+
+|===
+
+== Anforderung
+
+* Lasttests MÜSSEN automatisch als Deployment-Gate in der CI/CD-Pipeline ausgeführt werden
+* Akzeptanzkriterien MÜSSEN vor dem Test definiert sein: P95 < [SLO-Ziel], Fehlerrate < 0.1%
+* Performance-Regressionen (> 10% P99-Anstieg gegenüber Baseline) MÜSSEN Deployment blockieren
+* Stresstests MÜSSEN quartalsweise für alle kritischen Services durchgeführt werden
+
+== Implementierungsanleitung
+
+. *Lasttest-Framework wählen*: k6 (developer-friendly, JavaScript), Gatling (Scala, hoher Throughput), Locust (Python)
+. *Test-Szenarien definieren*: Haupt-User-Journeys testen, nicht nur einzelne Endpoints
+. *Akzeptanzkriterien definieren*: P95/P99 < SLO-Ziel, Error-Rate < 0.1%, Target-TPS erreicht
+. *CI/CD-Integration*: Lasttest-Stage nach Build/Unit-Tests, vor Produktion-Deployment
+. *Baseline-Management*: Testergebnisse als Artefakte speichern; Baseline nach jedem erfolgreichen Test aktualisieren
+. *Regression-Check*: Automatischer Vergleich gegen Baseline; > 10% P99-Anstieg = Deployment-Stopp
+. *Stresstest-Kalender*: Quartalsweise manuelle Stresstests mit 2x/5x Peak-Last
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Lasttests
+|Performance unter Last völlig unbekannt; Probleme werden in Produktion entdeckt.
+
+|*2*
+|Manuelle Lasttests
+|Vor großen Releases manuell ausgeführt; keine CI-Integration; keine Akzeptanzkriterien.
+
+|*3*
+|Automatisch im CI/CD-Gate
+|Automatisch nach Build; Akzeptanzkriterien enforced; Deployment blockiert bei Failure.
+
+|*4*
+|Regression-Detection
+|Baseline-Vergleich automatisch; > 10% P99-Anstieg = Block; quartalsweise Stresstests.
+
+|*5*
+|Continuous Performance Testing
+|Permanente Last auf Staging; Chaos Engineering integriert; ML-Anomalie-Detection.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-060.tf.aws.codepipeline-performance-stage
+*Prüft:* AWS CodePipeline sollte eine Performance-Test-Stage vor dem Produktions-Deployment haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_codepipeline" "app" {
+  name = "pipeline-payment-api"
+  stage { name = "Source" }
+  stage { name = "Build" }
+  stage {
+    name = "PerformanceTest"
+    action {
+      name     = "LoadTest"
+      category = "Build"
+      provider = "CodeBuild"
+      configuration = {
+        ProjectName = aws_codebuild_project.load_test.name
+      }
+    }
+  }
+  stage { name = "Deploy" }
+}
+----
+a|[source,hcl]
+----
+resource "aws_codepipeline" "app" {
+  name = "pipeline-payment-api"
+  stage { name = "Source" }
+  stage { name = "Build" }
+  stage { name = "Deploy" }
+  # Kein Performance-Test-Stage
+  # WAF-PERF-060 Violation
+}
+----
+|===
+
+*Remediation:* Performance-Test-Stage zwischen Build und Prod-Deployment hinzufügen.
+CodeBuild-Projekt für k6/Gatling-Ausführung konfigurieren.
+Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC / Code*
+|✅ Pflicht
+|Lasttest-Skripte mit Akzeptanzkriterien in Versionskontrolle.
+
+|*Process*
+|✅ Pflicht
+|CI/CD-Pipeline-Konfiguration mit Lasttest als Deployment-Gate.
+
+|*Config*
+|Optional
+|Historische Lasttest-Ergebnisse als Regression-Baseline.
+
+|*Governance*
+|Optional
+|Performance-Test-Strategie-Dokument mit Szenarien und Kadenz.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
+
+== Best Practice
+
+* xref:../best-practices/bp-load-testing.adoc[Lasttests & Stresstests →]

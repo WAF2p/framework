@@ -1,0 +1,124 @@
+= Performance Efficiency – Definition
+:page-toc: right
+:description: WAF++ – Definition und Zielbild der Performance-Efficiency-Säule.
+
+== Was ist Performance Efficiency?
+
+*Performance Efficiency* bezeichnet den Zustand, in dem eine Organisation *nachweisbare, technisch
+rationale Kontrolle* über alle relevanten Leistungsdimensionen ihrer Cloud- und IT-Infrastruktur besitzt:
+
+[source,text]
+----
+Performance Efficiency = Kontrolle über:
+  ├── Compute-Sizing        (richtige Ressourcentypen, gemessene Baseline)
+  ├── Auto-Scaling          (getestete Elastizität, validierte Skalierungspfade)
+  ├── Caching               (definierte Strategie, gemessene Hit-Raten)
+  ├── Datenbank-Performance (Index-Strategie, Slow-Query-Monitoring)
+  ├── SLO-Governance        (definierte SLOs, instrumentierte SLIs, Error Budgets)
+  ├── Lasttest-Pflicht      (CI/CD-integrierte Lasttests mit Akzeptanzkriterien)
+  ├── Netzwerktopologie     (latenzoptimiertes Routing, CDN, VPC Endpoints)
+  ├── Serverless-Optimierung (Function-Profiling, Cold-Start-Mitigation)
+  ├── Storage-I/O           (korrekter Storage-Typ, IOPS-Konfiguration, Monitoring)
+  └── Performance-Schuld    (Register, Priorisierung, Quarterly Review)
+----
+
+Performance Efficiency ist *nicht* gleichzusetzen mit:
+
+* Maximaler Geschwindigkeit um jeden Preis (Kosten, Sicherheit und Betreibbarkeit sind keine Handelsware)
+* Einmaligem Performance-Tuning ohne kontinuierlichen Review-Zyklus
+* Reinen Infrastruktur-Optimierungen ohne Messgrundlage und SLO-Definition
+* Einer Aufgabe des Plattform-Teams – ohne Engineering-Ownership in jedem Produkt-Team
+
+== Das Performance-Spektrum
+
+Performance Efficiency ist kein Binärzustand. Sie existiert auf einem Spektrum:
+
+[cols="1,3,2"]
+|===
+|Stufe |Beschreibung |Typisches Szenario
+
+|*Reaktiv*
+|Performance-Probleme werden erst nach User-Beschwerden oder Incidents bekannt.
+Keine Baselines, keine SLOs, keine Lasttests. Ressourcen sind überprovisioniert aus Angst.
+|Startups ohne SRE-Kultur, Legacy-Systeme ohne instrumentierten Monitoring-Stack.
+
+|*Proaktiv*
+|Metriken werden gesammelt, informelle Targets existieren.
+Lasttests werden manuell vor großen Releases durchgeführt.
+Caching ist implementiert, aber nicht systematisch gemessen.
+|Organisationen mit grundlegendem APM-Stack, aber ohne formale SLO-Definition.
+
+|*Prädiktiv*
+|SLOs sind definiert und instrumentiert. Error Budgets werden verwaltet.
+Lasttests laufen automatisch in der Pipeline.
+Performance-Schuld ist dokumentiert und priorisiert.
+|Organisationen mit SRE-Praxis, Architecture Board und etabliertem Review-Zyklus.
+
+|*Selbst-optimierend*
+|Performance ist ein strategischer Architekturparameter. Kapazitätsmodelle erlauben
+Forecasting. Auto-Scaling ist vollständig automatisiert und kontinuierlich validiert.
+Performance-Schuld-Abbau ist im Backlog priorisiert.
+|Organisationen mit Performance als erstem Architekturfilter, vollintegrierter SRE-Kultur.
+
+|===
+
+== Abgrenzung: Was Performance Efficiency nicht löst
+
+[cols="1,3"]
+|===
+|Was |Warum nicht in Scope
+
+|*Funktionale Korrektheit von Code*
+|Algorithmus-Optimierungen sind Softwareentwicklung. WAF++ adressiert die Infrastruktur-
+und Architektur-Ebene der Performance, nicht Code-level-Optimierungen.
+
+|*Business-Case für Performance-Investitionen*
+|ROI-Bewertung von Performance-Projekten liegt bei Product Management.
+Performance Efficiency stellt die Datenbasis bereit (SLO-Verletzungen, Error Budgets),
+trifft aber keine Business-Entscheidungen.
+
+|*Vollständige Ausfallsicherheit*
+|Fehlertoleranz, Backup und Recovery sind in der Reliability-Säule.
+Performance Efficiency adressiert Latenz und Throughput unter Normalbetrieb.
+
+|*Sicherheits-Trade-offs*
+|TLS-Overhead, Verschlüsselungslatenz – diese Trade-offs werden in der Security-Säule
+entschieden. Performance Efficiency akzeptiert sie als Rahmenbedingungen.
+
+|===
+
+== Performance Efficiency im WAF++-Kontext
+
+Im WAF++ ist Performance Efficiency eine eigenständige Säule, die mit anderen Säulen interagiert:
+
+----
+Security ──────────────── liefert: Verschlüsselungsanforderungen (TLS-Overhead), AuthN-Latenz
+Reliability ────────────── liefert: Health-Check-Konfigurationen, Failover-Timing
+Operations ─────────────── liefert: Monitoring-Daten, Incident-Historie, Alerting-Grundlagen
+Architecture ───────────── liefert: ADRs, Design-Entscheidungen (Performance-Schuld-Entstehungsort)
+Cost Optimization ──────── liefert: Rightsizing-Daten, Ressourcenauslastung
+Performance Efficiency ──── integriert: SLOs, Lasttest-Governance, Scaling, Caching-Strategie
+----
+
+Performance Efficiency *konsumiert* Daten anderer Säulen (Monitoring aus Operations,
+ADRs aus Architecture, Ressourcenauslastung aus Cost) und *erweitert* sie um SLO-Messung,
+Optimierungszyklen und Lasttestpflichten.
+
+NOTE: Die Performance-Schuld ist das Verbindungsstück zwischen Performance Efficiency und Architecture:
+Sie entsteht in Architekturentscheidungen und wird in der Performance-Säule verwaltet.
+Siehe xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register].
+
+== Zielbild
+
+Eine performance-reife Plattform zeichnet sich aus durch:
+
+* Alle produktionskritischen Services haben dokumentierte SLOs mit P95/P99-Latenzzielen
+* Kein Performance-Regression gelangt ohne Lasttest-Validation in die Produktion
+* Auto-Scaling ist für alle zustandslosen Workloads konfiguriert und unter Last validiert
+* Datenbankabfragen sind durch Slow-Query-Analyse und Index-Reviews kontinuierlich optimiert
+* Caching-Hit-Raten >= 80% für Applikations-Caches, >= 95% für CDN-Static-Content
+* Bekannte Performance-Einschränkungen sind im Register erfasst mit Owner und Remediation-Plan
+* Performance-Reviews finden quartalsweise mit Engineering-Leadership statt
+
+NOTE: Das Zielbild ist reifegradabhängig. Beginne mit dem Kritischsten: SLO-Definition und Monitoring (WAF-PERF-050).
+Ohne Messung ist jede Optimierung blindes Raten.

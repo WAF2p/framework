@@ -1,0 +1,162 @@
+= WAF-PERF-080 – Serverless & Managed Services for Variable Load
+:page-toc: right
+:control-id: WAF-PERF-080
+:pillar: performance
+:severity: low
+:category: compute-architecture
+:automated: medium
+:description: WAF++ Performance Efficiency – Serverlose Architekturen für variable Last einsetzen und korrekt konfigurieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Low | *Kategorie:* Compute Architecture | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Workloads mit stark variablem, unvorhersehbarem Traffic SOLLEN auf Serverless-Eignung evaluiert werden.
+Serverlose Funktionen (Lambda, Cloud Functions, Azure Functions) MÜSSEN mit explizit konfiguriertem
+Memory, Timeout und Concurrency deployed werden. Cold-Start-Latenz MUSS für latenz-sensitive
+Funktionen durch Provisioned Concurrency oder Min-Instances-Konfiguration mitigiert werden.
+Lambda-Memory MUSS durch Profiling optimiert werden, nicht durch Standardwerte.
+
+== Rationale
+
+Serverlose Architekturen eliminieren idle-Kapazitätskosten und skalieren instantan auf Demand.
+Für Spike-Workloads kann Serverless 10–100x kostengünstiger sein als Auto-Scaled EC2.
+Aber: Standard-Lambda mit 128MB Memory ist für die meisten produktiven Workloads suboptimal –
+CPU skaliert proportional zur Memory-Konfiguration, mehr Memory kann sogar günstiger sein durch
+schnellere Ausführung. Falsch konfigurierter Serverless-Code hat unvorhersehbare Performance.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Cold-Start-Latenz*
+|Erste Anfrage nach Idle-Phase ist 1–10x langsamer → SLO-Verletzung für erste Nutzer.
+
+|*Unter-Memory = langsamere Ausführung*
+|Lambda CPU ist proportional zu Memory; 256MB = 2x CPU-Credits vs 128MB.
+
+|*Unkontrollierte Concurrency*
+|Keine Reserved Concurrency → eine Funktion verbraucht alle Account-Concurrency-Credits.
+
+|*Timeout-Misconfiguration*
+|Default 3s-Timeout zu kurz → Silent Failures; 15min-Timeout zu lang → Zombie-Executions.
+
+|===
+
+== Anforderung
+
+* Variable-Load-Workloads SOLLEN auf Serverless-Eignung evaluiert werden (dokumentierte Entscheidung)
+* Lambda-Memory MUSS explizit konfiguriert sein (nicht Default 128MB)
+* Lambda-Timeout MUSS explizit auf 2x P99-Ausführungszeit gesetzt werden
+* Reserved Concurrency MUSS konfiguriert sein um Kontrollverlust über Account-Concurrency zu verhindern
+* Cold-Start-Mitigation MUSS für latenz-sensitive Funktionen evaluiert und implementiert werden
+
+== Implementierungsanleitung
+
+. *Workload-Eignung evaluieren*: Variable Last? Async-tolerant? Zustandslos? → Serverless-Kandidat
+. *Lambda Power Tuning ausführen*: `aws-lambda-power-tuning` für optimale Memory-Konfiguration
+. *Timeout messen*: P99 der Ausführungszeit messen; Timeout = 2x P99 setzen
+. *Reserved Concurrency konfigurieren*: Pro Service maximal X% der Account-Concurrency zuteilen
+. *Cold-Start-Analyse*: Latenz-SLO prüfen; bei P99-SLO < 500ms: Provisioned Concurrency evaluieren
+. *CloudWatch-Alarme*: Duration-P99, Throttles, ConcurrentExecutions überwachen
+. *Cloud Run Min-Instances*: Für GCP: min_instance_count >= 1 für latenz-sensitive Services
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Default-Konfiguration
+|128MB Memory; Default-Timeout; keine Reserved Concurrency; keine Cold-Start-Analyse.
+
+|*2*
+|Manuell angepasst
+|Memory angepasst (nicht gemessen); Timeout gesetzt; Cold Starts bekannt aber nicht mitigiert.
+
+|*3*
+|Optimiert durch Profiling
+|Lambda Power Tuning durchgeführt; Timeout = 2x P99; Reserved Concurrency konfiguriert.
+
+|*4*
+|Erweiterte Optimierung
+|Provisioned Concurrency für latenz-kritische Funktionen; Cost-per-Invocation optimiert.
+
+|*5*
+|Vollständig managed
+|Autonomes Cost-Performance-Balancing; Edge Functions für ultra-low Latency.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-080.tf.aws.lambda-memory-timeout-configured
+*Prüft:* Lambda-Funktionen müssen explizites Memory >= 256MB, Timeout und Reserved Concurrency haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_lambda_function" "processor" {
+  function_name = "payment-processor"
+  runtime       = "python3.12"
+  memory_size   = 512    # Aus Power Tuning
+  timeout       = 30     # 2x P99 = 15s
+  reserved_concurrent_executions = 100
+}
+----
+a|[source,hcl]
+----
+resource "aws_lambda_function" "processor" {
+  function_name = "payment-processor"
+  runtime       = "python3.12"
+  # memory_size default 128MB
+  # timeout default 3s
+  # Keine reserved_concurrent_executions
+  # WAF-PERF-080 Violation
+}
+----
+|===
+
+*Remediation:* `memory_size >= 256`, `timeout = 2x_p99`, `reserved_concurrent_executions` setzen.
+Lambda Power Tuning ausführen: https://github.com/alexcasalboni/aws-lambda-power-tuning
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Lambda-/Function-Konfiguration mit explizitem Memory, Timeout, Concurrency.
+
+|*Governance*
+|✅ Pflicht
+|Dokumentation der Serverless-Adoption-Entscheidung für variable Workloads.
+
+|*Config*
+|Optional
+|Lambda Power Tuning-Ergebnisse oder Memory-Optimierungsanalyse.
+
+|*Process*
+|Optional
+|Kostenvergleich Serverless vs. EC2/Container für Spike-Workloads.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
+* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+
+== Best Practice
+
+* xref:../best-practices/bp-autoscaling.adoc[Auto-Scaling & Serverless →]

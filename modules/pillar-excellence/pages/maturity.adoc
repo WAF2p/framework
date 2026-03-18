@@ -1,0 +1,246 @@
+= Reifegrad-Modell: Operational Excellence
+:page-toc: right
+:description: 5-stufiges Reifegrad-Modell für Operational Excellence – von reaktiv-heroisch bis kontinuierlich verbessernd, mit per-Control-Tabelle und Selbstbewertungs-Checklisten.
+
+== Das 5-stufige OpsEx-Reifegrad-Modell
+
+[cols="1,2,4"]
+|===
+|Level |Bezeichnung |Charakteristika
+
+|*1*
+|*Reaktiv & Heroisch*
+|Deployments manuell. Keine IaC. Logging unstrukturiert. Alerts auf CPU/RAM.
+Incidents werden durch Helden gelöst. Kein systematisches Lernen.
+MTTR: Stunden bis Tage. Deployment Frequency: Wöchentlich bis monatlich.
+
+|*2*
+|*Dokumentiert*
+|Basis-CI/CD vorhanden. Teile der Infrastruktur als IaC.
+Runbooks für die schlimmsten Szenarien. Informelle Incident-Reviews.
+MTTR: 1–4 Stunden. Deployment Frequency: Täglich bis wöchentlich.
+
+|*3*
+|*Automatisiert*
+|Vollständige CI/CD-Pipeline. Alle Infrastruktur als IaC. Structured Logging.
+Symptom-basiertes Alerting mit Runbooks. Blameless Postmortems.
+MTTR: 30–60 Minuten. Deployment Frequency: Täglich.
+
+|*4*
+|*Gemessen*
+|DORA-Metriken werden gemessen und verbessert. SLO-basiertes Alerting.
+Drift-Erkennung automatisiert. Feature Flags in Verwendung.
+Operational Debt Register gepflegt.
+MTTR: < 30 Minuten. Deployment Frequency: Mehrfach täglich.
+
+|*5*
+|*Kontinuierlich verbessert*
+|Deployment hundertfach täglich möglich. Change Failure Rate < 5%.
+Toil < 20% Ingenieurzeit. Volle Observability-Korrelation.
+Automatisierte Drift-Remediation. Lernen aus Incidents präventiv.
+MTTR: < 1 Stunde. Deployment Frequency: On-Demand.
+
+|===
+
+== Per-Control Reifegrad-Tabelle
+
+[cols="3,1,1,1,1,1"]
+|===
+|Control |Level 1 |Level 2 |Level 3 |Level 4 |Level 5
+
+|xref:controls.adoc#WAF-OPS-010[WAF-OPS-010 – CI/CD Pipeline]
+|Keine Pipeline
+|Basis-CI
+|Vollständige CI/CD
+|Metriken & Canary
+|Continuous Deploy
+
+|xref:controls.adoc#WAF-OPS-020[WAF-OPS-020 – IaC]
+|Kein IaC
+|Inkonsistent
+|Vollständig enforced
+|Drift Detection
+|GitOps
+
+|xref:controls.adoc#WAF-OPS-030[WAF-OPS-030 – Observability]
+|Unstrukturiert
+|Zentralisiert
+|Alle 3 Säulen
+|SLO-basiert
+|OpenTelemetry
+
+|xref:controls.adoc#WAF-OPS-040[WAF-OPS-040 – Alerting]
+|Kein/Noise
+|Basis-Alerting
+|Symptom-basiert
+|Burn Rate Alerts
+|Auto-Optimierung
+
+|xref:controls.adoc#WAF-OPS-050[WAF-OPS-050 – Change Mgmt]
+|Keine Kontrolle
+|Basis-Review
+|Change-Prozess
+|Auto-Risikobewertung
+|Continuous Deploy
+
+|xref:controls.adoc#WAF-OPS-060[WAF-OPS-060 – Runbooks]
+|Keine Runbooks
+|Basis-Runbooks
+|Alle verlinkt
+|Metriken & Coverage
+|Self-Service
+
+|xref:controls.adoc#WAF-OPS-070[WAF-OPS-070 – Postmortems]
+|Kein Prozess
+|Informell
+|Strukturiert
+|Systemische Analyse
+|Org. Lernen
+
+|xref:controls.adoc#WAF-OPS-080[WAF-OPS-080 – Safe Deploy]
+|Big-Bang
+|Basis-Sicherheit
+|Progressive Delivery
+|Auto-Rollback
+|Experiment-Plattform
+
+|xref:controls.adoc#WAF-OPS-090[WAF-OPS-090 – Drift]
+|Keine Erkennung
+|Ad-hoc
+|Auto-Erkennung
+|SLA-Enforcement
+|Auto-Remediation
+
+|xref:controls.adoc#WAF-OPS-100[WAF-OPS-100 – Ops Debt]
+|Kein Tracking
+|Informell
+|Register geführt
+|Debt-Programm
+|Continuous Improvement
+
+|===
+
+== Selbstbewertungs-Checkliste Level 2
+
+Folgende Fragen helfen zu bestimmen, ob Level 2 erreicht ist:
+
+=== CI/CD & Deployments
+* [ ] Gibt es eine CI-Pipeline, die Tests bei Pull Requests ausführt?
+* [ ] Sind Deployment-Scripts versioniert und dokumentiert?
+* [ ] Werden Deployments nach Staging und Production getrennt behandelt?
+
+=== Infrastruktur
+* [ ] Sind die wichtigsten Produktions-Ressourcen als IaC definiert?
+* [ ] Gibt es ein Remote-State-Backend (nicht lokaler State)?
+* [ ] Werden IaC-Änderungen per Pull Request reviewed?
+
+=== Observability
+* [ ] Werden Logs zentral aggregiert (CloudWatch, Azure Monitor, Elasticsearch)?
+* [ ] Gibt es Basis-Dashboards mit CPU, Memory, Request-Counts?
+* [ ] Werden kritische Fehler per E-Mail oder Slack benachrichtigt?
+
+=== Runbooks & Dokumentation
+* [ ] Gibt es Runbooks für die 3 häufigsten Incident-Typen?
+* [ ] Gibt es ein Deployment-Runbook mit Rollback-Prozedur?
+* [ ] Sind On-Call-Eskalationspfade dokumentiert?
+
+== Selbstbewertungs-Checkliste Level 3
+
+=== CI/CD & Deployments
+* [ ] Sind ALLE Produktions-Deployments automatisiert (kein manueller Pfad)?
+* [ ] Sind Branch-Protection und Approval-Requirements konfiguriert?
+* [ ] Gibt es Approval-Gates vor Production-Deployments?
+* [ ] Sind Pipeline-Definitionen in Version-Control (YAML, HCL)?
+
+=== Infrastruktur
+* [ ] Ist 100% der Produktions-Infrastruktur als IaC definiert?
+* [ ] Sind manuelle Console-Änderungen durch IAM/SCP eingeschränkt?
+* [ ] Gibt es automatisierte Drift-Erkennung (mindestens täglich)?
+
+=== Observability
+* [ ] Emittieren alle Services strukturierte JSON-Logs mit Trace-ID?
+* [ ] Ist Distributed Tracing konfiguriert und instrumentiert?
+* [ ] Sind RED-Metriken (Rate, Errors, Duration) für alle Services exportiert?
+* [ ] Sind Alerts symptom-basiert (Fehlerrate, Latenz, Verfügbarkeit)?
+
+=== Runbooks & Change Management
+* [ ] Sind alle paging Alerts mit Runbooks verknüpft?
+* [ ] Ist ein Change-Management-Prozess mit Risikobewertung definiert?
+* [ ] Gibt es Deployment-Freeze-Policies für kritische Perioden?
+
+=== Postmortems
+* [ ] Gibt es einen definierten Postmortem-Prozess für SEV-1 Incidents?
+* [ ] Sind mindestens 3 Postmortems aus den letzten 6 Monaten dokumentiert?
+* [ ] Werden Action Items aus Postmortems verfolgt?
+
+== Selbstbewertungs-Checkliste Level 4
+
+=== DORA-Metriken
+* [ ] Wird Deployment Frequency gemessen und reported?
+* [ ] Wird Lead Time for Changes (Commit bis Produktion) gemessen?
+* [ ] Wird MTTR (Mean Time to Restore) pro Incident erfasst?
+* [ ] Wird Change Failure Rate (Deployments mit Rollback/Incident) erfasst?
+* [ ] Werden DORA-Trends quartalsweise reviewed?
+
+=== Progressive Delivery
+* [ ] Werden Canary- oder Blue/Green-Deployments für alle Services verwendet?
+* [ ] Ist automatisches Rollback bei Fehler-Rate-Anstieg konfiguriert?
+* [ ] Werden Feature Flags für neue Features eingesetzt?
+
+=== Operational Debt
+* [ ] Ist ein Operational Debt Register version-controlled und aktuell?
+* [ ] Findet eine quartalsweise Debt-Review statt?
+* [ ] Ist Sprint-Kapazität für Debt-Abbau explizit zugewiesen (mindestens 10%)?
+
+== Empfohlener Einstiegspfad (Priorisierte Maßnahmentabelle)
+
+[cols="1,2,3,1"]
+|===
+|Priorität |Maßnahme |Warum zuerst |Control
+
+|*1*
+|CI/CD-Pipeline für alle Produktions-Workloads aufbauen
+|Blockiert alle anderen OpsEx-Verbesserungen; ohne Pipeline kein Automatisierungsweg
+|WAF-OPS-010
+
+|*2*
+|Structured Logging + Log-Aggregation aktivieren
+|Ohne Logs ist jede Incident-Diagnose ein Ratespiel; schnell umsetzbar
+|WAF-OPS-030
+
+|*3*
+|Symptom-basierte Alerts + Runbooks für Top-5 Incidents
+|Reduziert MTTR sofort; verhindert Alert-Fatigue
+|WAF-OPS-040, WAF-OPS-060
+
+|*4*
+|IaC für alle Produktions-Ressourcen
+|Ermöglicht Drift-Erkennung, reproduzierbare Environments, sichere Änderungen
+|WAF-OPS-020
+
+|*5*
+|Postmortem-Prozess einführen
+|Unterbricht Repeat-Incident-Zyklen; kultureller Wandel beginnt hier
+|WAF-OPS-070
+
+|*6*
+|Operational Debt Register befüllen
+|Macht akkumulierenden Debt sichtbar; Grundlage für Priorisierung
+|WAF-OPS-100
+
+|*7*
+|Change Management formalisieren
+|Reduziert Change-Failure-Rate; Grundlage für Deployment-Freeze und Risikobewertung
+|WAF-OPS-050
+
+|*8*
+|Progressive Delivery (Canary/Feature Flags)
+|Reduziert Blast Radius; ermöglicht sicheres Deployment ohne Angst
+|WAF-OPS-080
+
+|*9*
+|Drift-Erkennung automatisieren
+|Schließt die Lücke zwischen IaC und tatsächlicher Infrastruktur
+|WAF-OPS-090
+
+|===

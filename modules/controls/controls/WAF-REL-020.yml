@@ -1,0 +1,265 @@
+id: WAF-REL-020
+title: "Health Checks & Readiness Probes Configured"
+pillar: "reliability"
+status: "active"
+severity: "high"
+category: "health-monitoring"
+type: ['configuration', 'automation']
+tags: ['health-check', 'readiness-probe', 'liveness-probe', 'kubernetes', 'load-balancer', 'monitoring']
+
+description: >
+  All production services MUST expose health check endpoints and configure readiness
+  and liveness probes. Load balancers and orchestrators MUST use health checks to route
+  traffic only to healthy instances. Kubernetes workloads MUST define readinessProbe
+  and livenessProbe. AWS load balancers MUST have health check paths configured.
+  Health check intervals, thresholds, and timeout values MUST be explicitly defined –
+  no reliance on cloud provider defaults.
+
+rationale: >
+  Without health checks, failed or degraded instances continue receiving traffic,
+  causing cascading errors visible to end users. Readiness probes prevent premature
+  traffic routing during startup or dependency failures. Liveness probes detect
+  deadlocks and infinite loops that metrics cannot observe. Health checks are the
+  prerequisite for zero-downtime deployments, auto-scaling, and self-healing infrastructure.
+
+threat:
+  - "Unhealthy instances receiving traffic due to missing health check configuration"
+  - "Deployment failures causing partial rollouts with mixed healthy/unhealthy pods"
+  - "Deadlocked processes not detected without liveness probes"
+  - "Slow startups causing premature traffic routing and error spikes"
+  - "Load balancer routing to drained or stopped instances without health check validation"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.2 – Redundancies"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 6 – Monitor workload resources"
+      - "REL 12 – Test reliability"
+  - framework: "ITIL 4"
+    controls:
+      - "Availability Management"
+      - "Event Management"
+  - framework: "CNCF Cloud Native Security"
+    controls:
+      - "Runtime Security – Health and Readiness"
+
+implementation_guidance:
+  - "Expose /health/live and /health/ready endpoints on all services."
+  - "Configure livenessProbe to restart deadlocked or hung processes."
+  - "Configure readinessProbe to delay traffic until the service is fully initialized."
+  - "Set initialDelaySeconds based on measured startup time (not guessing)."
+  - "Use HTTP probes for HTTP services; TCP probes for databases and brokers."
+  - "Configure AWS ALB health checks with explicit path, interval, timeout, and threshold."
+  - "Test health check failure scenarios during load testing."
+  - "Do not rely on cloud provider default health check settings."
+
+maturity_levels:
+  level_1:
+    description: "No health checks configured"
+    criteria:
+      - "Services deployed without health check endpoints"
+      - "Load balancers use default settings or no health checks"
+  level_2:
+    description: "Basic health checks on load balancers"
+    criteria:
+      - "ALB/NLB health checks configured with non-default paths"
+      - "Kubernetes deployments use default probes or none"
+  level_3:
+    description: "Full readiness and liveness probes configured"
+    criteria:
+      - "All Kubernetes workloads define readinessProbe and livenessProbe"
+      - "Health check intervals, thresholds, and timeouts explicitly defined"
+      - "Health check endpoints test real dependencies (DB, cache)"
+  level_4:
+    description: "Startup probes and deep health checks"
+    criteria:
+      - "startupProbe configured for slow-starting workloads"
+      - "Deep health checks validate dependency connectivity"
+      - "Health check failures trigger automated remediation"
+  level_5:
+    description: "Adaptive health checks with synthetic monitoring"
+    criteria:
+      - "Synthetic monitoring continuously validates health check endpoints externally"
+      - "Health check response times tracked as SLO indicators"
+      - "Canary health check patterns implemented for progressive delivery"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform or Kubernetes manifests showing readinessProbe and livenessProbe configurations."
+    - kind: "config"
+      description: "Load balancer health check configuration (ALB, Azure LB, GCP LB) with explicit path and thresholds."
+  optional:
+    - kind: "process"
+      description: "Test results showing health check failure scenarios exercised in staging."
+    - kind: "config"
+      description: "Monitoring dashboard showing health check pass/fail rates over time."
+
+checks:
+  - id: "waf-rel-020.tf.aws.alb-target-group-health-check"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS ALB target group must have explicit health check configuration"
+    description: >
+      AWS Application Load Balancer target groups must define an explicit health_check
+      block with a non-default path, interval, timeout, and healthy/unhealthy thresholds.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lb_target_group"
+    assertions:
+      - attribute: "health_check"
+        op: "attribute_exists"
+        message: "Target group must define a health_check block."
+      - attribute: "health_check.path"
+        op: "not_empty"
+        message: "Health check path must be explicitly defined (not default '/')."
+      - attribute: "health_check.interval"
+        op: "attribute_exists"
+        message: "Health check interval must be explicitly defined."
+      - attribute: "health_check.healthy_threshold"
+        op: "attribute_exists"
+        message: "Healthy threshold must be explicitly defined."
+    on_fail: "violation"
+    remediation: >
+      Add a health_check block to the aws_lb_target_group resource. Define path,
+      interval, timeout, healthy_threshold, and unhealthy_threshold explicitly.
+    example:
+      compliant: |
+        resource "aws_lb_target_group" "api" {
+          name     = "payment-api-tg"
+          port     = 8080
+          protocol = "HTTP"
+          vpc_id   = var.vpc_id
+
+          health_check {
+            enabled             = true
+            path                = "/health/ready"
+            interval            = 15
+            timeout             = 5
+            healthy_threshold   = 2
+            unhealthy_threshold = 3
+            matcher             = "200"
+          }
+        }
+      non_compliant: |
+        resource "aws_lb_target_group" "api" {
+          name     = "payment-api-tg"
+          port     = 8080
+          protocol = "HTTP"
+          vpc_id   = var.vpc_id
+          # Missing: health_check block – uses cloud defaults
+          # WAF-REL-020 violation
+        }
+
+  - id: "waf-rel-020.tf.azurerm.lb-probe"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Load Balancer must have a health probe configured"
+    description: >
+      Azure Load Balancer or Application Gateway backends must have explicit health
+      probes defined with non-default paths and intervals.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_lb_probe"
+        - "azurerm_application_gateway"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Health probe must have a name."
+      - attribute: "protocol"
+        op: "not_empty"
+        message: "Health probe protocol must be specified."
+      - attribute: "request_path"
+        op: "not_empty"
+        message: "Health probe request path must be explicitly configured."
+    on_fail: "violation"
+    remediation: >
+      Define an azurerm_lb_probe resource with protocol, port, request_path,
+      interval_in_seconds, and number_of_probes configured.
+    example:
+      compliant: |
+        resource "azurerm_lb_probe" "api_health" {
+          loadbalancer_id     = azurerm_lb.main.id
+          name                = "api-health-probe"
+          protocol            = "Http"
+          port                = 8080
+          request_path        = "/health/ready"
+          interval_in_seconds = 15
+          number_of_probes    = 2
+        }
+      non_compliant: |
+        resource "azurerm_lb_probe" "probe" {
+          loadbalancer_id = azurerm_lb.main.id
+          name            = "probe"
+          protocol        = "Tcp"
+          port            = 80
+          # Missing: request_path – TCP probe does not validate application health
+        }
+
+  - id: "waf-rel-020.tf.google.compute-health-check"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Compute health check must be configured for managed instance groups"
+    description: >
+      GCP managed instance groups and load balancers must use explicit health checks
+      with HTTP paths and defined thresholds.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_health_check"
+        - "google_compute_backend_service"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Health check must have a name."
+      - attribute: "http_health_check"
+        op: "attribute_exists"
+        message: "HTTP health check configuration must be defined."
+      - attribute: "check_interval_sec"
+        op: "attribute_exists"
+        message: "Health check interval must be explicitly defined."
+    on_fail: "violation"
+    remediation: >
+      Define a google_compute_health_check with http_health_check specifying the
+      request_path, check_interval_sec, timeout_sec, and thresholds.
+    example:
+      compliant: |
+        resource "google_compute_health_check" "api" {
+          name                = "payment-api-health"
+          check_interval_sec  = 15
+          timeout_sec         = 5
+          healthy_threshold   = 2
+          unhealthy_threshold = 3
+
+          http_health_check {
+            port         = 8080
+            request_path = "/health/ready"
+          }
+        }
+      non_compliant: |
+        resource "google_compute_health_check" "api" {
+          name = "health-check"
+          tcp_health_check {
+            port = 80
+          }
+          # Missing: http_health_check with request_path
+          # Missing: explicit thresholds and intervals
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-020"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-health-checks.adoc"
+  related_controls:
+    - "WAF-REL-010"
+    - "WAF-REL-030"
+    - "WAF-REL-050"

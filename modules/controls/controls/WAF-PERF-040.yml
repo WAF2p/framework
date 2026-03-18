@@ -1,0 +1,273 @@
+id: WAF-PERF-040
+title: "Database Performance Baseline & Index Strategy"
+pillar: "performance"
+status: "active"
+severity: "high"
+category: "database-performance"
+type: ['configuration', 'governance', 'automation']
+tags: ['database', 'indexing', 'query-performance', 'rds', 'aurora', 'performance-insights', 'slow-query']
+
+description: >
+  All relational and document databases used in production MUST have a documented performance
+  baseline including query execution times, I/O throughput, and connection pool utilization.
+  An index strategy MUST be defined and maintained for all tables with significant read/write
+  loads. Slow query logging MUST be enabled and reviewed regularly. Database performance
+  insights or equivalent monitoring MUST be active on all production database instances.
+  Missing indexes on frequently queried columns in high-traffic tables are treated as violations.
+
+rationale: >
+  Database performance bottlenecks are the most frequent root cause of application latency
+  degradation in cloud workloads. A single missing index on a high-traffic table can cause
+  full table scans, saturating I/O and CPU and resulting in cascading timeouts across the
+  application stack. Performance insights and slow query analysis are the only reliable
+  methods to identify and remediate these issues. Databases without performance baselines
+  cannot be right-sized, optimized, or effectively scaled.
+
+threat:
+  - "Full table scans on high-traffic queries causing I/O saturation and cascading timeouts"
+  - "Connection pool exhaustion due to slow queries blocking connections"
+  - "Query performance regression after schema changes without index review"
+  - "Inability to diagnose database bottlenecks due to missing slow query logs"
+  - "Over-indexing causing write amplification and storage overhead without read benefit"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Resource Utilization"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 4 – How do you select your database solution?"
+      - "PERF 6 – How do you use tradeoffs to improve performance?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Optimize database performance"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Performance optimization – Tune your database"
+
+implementation_guidance:
+  - "Enable Performance Insights (RDS), Query Performance Insight (Azure SQL), or Query Insights (Cloud SQL) on all production DBs."
+  - "Enable slow query logs with threshold 1 second (or 100ms for latency-sensitive workloads)."
+  - "Run EXPLAIN/EXPLAIN ANALYZE on the top 20 queries by total execution time monthly."
+  - "Document index strategy per table: which columns are indexed, why, and last review date."
+  - "Set max_connections to appropriate pool size; use connection pooling (PgBouncer/ProxySQL) for high-concurrency."
+  - "For Aurora/RDS: enable Enhanced Monitoring and Performance Schema."
+  - "Review and prune unused indexes quarterly; unused indexes waste write I/O and storage."
+
+maturity_levels:
+  level_1:
+    description: "No performance baseline; database tuned by intuition"
+    criteria:
+      - "No slow query logging enabled"
+      - "Index strategy undocumented; indexes added reactively after performance incidents"
+      - "No database performance monitoring beyond availability checks"
+  level_2:
+    description: "Slow query logging enabled; basic index review"
+    criteria:
+      - "Slow query logging enabled with a defined threshold"
+      - "Slow query logs reviewed ad-hoc after incidents"
+      - "Primary keys and some foreign key indexes exist"
+  level_3:
+    description: "Documented baseline with regular index review"
+    criteria:
+      - "Performance Insights or equivalent enabled on all production databases"
+      - "Slow query logs reviewed monthly; findings tracked"
+      - "Index strategy documented for high-traffic tables"
+      - "Query baselines documented (P50, P95, P99 execution times)"
+  level_4:
+    description: "Automated query analysis with proactive optimization"
+    criteria:
+      - "Automated slow query analysis with tickets created for violations"
+      - "Index recommendations from database insights reviewed and implemented"
+      - "Query performance regression tests in CI/CD pipeline"
+      - "Unused indexes pruned quarterly with documented rationale"
+  level_5:
+    description: "Continuous database performance optimization"
+    criteria:
+      - "Query performance SLOs defined and enforced in deployment gates"
+      - "Automated index advisor recommendations applied with rollback capability"
+      - "Database version upgrades tested against query performance baseline before promotion"
+      - "Capacity forecasting based on query growth trends"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Performance Insights or slow query log configuration showing monitoring is active on production databases."
+    - kind: "governance"
+      description: "Index strategy document or database schema documentation with index definitions and rationale."
+  optional:
+    - kind: "process"
+      description: "Monthly slow query review report with action items."
+    - kind: "config"
+      description: "Query performance baseline document (P50/P95/P99 for top queries)."
+
+checks:
+  - id: "waf-perf-040.tf.aws.rds-performance-insights"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS RDS instances must have Performance Insights enabled"
+    description: >
+      RDS and Aurora instances must have Performance Insights enabled to allow query-level
+      performance monitoring and diagnosis of slow queries and lock contention.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+        - "aws_rds_cluster_instance"
+    assertions:
+      - attribute: "performance_insights_enabled"
+        op: "is_true"
+        message: "RDS instance must have Performance Insights enabled."
+      - attribute: "enabled_cloudwatch_logs_exports"
+        op: "not_empty"
+        message: "RDS instance must export logs to CloudWatch (slowquery, error, general)."
+      - attribute: "monitoring_interval"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "Enhanced Monitoring must be enabled (monitoring_interval >= 1)."
+    on_fail: "violation"
+    remediation: >
+      Set performance_insights_enabled = true, monitoring_interval = 60 (or 1 for high-granularity).
+      Set enabled_cloudwatch_logs_exports = ["slowquery", "error"] for MySQL or ["postgresql"] for PostgreSQL.
+    example:
+      compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "db-payment-api"
+          engine                 = "postgres"
+          instance_class         = "db.t3.medium"
+          allocated_storage      = 100
+          performance_insights_enabled          = true
+          performance_insights_retention_period = 7
+          monitoring_interval                   = 60
+          monitoring_role_arn                   = aws_iam_role.rds_monitoring.arn
+          enabled_cloudwatch_logs_exports        = ["postgresql"]
+          deletion_protection    = true
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier    = "db-payment-api"
+          engine        = "postgres"
+          instance_class = "db.t3.medium"
+          # Performance Insights disabled – WAF-PERF-040 violation
+          # No CloudWatch log exports
+          # No Enhanced Monitoring
+        }
+
+  - id: "waf-perf-040.tf.azurerm.sql-query-insights"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure SQL Database must have auditing and threat detection enabled"
+    description: >
+      Azure SQL Database must have auditing enabled which captures query execution data,
+      and should have Query Performance Insight accessible via the portal.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_mssql_database"
+        - "azurerm_mssql_server"
+    assertions:
+      - attribute: "min_tls_version"
+        op: "equals"
+        value: "1.2"
+        message: "Azure SQL Server must enforce TLS 1.2."
+      - attribute: "public_network_access_enabled"
+        op: "is_false"
+        message: "Azure SQL Server must not be publicly accessible; use private endpoints."
+    on_fail: "violation"
+    remediation: >
+      Set min_tls_version = "1.2" and public_network_access_enabled = false.
+      Configure azurerm_mssql_server_extended_auditing_policy for query performance tracking.
+    example:
+      compliant: |
+        resource "azurerm_mssql_server" "main" {
+          name                         = "sql-payment-api"
+          resource_group_name          = azurerm_resource_group.main.name
+          location                     = azurerm_resource_group.main.location
+          version                      = "12.0"
+          administrator_login          = var.db_admin_user
+          administrator_login_password = var.db_admin_password
+          minimum_tls_version          = "1.2"
+          public_network_access_enabled = false
+        }
+        resource "azurerm_mssql_server_extended_auditing_policy" "main" {
+          server_id              = azurerm_mssql_server.main.id
+          storage_endpoint       = azurerm_storage_account.audit.primary_blob_endpoint
+          retention_in_days      = 90
+          log_monitoring_enabled = true
+        }
+      non_compliant: |
+        resource "azurerm_mssql_server" "main" {
+          name                          = "sql-payment-api"
+          minimum_tls_version           = "1.0"  # Old TLS – violation
+          public_network_access_enabled = true    # Publicly accessible – WAF-PERF-040 violation
+        }
+
+  - id: "waf-perf-040.tf.google.cloudsql-insights-enabled"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Cloud SQL must have Query Insights enabled"
+    description: >
+      GCP Cloud SQL instances must have Query Insights enabled to track query performance,
+      identify slow queries, and monitor database efficiency.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_sql_database_instance"
+    assertions:
+      - attribute: "settings.insights_config.query_insights_enabled"
+        op: "is_true"
+        message: "Cloud SQL Query Insights must be enabled."
+      - attribute: "settings.backup_configuration.enabled"
+        op: "is_true"
+        message: "Cloud SQL automated backups must be enabled."
+      - attribute: "deletion_protection"
+        op: "is_true"
+        message: "Cloud SQL deletion protection must be enabled."
+    on_fail: "violation"
+    remediation: >
+      Set insights_config { query_insights_enabled = true } in settings block.
+      Enable backup_configuration and deletion_protection = true.
+    example:
+      compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "db-payment-api"
+          database_version = "POSTGRES_15"
+          deletion_protection = true
+          settings {
+            tier = "db-custom-2-4096"
+            backup_configuration {
+              enabled    = true
+              start_time = "03:00"
+            }
+            insights_config {
+              query_insights_enabled  = true
+              query_string_length     = 1024
+              record_application_tags = true
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "db-payment-api"
+          database_version = "POSTGRES_15"
+          settings {
+            tier = "db-custom-2-4096"
+            # No insights_config – WAF-PERF-040 violation
+            # No backup_configuration
+          }
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-040"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-database-performance.adoc"
+  related_controls:
+    - "WAF-PERF-030"
+    - "WAF-PERF-050"
+    - "WAF-PERF-090"

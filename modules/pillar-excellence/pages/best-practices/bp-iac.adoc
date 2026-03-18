@@ -1,0 +1,229 @@
+= Best Practice: Infrastructure as Code konsequent umsetzen
+:page-toc: right
+:description: Terraform-Struktur, Remote-State, Modul-Bibliotheken, Drift-Erkennung und Brownfield-Migration – IaC vollständig und nachhaltig umsetzen.
+
+== Kontext
+
+Infrastructure as Code ist mehr als "Terraform schreiben". Es ist ein Disziplin-Paradigma:
+Infrastruktur existiert nur wenn sie in Version-Control ist, reviewed wurde und durch
+CI/CD deployt wurde. Ohne diese Disziplin akkumuliert Configuration Drift und
+das Team verliert die Kontrolle über seine Umgebung.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-020[WAF-OPS-020 – Infrastructure as Code Enforced]
+* xref:controls.adoc#WAF-OPS-090[WAF-OPS-090 – Configuration Drift Detection & Remediation]
+
+== Zielbild
+
+Vollständige IaC-Umsetzung bedeutet:
+
+* Alle Produktions-Ressourcen sind in Terraform (oder Pulumi/CDK) definiert
+* Remote-State mit Locking verhindert parallele State-Änderungen
+* Modul-Bibliothek ermöglicht Code-Wiederverwendung ohne Copy-Paste
+* Drift-Erkennung läuft täglich und alarmiert bei Abweichungen
+* Disaster Recovery ist aus IaC in < 2 Stunden reproduzierbar
+
+== Technische Umsetzung
+
+=== Schritt 1: Repository-Struktur
+
+[source,text]
+----
+infrastructure/
+├── modules/           # Wiederverwendbare Module
+│   ├── networking/    # VPC, Subnets, Security Groups
+│   ├── compute/       # ECS Cluster, Auto Scaling, EC2
+│   ├── database/      # RDS, ElastiCache
+│   ├── observability/ # CloudWatch, X-Ray, Dashboards
+│   └── mandatory-tags/# Pflicht-Tags (shared across teams)
+├── environments/
+│   ├── dev/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── backend.tf
+│   ├── staging/
+│   └── production/
+└── live/              # Atlantis/Terragrunt live configs (optional)
+----
+
+=== Schritt 2: Remote-State konfigurieren
+
+[source,hcl]
+----
+# infrastructure/environments/production/backend.tf
+terraform {
+  backend "s3" {
+    bucket         = "myorg-terraform-state-prod"
+    key            = "payment-service/production/terraform.tfstate"
+    region         = "eu-central-1"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+    kms_key_id     = "arn:aws:kms:eu-central-1:123456789:key/abc123"
+  }
+}
+
+# S3-Bucket und DynamoDB Lock-Table (einmalig als Bootstrap)
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "myorg-terraform-state-prod"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_dynamodb_table" "terraform_lock" {
+  name         = "terraform-state-lock"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+}
+----
+
+=== Schritt 3: Drift-Erkennung automatisieren
+
+[source,yaml]
+----
+# .github/workflows/drift-detection.yml
+name: Terraform Drift Detection
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Täglich um 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  drift-check:
+    name: Drift Check – Production
+    runs-on: ubuntu-latest
+    environment: production-readonly
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.6"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_READONLY_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Terraform Init
+        working-directory: infrastructure/environments/production
+        run: terraform init
+
+      - name: Terraform Plan (Drift Detection)
+        id: plan
+        working-directory: infrastructure/environments/production
+        run: |
+          terraform plan -detailed-exitcode -out=plan.out 2>&1 | tee plan.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Alert on Drift Detected
+        if: steps.plan.outputs.exit-code == '2'
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "⚠️ DRIFT DETECTED in production infrastructure!\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_OPS_WEBHOOK }}
+----
+
+=== Schritt 4: Brownfield-Migration (Import bestehender Ressourcen)
+
+[source,hcl]
+----
+# Schritt 1: Bestehende Ressource als Terraform-Code schreiben
+resource "aws_security_group" "app" {
+  name        = "payment-service-sg"
+  description = "Security group for payment service"
+  vpc_id      = aws_vpc.main.id
+  # ... Regeln entsprechend dem aktuellen Zustand
+}
+
+# Schritt 2: Import-Block (Terraform 1.5+)
+import {
+  to = aws_security_group.app
+  id = "sg-0123456789abcdef0"  # Actual AWS resource ID
+}
+
+# Schritt 3: Import ausführen
+# terraform plan -generate-config-out=generated.tf  # Code generieren lassen
+# terraform import aws_security_group.app sg-0123456789abcdef0  # Classic import
+# terraform apply  # Nur Plan prüfen, nichts ändern wenn korrekt
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|Lokaler Terraform-State
+|Kein Sharing, kein Locking, verloren wenn Laptop kaputt geht
+
+|`terraform apply` lokal ausführen
+|Kein Review, kein Audit-Trail, Konflikte mit CI/CD
+
+|Module ohne Version-Pinning
+|Unkontrollierte Upstream-Änderungen brechen Deployments
+
+|Console-Änderungen als "quick fix"
+|Beginnt die Drift-Akkumulation; wird nie in IaC überführt
+
+|Alle Ressourcen in einem `main.tf`
+|Schwer zu reviewen, langsame State-Operationen, fehlende Modularität
+
+|`-auto-approve` in CI ohne Plan-Review
+|Ungeplante Änderungen werden blindlings applied
+
+|===
+
+== Metriken
+
+* *IaC-Coverage:* % der Produktions-Ressourcen unter IaC-Verwaltung (Ziel: 100%)
+* *Drift-Rate:* % der Ressourcen mit aktivem Drift (Ziel: < 2%)
+* *Time-to-Detect-Drift:* Zeit zwischen Drift-Entstehung und Erkennung (Ziel: < 24h)
+* *Time-to-Remediate-Drift:* Zeit zwischen Erkennung und Behebung (Ziel: < SLA pro Severity)
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Keine IaC; alle Infrastruktur manuell in Konsole erstellt.
+
+|*Level 2*
+|Teile der Infrastruktur als IaC; manuelle Ressourcen koexistieren; kein Remote State.
+
+|*Level 3*
+|100% Produktions-Infrastruktur als IaC; Remote State; Drift-Erkennung täglich; manuelle Änderungen eingeschränkt.
+
+|*Level 4*
+|GitOps-Workflow; Drift-Alerts; SLA-basierte Remediation; Modul-Bibliothek in Verwendung.
+
+|*Level 5*
+|Automatische Drift-Remediation für sichere Muster; volle GitOps-Pipeline; 0 ungelöste Drift > 48h.
+
+|===

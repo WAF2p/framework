@@ -1,0 +1,287 @@
+= Best Practice: Alerting auf Symptome statt Ursachen
+:page-toc: right
+:description: SLO-Definition, Burn-Rate-Alerting, Runbook-Verlinkung und Alert-Fatigue-Management – wie man symptom-basiertes Alerting aufbaut.
+
+== Kontext
+
+Die häufigste Ursache für On-Call-Burnout ist nicht die Arbeit selbst –
+es sind die falschen Alerts. Ein Team, das 50 Alerts pro Nacht erhält,
+von denen 45 nicht actionable sind, ignoriert bald alle Alerts.
+
+Symptom-basiertes Alerting ist die Antwort: Alerte nur wenn Nutzer betroffen sind.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-040[WAF-OPS-040 – Alerting on Symptoms, Not Causes]
+* xref:controls.adoc#WAF-OPS-060[WAF-OPS-060 – Runbook & Operational Documentation Coverage]
+
+== Zielbild
+
+Ein reifes Alerting-System:
+
+* Jeder paging Alert ist symptom-basiert (Fehlerrate, Latenz, Verfügbarkeit)
+* Jeder Alert hat eine Runbook-URL
+* On-Call-Engineers erhalten < 5 Pages pro Schicht (davon 0 false positive)
+* SLOs sind definiert und burn-rate-basierte Alerts konfiguriert
+* Alert-Noise-Metrik wird wöchentlich tracked
+
+== Technische Umsetzung
+
+=== Schritt 1: SLOs definieren
+
+[source,yaml]
+----
+# slo-definitions.yaml (in Version-Control speichern)
+services:
+  payment-service:
+    slos:
+      - name: availability
+        description: "Verfügbarkeit des Payment Service"
+        target: 99.9  # 99.9% = 8.6 Stunden Downtime/Jahr erlaubt
+        window: 30d
+        metric:
+          good_events: "http_requests_total{service='payment',code!~'5..'}"
+          total_events: "http_requests_total{service='payment'}"
+
+      - name: latency-p99
+        description: "p99 Latenz für Payment-Anfragen"
+        target: 99.0  # 99% der Requests unter 500ms
+        window: 30d
+        metric:
+          good_events: "http_request_duration_seconds_bucket{service='payment',le='0.5'}"
+          total_events: "http_requests_total{service='payment'}"
+
+      - name: error-rate
+        description: "Fehlerrate aller Anfragen"
+        target: 99.9  # < 0.1% Fehlerrate
+        window: 30d
+        metric:
+          good_events: "http_requests_total{service='payment',code!~'5..'}"
+          total_events: "http_requests_total{service='payment'}"
+----
+
+=== Schritt 2: Burn-Rate-Alerts konfigurieren (Prometheus/AlertManager)
+
+[source,yaml]
+----
+# prometheus-alerts.yaml
+groups:
+  - name: payment-service-slo
+    rules:
+      # Fast-Burn Alert: Page sofort wenn Error Budget 5x schneller verbraucht wird
+      - alert: PaymentServiceHighErrorBudgetBurn
+        expr: |
+          (
+            rate(http_requests_total{service="payment",code=~"5.."}[1h])
+            /
+            rate(http_requests_total{service="payment"}[1h])
+          ) > (5 * 0.001)  # 5x burn rate, SLO target = 99.9% -> 0.1% error budget
+        for: 2m
+        labels:
+          severity: critical
+          team: payment
+        annotations:
+          summary: "Payment Service high error budget burn rate"
+          description: "Error budget burning 5x faster than allowed. At this rate, monthly budget exhausted in {{ $value | humanizeDuration }}."
+          runbook_url: "https://wiki.company.com/runbooks/payment-service/error-budget-burn"
+
+      # Slow-Burn Alert: Ticket erstellen (kein Page) wenn Budget langsam verbrennt
+      - alert: PaymentServiceSlowErrorBudgetBurn
+        expr: |
+          (
+            rate(http_requests_total{service="payment",code=~"5.."}[6h])
+            /
+            rate(http_requests_total{service="payment"}[6h])
+          ) > (2 * 0.001)  # 2x burn rate over 6 hours
+        for: 60m
+        labels:
+          severity: warning
+          team: payment
+        annotations:
+          summary: "Payment Service slow error budget burn"
+          description: "Error budget burning 2x expected rate. Review and address within 24 hours."
+          runbook_url: "https://wiki.company.com/runbooks/payment-service/slow-error-burn"
+
+      # Latency SLO Alert
+      - alert: PaymentServiceHighLatency
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket{service="payment"}[5m])
+          ) > 0.5  # p99 > 500ms
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment Service p99 latency above SLO"
+          description: "p99 latency is {{ $value | humanizeDuration }}, exceeding 500ms SLO threshold."
+          runbook_url: "https://wiki.company.com/runbooks/payment-service/high-latency"
+----
+
+=== Schritt 3: CloudWatch Symptom-Alarm mit Terraform konfigurieren
+
+[source,hcl]
+----
+# Symptom-basierter Alert: HTTP 5xx Error Rate
+resource "aws_cloudwatch_metric_alarm" "payment_error_rate" {
+  alarm_name          = "payment-service-5xx-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  datapoints_to_alarm = 2
+  threshold           = 10
+  treat_missing_data  = "notBreaching"
+
+  metric_query {
+    id          = "error_rate"
+    expression  = "errors / total * 100"
+    label       = "Error Rate %"
+    return_data = true
+  }
+
+  metric_query {
+    id = "errors"
+    metric {
+      metric_name = "HTTPCode_Target_5XX_Count"
+      namespace   = "AWS/ApplicationELB"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = aws_lb.main.arn_suffix
+        TargetGroup  = aws_lb_target_group.app.arn_suffix
+      }
+    }
+  }
+
+  metric_query {
+    id = "total"
+    metric {
+      metric_name = "RequestCount"
+      namespace   = "AWS/ApplicationELB"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        LoadBalancer = aws_lb.main.arn_suffix
+        TargetGroup  = aws_lb_target_group.app.arn_suffix
+      }
+    }
+  }
+
+  alarm_description = <<-EOT
+    Payment Service 5xx Error Rate > 10%
+
+    Symptom: Nutzer erhalten HTTP 5xx Fehler vom Payment Service.
+    Runbook: https://wiki.company.com/runbooks/payment-service/5xx-errors
+    Dashboard: https://monitoring.company.com/d/payment-service
+    Eskalation: payment-oncall@company.com → platform-team@company.com
+  EOT
+
+  alarm_actions = [aws_sns_topic.payment_oncall.arn]
+  ok_actions    = [aws_sns_topic.payment_oncall.arn]
+}
+
+# Latenz-Alert (Symptom: Langsame Antwortzeiten für Nutzer)
+resource "aws_cloudwatch_metric_alarm" "payment_latency_p99" {
+  alarm_name          = "payment-service-p99-latency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  datapoints_to_alarm = 2
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  extended_statistic  = "p99"
+  threshold           = 0.5  # 500ms
+
+  dimensions = {
+    LoadBalancer = aws_lb.main.arn_suffix
+    TargetGroup  = aws_lb_target_group.app.arn_suffix
+  }
+
+  alarm_description = <<-EOT
+    Payment Service p99 Latenz > 500ms
+
+    Symptom: 1% der Nutzer erleben Antwortzeiten > 500ms (SLO-Verletzung).
+    Runbook: https://wiki.company.com/runbooks/payment-service/high-latency
+  EOT
+
+  alarm_actions = [aws_sns_topic.payment_oncall.arn]
+}
+----
+
+=== Schritt 4: Alert-Audit durchführen
+
+[source,bash]
+----
+#!/bin/bash
+# alert-audit.sh – Bestehende Alerts auf Qualität prüfen
+
+# Liste alle CloudWatch Alarms
+aws cloudwatch describe-alarms --state-value OK,ALARM,INSUFFICIENT_DATA \
+  --query 'MetricAlarms[].{
+    Name: AlarmName,
+    Metric: MetricName,
+    Description: AlarmDescription,
+    Actions: AlarmActions
+  }' \
+  --output table
+
+# Für jeden Alarm prüfen:
+# 1. Ist die Metrik symptom-basiert? (nicht CPU, Memory)
+# 2. Hat die Beschreibung eine Runbook-URL?
+# 3. Gibt es AlarmActions (SNS Topic)?
+# 4. Wurde der Alarm in den letzten 90 Tagen ausgelöst? War er actionable?
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|CPU > 80% Alert
+|Nicht symptom-basiert; hohe CPU bedeutet nicht zwingend Nutzerauswirkung
+
+|Alert ohne Runbook-URL
+|On-Call-Engineer wacht um 3 Uhr auf und weiß nicht was zu tun ist
+
+|Alerts ohne Alarm-Actions (stille Alarms)
+|Alarms lösen aus aber niemand wird benachrichtigt
+
+|Zu niedrige Schwellenwerte
+|Ständige false positives trainieren Engineers Alerts zu ignorieren
+
+|Keine OK-Action
+|Engineer weiß nicht wann Problem gelöst ist; manuelles Dashboard-Monitoring nötig
+
+|Alle Alerts mit demselben Severity
+|Kein Unterschied zwischen "Service down" und "Anomalie bemerkt"
+
+|===
+
+== Metriken
+
+* *Pages pro Schicht:* Ziel: < 5 pages pro On-Call-Schicht (8h)
+* *False Positive Rate:* % der Pages ohne actionable Reaktion (Ziel: < 10%)
+* *Alert-Actionability-Rate:* % der Pages die zu einer Aktion geführt haben (Ziel: > 90%)
+* *MTTR mit vs. ohne Runbook:* Vergleich der Incident-Dauer (aus Postmortems)
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Keine Alerts oder ausschließlich Infrastructure-Metriken (CPU, Memory). Hohe Alert-Noise.
+
+|*Level 2*
+|HTTP 5xx und Service-Availability Alerts. Keine Runbooks verlinkt.
+
+|*Level 3*
+|Alle Alerts symptom-basiert mit Runbook-URLs. SLOs definiert. Alert-Noise < 10/Schicht.
+
+|*Level 4*
+|Burn-Rate-Alerts für alle SLOs. Alert-Noise Metrik tracked und reportiert.
+
+|*Level 5*
+|Alert-as-Code. Automatische Anomalie-Erkennung. Alert Coverage Report: alle Services abgedeckt.
+
+|===

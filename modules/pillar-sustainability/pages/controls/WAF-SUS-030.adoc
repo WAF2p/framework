@@ -1,0 +1,152 @@
+= WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement
+:page-toc: right
+:control-id: WAF-SUS-030
+:pillar: sustainability
+:severity: medium
+:category: region-selection
+:automated: medium
+:description: WAF++ Sustainability – Carbon Intensity als Architekturparameter: grüne Regionen bevorzugen, ADR-Dokumentation, Carbon-Aware Routing für Batch-Workloads.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Region Selection | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Workloads ohne strikte Data-Residency-Anforderungen MÜSSEN Carbon Intensity von Cloud-Regionen
+in Placement-Entscheidungen berücksichtigen. Architekturentscheidungen (ADRs) MÜSSEN Carbon-Impact
+als expliziten Faktor dokumentieren. Batch-Workloads mit flexiblem Placement MÜSSEN grüne
+Regionsalternativen evaluieren. Wenn ein identischer Workload in Stockholm statt Hong Kong deployed
+wird, kann er 60–80% weniger CO₂ emittieren — ohne Code-Änderung.
+
+== Rationale
+
+Cloud-Regionen unterscheiden sich erheblich in ihrer Energie-Zusammensetzung.
+`eu-north-1` (Stockholm) hat ~95% erneuerbare Energie (~10 gCO₂eq/kWh),
+während `ap-east-1` (Hong Kong) ~25% erneuerbare Energie (~500 gCO₂eq/kWh) hat.
+Ohne Dokumentation dieser Entscheidungen entsteht ein Carbon-Footprint, der weder
+verstanden noch für CSRD-Berichterstattung begründbar ist.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unnötige Scope-3-Emissionen*
+|Workloads in hohe-Kohlenstoff-Regionen emittieren 50–80% mehr als gleiche Workloads in grünen Regionen.
+
+|*CSRD-Governance-Gap*
+|Fehlende Dokumentation der Carbon-Berücksichtigung in Architekturentscheidungen ist ein Governance-Gap für ESG-Audits.
+
+|*SBTi Scope-3-Zielverfehlung*
+|Region-Auswahl beeinflusst maßgeblich das erreichbare SBTi-Ziel — undokumentierte Hochkohlenstoff-Deployments gefährden Ziele.
+
+|===
+
+== Anforderung
+
+* Region-Auswahl-Entscheidungen MÜSSEN Carbon Intensity als dokumentierten Faktor enthalten
+* ADR-Template SOLL einen Carbon-Impact-Abschnitt enthalten
+* Grüne Regionen SOLLEN als Default bevorzugt werden, wenn Compliance und Latenz es erlauben
+* Batch-Workloads mit flexiblem Placement MÜSSEN grüne Regionen evaluieren
+* Abweichungen von grünen Regionen MÜSSEN dokumentiert und begründet werden
+
+== Implementierungsanleitung
+
+. *Cloud-Provider-Sustainability-Seiten konsultieren*: AWS, Azure, GCP veröffentlichen Energie-Mix pro Region
+. *Regionsauswahl-ADR-Template erweitern*: Carbon-Intensity-Sektion zu Architecture Decision Records hinzufügen
+. *Terraform-Validation*: `variable "aws_region"` mit `validation`-Block auf genehmigte grüne Regionen beschränken
+. *Batch-Workloads prüfen*: Alle Batch-Jobs ohne Residency-Anforderung auf grüne Regionen umplanen
+. *Carbon-Aware-Routing*: Für fortgeschrittene Teams: electricityMaps API für dynamisches Regionsrouting
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Berücksichtigung
+|Region nach Kosten/Latenz; Carbon nicht betrachtet; kein ADR-Requirement.
+
+|*2*
+|Informelles Bewusstsein
+|Team kennt Carbon-Intensitäts-Unterschiede; informelle Berücksichtigung bei Neudeployments.
+
+|*3*
+|ADR-Dokumentiert
+|Architecture Decision Template mit Carbon-Sektion; grüne Regionen als Präferenz dokumentiert.
+
+|*4*
+|Carbon-Aware Placement
+|Batch-Workloads aktiv in grüne Regionen; Carbon-API-Integration evaluiert oder aktiv.
+
+|*5*
+|Dynamic Carbon Routing
+|Echtzeit-Carbon-Intensity für Workload-Routing; RECs/PPAs für alle deployed Regionen.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-030.tf.aws.preferred-regions
+*Prüft:* AWS-Provider-Region ist eine vorgenehmigte grüne Region.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+provider "aws" {
+  region = "eu-north-1"
+  # Stockholm: ~95% erneuerbare Energie
+  # ~10 gCO₂eq/kWh
+}
+----
+a|[source,hcl]
+----
+provider "aws" {
+  region = "ap-east-1"
+  # Hong Kong: ~25% erneuerbare Energie
+  # WAF-SUS-030 Warning: Carbon-Begründung fehlt
+}
+----
+|===
+
+*Remediation:* Für hohe-Carbon-Regionen: Begründung in ADR dokumentieren.
+Grüne Alternativen: `eu-north-1`, `eu-west-1`, `us-west-2`, `ca-central-1`.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|ADR oder Region-Selection-Dokument mit Carbon-Intensity als berücksichtigtem Faktor.
+
+|*Config*
+|✅ Pflicht
+|Terraform-Provider-Konfiguration mit eingesetzten Regionen; Zuordnung zu Carbon-Intensity-Daten.
+
+|*Governance*
+|Optional
+|REC oder PPA für deployed Regionen.
+
+|*Process*
+|Optional
+|Carbon-Aware-Scheduling-Konfiguration für Batch-Workloads.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
+* xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 – Workload Scheduling & Time-Shifting]
+* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
+
+== Best Practice
+
+* xref:best-practices/bp-green-regions.adoc[Carbon-Aware Region- und Placement-Strategie →]

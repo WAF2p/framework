@@ -1,24 +1,155 @@
-= Säule 4 - Reliability
+= Reliability (Säule: Reliability)
+:page-navtitle: Reliability
+:page-toc: right
+:description: WAF++ Säule Reliability – Messbare, erzwungene und kontinuierlich verbesserte Widerstandsfähigkeit als eigenständige Architekturdisziplin mit SLOs, HA, Recovery und Chaos Engineering.
 
-== Worum geht es?
+Die Säule *Reliability* des WAF++ definiert Anforderungen, Prinzipien und messbare Controls,
+um Cloud-Workloads widerstandsfähig, wiederherstellbar und nachweislich verfügbar zu betreiben.
 
-Reliability stellt sicher, dass Systeme stabil und verfügbar bleiben – auch bei Ausfällen oder Lastspitzen. Im WAF++ bedeutet das, resiliente Architekturen zu schaffen, die Fehler tolerieren und sich selbst heilen können.
+Zuverlässigkeit ist kein Zufall.
+Sie ist ein *Architekturergebnis*, das durch messbare Ziele, technische Erzwingung und kontinuierliches Testen erreicht wird – nicht durch Hoffnung.
 
-== Was wird gemacht?
+== Was bedeutet Reliability im WAF++?
 
-* *Redundanz:* Einsatz von Multi-Zone- und Multi-Region-Architekturen.
-* *Backup & Restore:* Regelmäßige Backups und getestete Wiederherstellungsprozesse.
-* *Monitoring:* Überwachung von Verfügbarkeit und Fehlerraten.
-* *Incident Response:* Definierte Prozesse für schnelle Fehlerbehebung.
+Reliability bedeutet, dass eine Organisation *nachweisbare Kontrolle* über folgende Dimensionen hat:
 
-== Was ist zu beachten?
+[cols="1,3,2"]
+|===
+|Dimension |Was wird kontrolliert? |WAF-REL Control
 
-* *SLAs & KPIs:* Verfügbarkeit muss messbar und vertraglich zugesichert sein.
-* *Failover-Strategien:* Automatisierte Umschaltung bei Ausfällen.
-* *Testen:* Chaos Engineering und Disaster Recovery Tests.
+|*SLO & SLA Governance*
+|Sind Verfügbarkeits- und Latenzziele dokumentiert, gemessen und mit Alerts versehen?
+|WAF-REL-010
 
-== Wo soll es hingehen?
+|*Health Monitoring*
+|Sind Health Checks und Readiness Probes für alle Services konfiguriert?
+|WAF-REL-020
 
-* *Self-Healing:* Systeme erkennen Fehler und beheben sie automatisch.
-* *Predictive Maintenance:* KI-gestützte Vorhersage von Ausfällen.
-* *Always-On:* Nahezu 100% Verfügbarkeit als Ziel.
+|*High Availability*
+|Sind alle Produktions-Workloads über mindestens 2 Availability Zones verteilt?
+|WAF-REL-030
+
+|*Backup & Recovery*
+|Sind automatisierte Backups konfiguriert und Wiederherstellungsverfahren nachweislich getestet?
+|WAF-REL-040
+
+|*Resilience Patterns*
+|Sind Circuit Breaker, Timeouts und Retry-Logik für alle Abhängigkeiten konfiguriert?
+|WAF-REL-050
+
+|*Incident Response*
+|Gibt es dokumentierte Runbooks, On-Call-Rotation und MTTR-Tracking?
+|WAF-REL-060
+
+|*Disaster Recovery Testing*
+|Werden DR-Tests mindestens zweimal jährlich durchgeführt und dokumentiert?
+|WAF-REL-070
+
+|*Dependency Resilience*
+|Sind alle kritischen Abhängigkeiten inventarisiert und mit Fallback-Verhalten versehen?
+|WAF-REL-080
+
+|*Chaos Engineering*
+|Werden strukturierte Chaos-Experimente zur Validierung von Resilienz-Behauptungen eingesetzt?
+|WAF-REL-090
+
+|*Reliability Debt*
+|Sind bekannte Reliability-Schulden dokumentiert, bewertet und mit Remediation-Plan versehen?
+|WAF-REL-100
+
+|===
+
+== Warum ist Reliability eine eigene Säule?
+
+Zuverlässigkeit ist *cross-cutting*: Sie entsteht in Security, Operations, Architecture und Governance.
+Dennoch ist Reliability eine eigenständige Disziplin, weil:
+
+* Sie eine eigene *Messdimension* hat: SLOs, MTTR, RTO/RPO, Error Budget
+* Sie *spezifische technische Controls* erfordert, die keine andere Säule abdeckt
+* Sie *Reliability-Schuld* als strukturelles Risiko adressiert – analog zu technischer Schuld
+* Zuverlässigkeit als *strategische Entscheidungsgrundlage* in Architekturprozessen verankert sein muss
+* Brownfield- und Greenfield-Szenarien *fundamental unterschiedliche* Ansätze erfordern
+
+WARNING: Reliability ohne Messung ist Wunschdenken. Backups ohne Restore-Tests sind ungetestete Hoffnungen. Multi-AZ ohne Failover-Test ist eine architektonische Behauptung, keine bewiesene Garantie.
+
+== Abgrenzung zu anderen Säulen
+
+* *Security* adressiert: Zugriffskontrolle, Verschlüsselung, Incident Response aus Sicherheitsperspektive.
+* *Operations* adressiert: Change Management, Deployment-Prozesse, operationelle Exzellenz.
+* *Architecture* adressiert: Systemdesign, Patterns, technische Entscheidungsqualität.
+* *Reliability* adressiert: Messbare Verfügbarkeit, Wiederherstellbarkeit, Resilienz gegen Ausfälle.
+
+Reliability setzt voraus, dass Infrastruktur existiert und überwacht wird, und erweitert dies um
+Ausfalltoleranz, Recovery-Kapazität, Resilienz-Muster und strukturiertes Fehlermanagement.
+
+== Controls-Überblick
+
+Die Säule Reliability wird durch 10 messbare Controls operationalisiert (`WAF-REL-010` bis `WAF-REL-100`).
+
+[cols="1,3,1,1"]
+|===
+|Control ID |Titel |Severity |Automatisierbar
+
+|xref:controls.adoc#WAF-REL-010[WAF-REL-010]
+|SLA & SLO Definition Documented
+|Critical
+|Mittel
+
+|xref:controls.adoc#WAF-REL-020[WAF-REL-020]
+|Health Checks & Readiness Probes Configured
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-REL-030[WAF-REL-030]
+|Multi-AZ High Availability Deployment
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-REL-040[WAF-REL-040]
+|Backup & Recovery Validation
+|Critical
+|Hoch
+
+|xref:controls.adoc#WAF-REL-050[WAF-REL-050]
+|Circuit Breaker & Timeout Configuration
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-REL-060[WAF-REL-060]
+|Incident Response & Runbook Readiness
+|High
+|Mittel
+
+|xref:controls.adoc#WAF-REL-070[WAF-REL-070]
+|Disaster Recovery Testing
+|High
+|Teilweise
+
+|xref:controls.adoc#WAF-REL-080[WAF-REL-080]
+|Dependency & Upstream Resilience Management
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-REL-090[WAF-REL-090]
+|Chaos Engineering & Fault Injection
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-REL-100[WAF-REL-100]
+|Reliability Debt Register & Quarterly Review
+|Medium
+|Niedrig–Mittel
+
+|===
+
+== Schnelleinstieg
+
+Neu in der Reliability-Säule? Empfohlene Lesereihenfolge:
+
+. xref:definition.adoc[Definition] – Was ist Reliability als Disziplin?
+. xref:scope.adoc[Geltungsbereich] – Brownfield vs. Greenfield, was ist im Scope?
+. xref:principles.adoc[Reliability-Prinzipien] – 7 Grundprinzipien
+. xref:design-principles.adoc[Design-Prinzipien] – 8 technische Architekturprinzipien
+. xref:controls.adoc[Controls] – Die 10 messbaren Controls
+. xref:maturity.adoc[Reifegrad-Modell] – Wo steht meine Organisation?
+. xref:best-practices/index.adoc[Best Practices] – Wie setzt man es konkret um?

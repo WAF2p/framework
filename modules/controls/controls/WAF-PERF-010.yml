@@ -1,0 +1,247 @@
+id: WAF-PERF-010
+title: "Compute Instance Type & Sizing Validated"
+pillar: "performance"
+status: "active"
+severity: "high"
+category: "compute-sizing"
+type: ['governance', 'configuration', 'automation']
+tags: ['compute', 'instance-sizing', 'rightsizing', 'performance', 'benchmarking', 'capacity-planning']
+
+description: >
+  All compute resources (virtual machines, container workloads, managed compute services) MUST
+  be sized based on measured workload requirements and validated performance baselines.
+  Instance type selection MUST be documented in architecture records or sizing sheets.
+  Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory
+  > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
+
+rationale: >
+  Inappropriate compute sizing is the most common source of both wasted spend and degraded
+  performance. Oversized instances waste money; undersized instances cause latency spikes,
+  timeout errors, and cascading failures under load. Right-sizing requires measured baselines,
+  not assumptions. Using the latest instance generation typically delivers 10–30% better
+  price-performance than previous generations. Sizing decisions without measurement lead to
+  perpetual over-provisioning driven by risk aversion.
+
+threat:
+  - "Performance degradation due to undersized compute causing latency spikes and timeouts"
+  - "Wasted infrastructure spend from perpetual over-provisioning without review"
+  - "Inability to handle traffic peaks due to lack of validated capacity headroom"
+  - "Cascading failures when compute bottlenecks saturate under unexpected load"
+  - "Technical debt accumulation when instance types are never reviewed after initial selection"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Resource Utilization"
+      - "Performance Efficiency – Capacity"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Performance Efficiency Pillar – Select the right resource types and sizes"
+      - "PERF 1 – How do you select the best performing architecture?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Choose the right resources"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Performance optimization – Right-size your instances"
+
+implementation_guidance:
+  - "Collect CPU, memory, network, and disk utilization metrics for at least 2 weeks before sizing decisions."
+  - "Use cloud provider sizing recommendation tools (AWS Compute Optimizer, Azure Advisor, GCP Recommender)."
+  - "Document instance type selection rationale in a sizing sheet or ADR, including measured baseline metrics."
+  - "Prefer current-generation instance types; flag previous-generation instances for migration review."
+  - "Set utilization thresholds: flag resources with sustained CPU < 20% as oversized, > 80% as undersized."
+  - "For stateless workloads: prefer horizontal scaling over vertical; validate with load tests before launch."
+  - "Establish a quarterly compute sizing review cadence and track changes in a sizing register."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc sizing based on assumptions or guesses"
+    criteria:
+      - "Instance types are selected without measured workload data"
+      - "No sizing documentation exists; decisions are undocumented"
+      - "Resources are never reviewed after initial deployment"
+  level_2:
+    description: "Sizing based on experience with periodic review"
+    criteria:
+      - "Instance type selection is informed by experience but not measured baselines"
+      - "Sizing rationale is occasionally documented in tickets or wikis"
+      - "Annual or ad-hoc reviews occur when costs become notable"
+  level_3:
+    description: "Measured baseline with documented sizing rationale"
+    criteria:
+      - "All production compute resources have documented sizing rationale with measured metrics"
+      - "Cloud provider sizing recommendations are reviewed before launches"
+      - "Quarterly sizing review cadence is established"
+      - "Utilization alerts flag oversized and undersized resources automatically"
+  level_4:
+    description: "Automated sizing validation with continuous optimization"
+    criteria:
+      - "Sizing recommendations are automatically integrated into deployment pipelines"
+      - "Oversized and undersized resources are auto-flagged with remediation tickets"
+      - "All previous-generation instances have migration plans"
+      - "Performance regression tests validate sizing before production promotion"
+  level_5:
+    description: "Predictive sizing with ML-driven optimization"
+    criteria:
+      - "ML-based forecasting predicts sizing needs based on usage patterns"
+      - "Auto-scaling eliminates the need for static vertical sizing in most workloads"
+      - "Cost-per-request and cost-per-transaction are tracked alongside performance metrics"
+      - "New instance generations are evaluated automatically upon release"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Sizing sheet or ADR section documenting instance type selection with measured CPU/memory baselines."
+    - kind: "iac"
+      description: "Terraform or IaC configuration showing current-generation instance types with explicit size declarations."
+  optional:
+    - kind: "process"
+      description: "Quarterly sizing review report with list of oversized/undersized instances and remediation plans."
+    - kind: "config"
+      description: "Cloud provider sizing recommendation export (AWS Compute Optimizer, Azure Advisor, GCP Recommender)."
+
+checks:
+  - id: "waf-perf-010.tf.aws.ec2-current-generation"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS EC2 instances must use current-generation instance types"
+    description: >
+      EC2 instances must not use previous-generation instance types (t2, m4, c4, r4, i2, d2, etc.).
+      Current-generation instance types provide significantly better price-performance.
+      All instances must be documented with a sizing rationale.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+        - "aws_launch_configuration"
+    assertions:
+      - attribute: "instance_type"
+        op: "not_matches"
+        pattern: "^(t2|m4|c4|r4|i2|d2|hs1|m3|c3|cr1|cc2|g2|hi1)\\..*"
+        message: "Instance is using a previous-generation type. Migrate to t3/t4g, m5/m6i, c5/c6i, or r5/r6i."
+      - attribute: "instance_type"
+        op: "attribute_exists"
+        message: "Instance type must be explicitly declared; no default allowed."
+    on_fail: "violation"
+    remediation: >
+      Replace previous-generation instance types with current-generation equivalents.
+      t2.* → t3.* or t4g.*; m4.* → m6i.*; c4.* → c6i.*; r4.* → r6i.*.
+      Run AWS Compute Optimizer to get right-sizing recommendations before migrating.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t3.medium"  # Current-generation, validated with Compute Optimizer
+          tags = {
+            sizing-reviewed = "2026-01-15"
+            workload        = "payment-api"
+          }
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "t2.medium"  # Previous-generation – WAF-PERF-010 violation
+        }
+
+  - id: "waf-perf-010.tf.azurerm.vm-sizing-documented"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure VMs must use current-generation sizes and have sizing metadata"
+    description: >
+      Azure virtual machines must not use deprecated or previous-generation VM sizes.
+      Sizing metadata must be present as tags on the resource.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_linux_virtual_machine"
+        - "azurerm_windows_virtual_machine"
+        - "azurerm_virtual_machine_scale_set"
+    assertions:
+      - attribute: "size"
+        op: "not_matches"
+        pattern: "^Standard_(A|D1$|D2$|D3$|D4$|DS1$|DS2$|DS3$|DS4$)$"
+        message: "VM is using a deprecated or previous-generation size. Upgrade to Dv5 or Ev5 series."
+      - attribute: "tags"
+        op: "key_exists"
+        key: "sizing-reviewed"
+        message: "VM must have a 'sizing-reviewed' tag with the date of the last sizing review."
+    on_fail: "violation"
+    remediation: >
+      Replace deprecated VM sizes with current-generation equivalents (Dv5, Ev5, Bsv2, Dsv5).
+      Use Azure Advisor recommendations for right-sizing guidance.
+      Add a 'sizing-reviewed' tag with the review date.
+    example:
+      compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-payment-api"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          size                = "Standard_D2s_v5"
+          tags = {
+            sizing-reviewed = "2026-01-15"
+            workload        = "payment-api"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-payment-api"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          size                = "Standard_D2"  # Deprecated size – WAF-PERF-010 violation
+        }
+
+  - id: "waf-perf-010.tf.google.gce-machine-type-validated"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Compute Engine instances must use N2 or C2 series machine types"
+    description: >
+      GCP VM instances must not use first-generation N1 machine types for production workloads.
+      N2, N2D, C2, E2, or C3 series offer better performance and price-performance ratios.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_instance"
+        - "google_compute_instance_template"
+    assertions:
+      - attribute: "machine_type"
+        op: "not_matches"
+        pattern: "^n1-(standard|highmem|highcpu)-.*"
+        message: "GCP instance uses N1 machine type. Migrate to N2, N2D, C2, or E2 series for better performance."
+    on_fail: "violation"
+    remediation: >
+      Replace N1 machine types with current-generation equivalents.
+      n1-standard-* → n2-standard-*; n1-highmem-* → n2-highmem-*; n1-highcpu-* → c2-standard-*.
+      Use GCP Recommender for right-sizing analysis.
+    example:
+      compliant: |
+        resource "google_compute_instance" "app" {
+          name         = "payment-api"
+          machine_type = "n2-standard-2"
+          zone         = "europe-west3-a"
+          boot_disk {
+            initialize_params { image = "debian-cloud/debian-11" }
+          }
+        }
+      non_compliant: |
+        resource "google_compute_instance" "app" {
+          name         = "payment-api"
+          machine_type = "n1-standard-2"  # N1 series – WAF-PERF-010 violation
+          zone         = "europe-west3-a"
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-010"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-compute-sizing.adoc"
+  related_controls:
+    - "WAF-PERF-020"
+    - "WAF-PERF-050"
+    - "WAF-PERF-060"

@@ -1,0 +1,203 @@
+= WAF-SUS-070 – Sustainable Software Design Standards
+:page-toc: right
+:control-id: WAF-SUS-070
+:pillar: sustainability
+:severity: medium
+:category: software-efficiency
+:automated: partial
+:description: WAF++ Sustainability – Energie-Effizienz als Software-Qualitätsmerkmal: SCI messen, Event-Driven statt Polling, Dependency-Hygiene, Scale-to-Zero für serverless Workloads.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Software Efficiency | *Automatisierbar:* Teilweise
+
+== Beschreibung
+
+Software MUSS mit Energie-Effizienz als explizitem Qualitätsmerkmal entworfen werden.
+Architecture Decision Records MÜSSEN Energie-Effizienz-Überlegungen enthalten.
+Event-Driven-Patterns MÜSSEN für asynchrone Kommunikation bevorzugt werden.
+Dependencies MÜSSEN auf Effizienz und Notwendigkeit geprüft werden.
+SCI (Software Carbon Intensity) SOLLTE für Tier-1-Services gemessen werden.
+Cloud-Run- und Lambda-Dienste SOLLEN auf Scale-to-Zero konfiguriert sein.
+
+== Rationale
+
+Software-Design-Entscheidungen haben multiplikativen Einfluss auf Energieverbrauch.
+Ein ineffizienter Algorithmus auf effizienter Hardware verbraucht immer noch unnötig viel Energie.
+Polling-Patterns generieren konstante API-Aufrufe ohne proportionalen Mehrwert.
+Große Dependency-Trees erhöhen Cold-Start-Energie und Speicherverbrauch.
+Die Green Software Foundation SCI-Formel macht Software-Effizienz messbar und vergleichbar.
+Scale-to-Zero bei serverlosen Diensten vermeidet Idle-Compute komplett.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Ineffiziente Algorithmen*
+|O(n²)-Algorithmen verbrauchen bei 10.000 Elementen 750× mehr CPU als O(n log n) — direkte Emissionsmultiplikation.
+
+|*Polling-Pattern*
+|Konstante API-Abfragen statt Event-Trigger erzeugen thousands unnötiger Requests pro Stunde.
+
+|*Bloated Dependencies*
+|Lambda-Funktionen mit 200MB-Deployment-Package haben 5× höhere Cold-Start-Energie als schlanke 20MB-Packages.
+
+|*Microservice-Proliferation*
+|50 Services für was 5 leisten könnten: 10× mehr Netzwerk-Overhead, Service-Discovery-Load, Health-Check-Calls.
+
+|*Fehlende SCI-Messung*
+|Ohne SCI-Metrik können Software-Effizienz-Verbesserungen nicht quantifiziert oder als Ziel gesetzt werden.
+
+|===
+
+== Anforderung
+
+* ADR-Template MUSS Energie-Effizienz und SCI-Betrachtung als Abschnitt enthalten
+* Asynchrone Kommunikation MUSS Event-Driven-Patterns (SQS, EventBridge, Pub/Sub) nutzen
+* Dependencies MÜSSEN eine Größen- und Effizienz-Review erhalten vor Aufnahme
+* SCI SOLL für alle Tier-1-Services mindestens jährlich gemessen werden
+* Container-Images SOLLEN Distroless- oder Alpine-Base-Images nutzen (Größenbudget < 500MB)
+* SQS Event Source Mappings MÜSSEN `maximum_batching_window_in_seconds >= 5` haben
+
+== Implementierungsanleitung
+
+. *ADR erweitern*: Energie-Effizienz-Sektion: "Wie wurde SCI betrachtet? Welche Alternativen wurden bezüglich Effizienz bewertet?"
+. *Event-Driven Policy*: Polling-Patterns identifizieren und durch SQS/EventBridge/SNS ersetzen
+. *Dependency-Review-Prozess*: Neue Dependencies prüfen auf Größe, Aktivität, Effizienz; Alpine/Distroless-Images
+. *SCI-Messung*: Energie aus CloudWatch-Metriken + Carbon Intensity der Region + Functional Units
+. *SQS Batching*: `batch_size = 100` + `maximum_batching_window_in_seconds = 30` für alle SQS-Lambda-Trigger
+. *Scale-to-Zero*: Cloud Run `min_instance_count = 0`; Lambda hat Scale-to-Zero by default
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Effizienz-Betrachtung
+|Nur funktionale Anforderungen; Polling-Patterns überall; keine Dependency-Hygiene.
+
+|*2*
+|Awareness in Code-Review
+|Effizienz wird gelegentlich im Review erwähnt; kein formaler Prozess.
+
+|*3*
+|ADR-Requirement + Event-Driven
+|ADR-Pflicht mit Energie-Sektion; Event-Driven für Async; Dependency-Review; SCI für Tier-1 jährlich.
+
+|*4*
+|SCI als Engineering-Metrik
+|SCI monatlich getrackt; Energie-Effizienz in Definition of Done; N+1 automatisch detektiert.
+
+|*5*
+|SCI-OKR + Continuous Improvement
+|SCI-Verbesserung als OKR; automatische SCI-Regression-Alerts im CI; Energy-Profiling in Dev-Workflow.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-070.tf.aws.sqs-not-polling
+*Prüft:* SQS-Lambda Event Source Mappings nutzen Batching (Long Polling).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_lambda_event_source_mapping" "sqs" {
+  event_source_arn                   = aws_sqs_queue.events.arn
+  function_name                      = aws_lambda_function.processor.arn
+  batch_size                         = 100
+  maximum_batching_window_in_seconds = 30
+  function_response_types            = ["ReportBatchItemFailures"]
+}
+----
+a|[source,hcl]
+----
+resource "aws_lambda_event_source_mapping" "sqs" {
+  event_source_arn = aws_sqs_queue.events.arn
+  function_name    = aws_lambda_function.processor.arn
+  batch_size       = 1
+  # WAF-SUS-070 Warning: batch_size=1, kein Batching-Window
+}
+----
+|===
+
+*Remediation:* `batch_size = 100` und `maximum_batching_window_in_seconds = 30` setzen. Reduziert Invocations um bis zu 99% bei hochvolumigen Queues.
+
+---
+
+=== waf-sus-070.tf.google.cloud-run-min-instances
+*Prüft:* GCP Cloud Run Services können auf Zero skalieren.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "google_cloud_run_v2_service" "api" {
+  name     = "api-service"
+  location = "europe-north1"
+  template {
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 10
+    }
+  }
+}
+----
+a|[source,hcl]
+----
+resource "google_cloud_run_v2_service" "api" {
+  name     = "api-service"
+  location = "us-east1"
+  template {
+    scaling {
+      min_instance_count = 5
+      # WAF-SUS-070 Warning: immer 5 Instanzen; kein Zero-Scale
+    }
+  }
+}
+----
+|===
+
+*Remediation:* `min_instance_count = 0` für alle nicht-produktiven Services; für Produktion mit Cold-Start-SLA dokumentieren, warum min > 0 erforderlich ist.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|ADR-Template oder Architecture-Review-Checkliste mit Energie-Effizienz / SCI-Betrachtung.
+
+|*Config*
+|Optional
+|Container-Image-Size-Reports (Distroless/Alpine-Compliance).
+
+|*Process*
+|Optional
+|SCI-Measurement-Report für Tier-1-Services mit Baseline und Trend.
+
+|*Governance*
+|Optional
+|Dependency-Review-Policy und Audit-Log.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+
+== Best Practice
+
+* xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute & Software-Design →]

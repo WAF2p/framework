@@ -1,0 +1,293 @@
+id: WAF-REL-030
+title: "Multi-AZ High Availability Deployment"
+pillar: "reliability"
+status: "active"
+severity: "high"
+category: "high-availability"
+type: ['configuration', 'automation']
+tags: ['multi-az', 'high-availability', 'redundancy', 'fault-tolerance', 'availability-zones']
+
+description: >
+  All production stateful and stateless workloads MUST be deployed across a minimum
+  of two Availability Zones (AZs). Databases, caches, and message queues MUST use
+  multi-AZ configurations with automatic failover. Load balancers MUST span at least
+  two AZs. Auto-scaling groups and Kubernetes clusters MUST distribute nodes and pods
+  across AZs. Single-AZ deployments in production are not acceptable without explicit
+  documented risk acceptance.
+
+rationale: >
+  A single availability zone failure is the most common cloud provider disruption event.
+  Workloads deployed in a single AZ experience full outage during an AZ event, directly
+  violating most availability SLOs. Multi-AZ deployment is the minimum viable high
+  availability configuration in cloud environments. The cost increase for multi-AZ is
+  negligible compared to the business impact of a single-AZ outage in production.
+
+threat:
+  - "AZ-level failure causing complete workload outage in single-AZ deployments"
+  - "Database unavailability due to single-AZ RDS without Multi-AZ failover"
+  - "Cache miss storms after ElastiCache single-node failure"
+  - "Kubernetes workloads concentrated in one AZ losing all replicas simultaneously"
+  - "Violation of availability SLOs due to infrastructure, not application, failure"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1 – Information security continuity"
+      - "A.17.2 – Redundancies"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 10 – Use fault isolation to protect your workload"
+      - "REL 13 – Test resiliency"
+  - framework: "ITIL 4"
+    controls:
+      - "Availability Management"
+      - "Service Continuity Management"
+  - framework: "BSI C5:2022"
+    controls:
+      - "RB-01 – Availability and Redundancy"
+
+implementation_guidance:
+  - "Deploy all production compute across at least 2 AZs using auto-scaling groups or Kubernetes topology spread."
+  - "Enable Multi-AZ for all RDS instances (not RDS read replicas – the primary instance must be Multi-AZ)."
+  - "Use ElastiCache Redis cluster mode or Multi-AZ replication groups."
+  - "Configure Application Load Balancers with subnets in at least 2 AZs."
+  - "Use Kubernetes topologySpreadConstraints to distribute pods across AZs."
+  - "For stateful services, test AZ failover: terminate an AZ and verify recovery within RTO."
+  - "For brownfield: audit existing single-AZ resources; prioritize databases and stateful services."
+
+maturity_levels:
+  level_1:
+    description: "Single-AZ deployments, no redundancy planning"
+    criteria:
+      - "All workloads deployed in a single availability zone"
+      - "No documented AZ failure recovery plan"
+  level_2:
+    description: "Multi-AZ for databases only"
+    criteria:
+      - "Critical databases use Multi-AZ"
+      - "Compute resources still single-AZ"
+  level_3:
+    description: "Full multi-AZ for all production workloads"
+    criteria:
+      - "All compute deployed across minimum 2 AZs"
+      - "All databases with Multi-AZ failover enabled"
+      - "Load balancers span at least 2 AZs"
+      - "AZ failure tested once per quarter"
+  level_4:
+    description: "Multi-AZ with automated failover testing"
+    criteria:
+      - "Automated AZ failover tests in CI/CD pipeline"
+      - "Kubernetes topology spread constraints enforced"
+      - "AZ distribution metrics tracked and alerted"
+  level_5:
+    description: "Multi-region active-active or active-passive"
+    criteria:
+      - "Critical workloads deployed across 2+ regions"
+      - "Global load balancing with automatic region failover"
+      - "RTO < 5 minutes for region-level failure"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform showing multi-AZ configuration for compute, database, and load balancer resources."
+    - kind: "config"
+      description: "Cloud console or IaC showing at least 2 AZs configured per production resource group."
+  optional:
+    - kind: "process"
+      description: "AZ failure test results demonstrating recovery within defined RTO."
+    - kind: "config"
+      description: "Monitoring dashboard showing AZ distribution of deployed instances."
+
+checks:
+  - id: "waf-rel-030.tf.aws.rds-multi-az"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS RDS instances must have Multi-AZ enabled"
+    description: >
+      Production RDS instances must have multi_az = true to enable automatic failover
+      to a standby replica in a different AZ on failure.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+    assertions:
+      - attribute: "multi_az"
+        op: "is_true"
+        message: "RDS instance must have multi_az = true for production availability."
+    on_fail: "violation"
+    remediation: >
+      Set multi_az = true on the aws_db_instance resource. This creates a synchronous
+      standby replica in a different AZ. Failover is automatic and typically completes
+      within 1-2 minutes.
+    example:
+      compliant: |
+        resource "aws_db_instance" "main" {
+          identifier        = "payment-db-prod"
+          engine            = "postgres"
+          engine_version    = "15.4"
+          instance_class    = "db.t3.medium"
+          allocated_storage = 100
+          multi_az          = true
+          db_subnet_group_name = aws_db_subnet_group.main.name
+          tags = var.mandatory_tags
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier        = "payment-db-prod"
+          engine            = "postgres"
+          instance_class    = "db.t3.medium"
+          allocated_storage = 100
+          multi_az          = false  # WAF-REL-030 violation
+          db_subnet_group_name = aws_db_subnet_group.main.name
+        }
+
+  - id: "waf-rel-030.tf.aws.autoscaling-multi-az"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Auto Scaling Group must span at least 2 availability zones"
+    description: >
+      Auto Scaling Groups in production must reference subnets in at least 2 different
+      AZs to ensure compute redundancy.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_autoscaling_group"
+    assertions:
+      - attribute: "vpc_zone_identifier"
+        op: "not_empty"
+        message: "Auto Scaling Group must specify VPC subnets across multiple AZs."
+      - attribute: "min_size"
+        op: "greater_than_or_equal"
+        value: 2
+        message: "Auto Scaling Group minimum size must be at least 2 for HA."
+    on_fail: "violation"
+    remediation: >
+      Set vpc_zone_identifier to a list containing subnet IDs from at least 2 AZs.
+      Increase min_size to 2 to ensure at least one instance per AZ during failures.
+    example:
+      compliant: |
+        resource "aws_autoscaling_group" "api" {
+          name               = "payment-api-asg"
+          min_size           = 2
+          max_size           = 10
+          desired_capacity   = 2
+          vpc_zone_identifier = [
+            aws_subnet.private_az1.id,
+            aws_subnet.private_az2.id,
+          ]
+        }
+      non_compliant: |
+        resource "aws_autoscaling_group" "api" {
+          name               = "payment-api-asg"
+          min_size           = 1
+          max_size           = 4
+          desired_capacity   = 1
+          vpc_zone_identifier = [aws_subnet.private_az1.id]
+          # Single AZ – WAF-REL-030 violation
+        }
+
+  - id: "waf-rel-030.tf.azurerm.db-availability-zone"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure database services must use zone-redundant configuration"
+    description: >
+      Azure SQL Database, PostgreSQL Flexible Server, and other managed databases
+      must use zone_redundant = true or configure standby_availability_zone.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_postgresql_flexible_server"
+        - "azurerm_mssql_database"
+        - "azurerm_mysql_flexible_server"
+    assertions:
+      - attribute: "high_availability"
+        op: "attribute_exists"
+        message: "Database must define high_availability block with zone-redundant configuration."
+    on_fail: "violation"
+    remediation: >
+      Add a high_availability block with mode = "ZoneRedundant" and configure
+      standby_availability_zone to a different zone than the primary.
+    example:
+      compliant: |
+        resource "azurerm_postgresql_flexible_server" "main" {
+          name                = "payment-db-prod"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          version             = "15"
+          sku_name            = "GP_Standard_D2s_v3"
+          availability_zone   = "1"
+
+          high_availability {
+            mode                      = "ZoneRedundant"
+            standby_availability_zone = "2"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_postgresql_flexible_server" "main" {
+          name                = "payment-db-prod"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          version             = "15"
+          sku_name            = "GP_Standard_D2s_v3"
+          # Missing: high_availability – single zone deployment
+        }
+
+  - id: "waf-rel-030.tf.google.sql-availability-type"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Cloud SQL must use REGIONAL availability type"
+    description: >
+      GCP Cloud SQL instances must use availability_type = REGIONAL for automatic
+      failover across zones in the same region.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_sql_database_instance"
+    assertions:
+      - attribute: "settings.availability_type"
+        op: "equals"
+        value: "REGIONAL"
+        message: "Cloud SQL must use REGIONAL availability type, not ZONAL."
+    on_fail: "violation"
+    remediation: >
+      Set availability_type = "REGIONAL" in the settings block of google_sql_database_instance
+      to enable automatic failover to a different zone.
+    example:
+      compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "payment-db-prod"
+          database_version = "POSTGRES_15"
+          settings {
+            tier              = "db-custom-2-7680"
+            availability_type = "REGIONAL"
+            backup_configuration {
+              enabled    = true
+              start_time = "02:00"
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "payment-db-prod"
+          database_version = "POSTGRES_15"
+          settings {
+            tier              = "db-custom-2-7680"
+            availability_type = "ZONAL"  # WAF-REL-030 violation
+          }
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-030"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-multi-az.adoc"
+  related_controls:
+    - "WAF-REL-020"
+    - "WAF-REL-040"
+    - "WAF-REL-070"

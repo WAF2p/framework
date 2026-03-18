@@ -1,0 +1,193 @@
+= WAF-SUS-100 – Sustainability Debt Register & Quarterly Review
+:page-toc: right
+:control-id: WAF-SUS-100
+:pillar: sustainability
+:severity: low
+:category: sustainability-governance
+:automated: low
+:description: WAF++ Sustainability – Sustainability-Schulden dokumentieren, vierteljährlich reviewen und als Governance-Risiko adressieren. CSRD-Nachweis für aktive Sustainability-Governance.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Sustainability Governance | *Automatisierbar:* Niedrig
+
+== Beschreibung
+
+Organisationen MÜSSEN ein Sustainability Debt Register führen, das alle bekannten Lücken
+zwischen aktuellem Zustand und Zielzustand dokumentiert.
+Das Register MUSS mindestens quartalsweise reviewed und aktualisiert werden.
+Jeder Eintrag MUSS geschätzten CO₂-Impact, Remediation-Priorität, Owner und Ziel-Auflösungsdatum enthalten.
+Sustainability-Schulden MÜSSEN als Governance-Risiko behandelt und in ESG/CSRD-Berichten referenziert werden.
+AWS Config Rules SOLLEN für Sustainability-relevante Ressourcentypen aktiviert sein.
+
+== Rationale
+
+Sustainability-Verbesserungen entstehen nicht spontan — sie erfordern deliberate Governance.
+Ein Sustainability Debt Register macht bekannte Lücken sichtbar, zugeordnet und terminiert.
+Ohne es optimieren Teams lokal, während strukturelle Sustainability-Schulden still akkumulieren.
+CSRD verlangt von Organisationen, ihren Sustainability-Governance-Prozess zu beschreiben —
+ein aktives Debt Register mit Quartalsreviews ist der operative Nachweis dafür.
+Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adressiert.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*CSRD-Governance-Lücke*
+|Fehlende Dokumentation bekannter Sustainability-Gaps ist ein CSRD-Governance-Finding: "keine aktive Verwaltung".
+
+|*Ungetrackte Optimierungspotenziale*
+|Bekannte x86-Altlasten, fehlende Lifecycle-Policies und Idle-Ressourcen bleiben unpriorisiert ohne Register.
+
+|*SBTi-Zielverfehlung*
+|Ohne dokumentierten Remediation-Backlog sind SBTi-Scope-3-Ziele nicht planbar oder verfolgbar.
+
+|*Engineering-Silos*
+|Ohne zentrales Register optimiert jedes Team nach eigenem Ermessen; Cross-Team-Synergien bleiben ungenutzt.
+
+|===
+
+== Anforderung
+
+* Sustainability Debt Register MUSS existieren und versioniert sein (Git oder dokumentiertes Tool)
+* Jeder Eintrag MUSS enthalten: Control-Referenz, Beschreibung, CO₂-Impact-Schätzung, Owner, Zieldatum
+* Quarterly Review MUSS dokumentiert sein (Meeting-Protokoll oder Ticket)
+* Sustainability-Schulden MÜSSEN in Engineering-Backlogs priorisiert werden
+* AWS-Ressourcen SOLLEN `sustainability-reviewed`-Tag mit Datum des letzten Reviews tragen
+* CSRD/ESG-Report SOLL auf aktiven Debt-Register-Governance-Prozess referenzieren
+
+== Implementierungsanleitung
+
+. *Register erstellen*: YAML-Datei in Architecture-Repository; oder Jira-Label `sustainability-debt` für alle betroffenen Tickets
+. *WAF-SUS-Assessment*: Für alle 10 Controls aktuellen Reifegrad bewerten; Lücken als Debt-Items erfassen
+. *Carbon-Impact schätzen*: Niedrig/Mittel/Hoch/Kritisch; für wichtige Items tCO₂e/Jahr schätzen
+. *Owner zuweisen*: Jeder Debt-Item braucht einen verantwortlichen Team-Owner; kein Item ohne Owner
+. *Quarterly Cadence*: Fester Kalender-Termin; Protokoll mit: Items geschlossen, Items hinzugefügt, Gesamtfortschritt
+. *Engineering-Integration*: Debt-Items in Sprint-Planning als `sustainability`-Epics oder -Stories
+. *Tag-Governance*: `sustainability-reviewed = "YYYY-MM-DD"` auf alle Tier-1-Compute-Ressourcen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Governance
+|Keine Dokumentation; kein Review-Prozess; keine Ownership; Sustainability ist nicht Engineering-Thema.
+
+|*2*
+|Informelle Awareness
+|Team hat informelle Liste bekannter Probleme; kein formales Register; kein Review-Zyklus.
+
+|*3*
+|Register + Quarterly Review
+|Formales Register mit allen WAF-SUS-Gaps; Owner + Zieldatum; vierteljährliches Review dokumentiert.
+
+|*4*
+|Leadership-Reporting + Carbon-Savings
+|Quartalsbericht an Engineering-Leadership; geschlossene Items zeigen dokumentierte CO₂-Einsparungen.
+
+|*5*
+|OKR + Automatisierte Health Checks
+|Sustainability-Debt-Reduktion als OKR; automatisierte Compliance-Checks aktualisieren Register; Net-Zero-Roadmap.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-100.tf.aws.tag-sustainability-reviewed
+*Prüft:* Compute-Ressourcen tragen `sustainability-reviewed`-Tag.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+  tags = {
+    environment             = "production"
+    workload                = "payment-service"
+    owner                   = "platform-team"
+    sustainability-reviewed = "2026-01-15"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "m4.large"
+  tags = {
+    Name = "payment-app"
+    # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
+    # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
+  }
+}
+----
+|===
+
+*Remediation:* `sustainability-reviewed = "YYYY-MM-DD"` zu allen Tier-1-Compute-Ressourcen hinzufügen. Quartalsweise nach Review-Termin aktualisieren.
+
+---
+
+=== waf-sus-100.tf.aws.config-rule-sustainability
+*Prüft:* AWS Config Rules für Sustainability-relevante Ressourcentypen konfiguriert.
+
+[source,hcl]
+----
+# Compliant: AWS Config Rule für Log-Retention-Prüfung (Sustainability-Governance)
+resource "aws_config_config_rule" "log_retention" {
+  name        = "cloudwatch-log-group-retention-period-check"
+  description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
+
+  source {
+    owner             = "AWS"
+    source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
+  }
+  input_parameters = jsonencode({ MinRetentionTime = "14" })
+
+  tags = {
+    purpose = "sustainability-governance"
+    control = "WAF-SUS-100"
+  }
+}
+----
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Sustainability Debt Register (versioniert) mit WAF-SUS-Control-Gaps, Owner, Carbon Impact, Zieldatum.
+
+|*Process*
+|✅ Pflicht
+|Quarterly Review Meeting-Protokolle mit Fortschrittsverfolgung (Items geschlossen, neu, Gesamtstatus).
+
+|*Governance*
+|Optional
+|ESG/Annual-Report-Sektion zum Sustainability-Governance-Prozess und aktiven Debt-Register.
+
+|*Process*
+|Optional
+|Engineering-Backlog-Nachweis (Epics/Stories) für Sustainability-Debt-Items in Sprint-Planning.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
+* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+
+== Best Practice
+
+* xref:best-practices/bp-esg-reporting.adoc[ESG-Reporting automatisieren & Sustainability-Governance →]

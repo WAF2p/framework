@@ -1,0 +1,176 @@
+= WAF-OPS-080 – Feature Flag & Safe Deployment Patterns
+:page-toc: right
+:control-id: WAF-OPS-080
+:pillar: operations
+:severity: medium
+:category: deployment-safety
+:automated: high
+:description: WAF++ Operational Excellence – Produktions-Deployments müssen Progressive Delivery nutzen (Canary, Blue/Green, Feature Flags). Rollback in < 5 Minuten ohne neues Deployment.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Deployment-Sicherheit | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Produktions-Deployments MÜSSEN Progressive-Delivery-Muster (Canary, Blue/Green, Feature Flags)
+verwenden, um den Blast Radius von fehlerhaften Deployments zu reduzieren.
+Rollback MUSS innerhalb von 5 Minuten ohne neues Deployment möglich sein.
+Neue Features mit signifikanter Nutzerauswirkung MÜSSEN hinter Feature Flags deployt werden.
+
+== Rationale
+
+Big-Bang-Deployments – alle Änderungen auf alle Nutzer gleichzeitig – maximieren den Blast Radius
+jedes Fehlers. Progressive Delivery reduziert den Blast Radius: Eine fehlerhafte Canary-Version
+trifft 5% der Nutzer, nicht 100%. Feature Flags ermöglichen sofortigen Rollback in Sekunden
+ohne Deployment-Zyklus.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Voller Blast Radius*
+|Big-Bang-Deployment: fehlerhafter Release trifft 100% der Nutzer gleichzeitig.
+
+|*Langsamer Rollback*
+|Ohne Progressive Delivery erfordert Rollback einen neuen Deployment-Zyklus (10–20 Minuten).
+
+|*Nicht abbrechbare Launches*
+|Features ohne Flag können nicht sofort deaktiviert werden wenn negative Metriken auftreten.
+
+|*Irreversible Deployments*
+|Datenbankmigrationen ohne Canary machen Deployments praktisch unumkehrbar.
+
+|===
+
+== Anforderung
+
+* Alle Production-Deployments MÜSSEN Canary, Blue/Green oder Feature Flags verwenden
+* Rollback MUSS in < 5 Minuten ohne neues Deployment möglich sein
+* Neue Features mit Nutzerauswirkung MÜSSEN hinter Feature Flags deployt werden
+* Auto-Rollback MUSS bei Fehlerrate-Anstieg konfiguriert sein (CodeDeploy Alarm, etc.)
+
+== Implementierungsanleitung
+
+. *Deployment-Strategie wählen:* Blue/Green für vollständige Umgebungswechsel; Canary für schrittweisen Traffic-Split
+. *CodeDeploy konfigurieren:* `CodeDeployDefault.ECSCanary10Percent5Minutes` statt `AllAtOnce`
+. *Auto-Rollback-Alarms konfigurieren:* CloudWatch Alarm der bei Fehlerrate-Anstieg Rollback auslöst
+. *Feature-Flag-Service einrichten:* AWS AppConfig, LaunchDarkly, Unleash, oder Flagsmith
+. *Rollback-Prozedur testen:* Regelmäßige Übung des Rollback-Prozesses (mindestens quartalsweise)
+. *Flag-Lifecycle verwalten:* Veraltete Feature Flags (> 90 Tage) regelmäßig entfernen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Big-Bang Deployments
+|Alle Änderungen gleichzeitig auf 100% der Nutzer. Rollback = neues Deployment.
+
+|*2*
+|Basis-Deployment-Sicherheit
+|Rolling Updates oder manuelle Blue/Green. Kein Auto-Rollback.
+
+|*3*
+|Progressive Delivery
+|Canary/Blue-Green mit Health-Check-basiertem Auto-Rollback. Feature Flags für neue Features.
+
+|*4*
+|Automatische Canary-Analyse
+|Metriken-Vergleich auto-entscheidet Promotion/Rollback. Change Failure Rate tracked.
+
+|*5*
+|Experiment-Plattform
+|DORA Elite: CFR < 5%. A/B-Testing-Infrastruktur. Deployment-Entscheidungen vollautomatisch.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-080.tf.aws.codedeploy-deployment-config
+*Prüft:* AWS CodeDeploy Deployment Group nutzt Canary oder Linear, nicht AllAtOnce.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_codedeploy_deployment_group" "production" {
+  app_name              = aws_codedeploy_app.app.name
+  deployment_group_name = "payment-service-production"
+  service_role_arn      = aws_iam_role.codedeploy.arn
+  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+  auto_rollback_configuration {
+    enabled = true
+    events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_codedeploy_deployment_group" "production" {
+  deployment_config_name = "CodeDeployDefault.AllAtOnce"
+  # AllAtOnce = 100% Blast Radius
+  # Kein Auto-Rollback
+  # WAF-OPS-080 Violation
+}
+----
+
+|===
+
+=== waf-ops-080.tf.aws.appconfig-feature-flag
+*Prüft:* AWS AppConfig Application für Feature-Flag-Management konfiguriert.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_appconfig_application" "feature_flags" {
+  name        = "payment-service-feature-flags"
+  description = "Feature flags for payment service"
+}
+resource "aws_appconfig_environment" "production" {
+  name           = "production"
+  application_id = aws_appconfig_application.feature_flags.id
+}
+----
+
+*Remediation:* `deployment_config_name` auf Canary- oder Linear-Strategie ändern.
+`auto_rollback_configuration` mit `enabled = true` konfigurieren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Load-Balancer oder Deployment-Konfiguration mit Progressive-Delivery-Pattern.
+
+|*Config*
+|✅ Pflicht
+|Feature-Flag-Service-Konfiguration (AppConfig, LaunchDarkly, etc.).
+
+|*Process*
+|Optional
+|Deployment-Runbook mit Canary-Promotion und Rollback-Entscheidungskriterien.
+
+|*Config*
+|Optional
+|Auto-Rollback-Alarm-Konfiguration mit Schwellenwerten für Deployment-Abbruch.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
+* xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
+* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
+
+== Best Practice
+
+* xref:best-practices/bp-deployment-safety.adoc[Sichere Deployments (Feature Flags, Canary, Blue/Green) →]

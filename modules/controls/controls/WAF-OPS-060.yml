@@ -1,0 +1,215 @@
+id: WAF-OPS-060
+title: "Runbook & Operational Documentation Coverage"
+pillar: "operations"
+status: "active"
+severity: "medium"
+category: "documentation"
+type: ['governance', 'configuration', 'automation']
+tags: ['runbooks', 'documentation', 'operations', 'toil', 'knowledge-management', 'oncall']
+
+description: >
+  Every production workload MUST have a runbook covering all known failure modes, routine
+  operational tasks, and escalation paths. Runbooks MUST be version-controlled, regularly
+  reviewed (at minimum quarterly), and accessible to all on-call engineers without
+  authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link
+  to the relevant runbook section.
+
+rationale: >
+  Undocumented operational knowledge creates single points of failure in people:
+  when the engineer who "knows how to restart the payment processor" is unavailable,
+  the entire team is blocked. Runbooks codify this knowledge, reduce mean time to
+  resolution, and enable junior engineers to handle incidents. Without runbooks,
+  every incident is a re-learning experience. Runbook quality directly correlates
+  with MTTR: teams with comprehensive runbooks resolve incidents 40–60% faster.
+
+threat:
+  - "Critical operational knowledge siloed in a single engineer's head"
+  - "Incident response delayed because no procedure for known failure modes exists"
+  - "Junior engineers unable to handle on-call incidents independently"
+  - "Repeat incidents because fixes are not documented and become tribal knowledge"
+  - "Knowledge loss during team transitions or departures"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Knowledge management"
+      - "Incident management"
+  - framework: "ITIL 4"
+    controls:
+      - "Knowledge management"
+      - "Incident management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 3: How do you understand your operations?"
+  - framework: "SOC 2 Type II"
+    controls:
+      - "CC9.1 – Risk Mitigation Activities"
+
+implementation_guidance:
+  - "Create a runbook template: overview, trigger condition, impact, diagnosis steps, remediation steps, escalation, author."
+  - "Store runbooks in version control alongside application code (docs/runbooks/) or in a team wiki with version history."
+  - "Link every paging alert to its runbook in the alert annotation (runbook_url label in Prometheus, description in CloudWatch)."
+  - "Review runbooks after every incident: update steps that were incorrect or incomplete based on incident findings."
+  - "Conduct quarterly runbook reviews: verify accuracy, remove stale runbooks for decommissioned components."
+  - "Define runbook coverage metric: (services with runbooks / total services) * 100. Target >= 90% for critical services."
+  - "Include operational documentation for routine tasks: deployment procedures, scaling procedures, certificate renewal."
+
+maturity_levels:
+  level_1:
+    description: "No runbooks, tribal knowledge"
+    criteria:
+      - "No written operational procedures exist"
+      - "Incident response depends on specific engineers who 'know the system'"
+      - "No documentation for routine operational tasks"
+  level_2:
+    description: "Basic runbooks for major incidents"
+    criteria:
+      - "Runbooks exist for the most critical failure scenarios"
+      - "Runbooks stored in wiki but not linked to alerts"
+      - "No formal review cadence"
+  level_3:
+    description: "Comprehensive runbooks linked to alerts"
+    criteria:
+      - "All paging alerts have linked runbooks"
+      - "Runbooks stored in version control with review history"
+      - "Quarterly review cadence established"
+      - "All known failure modes documented"
+  level_4:
+    description: "Living documentation with metrics"
+    criteria:
+      - "Runbook coverage metric tracked (>= 90% for critical services)"
+      - "Runbooks updated within 48 hours of any incident that revealed gaps"
+      - "Runbooks include diagnostic automation (scripts, commands with expected output)"
+      - "New-hire onboarding includes runbook walkthrough"
+  level_5:
+    description: "Self-service operational automation"
+    criteria:
+      - "Critical runbook steps automated as scripts or buttons in internal tooling"
+      - "Runbook quality score tracked (completeness, last-updated, accuracy from feedback)"
+      - "Runbook coverage: 100% of production services including non-critical"
+      - "Runbooks drive reduction in repeat incidents (tracked month-over-month)"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "Runbook repository or wiki with runbooks for all critical services, showing version history and last-reviewed date."
+    - kind: "governance"
+      description: "Runbook coverage report: number of services with runbooks vs. total production services."
+  optional:
+    - kind: "config"
+      description: "Alert rule configuration showing runbook URL annotation in alert definitions."
+    - kind: "process"
+      description: "Quarterly runbook review meeting notes or JIRA tickets for runbook review tasks."
+
+checks:
+  - id: "waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "CloudWatch alarms must include runbook URL in description"
+    description: >
+      All CloudWatch metric alarms that trigger on-call notifications MUST include
+      a runbook URL in the alarm_description to reduce mean time to resolution.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_metric_alarm"
+    assertions:
+      - attribute: "alarm_description"
+        op: "matches"
+        pattern: "https?://"
+        message: "CloudWatch alarm description must include a runbook URL (http:// or https://)."
+    on_fail: "violation"
+    remediation: >
+      Include a runbook URL in the alarm_description field:
+      alarm_description = "Error rate exceeded. Runbook: https://wiki/runbooks/service-errors"
+    example:
+      compliant: |
+        resource "aws_cloudwatch_metric_alarm" "error_rate" {
+          alarm_name          = "payment-service-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 2
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApplicationELB"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          alarm_description   = "Payment service error rate high. Runbook: https://wiki/runbooks/payment-5xx"
+          alarm_actions       = [aws_sns_topic.oncall.arn]
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "error_rate" {
+          alarm_name          = "payment-service-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 2
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApplicationELB"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          alarm_description   = "High error rate"
+          # No runbook URL – WAF-OPS-060 Violation
+          alarm_actions       = [aws_sns_topic.oncall.arn]
+        }
+
+  - id: "waf-ops-060.tf.aws.prometheus-alert-runbook-label"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Prometheus alert rules must include runbook_url annotation"
+    description: >
+      Prometheus alert rules managed in AWS Managed Prometheus MUST include a runbook_url
+      annotation so on-call engineers have immediate access to remediation steps.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_prometheus_rule_group_namespace"
+    assertions:
+      - attribute: "data"
+        op: "matches"
+        pattern: "runbook_url"
+        message: "Prometheus alert rules must include runbook_url annotation."
+    on_fail: "violation"
+    remediation: >
+      Add runbook_url: "https://wiki/runbooks/<service>" annotation to all
+      Prometheus alert rules.
+    example:
+      compliant: |
+        resource "aws_prometheus_rule_group_namespace" "alerts" {
+          name         = "payment-service-alerts"
+          workspace_id = aws_prometheus_workspace.main.id
+          data         = <<-EOT
+            groups:
+              - name: payment-service
+                rules:
+                  - alert: HighErrorRate
+                    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+                    for: 2m
+                    annotations:
+                      summary: "High error rate on payment service"
+                      runbook_url: "https://wiki/runbooks/payment-errors"
+          EOT
+        }
+      non_compliant: |
+        resource "aws_prometheus_rule_group_namespace" "alerts" {
+          name         = "payment-service-alerts"
+          workspace_id = aws_prometheus_workspace.main.id
+          data         = <<-EOT
+            groups:
+              - name: payment-service
+                rules:
+                  - alert: HighErrorRate
+                    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+                    # No runbook_url annotation – WAF-OPS-060 Violation
+          EOT
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-060"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-runbooks.adoc"
+  related_controls:
+    - "WAF-OPS-040"
+    - "WAF-OPS-070"
+    - "WAF-OPS-100"

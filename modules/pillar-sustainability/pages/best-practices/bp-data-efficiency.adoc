@@ -1,0 +1,303 @@
+= Best Practice: Datenminimierung, Storage-Lifecycle, Transferoptimierung
+:page-toc: right
+:description: WAF++ Sustainability – Storage-Lifecycle-Policies, Data Minimization, CDN-Kompression und VPC Endpoints als Sustainability-Maßnahmen für Cloud-Architekturen.
+
+== Kontext
+
+Daten in der Cloud verursachen auf drei Wegen Emissionen:
+*Speicherenergie* (proportional zu gespeichertem Volumen und Tier),
+*Netzwerkenergie* (proportional zu übertragenen Bytes) und
+*Compute-Energie* für Datenverarbeitung.
+
+Alle drei lassen sich durch konsequente Lifecycle-Policies, intelligentes Tiering und
+Transferoptimierung signifikant reduzieren — ohne Einbußen bei der Datenverfügbarkeit.
+
+Das Prinzip der *Datenminimierung* (DSGVO Art. 5) und das Sustainability-Ziel sind hier
+vollständig ausgerichtet: weniger Daten = weniger Speicherenergie = weniger CO₂.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-050[WAF-SUS-050] – Storage Lifecycle & Data Minimization
+* xref:controls.adoc#WAF-SUS-080[WAF-SUS-080] – Network & Data Transfer Efficiency
+
+== Zielbild
+
+* Alle S3-Buckets haben Lifecycle-Regeln (Transition + Expiration)
+* Alle CloudWatch Log Groups haben `retention_in_days` gesetzt
+* CDN für alle user-facing Anwendungen mit Kompression aktiviert
+* VPC Endpoints für S3, DynamoDB und weitere AWS Services
+* S3 Intelligent-Tiering für Buckets mit variablem Zugriffsprofil
+* Zero unattached EBS Volumes; stale Snapshots automatisch bereinigt
+
+== Technische Umsetzung
+
+=== Schritt 1: S3-Lifecycle-Policies systematisch implementieren
+
+[source,hcl]
+----
+# S3 Lifecycle Configuration für verschiedene Datenkategorien
+
+# Beispiel: Betriebslogs mit 90-Tage-Retention
+resource "aws_s3_bucket_lifecycle_configuration" "app_logs" {
+  bucket = aws_s3_bucket.app_logs.id
+
+  rule {
+    id     = "log-lifecycle"
+    status = "Enabled"
+
+    filter {
+      prefix = "logs/"
+    }
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"    # Günstiger bei < 1 Zugriff/Monat
+    }
+    expiration {
+      days = 90  # Logs nach 90 Tagen löschen
+    }
+    # Incomplete Multipart Uploads bereinigen
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+# Beispiel: Business-Daten mit 2-Jahres-Retention
+resource "aws_s3_bucket_lifecycle_configuration" "business_data" {
+  bucket = aws_s3_bucket.business_data.id
+
+  rule {
+    id     = "business-data-tiering"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"     # Glacier Instant Retrieval: ms access
+    }
+    transition {
+      days          = 365
+      storage_class = "DEEP_ARCHIVE"   # Höchste Energieeffizienz, Stunden-Retrieval
+    }
+    expiration {
+      days = 730  # 2 Jahre
+    }
+  }
+
+  # Cleanup veralteter Versionen
+  rule {
+    id     = "cleanup-old-versions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+}
+
+# Beispiel: CSRD-Audit-Daten mit 7-Jahres-Pflicht-Retention
+resource "aws_s3_bucket_lifecycle_configuration" "csrd_data" {
+  bucket = aws_s3_bucket.csrd_audit.id
+
+  rule {
+    id     = "csrd-retention"
+    status = "Enabled"
+
+    transition {
+      days          = 365
+      storage_class = "GLACIER"
+    }
+    transition {
+      days          = 730
+      storage_class = "DEEP_ARCHIVE"
+    }
+    expiration {
+      days = 2555  # 7 Jahre – CSRD-Pflicht
+    }
+  }
+}
+----
+
+=== Schritt 2: CloudWatch Log Groups mit Retention
+
+[source,hcl]
+----
+# Modul für standardisierte Log Group mit Retention
+resource "aws_cloudwatch_log_group" "service_logs" {
+  name              = "/application/${var.service_name}/${var.environment}"
+  retention_in_days = var.log_retention_days
+
+  tags = {
+    service     = var.service_name
+    environment = var.environment
+    owner       = var.owner
+    workload    = var.workload
+  }
+}
+
+# Standard-Retention-Werte nach Umgebung
+locals {
+  log_retention_by_env = {
+    production  = 90
+    staging     = 30
+    development = 7
+    testing     = 3
+  }
+}
+
+# Batch-Compliance: Prüfe alle Log Groups ohne Retention
+# (empfohlen als Teil des Quarterly Sustainability Review)
+data "aws_cloudwatch_log_groups" "all" {
+  log_group_name_prefix = "/"
+}
+----
+
+=== Schritt 3: S3 Intelligent-Tiering für unbekannte Zugriffsmuster
+
+[source,hcl]
+----
+# S3 Intelligent-Tiering für Buckets mit variablem Zugriffsprofil
+resource "aws_s3_bucket_intelligent_tiering_configuration" "data_lake" {
+  bucket = aws_s3_bucket.data_lake.id
+  name   = "full-archive-tiering"
+
+  tiering {
+    access_tier = "DEEP_ARCHIVE_ACCESS"
+    days        = 180  # Nach 180 Tagen ohne Zugriff → Deep Archive
+  }
+
+  tiering {
+    access_tier = "ARCHIVE_ACCESS"
+    days        = 90   # Nach 90 Tagen ohne Zugriff → Archive
+  }
+}
+# Intelligent-Tiering analysiert Zugriffsfrequenz automatisch
+# Kein manuelles Nacharbeiten der Transition-Rules erforderlich
+----
+
+=== Schritt 4: CDN mit Kompression für user-facing Anwendungen
+
+[source,hcl]
+----
+resource "aws_cloudfront_distribution" "web_app" {
+  origin {
+    domain_name = aws_lb.app.dns_name
+    origin_id   = "app-alb"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "app-alb"
+    viewer_protocol_policy = "redirect-to-https"
+
+    # CRITICAL für Sustainability: Kompression aktivieren
+    compress               = true
+
+    # Cache-TTL: Statische Assets lange cachen
+    min_ttl     = 0
+    default_ttl = 3600    # 1 Stunde
+    max_ttl     = 86400   # 24 Stunden
+  }
+
+  # Separate Cache-Behavior für statische Assets
+  ordered_cache_behavior {
+    path_pattern           = "/static/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "app-alb"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    min_ttl     = 0
+    default_ttl = 86400   # 24 Stunden
+    max_ttl     = 31536000 # 1 Jahr für Immutable Assets
+  }
+
+  price_class = "PriceClass_100"  # Europa + Nordamerika (näher an grünen Regionen)
+  enabled     = true
+}
+----
+
+=== Schritt 5: VPC Endpoints für AWS Service-Kommunikation
+
+[source,hcl]
+----
+# Gateway Endpoints (kostenlos, empfohlen für alle VPCs)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = concat(
+    aws_route_table.private[*].id,
+    [aws_route_table.public.id]
+  )
+  tags = {
+    Name    = "s3-gateway-endpoint"
+    purpose = "eliminate-internet-egress"
+  }
+}
+
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+}
+
+# Interface Endpoints für weitere Services (SSM, CloudWatch, ECR)
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.private_subnets
+  security_group_ids  = [aws_security_group.vpc_endpoint.id]
+  private_dns_enabled = true
+}
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*"S3 ohne Lifecycle — wir löschen manuell"*
+|Manuelle Löschung ist unreliabel und unauditierbar. Lifecycle-Policies sind Infrastructure-as-Code.
+
+|*"CloudWatch ohne Retention — wir schauen nur selten rein"*
+|Standard-Retention ist 'Never Expire'. Terabytes akkumulieren. WAF-SUS-050 Violation.
+
+|*"CDN nur für statische Assets, API ohne Kompression"*
+|API-Antworten (JSON) sind oft 70–90% durch Kompression reduzierbar. CDN-Kompression kostet keine Entwicklungszeit.
+
+|*"Internet Gateway für S3-Zugriff ist Standard"*
+|VPC Endpoint für S3 ist kostenlos und eliminiert Internet-Egress-Energie und -Kosten.
+
+|===
+
+== Metriken
+
+* *S3-Buckets mit Lifecycle-Policy (%)*: (Ziel: 100%)
+* *CloudWatch Log Groups mit Retention (%)*: (Ziel: 100%)
+* *Kompressionsrate CDN (%)*: Anteil komprimierter Responses (Ziel: >70% der Requests)
+* *Egress-Kosten-Trend*: Monatliche Egress-Kosten als Proxy für Netzwerkenergie
+* *Storage-Tiering-Anteil (%)*: Anteil der S3-Daten in IA/Glacier/Archive vs. Standard
+
+== Reifegrad
+
+Level 1 – Keine Lifecycle-Policies; infinite Retention; kein CDN; kein VPC Endpoint +
+Level 2 – Einige Buckets mit Policies; CDN für Haupt-Produkt +
+Level 3 – Alle Ressourcen mit Lifecycle + Retention; CDN + Kompression; VPC Endpoints +
+Level 4 – Intelligent-Tiering; Data-Min Policy; Transfer-Budgets per Workload +
+Level 5 – Storage-Emissionen in SCI; automatisierte Daten-Klassifikation und Lifecycle

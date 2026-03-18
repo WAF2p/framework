@@ -1,0 +1,267 @@
+id: WAF-SUS-100
+title: "Sustainability Debt Register & Quarterly Review"
+pillar: "sustainability"
+status: "active"
+severity: "low"
+category: "sustainability-governance"
+type: ['governance', 'configuration']
+tags: ['sustainability-debt', 'governance', 'review', 'register', 'technical-debt', 'roadmap', 'csrd', 'backlog']
+
+description: >
+  Organizations MUST maintain a Sustainability Debt Register documenting all known gaps
+  between current sustainability posture and target state across all WAF-SUS controls.
+  The register MUST be reviewed and updated at least quarterly. Each entry MUST include:
+  estimated carbon impact, remediation priority, owner, and target resolution date.
+  Sustainability debt MUST be treated as a governance risk item and reported in the
+  organization's ESG or sustainability report. Quarterly reviews MUST produce measurable
+  progress against reduction targets.
+
+rationale: >
+  Sustainability improvements do not happen spontaneously — they require deliberate governance.
+  A sustainability debt register makes known gaps visible, owned, and time-bound. Without it,
+  technical teams optimize locally while structural sustainability debt accumulates silently.
+  CSRD requires organizations to describe their sustainability governance processes; a
+  documented debt register with quarterly reviews demonstrates active management.
+  Analogous to architectural technical debt, sustainability debt compounds: each quarter
+  without action on x86 legacy instances, missing lifecycle policies, or idle resources
+  adds to the carbon liability. The register is the tool that converts sustainability
+  intentions into accountable engineering roadmap items.
+
+threat:
+  - "Sustainability gaps untracked and unowned, making CSRD governance disclosures inaccurate"
+  - "Known optimization opportunities (x86 → Graviton, missing lifecycle policies) never prioritized"
+  - "Quarterly ESG reviews lacking substance due to absent data on sustainability backlog"
+  - "SBTi and net-zero commitments failing due to untracked remediation backlog"
+  - "Engineering teams unaware of sustainability obligations creating cultural resistance"
+
+regulatory_mapping:
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS 2 – General Disclosures: Governance, strategy and management of sustainability matters"
+      - "ESRS E1 – Climate Change: governance of climate-related risks and opportunities"
+  - framework: "GHG Protocol"
+    controls:
+      - "Corporate Standard – management and governance of GHG inventory"
+  - framework: "SBTi (Science Based Targets initiative)"
+    controls:
+      - "ICT Sector Guidance – progress tracking and governance"
+  - framework: "ISO 14001"
+    controls:
+      - "10.3 – Continual improvement"
+      - "6.1 – Actions to address risks and opportunities"
+
+implementation_guidance:
+  - "Create a Sustainability Debt Register as a version-controlled YAML or spreadsheet in the architecture repository."
+  - "For each WAF-SUS control, assess current maturity level and document gap to target level."
+  - "Assign a carbon impact estimate (Low/Medium/High/Critical) to each registered debt item."
+  - "Assign an owner and remediation target date to every debt item; review quarterly."
+  - "Include sustainability debt backlog in engineering sprint planning as first-class work items."
+  - "Report quarterly progress (items closed, items added, net carbon impact) to sustainability steering committee."
+  - "Integrate with FinOps review cycles: sustainability debt often maps to cost debt."
+  - "Publish annual sustainability debt summary in ESG/CSRD report as evidence of active governance."
+
+maturity_levels:
+  level_1:
+    description: "No sustainability governance – no register, no reviews"
+    criteria:
+      - "No documented sustainability debt or gap assessment"
+      - "No sustainability-specific review meetings or processes"
+      - "No ownership of sustainability improvement items"
+  level_2:
+    description: "Ad-hoc sustainability tracking – informal awareness"
+    criteria:
+      - "Team has informal list of known sustainability issues"
+      - "No structured register or quarterly review cadence"
+      - "Sustainability improvement items not prioritized in engineering backlog"
+  level_3:
+    description: "Sustainability Debt Register operational with quarterly reviews"
+    criteria:
+      - "Formal register documenting all WAF-SUS control gaps"
+      - "Each entry has owner, carbon impact estimate, and target date"
+      - "Quarterly review meeting with documented outcomes"
+      - "Sustainability debt items tracked in engineering backlog"
+  level_4:
+    description: "Sustainability debt integrated into organizational governance"
+    criteria:
+      - "Sustainability debt reported to engineering leadership quarterly"
+      - "Carbon impact estimates validated against cloud provider data"
+      - "Closed debt items produce documented carbon savings"
+      - "CSRD/ESG report references sustainability debt governance process"
+  level_5:
+    description: "Sustainability as organizational standard – continuous improvement culture"
+    criteria:
+      - "Sustainability debt register published and accessible to all engineers"
+      - "Engineering OKRs include sustainability debt reduction targets"
+      - "Automated sustainability health checks update the register continuously"
+      - "Net-zero roadmap driven by register data with verified annual milestones"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Sustainability Debt Register document (version-controlled) listing all WAF-SUS control gaps with owner, carbon impact, and target date."
+    - kind: "process"
+      description: "Quarterly sustainability review meeting notes showing register updates and progress tracking."
+  optional:
+    - kind: "governance"
+      description: "ESG or annual report section referencing the sustainability governance process and debt management."
+    - kind: "process"
+      description: "Engineering backlog evidence showing sustainability debt items included in sprint planning."
+
+checks:
+  - id: "waf-sus-100.tf.aws.config-rule-sustainability-governance"
+    engine: "terraform"
+    provider: "aws"
+    automated: false
+    severity: "low"
+    title: "AWS Config rules should be enabled for sustainability-relevant resource types"
+    description: >
+      AWS Config provides continuous monitoring of resource configuration compliance.
+      Enabling Config rules for sustainability-relevant resource types (EC2 instance types,
+      S3 lifecycle policies, CloudWatch log retention) enables automated detection of
+      sustainability debt as it is created.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_config_config_rule"
+    assertions:
+      - attribute: "name"
+        op: "attribute_exists"
+        message: "AWS Config rule must have a name."
+      - attribute: "source"
+        op: "attribute_exists"
+        message: "AWS Config rule must have a source configuration."
+    on_fail: "warning"
+    remediation: >
+      Enable AWS Config and create managed rules for: required-tags, ec2-instance-managed-by-ssm,
+      cloudwatch-log-group-retention-period-check, s3-lifecycle-policy-check.
+      These rules provide continuous monitoring of the most common sources of sustainability debt.
+    example:
+      compliant: |
+        resource "aws_config_config_rule" "log_retention" {
+          name        = "cloudwatch-log-group-retention-period-check"
+          description = "Checks that CloudWatch log groups have retention policy set (sustainability debt detection)"
+
+          source {
+            owner             = "AWS"
+            source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
+          }
+
+          input_parameters = jsonencode({
+            MinRetentionTime = "14"
+          })
+
+          tags = {
+            purpose  = "sustainability-governance"
+            control  = "WAF-SUS-100"
+          }
+        }
+      non_compliant: |
+        # No AWS Config rules configured – WAF-SUS-100 Warning
+        # Sustainability debt accumulates undetected without automated config compliance
+
+  - id: "waf-sus-100.tf.aws.tag-sustainability-reviewed"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "low"
+    title: "Compute resources should have sustainability-reviewed tag to indicate review date"
+    description: >
+      Resources tagged with 'sustainability-reviewed' demonstrate active governance:
+      the sustainability posture of the resource was explicitly reviewed on the given date.
+      This tag drives the sustainability debt register by identifying stale reviews.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_eks_cluster"
+        - "aws_ecs_cluster"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "sustainability-reviewed"
+        message: "Resource has no sustainability-reviewed tag – add date of last sustainability review."
+    on_fail: "warning"
+    remediation: >
+      Add sustainability-reviewed = "YYYY-MM-DD" tag to all major compute resources.
+      Set up quarterly reminder to update this tag after sustainability review.
+      Use AWS Config custom rule to alert when sustainability-reviewed tag is older than 180 days.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu_arm.id
+          instance_type = "m7g.large"
+
+          tags = {
+            environment              = "production"
+            workload                 = "payment-service"
+            owner                    = "platform-team"
+            sustainability-reviewed  = "2026-01-15"  # quarterly review date
+          }
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "m4.large"
+
+          tags = {
+            Name        = "payment-app"
+            # WAF-SUS-100 Warning: no sustainability-reviewed tag
+          }
+        }
+
+  - id: "waf-sus-100.tf.azurerm.sustainability-tag"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "low"
+    title: "Azure compute resources should have sustainability governance tags"
+    description: >
+      Azure compute resources should carry a sustainability-reviewed tag indicating
+      the last date the resource's sustainability posture was reviewed as part of
+      the quarterly sustainability debt register process.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_linux_virtual_machine"
+        - "azurerm_kubernetes_cluster"
+        - "azurerm_container_group"
+    assertions:
+      - attribute: "tags"
+        op: "key_exists"
+        key: "sustainability-reviewed"
+        message: "Azure compute resource has no sustainability-reviewed tag – quarterly review required."
+    on_fail: "warning"
+    remediation: >
+      Add sustainability-reviewed tag with format YYYY-MM-DD to all Azure compute resources.
+      Use Azure Policy to enforce tag presence on resource creation and flag resources
+      where the date is older than 180 days.
+    example:
+      compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-app-prod"
+          resource_group_name = var.resource_group_name
+          location            = var.location
+          size                = "Standard_D4ps_v5"
+
+          tags = {
+            environment             = "production"
+            workload                = "payment-service"
+            sustainability-reviewed = "2026-01-15"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-app-prod"
+          resource_group_name = var.resource_group_name
+          location            = var.location
+          size                = "Standard_D4_v3"
+          # WAF-SUS-100 Warning: old instance series AND no sustainability-reviewed tag
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-100"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-esg-reporting.adoc"
+  related_controls:
+    - "WAF-SUS-090"
+    - "WAF-SUS-010"
+    - "WAF-SUS-020"

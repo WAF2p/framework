@@ -1,0 +1,294 @@
+= Best Practice: CO₂-Fußabdruck messen und reporten
+:page-toc: right
+:description: WAF++ Sustainability – CO₂-Messung mit AWS CCF Tool, Azure Emissions Dashboard, GCP Carbon Footprint: Workload-Attribution, ESG-Integration, CSRD-konforme Datenaufbewahrung.
+
+== Kontext
+
+Man kann nicht reduzieren, was man nicht misst. Dieser Grundsatz ist die Voraussetzung
+aller anderen Sustainability-Maßnahmen — und gleichzeitig der häufigste Blindpunkt:
+Viele Organisationen betreiben Cloud-Infrastruktur seit Jahren, ohne je ihre
+CO₂-Emissionen systematisch erhoben zu haben.
+
+*Regulatorische Dringlichkeit*: Für CSRD-pflichtige Unternehmen ist fehlende IT-Emissionsmessung
+keine technische Lücke mehr — sie ist eine rechtliche Pflicht. ESRS E1-6 verlangt
+Scope-3-Emissionen, und Cloud-IT ist Scope 3 Kategorie 11.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-010[WAF-SUS-010] – Carbon Footprint Measurement & Reporting
+* xref:controls.adoc#WAF-SUS-090[WAF-SUS-090] – ESG Reporting & Compliance Automation
+
+== Zielbild
+
+Eine Carbon-Measurement-reife Organisation:
+
+* hat *alle genutzten Cloud-Provider-Carbon-Tools aktiviert*
+* exportiert Emissionsdaten *monatlich automatisiert* in ein zentrales Carbon-Ledger
+* kann Emissionen *auf Workload-Ebene* aufschlüsseln (Workload-Tagging als Voraussetzung)
+* integriert diese Daten in *CSRD/ESG-Reports* mit dokumentierter Methodik
+* hat eine *Emissions-Baseline* und misst Fortschritt gegen Reduktionsziele
+
+== Technische Umsetzung
+
+=== Schritt 1: Cloud-Provider Carbon-Tools aktivieren
+
+==== AWS Customer Carbon Footprint Tool
+
+[source,bash]
+----
+# Aktivierung erfolgt automatisch, sobald Cost Explorer aktiviert ist.
+# Prüfen ob aktiviert:
+aws ce get-cost-and-usage \
+  --time-period Start=$(date -d "90 days ago" +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --granularity MONTHLY \
+  --metrics "UnblendedCost"
+
+# Carbon Footprint Tool API (Preview):
+# https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/API_GetCarbonFootprintSummary.html
+
+# Manuell: AWS Console → Cost Explorer → Reports → Carbon Footprint
+----
+
+==== Azure Emissions Impact Dashboard
+
+[source,bash]
+----
+# Über Microsoft Sustainability Manager oder Azure Portal:
+# 1. Azure Portal → Cost Management + Billing → Emissions Impact Dashboard
+# 2. Oder über Microsoft Sustainability Manager (License-basiert)
+# Power BI Connector:
+# Get Data → Microsoft Sustainability Manager → Emissions Impact Dashboard
+----
+
+==== GCP Carbon Footprint
+
+[source,bash]
+----
+# GCP Carbon Footprint in der Cloud Console aktivieren:
+# Console → Carbon Footprint → Enable
+
+# Export nach BigQuery konfigurieren:
+gcloud beta billing export carbon-footprint \
+  --billing-account=BILLING_ACCOUNT_ID \
+  --destination-dataset=PROJECT_ID:sustainability_carbon
+
+# Anschließend mit Data Studio / Looker Studio visualisieren
+----
+
+=== Schritt 2: Workload-Attribution durch konsequentes Tagging
+
+Carbon-Footprint-Tools können nur dann nach Workload aufschlüsseln, wenn alle
+Ressourcen korrekt getaggt sind. Pflicht-Tags für Carbon-Attribution:
+
+[source,hcl]
+----
+# Terraform: Pflicht-Tags für Carbon-Attribution
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+
+  tags = {
+    workload    = "payment-service"     # Für Workload-Level-Attribution
+    cost-center = "fintech-platform"    # Für Cost-Center-Attribution
+    environment = "production"          # Für Umgebungs-Attribution
+    owner       = "payments-team"       # Für Team-Attribution
+  }
+}
+----
+
+=== Schritt 3: Automatisierter monatlicher Export in Carbon-Ledger
+
+[source,hcl]
+----
+# S3-Bucket für Carbon-Footprint-Exports (AWS)
+resource "aws_s3_bucket" "carbon_ledger" {
+  bucket = "${var.org_name}-carbon-ledger-${var.account_id}"
+
+  tags = {
+    purpose     = "carbon-measurement"
+    workload    = "sustainability-reporting"
+    environment = "production"
+    owner       = "sustainability-team"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "carbon_ledger" {
+  bucket = aws_s3_bucket.carbon_ledger.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "carbon_ledger" {
+  bucket = aws_s3_bucket.carbon_ledger.id
+
+  rule {
+    id     = "carbon-data-retention"
+    status = "Enabled"
+
+    transition {
+      days          = 365
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 730
+      storage_class = "GLACIER"
+    }
+    expiration {
+      days = 2555  # 7 Jahre – CSRD Aufbewahrungspflicht
+    }
+  }
+}
+
+# Lambda für monatlichen automatisierten Export
+resource "aws_lambda_function" "carbon_export" {
+  function_name = "monthly-carbon-footprint-export"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "export.handler"
+  role          = aws_iam_role.carbon_export.arn
+  filename      = "export.zip"
+
+  environment {
+    variables = {
+      CARBON_LEDGER_BUCKET = aws_s3_bucket.carbon_ledger.bucket
+      BILLING_ACCOUNT_ID   = var.billing_account_id
+    }
+  }
+
+  tags = {
+    purpose  = "carbon-measurement"
+    workload = "sustainability-reporting"
+  }
+}
+
+# EventBridge Scheduled Rule: Jeden 1. des Monats um 02:00 UTC
+resource "aws_cloudwatch_event_rule" "monthly_carbon_export" {
+  name                = "monthly-carbon-export"
+  description         = "Trigger monthly carbon footprint export"
+  schedule_expression = "cron(0 2 1 * ? *)"
+}
+----
+
+=== Schritt 4: Carbon-Ledger aufbauen (Multi-Cloud Aggregation)
+
+[source,python]
+----
+# Beispiel: Carbon-Ledger-Aggregation aus AWS + Azure + GCP
+# carbon_ledger.py
+
+import json
+import boto3
+import pandas as pd
+from datetime import datetime, timedelta
+
+def collect_aws_carbon(billing_period):
+    """
+    Lädt AWS Customer Carbon Footprint Tool Daten
+    API: GetCarbonFootprintSummary
+    """
+    client = boto3.client('ce', region_name='us-east-1')
+
+    # Note: Carbon Footprint API ist über Cost Explorer verfügbar
+    response = client.get_cost_and_usage(
+        TimePeriod={
+            'Start': billing_period['start'],
+            'End': billing_period['end']
+        },
+        Granularity='MONTHLY',
+        GroupBy=[
+            {'Type': 'TAG', 'Key': 'workload'},
+            {'Type': 'TAG', 'Key': 'environment'}
+        ],
+        Metrics=['UnblendedCost']
+    )
+    return response
+
+def build_carbon_ledger(aws_data, azure_data, gcp_data):
+    """
+    Aggregiert Emissionsdaten aus allen Cloud-Providern
+    in ein einheitliches Carbon-Ledger-Format
+    """
+    ledger = {
+        'reporting_period': datetime.now().strftime('%Y-%m'),
+        'methodology': 'GHG Protocol Scope 3 Category 11',
+        'providers': {
+            'aws': aws_data,
+            'azure': azure_data,
+            'gcp': gcp_data
+        },
+        'total_tCO2e': calculate_total(aws_data, azure_data, gcp_data),
+        'per_workload': aggregate_by_workload(aws_data, azure_data, gcp_data)
+    }
+    return ledger
+----
+
+=== Schritt 5: SCI (Software Carbon Intensity) für Tier-1-Services messen
+
+[source,python]
+----
+# SCI Berechnung: SCI = ((E × I) + M) / R
+# Beispiel: API Service SCI über einen Monat
+
+# E = Energie (kWh) – aus Cloud-Provider-Billing oder CloudWatch Metriken
+# I = Carbon Intensity (gCO2eq/kWh) – aus Cloud-Provider (region-spezifisch)
+# M = Embodied Carbon (gCO2eq) – Schätzung basierend auf Instance-Typ
+# R = Functional Unit – z.B. Anzahl API-Requests im Monat
+
+def calculate_sci(energy_kwh, carbon_intensity, embodied_carbon, functional_units):
+    """
+    Berechnet Software Carbon Intensity (SCI) nach GSF Standard
+    """
+    operational = energy_kwh * carbon_intensity  # in gCO2eq
+    sci = (operational + embodied_carbon) / functional_units
+    return sci
+
+# Beispielwerte für eu-north-1 (Stockholm):
+energy_kwh = 500              # kWh im Monat
+carbon_intensity = 10         # gCO2eq/kWh (Stockholm: ~10 gCO2eq/kWh)
+embodied_carbon = 500         # gCO2eq (Schätzung für m7g.large über 4 Jahre)
+functional_units = 10_000_000 # 10M API Requests im Monat
+
+sci = calculate_sci(energy_kwh, carbon_intensity, embodied_carbon, functional_units)
+print(f"SCI: {sci:.4f} gCO2eq / API Request")
+# SCI: 0.0001 gCO2eq / API Request (sehr gut für Stockholm)
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*Carbon-Tool aktiviert, aber nie exportiert*
+|Daten sind vorhanden, aber kein Prozess für reguläre Auswertung — CSRD-Lücke.
+
+|*Kein Workload-Tagging*
+|Carbon-Tool liefert nur Account-Level-Gesamtemissionen — keine Workload-Attribution möglich.
+
+|*Einmalige Baseline ohne Wiederholung*
+|Trend-Messung und Fortschrittsverfolgung erfordern konsistente Perioden-Vergleiche.
+
+|*Nur AWS, aber auch Azure und GCP im Einsatz*
+|Multi-Cloud-Organisationen müssen alle Provider aggregieren — sonst lückenhafter Scope-3-Bericht.
+
+|*Carbon-Daten in Excel ohne Versionierung*
+|CSRD-Auditoren verlangen nachvollziehbare Datenquellen; Excel-Dateien ohne Git-History sind nicht ausreichend.
+
+|===
+
+== Metriken
+
+* *Total Cloud CO₂e (tCO₂e/Monat)*: Gesamtemissionen aller Cloud-Provider
+* *CO₂e pro Workload*: Attribution auf Service/Workload-Ebene
+* *Carbon Intensity Trend (YoY)*: Prozentuale Veränderung zum Vorjahresmonat
+* *SCI Score (gCO₂e/R)*: Software Carbon Intensity pro Tier-1-Service
+* *Measurement Coverage (%)*: Anteil der Workloads mit vollständiger Carbon-Attribution
+
+== Reifegrad
+
+Level 1 – Carbon-Tools nicht aktiviert; keine Messung +
+Level 2 – Tools aktiviert; gelegentliche manuelle Abfragen +
+Level 3 – Monatlicher Export; Workload-Attribution; in ESG-Report integriert +
+Level 4 – Automatisierte Pipeline; SCI für Tier-1 gemessen; CSRD-Daten-Feed +
+Level 5 – Echtzeit-Carbon-Dashboard; automatische CSRD-Integration; Third-Party-Assurance

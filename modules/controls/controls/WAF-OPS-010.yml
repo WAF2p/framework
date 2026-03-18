@@ -1,0 +1,287 @@
+id: WAF-OPS-010
+title: "CI/CD Pipeline Defined & Automated"
+pillar: "operations"
+status: "active"
+severity: "high"
+category: "deployment-automation"
+type: ['governance', 'configuration', 'automation']
+tags: ['cicd', 'pipeline', 'deployment', 'automation', 'devops', 'continuous-delivery']
+
+description: >
+  Every production workload MUST have a defined, version-controlled CI/CD pipeline that
+  automates build, test, and deployment steps. Manual deployments to production MUST NOT
+  be permitted. All pipeline definitions MUST be stored as code in the same repository
+  as the application or infrastructure they deploy.
+
+rationale: >
+  Manual deployments are the primary source of configuration drift, deployment errors,
+  and undocumented changes in production environments. Automated pipelines enforce
+  consistency, reduce human error, and provide an audit trail for every change.
+  Teams with mature CI/CD pipelines (DORA Elite performers) deploy multiple times per
+  day with a change failure rate below 5%. Manual processes cannot achieve this reliability.
+
+threat:
+  - "Undocumented manual deployments causing configuration drift between environments"
+  - "Human error during deployments leading to outages or security vulnerabilities"
+  - "No audit trail for production changes, violating change management requirements"
+  - "Inconsistent deployment procedures across teams causing reliability gaps"
+  - "Inability to perform rapid rollbacks without automated pipeline support"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Change and deployment management"
+      - "Release and deployment management"
+  - framework: "ITIL 4"
+    controls:
+      - "Change enablement"
+      - "Deployment management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 4: How do you implement observability in your workload?"
+      - "Operational Excellence Pillar – OPS 6: How do you deploy your workload?"
+  - framework: "DevOps Research and Assessment (DORA)"
+    controls:
+      - "Deployment Frequency"
+      - "Lead Time for Changes"
+  - framework: "CIS Controls v8"
+    controls:
+      - "CIS-4.1: Establish and Maintain a Secure Configuration Process"
+
+implementation_guidance:
+  - "Define pipeline-as-code using GitHub Actions, GitLab CI, or AWS CodePipeline; commit all pipeline definitions to version control."
+  - "Implement at minimum: lint, unit tests, security scan, integration tests, deployment, smoke tests stages."
+  - "Enforce branch protection rules: no direct commits to main/master; all changes through pull requests."
+  - "Use separate pipeline stages per environment (dev, staging, production) with manual approval gates for production."
+  - "Store pipeline secrets in a secrets manager (AWS Secrets Manager, HashiCorp Vault), never in pipeline code."
+  - "Implement artifact versioning: every build produces an immutable, versioned artifact; deployments reference artifact versions."
+  - "Configure pipeline failure notifications to alert the team immediately via Slack, PagerDuty, or similar."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc manual deployments"
+    criteria:
+      - "Deployments performed manually via console or SSH"
+      - "No consistent deployment procedure documented"
+      - "Deployment steps differ between team members"
+  level_2:
+    description: "Basic pipeline exists"
+    criteria:
+      - "CI pipeline exists and runs tests on pull requests"
+      - "Deployment scripts exist but may require manual execution"
+      - "Pipeline definition is version-controlled"
+  level_3:
+    description: "Fully automated CI/CD with gates"
+    criteria:
+      - "All deployments to all environments automated through pipeline"
+      - "Manual production deployments blocked by policy"
+      - "Pipeline includes lint, tests, security scans, and smoke tests"
+      - "Approval gates configured for production deployments"
+  level_4:
+    description: "Pipeline with metrics and progressive delivery"
+    criteria:
+      - "Deployment frequency and lead time measured and tracked"
+      - "Canary or blue/green deployments implemented"
+      - "Automated rollback on deployment failure"
+      - "Pipeline performance optimized (total pipeline < 15 min)"
+  level_5:
+    description: "Continuous deployment with feedback loops"
+    criteria:
+      - "Multiple deployments per day with automated safety checks"
+      - "DORA metrics tracked and continuously improving"
+      - "Feature flags integrated for controlled rollouts"
+      - "Pipeline as a product: platform team owns shared pipeline templates"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Pipeline definition files (e.g., .github/workflows/, .gitlab-ci.yml, buildspec.yml) version-controlled in repository."
+    - kind: "config"
+      description: "Branch protection configuration preventing direct commits to production branches."
+  optional:
+    - kind: "process"
+      description: "Deployment frequency and lead time metrics from DORA dashboard or pipeline analytics."
+    - kind: "governance"
+      description: "Change management policy documenting that manual production deployments are prohibited."
+
+checks:
+  - id: "waf-ops-010.tf.aws.codepipeline-exists"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS CodePipeline must be defined for application deployments"
+    description: >
+      Production workloads deployed to AWS MUST use CodePipeline or equivalent IaC-defined
+      pipeline. The pipeline must include at least source, build, and deploy stages.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_codepipeline"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "CodePipeline must have a non-empty name."
+      - attribute: "stage"
+        op: "attribute_exists"
+        message: "CodePipeline must define at least one stage."
+    on_fail: "violation"
+    remediation: >
+      Define an aws_codepipeline resource with source, build, and deploy stages.
+      Reference CodeBuild projects and S3 artifact buckets explicitly.
+    example:
+      compliant: |
+        resource "aws_codepipeline" "app_pipeline" {
+          name     = "payment-service-pipeline"
+          role_arn = aws_iam_role.codepipeline_role.arn
+
+          artifact_store {
+            location = aws_s3_bucket.artifacts.bucket
+            type     = "S3"
+          }
+
+          stage {
+            name = "Source"
+            action {
+              name             = "Source"
+              category         = "Source"
+              owner            = "AWS"
+              provider         = "CodeStarSourceConnection"
+              version          = "1"
+              output_artifacts = ["source_output"]
+              configuration = {
+                ConnectionArn    = aws_codestarconnections_connection.github.arn
+                FullRepositoryId = "myorg/payment-service"
+                BranchName       = "main"
+              }
+            }
+          }
+
+          stage {
+            name = "Build"
+            action {
+              name             = "Build"
+              category         = "Build"
+              owner            = "AWS"
+              provider         = "CodeBuild"
+              version          = "1"
+              input_artifacts  = ["source_output"]
+              output_artifacts = ["build_output"]
+              configuration = {
+                ProjectName = aws_codebuild_project.build.name
+              }
+            }
+          }
+
+          stage {
+            name = "Deploy"
+            action {
+              name            = "Deploy"
+              category        = "Deploy"
+              owner           = "AWS"
+              provider        = "ECS"
+              version         = "1"
+              input_artifacts = ["build_output"]
+              configuration = {
+                ClusterName = aws_ecs_cluster.main.name
+                ServiceName = aws_ecs_service.app.name
+              }
+            }
+          }
+        }
+      non_compliant: |
+        # No pipeline defined – deployments performed manually
+        # WAF-OPS-010 Violation: manual deployment without pipeline
+
+  - id: "waf-ops-010.tf.azurerm.devops-pipeline-exists"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure DevOps pipeline must be defined for application workloads"
+    description: >
+      Applications deployed to Azure MUST have an Azure DevOps pipeline defined
+      as code. The pipeline definition must be stored in the application repository.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azuredevops_build_definition"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Azure DevOps pipeline must have a non-empty name."
+      - attribute: "repository"
+        op: "attribute_exists"
+        message: "Pipeline must reference a source repository."
+    on_fail: "violation"
+    remediation: >
+      Define an azuredevops_build_definition resource linking to your repository
+      and a YAML pipeline definition file (azure-pipelines.yml).
+    example:
+      compliant: |
+        resource "azuredevops_build_definition" "app_pipeline" {
+          project_id = azuredevops_project.main.id
+          name       = "payment-service-ci-cd"
+
+          repository {
+            repo_type   = "TfsGit"
+            repo_id     = azuredevops_git_repository.app.id
+            branch_name = "refs/heads/main"
+            yml_path    = "azure-pipelines.yml"
+          }
+        }
+      non_compliant: |
+        # No pipeline definition in Terraform
+        # Deployments done manually via Azure Portal – WAF-OPS-010 Violation
+
+  - id: "waf-ops-010.tf.google.cloudbuild-trigger-exists"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "Google Cloud Build trigger must be defined for CI/CD"
+    description: >
+      GCP workloads MUST use Cloud Build triggers connected to source repositories.
+      Build configuration must be stored as cloudbuild.yaml in the repository.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloudbuild_trigger"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Cloud Build trigger must have a non-empty name."
+      - attribute: "filename"
+        op: "not_empty"
+        message: "Cloud Build trigger must reference a build configuration file."
+    on_fail: "violation"
+    remediation: >
+      Define a google_cloudbuild_trigger resource that references a cloudbuild.yaml
+      file and connects to the application source repository.
+    example:
+      compliant: |
+        resource "google_cloudbuild_trigger" "app_trigger" {
+          name        = "payment-service-trigger"
+          description = "CI/CD trigger for payment service"
+
+          github {
+            owner = "myorg"
+            name  = "payment-service"
+            push {
+              branch = "^main$"
+            }
+          }
+
+          filename = "cloudbuild.yaml"
+        }
+      non_compliant: |
+        # No Cloud Build trigger defined
+        # WAF-OPS-010 Violation: no automated pipeline for GCP deployment
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-010"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-cicd.adoc"
+  related_controls:
+    - "WAF-OPS-020"
+    - "WAF-OPS-050"
+    - "WAF-OPS-080"

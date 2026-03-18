@@ -1,0 +1,224 @@
+= Geltungsbereich: Was ist im Scope der Sustainability-Säule?
+:page-toc: right
+:description: WAF++ Sustainability – Geltungsbereich, Abgrenzung, Brownfield vs. Greenfield, regulatorisches Umfeld und Verhältnis zu Cost Optimization.
+
+== Was ist im Scope dieser Säule?
+
+Die Sustainability-Säule des WAF++ adressiert alle Aspekte des Cloud-IT-Betriebs,
+die einen *direkt messbaren Einfluss auf Energieverbrauch und Treibhausgasemissionen* haben.
+
+=== Im Scope
+
+[cols="1,3,1"]
+|===
+|Bereich |Beschreibung |Relevante Controls
+
+|*Cloud Compute Emissionen*
+|EC2, Lambda, Container, Kubernetes-Workloads — Energieverbrauch durch CPU, RAM, GPU
+|WAF-SUS-010, WAF-SUS-020, WAF-SUS-040
+
+|*Software-Energieeffizienz*
+|Algorithmen, Architekturmuster, Datenbankabfragen, Event-Driven vs. Polling
+|WAF-SUS-070
+
+|*Cloud-Speicher-Emissionen*
+|S3, EBS, Azure Blob, GCS — Energie proportional zu gespeichertem Datenvolumen
+|WAF-SUS-050
+
+|*Netzwerk- und Datentransfer*
+|Cross-Region-Transfer, CDN, Kompression, VPC Endpoints
+|WAF-SUS-080
+
+|*ESG-Reporting & CSRD-Compliance*
+|Datenerfassung, GHG Protocol Scope 3 Attribution, ESRS E1 Berichterstattung
+|WAF-SUS-090, WAF-SUS-010
+
+|*Region- und Placement-Entscheidungen*
+|Carbon Intensity der gewählten Cloud-Regionen
+|WAF-SUS-030
+
+|*Workload-Scheduling*
+|Zeitliche Verschiebung von Batch-Jobs in emissionsarme Fenster
+|WAF-SUS-060
+
+|*Sustainability-Governance*
+|Debt-Register, Quartalsreviews, Zielverfolgung
+|WAF-SUS-100
+
+|===
+
+=== Außerhalb des Scope
+
+[cols="1,3"]
+|===
+|Bereich |Begründung
+
+|*Bürogebäude-Emissionen*
+|Gebäudeenergie, Heizung, Klimaanlage → Facility Management, nicht IT-Architektur
+
+|*Mitarbeiter-Reisen*
+|Dienstreisen, Pendeln → HR/Travel-Policy, sofern nicht IT-getrieben (Remote-First-Entscheidungen)
+
+|*Hardware-Beschaffung on-premise*
+|Embodied Carbon von Self-Managed Hardware → nur in Scope bei Hybrid-Szenarien mit IaC-Management
+
+|*Produktnutzung durch Kunden*
+|CO₂-Auswirkungen der eigenen Software auf Endnutzer-Geräte → Scope 3 Kategorie 11 der eigenen Kunden (upstream)
+
+|*Supply Chain der Software-Lieferanten*
+|CO₂-Footprint von SaaS-Lieferanten → außerhalb des direkt kontrollierbaren Bereichs
+
+|===
+
+NOTE: Hybrid-Szenarien (on-premise + Cloud) erweitern den Scope: Wenn on-premise Infrastruktur über IaC verwaltet wird, gelten WAF-SUS-Controls entsprechend für die IaC-gesteuerten Teile.
+
+== Brownfield vs. Greenfield
+
+=== Greenfield: Neue Workloads und Services
+
+Bei Neuentwicklungen kann Sustainability von Beginn an eingebaut werden:
+
+* ARM/Graviton-Instanzen von Anfang an (kein Migrationsaufwand)
+* Green Regions als Standard-Deploytarget
+* Lifecycle-Policies Teil des IaC-Templates
+* SCI als Qualitätsattribut in der Architekturüberprüfung
+* Batch-Scheduling auf Off-Peak eingestellt
+
+*Empfehlung*: Für Greenfield-Workloads gelten alle WAF-SUS-Controls als sofort umsetzbar.
+Es gibt keine technische Rechtfertigung für x86-Standard oder infinite Retention bei Neuentwicklungen.
+
+=== Brownfield: Bestehende Systeme und Legacy-Infrastruktur
+
+Bei bestehenden Systemen ist eine Priorisierung nach Impact/Aufwand sinnvoll:
+
+[cols="1,2,3,1"]
+|===
+|Priorität |Maßnahme |Begründung |Control
+
+|*1 – Sofort*
+|Lifecycle-Policies auf S3/CloudWatch
+|Minimaler Aufwand, sofortige Wirkung, keine Kompatibilitätsrisiken
+|WAF-SUS-050
+
+|*1 – Sofort*
+|Non-Prod Scheduled Shutdown
+|Kein Code-Change nötig; typisch 60–70% Einsparung an nicht-Betriebszeiten
+|WAF-SUS-040
+
+|*2 – Mittelfristig*
+|Lambda auf arm64 migrieren
+|Meist keine Code-Änderung für Python/Node/Java; 20% Effizienzgewinn
+|WAF-SUS-020
+
+|*2 – Mittelfristig*
+|CDN und Kompression aktivieren
+|Konfigurationsänderung, kein Anwendungschange
+|WAF-SUS-080
+
+|*3 – Projektbasiert*
+|EC2-Instanzen auf Graviton migrieren
+|Kompatibilitätstest erforderlich; x86-Only-Binaries sind Blocker
+|WAF-SUS-020
+
+|*4 – Strategisch*
+|Region-Migration in grünere Regionen
+|Nur bei ohnehin geplanten Migrationen oder wenn Compliance-Anforderungen es erlauben
+|WAF-SUS-030
+
+|===
+
+== Sustainability vs. Cost Optimization: Wo sie sich überschneiden
+
+Die Sustainability-Säule und die Cost-Optimization-Säule sind *verwandt, aber nicht identisch*:
+
+=== Ausgerichtete Ziele (Win-Win)
+
+[cols="1,2,2"]
+|===
+|Maßnahme |Cost-Wirkung |Sustainability-Wirkung
+
+|*Idle-Ressourcen eliminieren*
+|Direkte Kosteneinsparung
+|Direkte Emissionsreduktion
+
+|*ARM/Graviton statt x86*
+|20-40% günstiger bei gleicher Performance
+|20-40% weniger Energie pro Compute-Unit
+
+|*Storage-Lifecycle Tiering*
+|Günstigere Speichertiers
+|Weniger Energie in Hot-Storage-Tiers
+
+|*CDN und Kompression*
+|Reduzierte Egress-Kosten
+|Weniger Netzwerkenergie pro Anfrage
+
+|*Spot-Instanzen für Batch*
+|60-90% Kostenreduktion
+|Bessere Auslastung geteilter Infrastruktur
+
+|===
+
+=== Divergierende Ziele (Sustainability > Cost)
+
+[cols="1,2,2"]
+|===
+|Szenario |Cost-Perspektive |Sustainability-Perspektive
+
+|*Green Regions wählen*
+|Grüne Regionen (z.B. Stockholm) können teurer sein als US-East-1
+|Emissionsreduktion durch erneuerbare Energie überwiegt Kostenmehraufwand
+
+|*CO₂-Offsets kaufen*
+|Zusätzliche Kosten ohne Performance-Vorteil
+|Letztes Mittel zur Erreichung von Net-Zero-Zielen
+
+|*CSRD-Berichtssystem aufbauen*
+|Erheblicher Invest in Tooling und Prozesse
+|Regulatorische Pflicht; ohne diesen Invest drohen Strafen
+
+|*SCI-Messung implementieren*
+|Engineering-Aufwand ohne direkten Cost-Return
+|Voraussetzung für Emissionsreduktionsziele und ESG-Reporting
+
+|===
+
+NOTE: Cost Optimization und Sustainability sind strukturell ausgerichtet — aber Sustainability hat *weitergehende Anforderungen* (Reporting, Governance, CSRD-Compliance), die Cost Optimization nicht abdeckt. Beide Säulen sollten in der Praxis gemeinsam optimiert werden.
+
+== Regulatorisches Umfeld
+
+[cols="1,2,3"]
+|===
+|Rahmenwerk |Typ |IT-Relevanz
+
+|*EU CSRD*
+|EU-Regulierung (Directive 2022/2464)
+|Pflicht für große Unternehmen ab 2025; Tochtergesellschaften ab 2026. Erfordert ESRS E1 (Klima) inkl. Scope 3.
+
+|*ESRS E1*
+|EU Sustainability Reporting Standard
+|Spezifiziert Offenlegungspflichten für Klimawandel; Scope 1/2/3 Emissionen, Reduktionsziele.
+
+|*GHG Protocol*
+|Internationaler Standard
+|Defacto-Standard für Treibhausgasinventar und -reporting. Basis für CSRD-Umsetzung.
+
+|*SBTi (Science Based Targets)*
+|Freiwilliges Commitment-Framework
+|Unternehmen verpflichten sich zu wissenschaftsbasierten Emissionsreduktionszielen (1,5°C-Pfad).
+
+|*ISO 14001*
+|Management-Norm
+|Umweltmanagementsystem; relevant als Prozessrahmen für Sustainability-Governance.
+
+|*Green Software Foundation*
+|Best-Practice-Organisation
+|Software Carbon Intensity (SCI) Standard; Carbon Aware Computing Patterns; praktische Leitlinien.
+
+|*EU Taxonomy-Verordnung*
+|EU-Regulierung
+|Klassifiziert wirtschaftliche Aktivitäten als "nachhaltig" oder nicht. Relevant für Investorenkommunikation.
+
+|===
+
+IMPORTANT: Für CSRD-pflichtige Organisationen ist Sustainability-Reporting keine Best Practice, sondern eine gesetzliche Pflicht mit Sanktionspotenzial. Architekten und Engineers sollten die CSRD-Pflicht der eigenen Organisation kennen.

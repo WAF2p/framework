@@ -1,0 +1,288 @@
+id: WAF-OPS-040
+title: "Alerting on Symptoms, Not Causes"
+pillar: "operations"
+status: "active"
+severity: "high"
+category: "alerting"
+type: ['governance', 'configuration', 'automation']
+tags: ['alerting', 'slo', 'sre', 'symptoms', 'paging', 'oncall', 'observability']
+
+description: >
+  All production alerting MUST be based on user-visible symptoms (elevated error rates,
+  latency exceeding SLO thresholds, availability degradation) rather than internal causes
+  (CPU usage, memory consumption, disk I/O). Every alert that pages an on-call engineer
+  MUST be actionable and MUST have a linked runbook. Alert fatigue through non-actionable
+  alerts MUST be actively managed and reduced.
+
+rationale: >
+  Cause-based alerting generates noise and alert fatigue: an alert on CPU > 80% does not
+  mean users are impacted. Symptom-based alerting ensures engineers are woken up only
+  when users are actually experiencing problems. SLO-based alerting (burn rate alerts)
+  provides the right urgency: fast-burn alerts for immediate action, slow-burn for
+  scheduled remediation. Alert fatigue is the primary cause of on-call burnout and
+  missed critical alerts.
+
+threat:
+  - "Alert fatigue causing engineers to ignore or snooze legitimate critical alerts"
+  - "Missing user-visible failures because only infrastructure metrics are monitored"
+  - "On-call burnout due to non-actionable alerts at 3 AM"
+  - "SLO violations going undetected until users complain"
+  - "Lack of runbooks causing response delays during incidents"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Incident management"
+      - "Monitoring, measurement, analysis, and evaluation"
+  - framework: "ITIL 4"
+    controls:
+      - "Monitoring and event management"
+      - "Incident management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 8: How do you understand the health of your operations?"
+  - framework: "Google SRE Book"
+    controls:
+      - "Chapter 6: Monitoring Distributed Systems – Four Golden Signals"
+      - "Chapter 5: Eliminating Toil"
+
+implementation_guidance:
+  - "Define SLOs for every production service: availability (e.g., 99.9%), latency p99 (e.g., < 500ms), error rate (e.g., < 0.1%)."
+  - "Implement burn rate alerting: page immediately when error budget burns > 5% in 1 hour; non-urgent alert when > 10% in 6 hours."
+  - "Audit every existing alert: is it symptom-based? Is it actionable? Does it have a runbook? Remove non-actionable alerts."
+  - "Create runbooks for every alert that can page on-call engineers; link runbook URL in alert annotation."
+  - "Track alert noise metrics: total alerts per week, alerts per on-call shift, pages per week per engineer."
+  - "Implement alert deduplication and grouping in your alerting system (PagerDuty routing, Alertmanager grouping)."
+  - "Review alert policies quarterly: silence or delete any alert that has not led to corrective action in the last quarter."
+
+maturity_levels:
+  level_1:
+    description: "No alerting or threshold-based noise"
+    criteria:
+      - "No systematic alerting configured"
+      - "Alerts based on CPU/memory thresholds with no runbooks"
+      - "High alert volume with low actionability"
+  level_2:
+    description: "Basic service health alerts"
+    criteria:
+      - "HTTP 5xx error rate alerting configured"
+      - "Service availability checks in place"
+      - "Some runbooks exist but not systematically linked"
+  level_3:
+    description: "Symptom-based alerting with runbooks"
+    criteria:
+      - "All critical alerts are symptom-based (error rate, latency, availability)"
+      - "Every paging alert has a linked runbook"
+      - "SLOs defined for all critical services"
+      - "Alert noise metric tracked (< 10 pages/week per engineer)"
+  level_4:
+    description: "SLO burn rate alerting"
+    criteria:
+      - "Burn rate alerts configured for all services with defined SLOs"
+      - "Multi-window burn rate alerts distinguishing urgent vs. non-urgent"
+      - "Alert review cadence established (monthly or quarterly)"
+      - "Error budget dashboards visible to all teams"
+  level_5:
+    description: "Automated alert optimization"
+    criteria:
+      - "Alert fatigue metric continuously monitored and under target"
+      - "Machine learning-assisted anomaly detection supplements rule-based alerts"
+      - "Alerting-as-code: all alert rules in version control, reviewed through PRs"
+      - "Alert coverage report: all critical services have SLO-based alerting"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Alert rule definitions showing symptom-based conditions (error rate, latency) with runbook URLs."
+    - kind: "governance"
+      description: "SLO definitions for all critical services (availability, latency, error rate targets)."
+  optional:
+    - kind: "process"
+      description: "Monthly alert noise report (pages per week, actionability rate)."
+    - kind: "config"
+      description: "Runbook index showing runbook coverage for all paging alerts."
+
+checks:
+  - id: "waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "CloudWatch alarms must use symptom-based metrics"
+    description: >
+      CloudWatch alarms MUST use application-level symptom metrics (error rates, latency,
+      request counts) rather than exclusively infrastructure metrics. Alarms MUST include
+      alarm_description with actionable information.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_metric_alarm"
+    assertions:
+      - attribute: "alarm_description"
+        op: "not_empty"
+        message: "CloudWatch alarm must have a non-empty alarm_description explaining the symptom and action."
+      - attribute: "alarm_actions"
+        op: "not_empty"
+        message: "CloudWatch alarm must have at least one alarm_action (SNS topic, Auto Scaling, etc.)."
+    on_fail: "violation"
+    remediation: >
+      Add alarm_description with symptom description and runbook link.
+      Ensure alarm_actions routes to an SNS topic connected to on-call alerting.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
+          alarm_name          = "payment-service-high-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 2
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApplicationELB"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          alarm_description   = "Payment service 5XX error rate > 10/min. Runbook: https://wiki/runbooks/payment-errors"
+          alarm_actions       = [aws_sns_topic.pagerduty.arn]
+          dimensions = {
+            LoadBalancer = aws_lb.main.arn_suffix
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "high_cpu" {
+          alarm_name          = "high-cpu"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 1
+          metric_name         = "CPUUtilization"
+          namespace           = "AWS/EC2"
+          period              = 300
+          statistic           = "Average"
+          threshold           = 80
+          # No alarm_description, no runbook link – WAF-OPS-040 Violation
+          # Cause-based metric, not symptom-based
+        }
+
+  - id: "waf-ops-040.tf.azurerm.monitor-alert-symptom"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Monitor metric alerts must include symptom description and action group"
+    description: >
+      Azure Monitor metric alerts for production workloads MUST include a descriptive
+      name indicating the symptom and MUST reference an action group for notification.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_monitor_metric_alert"
+    assertions:
+      - attribute: "description"
+        op: "not_empty"
+        message: "Azure Monitor alert must have a description explaining the symptom."
+      - attribute: "action"
+        op: "attribute_exists"
+        message: "Azure Monitor alert must reference at least one action group."
+    on_fail: "violation"
+    remediation: >
+      Add a description field explaining the user-visible symptom and runbook location.
+      Reference an azurerm_monitor_action_group in the action block.
+    example:
+      compliant: |
+        resource "azurerm_monitor_metric_alert" "error_rate" {
+          name                = "payment-service-error-rate-high"
+          resource_group_name = azurerm_resource_group.main.name
+          scopes              = [azurerm_application_insights.main.id]
+          description         = "Payment service error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
+
+          criteria {
+            metric_namespace = "Microsoft.Insights/Components"
+            metric_name      = "requests/failed"
+            aggregation      = "Count"
+            operator         = "GreaterThan"
+            threshold        = 10
+          }
+
+          action {
+            action_group_id = azurerm_monitor_action_group.oncall.id
+          }
+        }
+      non_compliant: |
+        resource "azurerm_monitor_metric_alert" "cpu_alert" {
+          name                = "cpu-high"
+          resource_group_name = azurerm_resource_group.main.name
+          scopes              = [azurerm_virtual_machine.app.id]
+          # No description, no action group – WAF-OPS-040 Violation
+          criteria {
+            metric_namespace = "Microsoft.Compute/virtualMachines"
+            metric_name      = "Percentage CPU"
+            aggregation      = "Average"
+            operator         = "GreaterThan"
+            threshold        = 80
+          }
+        }
+
+  - id: "waf-ops-040.tf.google.monitoring-alert-symptom"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Monitoring alert policies must use symptom-based conditions"
+    description: >
+      GCP Monitoring alert policies MUST include a user_labels field identifying the
+      service and symptom type, and MUST have notification channels configured.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_monitoring_alert_policy"
+    assertions:
+      - attribute: "display_name"
+        op: "not_empty"
+        message: "Alert policy must have a descriptive display_name."
+      - attribute: "notification_channels"
+        op: "not_empty"
+        message: "Alert policy must have at least one notification channel."
+    on_fail: "violation"
+    remediation: >
+      Add notification_channels referencing PagerDuty, Slack, or email channels.
+      Name the alert with the service and symptom (e.g., 'payment-service-high-latency').
+    example:
+      compliant: |
+        resource "google_monitoring_alert_policy" "latency_alert" {
+          display_name = "payment-service-latency-p99-high"
+          combiner     = "OR"
+
+          conditions {
+            display_name = "p99 latency > 500ms"
+            condition_threshold {
+              filter          = "metric.type=\"custom.googleapis.com/payment/latency_p99\""
+              comparison      = "COMPARISON_GT"
+              threshold_value = 500
+              duration        = "60s"
+            }
+          }
+
+          notification_channels = [google_monitoring_notification_channel.pagerduty.name]
+
+          documentation {
+            content = "Payment service p99 latency exceeded 500ms. Runbook: https://wiki/runbooks/payment-latency"
+          }
+        }
+      non_compliant: |
+        resource "google_monitoring_alert_policy" "cpu_alert" {
+          display_name = "high-cpu"
+          combiner     = "OR"
+          conditions {
+            display_name = "CPU > 80%"
+            condition_threshold {
+              filter     = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\""
+              comparison = "COMPARISON_GT"
+              threshold_value = 0.8
+            }
+          }
+          # No notification channels – WAF-OPS-040 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-040"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-alerting.adoc"
+  related_controls:
+    - "WAF-OPS-030"
+    - "WAF-OPS-060"
+    - "WAF-OPS-070"

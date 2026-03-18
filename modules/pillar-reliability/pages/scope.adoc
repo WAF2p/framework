@@ -1,0 +1,150 @@
+= Geltungsbereich: Reliability
+:page-toc: right
+:description: WAF++ Reliability – Was ist im Scope? Brownfield vs. Greenfield, Treiber und Abgrenzung.
+
+== Was ist im Scope?
+
+Die Reliability-Säule adressiert folgende Themenbereiche:
+
+=== SLO & SLA Governance
+
+* Definition und Dokumentation von Service Level Objectives (SLOs)
+* Messung von Verfügbarkeit, Latenz, Fehlerrate und Durchsatz
+* Error Budget Management und Burn-Rate-Alerting
+* SLA-Vereinbarungen mit internen und externen Kunden
+
+=== High Availability
+
+* Multi-AZ Deployment für alle Produktions-Workloads
+* Automatisches Failover für Datenbanken und Stateful Services
+* Load Balancer mit AZ-übergreifender Konfiguration
+* Kubernetes Pod Distribution über Availability Zones
+
+=== Health Monitoring
+
+* Health Check Endpoints für alle Services
+* Readiness und Liveness Probes (Kubernetes)
+* Load Balancer Health Checks mit expliziten Schwellenwerten
+* Synthetisches Monitoring für externe Verfügbarkeitsvalidierung
+
+=== Backup & Recovery
+
+* Automatisierte Backup-Konfiguration mit definierten Retentionsperioden
+* Point-in-Time Recovery (PITR) für Datenbanken
+* Cross-Account/Cross-Region Backup-Speicherung
+* Getestete und dokumentierte Recovery-Verfahren
+
+=== Resilience Patterns
+
+* Circuit Breaker für alle synchronen Abhängigkeiten
+* Timeout-Konfiguration für alle ausgehenden Calls
+* Retry-Logik mit Exponential Backoff und Jitter
+* Bulkhead-Isolation für verschiedene Abhängigkeitsklassen
+
+=== Incident Response
+
+* Severity-Klassifizierung und Eskalationspfade
+* Runbooks für alle kritischen Alerts
+* On-Call-Rotation und Notification-Konfiguration
+* Post-Incident Reviews und Action-Item-Tracking
+
+=== Disaster Recovery Testing
+
+* Dokumentierte DR-Pläne mit RTO/RPO-Zielen
+* Mindestens zweimal jährliche DR-Tests
+* Ergebnisdokumentation mit tatsächlich erreichtem RTO/RPO
+* Automatisierte DR-Prozeduren via IaC
+
+=== Chaos Engineering
+
+* Hypothesen-getriebene Fault-Injection-Tests
+* Strukturierte Chaos-Experimente (AWS FIS, Azure Chaos Studio)
+* GameDay-Events für ganzheitliche Resilienz-Tests
+* Kontinuierliche Chaos-Validierung in Staging
+
+=== Dependency & Reliability Debt
+
+* Inventar aller kritischen Abhängigkeiten
+* Reliability Debt Register mit Priorität und Owner
+* Quartalsweiser Review-Prozess
+
+== Was ist NICHT im Scope?
+
+* *Security Incident Response*: Sicherheitsvorfälle fallen in die Security-Säule
+* *Performance Tuning*: Latenzoptimierung unter nominaler Last ist Performance Efficiency
+* *Deployment Pipelines*: CI/CD-Prozesse sind in Operations
+* *Datenschutz*: GDPR-Compliance, Datenkategorisierung → Sovereign Säule
+* *Netzwerksicherheit*: Firewall-Regeln, VPN-Konfiguration → Security Säule
+* *Kostenoptimierung*: Auch wenn Reliability Kosten hat, ist TCO in der Cost-Säule
+
+== Brownfield vs. Greenfield
+
+=== Greenfield (Neuentwicklung)
+
+Bei Neuentwicklungen kann Reliability von Anfang an eingebaut werden:
+
+[cols="1,3"]
+|===
+|Phase |Reliability-Anforderung
+
+|*Konzept*
+|SLO-Definition, RTO/RPO-Entscheidung, Dependency-Assessment
+
+|*Design*
+|Multi-AZ-Architektur, Circuit Breaker Design, Backup-Strategie
+
+|*Implementation*
+|IaC mit allen WAF-REL Controls von Beginn an; Health Checks in Code
+
+|*Go-Live*
+|DR-Test vor ersten Produktionslasten; Chaos-Test in Staging bestanden
+
+|*Betrieb*
+|Quarterly DR-Tests, Chaos-Experimente, SLO-Review-Zyklus
+
+|===
+
+=== Brownfield (Bestandssysteme)
+
+Für bestehende Systeme wird ein risikobasierter Ansatz empfohlen:
+
+. *Inventory*: Alle Produktions-Workloads identifizieren, nach Kritikalität klassifizieren
+. *SLO-Baseline*: Aktuelle Verfügbarkeit messen, um Ausgangspunkt zu kennen
+. *Quick Wins*: Health Checks und Alerting sind schnell nachzurüsten (1–2 Sprints)
+. *Kritische Systeme zuerst*: Multi-AZ und Backup-Tests für die kritischsten Systeme
+. *Schulden dokumentieren*: Bekannte Gaps ins Reliability Debt Register aufnehmen
+. *Iterativ verbessern*: Quarterly Review-Zyklus zur strukturierten Verbesserung
+
+WARNING: Brownfield-Systeme ohne DR-Test sind das häufigste Risiko. Beginnen Sie mit einem Single-Service-Restore-Test, bevor Sie komplexere Tests planen.
+
+== Reliability-Treiber
+
+[cols="1,3,2"]
+|===
+|Treiber |Beschreibung |WAF-REL Controls
+
+|*Kundenverpflichtungen*
+|Externe SLAs erfordern nachweisbare Verfügbarkeit
+|REL-010, REL-020, REL-030
+
+|*Regulatorische Anforderungen*
+|ISO 27001, GDPR, BSI C5 erfordern demonstrierbare Recovery-Kapazität
+|REL-040, REL-060, REL-070
+
+|*Kostenrisiko*
+|Ungeplante Ausfälle kosten mehr als präventive Reliability-Investitionen
+|REL-030, REL-040, REL-100
+
+|*Ingenieurproduktivität*
+|Hoher Toil durch reaktive Incident Response ist Reliability-Schuld
+|REL-060, REL-090, REL-100
+
+|*Wachstumsskalierung*
+|Systeme, die bei 10x Last nicht funktionieren, blockieren Business-Wachstum
+|REL-020, REL-050, REL-080
+
+|*Partnerintegration*
+|B2B-Integrationen erfordern messbare Verfügbarkeit und Incident-Kommunikation
+|REL-010, REL-060, REL-070
+
+|===

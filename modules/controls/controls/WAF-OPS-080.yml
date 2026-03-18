@@ -1,0 +1,247 @@
+id: WAF-OPS-080
+title: "Feature Flag & Safe Deployment Patterns"
+pillar: "operations"
+status: "active"
+severity: "medium"
+category: "deployment-safety"
+type: ['governance', 'configuration', 'automation']
+tags: ['feature-flags', 'canary', 'blue-green', 'deployment-safety', 'rollback', 'progressive-delivery']
+
+description: >
+  Production deployments MUST use safe deployment patterns – canary releases, blue/green
+  deployments, or feature flags – to reduce blast radius and enable fast rollback.
+  New features with significant user impact MUST be gated behind feature flags to
+  allow controlled rollout and instant kill-switch capability. Deployments MUST be
+  reversible without a new deployment for at least 24 hours after release.
+
+rationale: >
+  Big-bang deployments – deploying all changes to all users simultaneously – amplify
+  the blast radius of any defect introduced in the release. Progressive delivery
+  patterns enable teams to release frequently while limiting user impact of failures.
+  A canary release that exposes 5% of traffic first will contain a defect to 5% of users,
+  not 100%. Feature flags provide instantaneous rollback without a deployment, reducing
+  mean time to resolve to minutes instead of the deployment cycle time.
+
+threat:
+  - "Defective releases impacting 100% of users because no progressive delivery pattern used"
+  - "Long rollback times because rollback requires a new deployment cycle"
+  - "Feature launches that cannot be aborted if negative business metrics are detected"
+  - "Database migrations making deployments irreversible and preventing hot rollback"
+  - "A/B testing and experimentation impossible without feature flag infrastructure"
+
+regulatory_mapping:
+  - framework: "DevOps Research and Assessment (DORA)"
+    controls:
+      - "Change Failure Rate"
+      - "Mean Time to Restore"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 6: How do you deploy your workload?"
+  - framework: "ITIL 4"
+    controls:
+      - "Release management"
+      - "Change enablement"
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Change and deployment management"
+
+implementation_guidance:
+  - "Choose a deployment strategy: blue/green for full environment swap, canary for percentage-based traffic split, feature flags for code-level control."
+  - "Implement blue/green with load balancer target group switching (ALB, Azure Traffic Manager, GCP Load Balancer)."
+  - "Configure canary releases: start with 5% traffic, monitor error rate and latency, promote or rollback based on thresholds."
+  - "Integrate a feature flag service (LaunchDarkly, AWS AppConfig Feature Flags, Unleash, Flagsmith) for code-level toggles."
+  - "Decouple feature flag evaluation from deployment: flags evaluated at runtime, not at deploy time."
+  - "Define automated rollback triggers: if canary error rate exceeds baseline + threshold, auto-rollback."
+  - "Separate deployment from release: deploy dark (feature flags off), then release (flags on) in controlled manner."
+
+maturity_levels:
+  level_1:
+    description: "Big-bang deployments only"
+    criteria:
+      - "All deployments go to 100% of users simultaneously"
+      - "Rollback requires a new deployment cycle"
+      - "No feature flag infrastructure"
+  level_2:
+    description: "Basic deployment safety"
+    criteria:
+      - "Blue/green or rolling deployments configured"
+      - "Manual rollback possible within minutes"
+      - "Some feature flags used for major features"
+  level_3:
+    description: "Progressive delivery with monitoring"
+    criteria:
+      - "Canary or blue/green deployments used for all production releases"
+      - "Automated health checks gate traffic promotion"
+      - "Feature flag service deployed and used for new features"
+      - "Rollback possible within 5 minutes without new deployment"
+  level_4:
+    description: "Automated progressive delivery with metrics"
+    criteria:
+      - "Automated canary analysis using error rate and latency metrics"
+      - "Auto-rollback triggers configured with defined thresholds"
+      - "Feature flags cover all major new features"
+      - "Change failure rate tracked and trending downward"
+  level_5:
+    description: "Continuous experimentation platform"
+    criteria:
+      - "A/B testing infrastructure enables controlled feature experiments"
+      - "Deployment decisions fully automated with metric-based promotion/rollback"
+      - "Feature flags lifecycle managed (cleaning up stale flags is a process)"
+      - "Change failure rate < 5% (DORA Elite)"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Load balancer or deployment configuration showing blue/green or canary pattern (target groups, traffic weights)."
+    - kind: "config"
+      description: "Feature flag service configuration or AWS AppConfig profile showing production feature flags."
+  optional:
+    - kind: "process"
+      description: "Deployment runbook documenting canary promotion and rollback decision criteria."
+    - kind: "config"
+      description: "Auto-rollback configuration showing metric thresholds that trigger automatic traffic shift-back."
+
+checks:
+  - id: "waf-ops-080.tf.aws.codedeploy-deployment-config"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS CodeDeploy must use canary or linear deployment configuration"
+    description: >
+      AWS CodeDeploy deployment groups MUST use a deployment configuration that implements
+      progressive delivery (canary or linear) rather than all-at-once for production.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_codedeploy_deployment_group"
+    assertions:
+      - attribute: "deployment_config_name"
+        op: "not_in"
+        value: ["CodeDeployDefault.AllAtOnce"]
+        message: "Production CodeDeploy must not use AllAtOnce – use canary or linear strategy."
+    on_fail: "violation"
+    remediation: >
+      Set deployment_config_name to CodeDeployDefault.ECSCanary10Percent5Minutes or
+      CodeDeployDefault.LambdaCanary10Percent5Minutes for production deployments.
+    example:
+      compliant: |
+        resource "aws_codedeploy_deployment_group" "production" {
+          app_name               = aws_codedeploy_app.app.name
+          deployment_group_name  = "payment-service-production"
+          service_role_arn       = aws_iam_role.codedeploy.arn
+          deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+
+          auto_rollback_configuration {
+            enabled = true
+            events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
+          }
+        }
+      non_compliant: |
+        resource "aws_codedeploy_deployment_group" "production" {
+          app_name               = aws_codedeploy_app.app.name
+          deployment_group_name  = "payment-service-production"
+          service_role_arn       = aws_iam_role.codedeploy.arn
+          deployment_config_name = "CodeDeployDefault.AllAtOnce"
+          # All-at-once deployment – WAF-OPS-080 Violation
+        }
+
+  - id: "waf-ops-080.tf.aws.appconfig-feature-flag"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS AppConfig must be configured for feature flag management"
+    description: >
+      Feature flag configuration MUST be managed through AWS AppConfig or equivalent
+      to enable runtime toggle without redeployment.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_appconfig_application"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "AppConfig application must have a non-empty name."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_appconfig_application with environments and configuration profiles
+      for feature flag management.
+    example:
+      compliant: |
+        resource "aws_appconfig_application" "feature_flags" {
+          name        = "payment-service-feature-flags"
+          description = "Feature flags for payment service"
+        }
+
+        resource "aws_appconfig_environment" "production" {
+          name           = "production"
+          application_id = aws_appconfig_application.feature_flags.id
+        }
+
+        resource "aws_appconfig_configuration_profile" "flags" {
+          name           = "payment-features"
+          application_id = aws_appconfig_application.feature_flags.id
+          location_uri   = "hosted"
+          type           = "AWS.AppConfig.FeatureFlags"
+        }
+      non_compliant: |
+        # No AppConfig or feature flag infrastructure defined
+        # Feature flags hardcoded in application code or environment variables
+        # WAF-OPS-080 Violation
+
+  - id: "waf-ops-080.tf.azurerm.traffic-manager-canary"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Traffic Manager must configure weighted routing for canary deployments"
+    description: >
+      Azure Traffic Manager profiles used for production traffic MUST support weighted
+      routing to enable canary deployments with controlled traffic splits.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_traffic_manager_profile"
+    assertions:
+      - attribute: "traffic_routing_method"
+        op: "in"
+        value: ["Weighted", "Performance"]
+        message: "Traffic Manager routing method must support weighted traffic for canary deployments."
+    on_fail: "violation"
+    remediation: >
+      Set traffic_routing_method to "Weighted" to enable canary deployment traffic splits.
+    example:
+      compliant: |
+        resource "azurerm_traffic_manager_profile" "canary" {
+          name                   = "payment-service-canary"
+          resource_group_name    = azurerm_resource_group.main.name
+          traffic_routing_method = "Weighted"
+
+          dns_config {
+            relative_name = "payment-service"
+            ttl           = 30
+          }
+
+          monitor_config {
+            protocol                     = "HTTPS"
+            port                         = 443
+            path                         = "/health"
+            expected_status_code_ranges  = ["200-299"]
+          }
+        }
+      non_compliant: |
+        resource "azurerm_traffic_manager_profile" "main" {
+          name                   = "payment-service"
+          resource_group_name    = azurerm_resource_group.main.name
+          traffic_routing_method = "Priority"
+          # Priority routing doesn't support canary splits – WAF-OPS-080 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-080"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-deployment-safety.adoc"
+  related_controls:
+    - "WAF-OPS-010"
+    - "WAF-OPS-050"
+    - "WAF-OPS-090"

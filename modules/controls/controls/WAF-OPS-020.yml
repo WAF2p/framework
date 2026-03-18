@@ -1,0 +1,240 @@
+id: WAF-OPS-020
+title: "Infrastructure as Code Enforced"
+pillar: "operations"
+status: "active"
+severity: "high"
+category: "infrastructure-as-code"
+type: ['governance', 'configuration', 'automation']
+tags: ['iac', 'terraform', 'infrastructure-as-code', 'reproducibility', 'drift', 'gitops']
+
+description: >
+  All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi,
+  AWS CDK, or equivalent). Manual resource creation through cloud consoles MUST be prohibited
+  for all production and staging environments. Infrastructure definitions MUST be
+  version-controlled, reviewed through pull requests, and deployed exclusively through
+  CI/CD pipelines.
+
+rationale: >
+  Manually created infrastructure cannot be reproduced reliably, cannot be reviewed,
+  and cannot be audited. "Snowflake servers" – manually configured systems that cannot
+  be recreated – are a major source of reliability risk and operational debt.
+  IaC eliminates entire categories of configuration drift, undocumented changes,
+  and environment inconsistencies. It enables disaster recovery, audit trails, and
+  the ability to spin up new environments in minutes rather than weeks.
+
+threat:
+  - "Configuration drift between environments (dev/staging/prod) causing production-only failures"
+  - "Manual console changes creating undocumented infrastructure state"
+  - "Snowflake servers that cannot be reproduced in disaster recovery scenarios"
+  - "No peer review for infrastructure changes, enabling misconfiguration"
+  - "Environment reconstruction after incident taking days instead of hours"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Configuration management"
+      - "Change and deployment management"
+  - framework: "ITIL 4"
+    controls:
+      - "Infrastructure and platform management"
+      - "Configuration management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 5: How do you reduce defects, ease remediation, and improve flow in your workload?"
+  - framework: "DevOps Research and Assessment (DORA)"
+    controls:
+      - "Version Control"
+      - "Infrastructure as Code"
+  - framework: "CIS Controls v8"
+    controls:
+      - "CIS-4.6: Securely Manage Enterprise Assets and Software"
+
+implementation_guidance:
+  - "Choose a standard IaC tool for your organization (Terraform is recommended for multi-cloud environments)."
+  - "Structure Terraform code in reusable modules: separate modules for networking, compute, security, and data."
+  - "Use remote state backends (Terraform Cloud, S3+DynamoDB, GCS) with state locking enabled."
+  - "Configure Terraform workspaces or directory-based environments for dev/staging/prod separation."
+  - "Enable Sentinel or OPA policies in CI/CD to block non-compliant infrastructure changes."
+  - "Implement drift detection: schedule terraform plan runs and alert on unexpected diffs."
+  - "For brownfield: import existing resources into Terraform state before refactoring; never recreate manually configured resources."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc manual infrastructure"
+    criteria:
+      - "Infrastructure created manually through console or CLI"
+      - "No IaC tooling in use for production"
+      - "Configuration knowledge exists only in individual engineers' heads"
+  level_2:
+    description: "IaC used but inconsistently"
+    criteria:
+      - "Terraform or equivalent used for some resources"
+      - "Some manual resources coexist with IaC-managed resources"
+      - "No enforcement preventing manual console changes"
+  level_3:
+    description: "IaC enforced for all production resources"
+    criteria:
+      - "All production and staging infrastructure defined as IaC"
+      - "Manual changes blocked by IAM policy or org-level controls"
+      - "All IaC changes go through pull request review"
+      - "Remote state with locking configured"
+  level_4:
+    description: "IaC with drift detection and policy enforcement"
+    criteria:
+      - "Drift detection runs scheduled (at minimum daily)"
+      - "Policy-as-code (OPA/Sentinel) enforces IaC compliance in CI"
+      - "Module library shared across teams"
+      - "Full environment can be recreated from code in < 2 hours"
+  level_5:
+    description: "GitOps with full lifecycle management"
+    criteria:
+      - "GitOps workflow: git state is the single source of truth"
+      - "Automated drift remediation with approval workflow"
+      - "Cross-account/cross-region infrastructure managed from single codebase"
+      - "IaC coverage: 100% of production resources under code management"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform (or equivalent) repository with all production infrastructure definitions, version-controlled."
+    - kind: "config"
+      description: "Remote state backend configuration with locking (Terraform Cloud, S3+DynamoDB, etc.)."
+  optional:
+    - kind: "process"
+      description: "Drift detection report showing scheduled terraform plan results and alert configuration."
+    - kind: "governance"
+      description: "IAM policy or Service Control Policy preventing manual console changes in production accounts."
+
+checks:
+  - id: "waf-ops-020.tf.aws.s3-terraform-state-backend"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Terraform state must use S3 backend with DynamoDB locking"
+    description: >
+      Terraform remote state MUST be stored in an S3 bucket with versioning enabled and
+      a DynamoDB table for state locking. This prevents concurrent state modifications
+      and enables state history and rollback.
+    scope:
+      block_type: "terraform"
+      resource_types: []
+    assertions:
+      - attribute: "backend"
+        op: "attribute_exists"
+        message: "Terraform must configure a remote backend (not local state)."
+    on_fail: "violation"
+    remediation: >
+      Configure the S3 backend in your Terraform root module's terraform block.
+      Create the S3 bucket with versioning enabled and a DynamoDB table for locking.
+    example:
+      compliant: |
+        terraform {
+          backend "s3" {
+            bucket         = "my-org-terraform-state"
+            key            = "payment-service/production/terraform.tfstate"
+            region         = "eu-central-1"
+            dynamodb_table = "terraform-state-lock"
+            encrypt        = true
+          }
+        }
+
+        resource "aws_s3_bucket_versioning" "state" {
+          bucket = "my-org-terraform-state"
+          versioning_configuration {
+            status = "Enabled"
+          }
+        }
+      non_compliant: |
+        terraform {
+          # No backend configured – local state only
+          # WAF-OPS-020 Violation: no remote state
+        }
+
+  - id: "waf-ops-020.tf.aws.s3-state-bucket-versioning"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "Terraform state S3 bucket must have versioning enabled"
+    description: >
+      The S3 bucket used for Terraform remote state MUST have versioning enabled
+      to allow state history, audit, and rollback capabilities.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_versioning"
+    assertions:
+      - attribute: "versioning_configuration.status"
+        op: "equals"
+        value: "Enabled"
+        message: "S3 state bucket versioning must be Enabled."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_s3_bucket_versioning resource with status = "Enabled" for your
+      Terraform state bucket.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_versioning" "state" {
+          bucket = aws_s3_bucket.terraform_state.id
+          versioning_configuration {
+            status = "Enabled"
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket_versioning" "state" {
+          bucket = aws_s3_bucket.terraform_state.id
+          versioning_configuration {
+            status = "Suspended"
+          }
+        }
+
+  - id: "waf-ops-020.tf.azurerm.terraform-state-storage"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Terraform state must use Azure Storage Account backend"
+    description: >
+      Terraform state for Azure deployments MUST be stored in an Azure Storage Account
+      with blob versioning enabled. This ensures state durability and collaboration.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_storage_account"
+    assertions:
+      - attribute: "blob_properties"
+        op: "attribute_exists"
+        message: "Storage account must have blob_properties configured."
+    on_fail: "violation"
+    remediation: >
+      Configure blob versioning on the Storage Account used for Terraform state.
+    example:
+      compliant: |
+        resource "azurerm_storage_account" "terraform_state" {
+          name                     = "myorgtfstate"
+          resource_group_name      = azurerm_resource_group.tfstate.name
+          location                 = var.location
+          account_tier             = "Standard"
+          account_replication_type = "GRS"
+
+          blob_properties {
+            versioning_enabled = true
+          }
+        }
+      non_compliant: |
+        resource "azurerm_storage_account" "terraform_state" {
+          name                     = "myorgtfstate"
+          resource_group_name      = azurerm_resource_group.tfstate.name
+          location                 = var.location
+          account_tier             = "Standard"
+          account_replication_type = "LRS"
+          # No blob versioning – WAF-OPS-020 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-020"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-iac.adoc"
+  related_controls:
+    - "WAF-OPS-010"
+    - "WAF-OPS-090"

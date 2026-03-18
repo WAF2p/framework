@@ -1,0 +1,283 @@
+= Best Practice: Chaos Engineering & Fault Injection
+:page-toc: right
+:description: WAF++ Reliability – Strukturierte Chaos-Experimente mit AWS FIS, Azure Chaos Studio und GameDay-Durchführung.
+
+== Kontext
+
+Chaos Engineering ist die Disziplin des kontrollierten Brechens von Systemen, um
+Resilienz-Schwächen zu entdecken, bevor echte Störungen sie aufdecken. Der Begriff
+wurde von Netflix mit der Einführung von Chaos Monkey geprägt, aber der Ansatz ist
+universell anwendbar.
+
+Häufige Probleme ohne Chaos Engineering:
+
+* Circuit Breaker konfiguriert, aber nie ausgelöst – unbekannt ob korrekt funktioniert
+* Multi-AZ deployed, aber AZ-Failover nie getestet – tatsächliche Failover-Zeit unbekannt
+* Backup-Recovery vorhanden, aber Recovery-Zeit 4x länger als RTO-Ziel
+* Service behauptet graceful degradation zu unterstützen, aber optionale Deps reißen ihn mit
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-REL-090[WAF-REL-090] – Chaos Engineering & Fault Injection
+
+== Zielbild
+
+* Quartalsweise strukturierte Chaos-Experimente mit dokumentierten Hypothesen
+* Experiments beginnen in Staging, werden schrittweise auf Produktion ausgedehnt
+* Stop Conditions verhindern unkontrollierten Blast Radius
+* GameDay-Events (halbtägig, jährlich) für ganzheitliche Resilienz-Validierung
+
+== Prinzipien für Chaos Engineering
+
+. *Hypothesis First*: "Wenn X ausfällt, erwarten wir Y innerhalb von Z Sekunden"
+. *Small Blast Radius*: Start mit 10% der Instanzen, nicht 100%
+. *Staging First*: Jedes Experiment zuerst in Staging, dann schrittweise in Produktion
+. *Stop Conditions*: Automatischer Abbruch wenn SLO-Alarm ausgelöst wird
+. *Monitoring Before*: Dashboards offen, bevor das Experiment startet
+. *Document Results*: Hypothese, Ergebnis, Aktion dokumentieren
+
+== Technische Umsetzung
+
+=== Schritt 1: Experiment-Dokumentation
+
+[source,yaml]
+----
+# chaos-experiments/exp-001-az-failure.yml
+id: "EXP-001"
+title: "Single AZ Instance Termination"
+hypothesis: "Payment API continues serving requests with < 10% error rate when 25% of instances in AZ1 are terminated"
+date: "2026-03-15"
+team: "payments-team"
+environment: "staging"
+
+scope:
+  service: "payment-api"
+  blast_radius: "25% of instances in eu-west-1a"
+  excluded: ["payment-db", "payment-queue"]
+
+stop_conditions:
+  - "SLO error rate > 2% for > 2 minutes"
+  - "All circuit breakers in OPEN state"
+
+expected_result:
+  recovery_time: "< 60 seconds"
+  error_rate_peak: "< 5%"
+  slo_violation: false
+
+observations:
+  start_time: "14:00"
+  actual_recovery_time: "42 seconds"
+  actual_error_rate_peak: "2.3%"
+  slo_violation: false
+  issues_found:
+    - "Startup probe initialDelaySeconds too short – 3 pods restarted unnecessarily"
+
+actions:
+  - id: "ACT-001"
+    description: "Increase initialDelaySeconds from 10s to 20s"
+    owner: "alice"
+    due_date: "2026-03-22"
+    status: "completed"
+----
+
+=== Schritt 2: AWS FIS Experiment Template
+
+[source,hcl]
+----
+# terraform/chaos/fis-az-failure.tf
+
+data "aws_iam_policy_document" "fis_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["fis.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "fis" {
+  name               = "fis-execution-role"
+  assume_role_policy = data.aws_iam_policy_document.fis_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "fis_ec2" {
+  role       = aws_iam_role.fis.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+# Stop Condition: SLO-Alarm löst aus
+resource "aws_cloudwatch_metric_alarm" "fis_stop_condition" {
+  alarm_name          = "fis-stop-condition-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApiGateway"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 50  # 50 Fehler/min = ~0.8% bei 6k req/min
+}
+
+# Experiment: 25% der Instanzen in AZ1 terminieren
+resource "aws_fis_experiment_template" "az1_instance_termination" {
+  description = "EXP-001: Terminate 25% of instances in AZ1 – validate auto-recovery < 60s"
+  role_arn    = aws_iam_role.fis.arn
+
+  stop_condition {
+    source = "aws:cloudwatch:alarm"
+    value  = aws_cloudwatch_metric_alarm.fis_stop_condition.arn
+  }
+
+  action {
+    name      = "terminate-instances-az1"
+    action_id = "aws:ec2:terminate-instances"
+
+    parameter {
+      key   = "startInstancesAfterDuration"
+      value = "PT0S"  # Nicht auto-restart
+    }
+
+    target {
+      key   = "Instances"
+      value = "payment-api-instances-az1"
+    }
+  }
+
+  target {
+    name           = "payment-api-instances-az1"
+    resource_type  = "aws:ec2:instance"
+    selection_mode = "PERCENT(25)"
+
+    resource_tag {
+      key   = "app"
+      value = "payment-api"
+    }
+
+    resource_tag {
+      key   = "aws:autoscaling:groupName"
+      value = "payment-api-asg"
+    }
+
+    filter {
+      path   = "Placement.AvailabilityZone"
+      values = ["eu-west-1a"]
+    }
+  }
+
+  tags = merge(var.mandatory_tags, {
+    "chaos-experiment" = "EXP-001"
+    "environment"      = "staging"
+  })
+}
+----
+
+=== Schritt 3: Azure Chaos Studio
+
+[source,hcl]
+----
+resource "azurerm_chaos_studio_experiment" "pod_failure" {
+  name                = "payment-api-pod-failure-staging"
+  location            = azurerm_resource_group.staging.location
+  resource_group_name = azurerm_resource_group.staging.name
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  schema_version = "2.0"
+
+  steps {
+    name = "pod-failure-step"
+
+    branches {
+      name = "inject-pod-failure"
+
+      actions {
+        action_urn = "urn:csci:microsoft:azureKubernetesServiceChaosMesh:podChaos/2.2"
+        duration   = "PT5M"
+
+        parameters {
+          key   = "jsonSpec"
+          value = jsonencode({
+            mode   = "one"
+            action = "pod-kill"
+            selector = {
+              namespaces = ["payment"]
+              labelSelectors = { "app" = "payment-api" }
+            }
+          })
+        }
+
+        target {
+          id   = azurerm_chaos_studio_target.aks.id
+          type = "ChaosTarget"
+        }
+      }
+    }
+  }
+}
+----
+
+=== Schritt 4: GameDay Agenda Template
+
+[source,markdown]
+----
+# GameDay: Payment Service Reliability – Q1 2026
+
+**Datum:** 2026-03-21
+**Dauer:** 4 Stunden (09:00–13:00)
+**Team:** payments-team (8 Personen)
+**Moderator:** @alice
+**Observer:** @bob (Engineering Manager)
+
+## 09:00 – Briefing (30 Min)
+- Tagesablauf erklären
+- Rollen zuweisen: Chaos-Operator, Incident Commander, Observer
+- Dashboards öffnen, Baseline messen
+
+## 09:30 – Experiment 1: Single Pod Failure (EXP-001)
+- Hypothese: Service recovered in < 30s
+- Tool: kubectl delete pod (ein Pod)
+- Erwartung: Keine SLO-Verletzung
+
+## 10:00 – Experiment 2: Database Connection Flood (EXP-002)
+- Hypothese: Circuit Breaker öffnet bei > 80% DB-Fehlerrate
+- Tool: AWS FIS – blockiere Security Group Rule zur DB
+- Stop Condition: SLO-Alarm
+
+## 10:30 – Pause & Analyse (30 Min)
+
+## 11:00 – Experiment 3: AZ-Level Failure (EXP-003)
+- Hypothese: Service recovered in < 60s nach 25% Instanz-Terminierung in AZ1
+- Tool: AWS FIS Experiment Template az1_instance_termination
+- Beobachte: Auto Scaling, LB Health Checks
+
+## 12:00 – Retrospektive (60 Min)
+- Was haben wir gelernt?
+- Welche Hypothesen haben sich bestätigt / widerlegt?
+- Action Items dokumentieren
+
+## 13:00 – Ende
+----
+
+== Typische Fehlmuster
+
+* *Chaos ohne Stop Conditions*: Experiment läuft unkontrolliert weiter, SLO-Budget wird vollständig aufgebraucht
+* *Nur in Staging, nie in Produktion*: Produktions-spezifische Konfigurationen werden nie validiert
+* *Chaos ohne Dokumentation*: Erkenntnisse gehen verloren; gleiche Fehler werden nicht gefunden
+* *Zu großer Blast Radius beim ersten Experiment*: 100% der Instanzen in AZ1 statt 25% → echter Outage
+
+== Metriken
+
+* Experiment Frequency: Anzahl dokumentierter Chaos-Experimente pro Quartal (Ziel: >= 3)
+* Hypothesis Validation Rate: % der Experimente, bei denen Hypothese bestätigt wurde (beides informativ)
+* Action Item Closure Rate: % der aus Experimenten erzeugten Actions, die within 2 Sprints umgesetzt wurden
+* Recovery Time Actual vs. RTO: Tatsächliche Recovery-Zeit im Experiment vs. RTO-Ziel
+
+== Reifegrad
+
+Level 1 – Keine Chaos-Tests; Resilienz nur durch Produktions-Incidents bekannt +
+Level 2 – Gelegentliche manuelle Tests (Container neu starten) ohne Dokumentation +
+Level 3 – Strukturierte Experimente mit Hypothesen und Dokumentation, quartalsweise +
+Level 4 – Produktions-Chaos mit Stop Conditions; GameDay jährlich; FIS/Chaos Studio aktiv +
+Level 5 – Kontinuierliche, automatisierte Low-Blast-Radius Experimente; ML-basierte Anomalieerkennung

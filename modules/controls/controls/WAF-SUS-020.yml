@@ -1,0 +1,249 @@
+id: WAF-SUS-020
+title: "Energy-Efficient Compute Selection"
+pillar: "sustainability"
+status: "active"
+severity: "high"
+category: "compute-efficiency"
+type: ['configuration', 'governance', 'automation']
+tags: ['graviton', 'arm64', 'compute', 'energy', 'instance-type', 'lambda', 'efficiency', 'rightsizing']
+
+description: >
+  All compute resources MUST prefer energy-efficient processor architectures (ARM64/Graviton for AWS,
+  Ampere Altra for Azure, T2A for GCP) over equivalent x86 instance families.
+  AWS Lambda functions MUST use arm64 architecture unless the workload has a verified incompatibility.
+  EC2 instances MUST NOT use previous-generation families (t2, m4, c4, r4) when current-generation
+  equivalents are available. ARM/Graviton instances deliver 20-40% better performance-per-watt compared
+  to equivalent x86 instances, reducing both cost and carbon emissions simultaneously.
+
+rationale: >
+  ARM-based cloud instances (AWS Graviton, Azure Ampere Altra, GCP T2A) deliver the same or better
+  compute performance while consuming 20-40% less energy than comparable x86 instances. This translates
+  directly to lower carbon emissions per compute unit. The Green Software Foundation's Software Carbon
+  Intensity (SCI) metric rewards energy-efficient compute selection. Previous-generation x86 instances
+  have significantly worse performance-per-watt ratios and should be treated as sustainability debt.
+  For Lambda: arm64 runtime is 20% cheaper and uses less energy per invocation.
+
+threat:
+  - "Excessive energy consumption from inefficient x86 instances inflating Scope 3 cloud emissions"
+  - "Previous-generation instances consuming 30-50% more energy per workload than modern equivalents"
+  - "Lambda functions on x86 consuming 20% more energy per invocation than arm64 equivalent"
+  - "Higher carbon intensity per compute unit making SCI targets unachievable"
+  - "Sustainability debt accumulation: unreviewed instance types become hard to migrate at scale"
+
+regulatory_mapping:
+  - framework: "Green Software Foundation"
+    controls:
+      - "Software Carbon Intensity (SCI) – hardware efficiency component"
+      - "Energy Efficiency – compute selection guidance"
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – Scope 3 emission reduction measures"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 2 – Location-based and market-based methods"
+      - "Scope 3 Category 11 – efficiency of purchased cloud compute"
+  - framework: "SBTi (Science Based Targets initiative)"
+    controls:
+      - "ICT Sector Guidance – energy intensity reduction targets"
+
+implementation_guidance:
+  - "Audit all existing EC2 instance types; flag t2, m4, c4, r4, i2, d2 families as sustainability debt."
+  - "Define a company-wide compute policy: Graviton3/4 preferred for new AWS workloads, m7g/c7g/r7g series."
+  - "For Lambda: set architectures = ['arm64'] as default; only override with documented justification."
+  - "For containerized workloads on EKS/ECS: use Graviton node groups; most container images are multi-arch."
+  - "For Azure: prefer Dpsv5, Epsv5, Dpdsv5 (Ampere Altra-based) over equivalent Dv5/Ev5 series."
+  - "For GCP: use T2A (Ampere Altra) for general workloads; N2 for memory-intensive."
+  - "Add instance type checks to IaC CI pipeline to block previous-generation types without approval."
+  - "Track compute sustainability metric: % of vCPU-hours on ARM/Graviton (target: >60% within 12 months)."
+
+maturity_levels:
+  level_1:
+    description: "No compute sustainability policy – instance types selected arbitrarily"
+    criteria:
+      - "No ARM/Graviton instances in use"
+      - "Previous-generation instance types (t2, m4) still used for new deployments"
+      - "Lambda functions default to x86_64 with no review"
+  level_2:
+    description: "Awareness – some Graviton instances adopted, no systematic policy"
+    criteria:
+      - "Some workloads have been migrated to Graviton voluntarily"
+      - "ARM/Graviton used for new workloads by some teams but not mandated"
+      - "No tracking of ARM vs x86 compute share"
+  level_3:
+    description: "Policy in place – Graviton/ARM preferred for new workloads"
+    criteria:
+      - "Compute sustainability policy documented and adopted by architecture board"
+      - "All new EC2/Lambda deployments default to Graviton/arm64"
+      - "CI gate flags previous-generation instance types"
+      - ">30% of compute vCPU-hours on ARM/Graviton"
+  level_4:
+    description: "Active migration – majority of workloads on energy-efficient compute"
+    criteria:
+      - "Brownfield migration plan for remaining x86 workloads documented and in progress"
+      - ">60% of vCPU-hours on ARM/Graviton across all environments"
+      - "Lambda: >80% of functions on arm64"
+      - "Monthly report tracking ARM adoption progress"
+  level_5:
+    description: "ARM-first architecture – x86 used only for documented exceptions"
+    criteria:
+      - ">85% of vCPU-hours on ARM/Graviton or equivalent efficient compute"
+      - "All exceptions documented in sustainability debt register with migration target date"
+      - "SCI metric improved measurably YoY due to compute efficiency gains"
+      - "Automated enforcement: new x86 deployments require architecture approval"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform or IaC configuration showing Graviton/arm64 instance types for EC2 and Lambda resources."
+    - kind: "config"
+      description: "Cloud inventory report showing distribution of instance types by family (ARM vs x86 split)."
+  optional:
+    - kind: "governance"
+      description: "Compute sustainability policy document defining preferred instance families per workload type."
+    - kind: "process"
+      description: "Migration plan for existing x86 workloads with timeline and progress tracking."
+
+checks:
+  - id: "waf-sus-020.tf.aws.lambda-arm64"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Lambda functions must use arm64 architecture"
+    description: >
+      Lambda functions running on arm64 (Graviton2) use 20% less energy per invocation than
+      x86_64 equivalents at equivalent performance. All Lambda functions MUST declare
+      architectures = ["arm64"] unless there is a documented compatibility exception.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lambda_function"
+    assertions:
+      - attribute: "architectures"
+        op: "not_in"
+        value: [["x86_64"]]
+        message: "Lambda function uses x86_64 architecture; switch to arm64 for 20% energy reduction."
+    on_fail: "violation"
+    remediation: >
+      Set architectures = ["arm64"] on all Lambda functions. Verify that all Lambda layers
+      and dependencies support arm64. Most Python, Node.js, Java and Go runtimes are fully
+      supported. For container image functions, rebuild the image for linux/arm64 platform.
+    example:
+      compliant: |
+        resource "aws_lambda_function" "api_handler" {
+          function_name = "api-handler"
+          runtime       = "python3.12"
+          architectures = ["arm64"]  # 20% energy reduction vs x86_64
+          handler       = "main.handler"
+          role          = aws_iam_role.lambda.arn
+          filename      = "function.zip"
+        }
+      non_compliant: |
+        resource "aws_lambda_function" "api_handler" {
+          function_name = "api-handler"
+          runtime       = "python3.12"
+          architectures = ["x86_64"]  # WAF-SUS-020 Violation: use arm64
+          handler       = "main.handler"
+          role          = aws_iam_role.lambda.arn
+          filename      = "function.zip"
+        }
+
+  - id: "waf-sus-020.tf.aws.ec2-no-previous-gen"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "EC2 instances must not use previous-generation instance families"
+    description: >
+      Previous-generation EC2 instance families (t2, m4, c4, r4, i2, d2, m3, c3) have
+      significantly worse performance-per-watt than current-generation equivalents.
+      They also lack support for modern EBS optimized I/O and network performance features.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "instance_type"
+        op: "not_matches"
+        value: "^(t2|m4|c4|r4|i2|d2|m3|c3|r3)\\."
+        message: "Instance type uses a previous-generation family with poor energy efficiency. Migrate to t4g, m7g, c7g, or r7g."
+    on_fail: "violation"
+    remediation: >
+      Replace previous-generation instance types with current-generation equivalents:
+      t2 -> t4g (Graviton2, 40% better price-performance),
+      m4 -> m7g (Graviton3, best performance-per-watt),
+      c4 -> c7g (Graviton3, compute-optimized),
+      r4 -> r7g (Graviton3, memory-optimized).
+      Test compatibility before migration using AWS Graviton migration guide.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu_arm.id
+          instance_type = "m7g.large"  # Graviton3, 40% better performance/watt
+          tags = {
+            environment = "production"
+            workload    = "payment-service"
+          }
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "m4.large"  # WAF-SUS-020 Violation: previous-gen, poor efficiency
+          tags = {
+            environment = "production"
+          }
+        }
+
+  - id: "waf-sus-020.tf.azurerm.vm-efficient-series"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure VMs should use Ampere Altra (Dpsv5/Epsv5) or equivalent efficient series"
+    description: >
+      Azure Dpsv5 and Epsv5 series VMs use Ampere Altra ARM processors with 40% better
+      performance per watt than equivalent Dv4/Ev4 series. These should be preferred for
+      general and memory-optimized workloads.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_linux_virtual_machine"
+        - "azurerm_windows_virtual_machine"
+    assertions:
+      - attribute: "size"
+        op: "not_matches"
+        value: "^Standard_(D[0-9]+v[23]|E[0-9]+v[23]|A[0-9]+_)"
+        message: "VM uses an older series with poor energy efficiency. Consider Dpsv5, Epsv5, or Ddsv5 series."
+    on_fail: "warning"
+    remediation: >
+      Migrate VMs to Dpsv5 (Ampere Altra ARM) for general workloads or Epsv5 for memory-intensive.
+      For x86-only workloads, use Ddsv5 or Edsv5 as the most energy-efficient x86 option.
+      Run Azure Migrate assessment to validate compatibility before resizing.
+    example:
+      compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-app-prod"
+          resource_group_name = var.resource_group_name
+          location            = var.location
+          size                = "Standard_D4ps_v5"  # Ampere Altra ARM – best efficiency
+          admin_username      = "adminuser"
+          network_interface_ids = [azurerm_network_interface.app.id]
+        }
+      non_compliant: |
+        resource "azurerm_linux_virtual_machine" "app" {
+          name                = "vm-app-prod"
+          resource_group_name = var.resource_group_name
+          location            = var.location
+          size                = "Standard_D4_v3"  # WAF-SUS-020 Warning: older series, lower efficiency
+          admin_username      = "adminuser"
+          network_interface_ids = [azurerm_network_interface.app.id]
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-020"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-compute-efficiency.adoc"
+  related_controls:
+    - "WAF-SUS-040"
+    - "WAF-SUS-060"
+    - "WAF-SUS-010"

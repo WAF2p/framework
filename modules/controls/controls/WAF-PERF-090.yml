@@ -1,0 +1,247 @@
+id: WAF-PERF-090
+title: "Storage I/O Performance & Throughput Optimization"
+pillar: "performance"
+status: "active"
+severity: "medium"
+category: "storage-performance"
+type: ['configuration', 'governance']
+tags: ['storage', 'iops', 'throughput', 'ebs', 'gp3', 'disk-io', 'block-storage', 'object-storage']
+
+description: >
+  All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object storage used
+  by production workloads MUST be configured with appropriate I/O performance settings (IOPS,
+  throughput, storage class). Storage volumes MUST use the most cost-efficient performance tier
+  for their workload. EBS volumes MUST use gp3 instead of gp2 for new deployments. Storage I/O
+  performance MUST be monitored and alerts configured for throughput saturation and high queue depth.
+
+rationale: >
+  Storage I/O saturation is a common and underdiagnosed cause of application performance degradation.
+  Databases, log-heavy services, and data processing workloads can saturate storage throughput
+  causing queue depth buildup, increased latency, and timeout cascades. Choosing the wrong storage
+  tier (gp2 instead of gp3, Standard HDD instead of Premium SSD) can cause 10x latency differences.
+  Storage performance is often the hidden bottleneck when CPU and network appear healthy.
+
+threat:
+  - "Storage I/O saturation causing query latency spikes on database workloads"
+  - "gp2 burst bucket exhaustion causing sudden performance drops after sustained high I/O"
+  - "Log-write overhead saturating shared storage volume affecting application performance"
+  - "Object storage request throttling in high-concurrency data pipeline workloads"
+  - "Snapshot operations interfering with production I/O on shared volumes"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Resource Utilization"
+      - "Performance Efficiency – Time Behavior"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 3 – How do you select your storage solution?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Choose the right storage"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Storage selection – Choose appropriate disk type"
+
+implementation_guidance:
+  - "Use gp3 for all new EBS volumes; migrate gp2 volumes to gp3 (same or lower cost, better performance)."
+  - "For database workloads: use io2/io2 Block Express or Premium SSD for high IOPS requirements."
+  - "Set IOPS and throughput explicitly on gp3 volumes for predictable performance (default: 3000 IOPS, 125 MB/s)."
+  - "Monitor CloudWatch DiskReadOps/DiskWriteOps, BurstBalance for gp2, and VolumeQueueLength."
+  - "Separate OS, application, and database volumes to isolate I/O contention."
+  - "For high-IOPS databases: evaluate NVMe instance storage (io* instance types) for scratch workloads."
+  - "Configure storage I/O alerts: alert when VolumeQueueLength > 1 sustained or BurstBalance < 30%."
+
+maturity_levels:
+  level_1:
+    description: "Default storage configuration; I/O performance unknown"
+    criteria:
+      - "All EBS volumes use gp2 defaults; no I/O baseline established"
+      - "No storage I/O monitoring; problems discovered reactively"
+      - "No separation of OS and data volumes"
+  level_2:
+    description: "Storage tier selected but not optimized"
+    criteria:
+      - "Storage type selected per workload (SSD for databases, HDD for archives)"
+      - "No explicit IOPS or throughput configuration"
+      - "Basic I/O metrics collected but no alerts"
+  level_3:
+    description: "Optimized storage configuration with I/O monitoring"
+    criteria:
+      - "All new EBS volumes use gp3; migration plan for gp2 volumes"
+      - "IOPS and throughput explicitly configured for production volumes"
+      - "I/O monitoring alerts configured (queue depth, burst balance)"
+      - "Database and application volumes separated"
+  level_4:
+    description: "Continuous I/O optimization with performance validation"
+    criteria:
+      - "gp2 to gp3 migration complete; io2 for high-IOPS workloads"
+      - "Storage I/O baseline documented; alerts trigger investigation"
+      - "Snapshot scheduling optimized to avoid production I/O impact"
+      - "Object storage access patterns analyzed for tier optimization"
+  level_5:
+    description: "Intelligent storage tiering and performance management"
+    criteria:
+      - "Intelligent tiering for object storage with access pattern analysis"
+      - "Automated volume type recommendations based on I/O patterns"
+      - "Storage I/O as SLI: included in SLO definitions for I/O-intensive services"
+      - "Data lifecycle policies optimize storage cost and performance together"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing storage volumes with explicit type, IOPS, and throughput settings."
+    - kind: "config"
+      description: "Monitoring configuration showing storage I/O alerts (queue depth, throughput, burst balance)."
+  optional:
+    - kind: "process"
+      description: "Storage I/O baseline report with P95/P99 queue depth and throughput utilization."
+    - kind: "governance"
+      description: "Storage tier selection guidelines per workload type."
+
+checks:
+  - id: "waf-perf-090.tf.aws.ebs-gp3-volume-type"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS EBS volumes must use gp3 type instead of gp2"
+    description: >
+      EBS volumes must use gp3 type for new deployments. gp3 provides baseline performance
+      of 3000 IOPS and 125 MB/s throughput without burst mechanics, at 20% lower cost than gp2.
+      gp2 volumes deplete burst credits under sustained load causing unpredictable performance.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ebs_volume"
+        - "aws_db_instance"
+        - "aws_launch_template"
+    assertions:
+      - attribute: "volume_type"
+        op: "not_equals"
+        value: "gp2"
+        message: "EBS volume must not use gp2 type. Migrate to gp3 for consistent performance and lower cost."
+      - attribute: "volume_type"
+        op: "in"
+        values: ["gp3", "io1", "io2", "sc1", "st1"]
+        message: "EBS volume type must be explicitly set to a supported current type."
+    on_fail: "violation"
+    remediation: >
+      Change volume_type from "gp2" to "gp3". For databases requiring higher IOPS,
+      set explicit iops and throughput values on gp3 (max 16000 IOPS, 1000 MB/s).
+      Migration from gp2 to gp3 is online and non-disruptive.
+    example:
+      compliant: |
+        resource "aws_ebs_volume" "data" {
+          availability_zone = "eu-west-1a"
+          size              = 100
+          type              = "gp3"
+          iops              = 6000    # Explicitly set above default 3000
+          throughput        = 250     # Explicitly set above default 125 MB/s
+          encrypted         = true
+          tags = {
+            Name    = "data-payment-api"
+            workload = "payment-api"
+          }
+        }
+      non_compliant: |
+        resource "aws_ebs_volume" "data" {
+          availability_zone = "eu-west-1a"
+          size              = 100
+          type              = "gp2"  # gp2 – burst-dependent – WAF-PERF-090 violation
+          # No explicit IOPS; subject to credit depletion
+        }
+
+  - id: "waf-perf-090.tf.azurerm.managed-disk-premium"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Managed Disks for production database workloads should use Premium SSD"
+    description: >
+      Azure Managed Disks used for database data volumes should use Premium SSD (P series)
+      or Ultra Disk for high-IOPS workloads. Standard HDD or Standard SSD is inappropriate
+      for production database storage.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_managed_disk"
+    assertions:
+      - attribute: "storage_account_type"
+        op: "not_in"
+        values: ["Standard_LRS", "StandardSSD_LRS"]
+        message: "Production database disks must use Premium_LRS or UltraSSD_LRS, not Standard or StandardSSD."
+    on_fail: "advisory"
+    remediation: >
+      Set storage_account_type = "Premium_LRS" for database data disks.
+      Use UltraSSD_LRS for extremely latency-sensitive workloads requiring sub-millisecond I/O.
+    example:
+      compliant: |
+        resource "azurerm_managed_disk" "db_data" {
+          name                 = "disk-db-payment-data"
+          resource_group_name  = azurerm_resource_group.main.name
+          location             = azurerm_resource_group.main.location
+          storage_account_type = "Premium_LRS"
+          create_option        = "Empty"
+          disk_size_gb         = 256
+          tags = {
+            workload = "payment-db"
+            tier     = "data"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_managed_disk" "db_data" {
+          name                 = "disk-db-payment-data"
+          storage_account_type = "Standard_LRS"  # HDD for database – WAF-PERF-090 advisory
+          create_option        = "Empty"
+          disk_size_gb         = 256
+        }
+
+  - id: "waf-perf-090.tf.google.persistent-disk-ssd"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Persistent Disks for production workloads should use SSD type"
+    description: >
+      GCP Persistent Disks for production compute and database workloads should use pd-ssd
+      or pd-balanced type, not pd-standard (HDD) which has high latency.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_disk"
+    assertions:
+      - attribute: "type"
+        op: "not_equals"
+        value: "pd-standard"
+        message: "Production Persistent Disk must not use pd-standard (HDD). Use pd-ssd or pd-balanced."
+    on_fail: "advisory"
+    remediation: >
+      Set type = "pd-balanced" for general workloads or type = "pd-ssd" for high-IOPS databases.
+      pd-extreme is available for ultra-high IOPS requirements.
+    example:
+      compliant: |
+        resource "google_compute_disk" "db_data" {
+          name  = "disk-payment-db-data"
+          type  = "pd-ssd"
+          zone  = "europe-west3-a"
+          size  = 100
+          labels = {
+            workload = "payment-db"
+          }
+        }
+      non_compliant: |
+        resource "google_compute_disk" "db_data" {
+          name  = "disk-payment-db-data"
+          type  = "pd-standard"  # HDD – high latency for database – WAF-PERF-090 advisory
+          zone  = "europe-west3-a"
+          size  = 100
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-090"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-database-performance.adoc"
+  related_controls:
+    - "WAF-PERF-040"
+    - "WAF-PERF-050"
+    - "WAF-PERF-010"

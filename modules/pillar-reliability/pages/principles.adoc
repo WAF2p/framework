@@ -1,0 +1,198 @@
+= Reliability-Prinzipien
+:page-toc: right
+:description: WAF++ Reliability – 7 Grundprinzipien für zuverlässige Cloud-Systeme (RP1–RP7).
+
+Die Reliability-Säule basiert auf sieben Grundprinzipien (RP1–RP7).
+Jedes Prinzip ist kein Implementierungsdetail, sondern eine *architektonische Haltung*,
+die alle Reliability-Controls und Best Practices untermauert.
+
+== RP1 – Measure First (Messen vor Optimieren)
+
+=== Tagline
+_Reliability, die nicht gemessen wird, existiert nicht._
+
+=== Erklärung
+
+Reliability-Investitionen ohne messbare Ziele führen zu Aktivitäten ohne Wirkung.
+Bevor ein Team Multi-AZ deployed, Circuit Breaker konfiguriert oder Chaos-Tests
+durchführt, muss es wissen: *Was ist das aktuelle Zuverlässigkeitsniveau?*
+Was ist das akzeptable Minimum? Was ist die Erwartung von Nutzern und Stakeholdern?
+
+SLOs sind das Fundament. Ohne SLOs kann eine Organisation nicht entscheiden,
+ob sie over-engineered (zu viel in Reliability investiert) oder under-engineered
+(zu wenig) ist. Error Budgets transformieren SLOs von statischen Zielen zu
+dynamischen Entscheidungsgrundlagen.
+
+=== Implikationen
+
+* Jeder Workload braucht ein SLO, bevor er in Produktion geht
+* MTTR und Error Budget Burn Rate müssen trackbare Metriken sein
+* Reliability-Investitionen werden durch Data, nicht Intuition, priorisiert
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-010[WAF-REL-010], xref:controls.adoc#WAF-REL-100[WAF-REL-100]
+
+---
+
+== RP2 – Design for Failure (Ausfälle einplanen, nicht vermeiden)
+
+=== Tagline
+_Ausfälle sind unvermeidlich. Wer sie nicht einplant, plant zu scheitern._
+
+=== Erklärung
+
+In Cloud-Umgebungen sind Hardware-Ausfälle, AZ-Störungen, Netzwerkunterbrechungen
+und Software-Bugs keine Ausnahmen – sie sind Normalzustände, die statistisch auftreten.
+Ein System, das auf den Ausfall *einer* Komponente mit einem Gesamtausfall reagiert,
+wurde nicht für Reliability designed.
+
+Reliability-Design bedeutet: *Jeder Ausfall einer Komponente darf die Gesamtverfügbarkeit
+nur innerhalb definierter Grenzen beeinträchtigen.* Multi-AZ-Deployment ist die
+Umsetzung dieses Prinzips für AZ-Ausfälle. Circuit Breaker sind die Umsetzung für
+Abhängigkeitsausfälle.
+
+=== Implikationen
+
+* Single Points of Failure (SPOFs) sind architektonische Schulden
+* Redundanz muss explizit deployed werden; sie entsteht nicht zufällig
+* Graceful Degradation ist wertvoller als vollständige Verfügbarkeit von 100% der Features
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-030[WAF-REL-030], xref:controls.adoc#WAF-REL-050[WAF-REL-050], xref:controls.adoc#WAF-REL-080[WAF-REL-080]
+
+---
+
+== RP3 – Automate Recovery (Automatische Heilung vor manueller Intervention)
+
+=== Tagline
+_Manuelle Recovery skaliert nicht. Systeme müssen lernen, sich selbst zu heilen._
+
+=== Erklärung
+
+Menschliche Reaktionszeiten (MTTR durch manuellen Eingriff) sind in modernen,
+verteilten Systemen zu langsam für hochverfügbare Services. Auto-Healing-Mechanismen –
+Health Check-basiertes Instance Replacement, Kubernetes Pod Restart, Auto-Scaling
+bei Lastspitzen – reduzieren MTTR von Minuten auf Sekunden.
+
+Automatisierte Recovery erfordert: valide Health Checks (RP1), klar definierte
+Fehlerzustände, idempotente Restart-Prozeduren und gut konfigurierte
+Infrastructure-as-Code. Automation ist nur sicher, wenn die Automatik testzertifiziert ist.
+
+=== Implikationen
+
+* Instanzen, die Health Checks nicht bestehen, werden automatisch ersetzt
+* Auto-Scaling reagiert auf Last, nicht auf manuellen Eingriff
+* IaC ermöglicht automatisierte Infra-Neuerstellung aus bekanntem Zustand
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-020[WAF-REL-020], xref:controls.adoc#WAF-REL-030[WAF-REL-030]
+
+---
+
+== RP4 – Test Everything (Testen statt Hoffen)
+
+=== Tagline
+_Reliability, die nicht getestet wurde, ist eine Hypothese – keine Garantie._
+
+=== Erklärung
+
+Jede Reliability-Claim – "wir sind Multi-AZ", "unser Backup funktioniert",
+"der Circuit Breaker schützt uns" – ist ohne entsprechenden Test eine Behauptung.
+DR-Tests, Chaos-Engineering und Restore-Übungen sind keine nice-to-haves für
+fortgeschrittene Teams. Sie sind die einzige Methode, um Reliability-Behauptungen
+in Evidenz umzuwandeln.
+
+Untestete Systeme scheitern anders, als Design-Reviews vorhersagen. Chaos Engineering
+als systematische Praxis ist der Unterschied zwischen einem Team, das glaubt, resilient
+zu sein, und einem Team, das es *weiß*.
+
+=== Implikationen
+
+* DR-Tests sind mindestens halbjährlich obligatorisch
+* Backup-Restore-Tests sind mindestens quartalsweise obligatorisch
+* Chaos-Experimente haben ein dokumentiertes Hypothesen-Framework
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-040[WAF-REL-040], xref:controls.adoc#WAF-REL-070[WAF-REL-070], xref:controls.adoc#WAF-REL-090[WAF-REL-090]
+
+---
+
+== RP5 – Limit Blast Radius (Auswirkungen von Fehlern begrenzen)
+
+=== Tagline
+_Ein Fehler darf nie das gesamte System treffen._
+
+=== Erklärung
+
+Blast Radius bezeichnet den Umfang des Schadens, den ein einzelner Fehler verursachen kann.
+Cascading Failures entstehen, wenn ein Fehler in einer Komponente unlimitierten Zugang
+zu Ressourcen anderer Komponenten hat: Thread Pools, Connection Pools, Anfrage-Queues.
+
+Blast Radius Limitation ist das Ziel von Bulkheads (Isolation von Resource Pools),
+Circuit Breakers (Fast-Fail statt Resource-Drain), Feature Flags (selektive Deaktivierung)
+und AZ-Isolation (geografische Fehlergrenze).
+
+=== Implikationen
+
+* Jede kritische Abhängigkeit hat einen Circuit Breaker
+* Resource Pools sind per Abhängigkeitsklasse isoliert
+* Feature Flags ermöglichen selektive Deaktivierung nicht-kritischer Funktionen
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-050[WAF-REL-050], xref:controls.adoc#WAF-REL-080[WAF-REL-080]
+
+---
+
+== RP6 – Eliminate Single Points of Failure
+
+=== Tagline
+_Jeder SPOF ist eine Frage, nicht ob er ausfällt, sondern wann._
+
+=== Erklärung
+
+Ein Single Point of Failure (SPOF) ist eine Komponente, deren Ausfall zu einem
+Gesamtausfall oder einer SLO-Verletzung führt. In Cloud-Architekturen entstehen
+SPOFs häufig durch: Single-AZ-Deployments, Single-Instance-Datenbanken ohne Failover,
+Shared-Config-Endpoints, externe Abhängigkeiten ohne Fallback.
+
+Das systematische Identifizieren und Eliminieren von SPOFs erfordert eine
+Architekturanalyse (Failure Mode and Effects Analysis, FMEA), die Reliability Debt
+Register (WAF-REL-100) dokumentiert und durch Chaos Engineering (WAF-REL-090)
+empirisch validiert.
+
+=== Implikationen
+
+* Jede Single-Instance-Komponente in Produktion ist ein SPOF und muss dokumentiert sein
+* SPOF-Eliminierung hat höchste Priorität im Reliability Debt Register
+* Architecture Reviews prüfen explizit auf neue SPOFs
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-030[WAF-REL-030], xref:controls.adoc#WAF-REL-100[WAF-REL-100]
+
+---
+
+== RP7 – Reliability as Architecture Concern (Reliability ist Architekturverantwortung)
+
+=== Tagline
+_Reliability entsteht durch Architekturentscheidungen – nicht durch Betriebsmaßnahmen._
+
+=== Erklärung
+
+Reliability kann nicht nachträglich in ein schlecht entworfenes System eingebaut werden.
+Entscheidungen über Multi-AZ, Datenbank-Failover, Circuit Breaker-Design und Recovery-Strategie
+werden im Architekturprozess getroffen – oder versäumt. Operations-Teams können durch
+Runbooks und Incident Response die Auswirkungen kompensieren, aber nicht die
+architektonischen Schulden eliminieren.
+
+Reliability muss in Architecture Decision Records (ADRs), Design Reviews und
+Sprint-Planning als explizite Anforderung verankert sein. Architektur-Entscheidungen,
+die Reliability reduzieren, müssen im Reliability Debt Register dokumentiert werden.
+
+=== Implikationen
+
+* Architecture Reviews beinhalten Reliability Assessment als Pflichtpunkt
+* ADRs dokumentieren Reliability-Implikationen explizit
+* Reliability Debt durch Architekturentscheidungen wird in REL-100 registriert
+
+=== Zugehörige Controls
+xref:controls.adoc#WAF-REL-010[WAF-REL-010], xref:controls.adoc#WAF-REL-100[WAF-REL-100]

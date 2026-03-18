@@ -1,0 +1,234 @@
+= Best Practice: Auto-Scaling konfigurieren
+:page-toc: right
+:description: WAF++ Performance Efficiency – Auto-Scaling für stateless Workloads konfigurieren, testen und überwachen.
+
+== Kontext
+
+Statische Kapazität für variable Last ist ineffizient und riskant: entweder zu viel (Kostenverschwendung)
+oder zu wenig (Performance-Degradation bei Lastspitzen). Auto-Scaling ist der einzige Mechanismus,
+der Kapazität dynamisch an den tatsächlichen Bedarf anpasst.
+
+Häufige Probleme ohne validiertes Auto-Scaling:
+
+* ASG konfiguriert, aber Skalierungsschwellen nie unter Last getestet – Scaling greift zu spät
+* Skalierung auf CPU-Auslastung, aber CPU-bound ist der Service gar nicht
+* min=max=1 – effektiv kein Scaling, trotz ASG-Konfiguration
+* Scale-in zu aggressiv: Instanzen werden sofort terminiert, bevor Verbindungen drainiert sind
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-020[WAF-PERF-020] – Auto-Scaling Configured & Tested
+* xref:../controls.adoc#WAF-PERF-080[WAF-PERF-080] – Serverless & Managed Services for Variable Load
+
+== Zielbild
+
+Validiertes Auto-Scaling:
+
+* *Korrekte Metriken*: Scaling basiert auf der Metrik, die die tatsächliche Last widerspiegelt
+* *Getestet*: Lasttest belegt, dass Scaling innerhalb des Latenz-SLO auslöst
+* *Dokumentiert*: Skalierungsgrenzen und -verhalten sind im Runbook beschrieben
+* *Observiert*: Scaling-Events werden gemonitored und Anomalien alarmiert
+
+== Technische Umsetzung
+
+=== Schritt 1: Richtige Scaling-Metrik wählen
+
+[cols="1,2,2"]
+|===
+|Workload-Typ |Empfohlene Metrik |Begründung
+
+|HTTP-API
+|ALBRequestCountPerTarget oder P99-Latenz
+|CPU korreliert nicht direkt mit Anfragelast
+
+|Queue-Worker
+|SQS ApproximateNumberOfMessagesVisible
+|Queue-Tiefe ist direkte Darstellung des Backlogs
+
+|WebSocket-Server
+|Aktive Verbindungen (Custom Metric)
+|CPU zeigt Verbindungslast nicht korrekt
+
+|Batch-Processor
+|Custom Job-Count Metric
+|Durchsatz-basiert, nicht CPU-basiert
+
+|===
+
+=== Schritt 2: AWS Auto Scaling Group mit Target Tracking
+
+[source,hcl]
+----
+resource "aws_autoscaling_group" "api" {
+  name                = "asg-payment-api-${var.environment}"
+  min_size            = 2  # Mindestens 2 für Redundanz ohne Cold Starts
+  max_size            = 20
+  desired_capacity    = 2
+  vpc_zone_identifier = var.private_subnet_ids
+  target_group_arns   = [aws_lb_target_group.api.arn]
+  health_check_type   = "ELB"
+
+  # Verbindungen bei Scale-in drainieren (wichtig!)
+  default_cooldown = 300
+
+  # Warm-up: Neue Instanzen erst nach 120s in Scaling-Entscheidungen einbeziehen
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 120
+    }
+  }
+
+  launch_template {
+    id      = aws_launch_template.api.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "payment-api-${var.environment}"
+    propagate_at_launch = true
+  }
+}
+
+# Target Tracking: ALB-Requests pro Target
+resource "aws_autoscaling_policy" "api_request_tracking" {
+  name                   = "payment-api-request-tracking"
+  autoscaling_group_name = aws_autoscaling_group.api.name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.api.arn_suffix}/${aws_lb_target_group.api.arn_suffix}"
+    }
+    target_value       = 1000.0   # Max Requests/s pro Instanz – aus Lasttest ermittelt
+    scale_in_cooldown  = 300      # Konservativ: 5 min warten vor Scale-in
+    scale_out_cooldown = 60       # Aggressiv: schnell raus bei Last
+  }
+}
+----
+
+=== Schritt 3: Kubernetes HPA mit Custom Metrics
+
+[source,yaml]
+----
+# k8s/hpa-payment-api.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-api-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-api
+  minReplicas: 2
+  maxReplicas: 50
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: sqs_queue_depth  # KEDA-basierte SQS-Metrik
+          selector:
+            matchLabels:
+              queue: payment-jobs
+        target:
+          type: AverageValue
+          averageValue: "10"  # 1 Pod pro 10 Nachrichten in der Queue
+  behavior:
+    scaleOut:
+      stabilizationWindowSeconds: 0  # Sofort skalieren
+      policies:
+        - type: Pods
+          value: 5        # Maximal 5 neue Pods auf einmal
+          periodSeconds: 60
+    scaleIn:
+      stabilizationWindowSeconds: 300  # 5 Minuten warten vor Scale-in
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+----
+
+=== Schritt 4: Auto-Scaling durch Lasttest validieren
+
+[source,javascript]
+----
+// tests/performance/scaling-validation.js (k6)
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate } from 'k6/metrics';
+
+const errorRate = new Rate('errors');
+
+// Stufenweiser Anstieg bis 2x erwartete Last
+export const options = {
+  stages: [
+    { duration: '2m', target: 10 },   // Warm-up
+    { duration: '5m', target: 50 },   // Normallast
+    { duration: '5m', target: 100 },  // Skalierungsbereich
+    { duration: '3m', target: 200 },  // 2x Spitzenlast
+    { duration: '2m', target: 10 },   // Cool-down
+  ],
+  thresholds: {
+    http_req_duration: ['p(95)<200', 'p(99)<500'],  // SLO
+    errors: ['rate<0.001'],                          // < 0.1% Fehler
+  },
+};
+
+export default function () {
+  const res = http.get(`${__ENV.BASE_URL}/api/v1/payments`);
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'response time < 200ms': (r) => r.timings.duration < 200,
+  });
+  errorRate.add(res.status !== 200);
+  sleep(0.1);
+}
+----
+
+=== Schritt 5: Scaling-Monitoring konfigurieren
+
+[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "scaling_out" {
+  alarm_name          = "payment-api-scaling-out"
+  alarm_description   = "ASG scaling out – check if max capacity approached. Runbook: https://wiki/scaling"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "GroupDesiredCapacity"
+  namespace           = "AWS/AutoScaling"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = var.max_instances * 0.8  # Alert bei 80% Max-Kapazität
+  alarm_actions       = [aws_sns_topic.ops.arn]
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.api.name
+  }
+}
+----
+
+== Typische Fehlmuster
+
+* *Scale-out auf CPU*: CPU ist für HTTP-APIs oft nicht die limitierende Ressource. ALB-Request-Count oder P99-Latenz sind besser.
+* *min = max*: Effektiv kein Auto-Scaling. Typisch bei teams, die "sicherheitshalber" feste Capacity wollen.
+* *Kein Instance Warmup*: Neue Instanzen werden sofort mit vollem Traffic belastet, bevor sie bereit sind.
+* *Ungetestete Skalierungsschwellen*: Threshold 80% CPU klingt vernünftig – aber unter realistischer Last triggert vielleicht nie.
+
+== Metriken
+
+* Scaling-Ereignisse pro Tag (Baseline für Anomalie-Erkennung)
+* Zeit von Scaling-Trigger bis neue Instanz serviert Traffic (Ziel: < 3 min)
+* Anteil der Zeit an oder nahe Max-Kapazität (Ziel: < 5% der Zeit)
+* P99-Latenz während Scaling-Events (MUSS im SLO-Bereich bleiben)
+
+== Reifegrad
+
+Level 1 – Statische Kapazität; keine Auto-Scaling-Konfiguration +
+Level 2 – ASG konfiguriert, Default-CPU-Threshold, nicht getestet +
+Level 3 – Richtige Metriken, Lasttest-Validierung, dokumentierte Grenzen +
+Level 4 – Predictive Scaling, Scale-out-Dauer im SLO gemessen +
+Level 5 – Autonomes Capacity Management, ML-Scaling-Policies

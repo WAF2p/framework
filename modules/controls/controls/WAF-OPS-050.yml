@@ -1,0 +1,213 @@
+id: WAF-OPS-050
+title: "Change Management & Deployment Risk Assessment"
+pillar: "operations"
+status: "active"
+severity: "medium"
+category: "change-management"
+type: ['governance', 'configuration', 'automation']
+tags: ['change-management', 'deployment', 'risk-assessment', 'approval', 'freeze', 'cab']
+
+description: >
+  All changes to production systems MUST go through a defined change management process
+  that includes risk assessment, approval workflow for high-risk changes, deployment
+  freeze policies for critical periods, and post-deployment verification. Change records
+  MUST be linked to deployment artifacts and stored with sufficient context for audit.
+
+rationale: >
+  Uncontrolled changes are the leading cause of production incidents. Without a structured
+  change process, risk is not assessed, blast radius is not considered, and rollback plans
+  are not prepared. Change management does not mean slowing down delivery – it means
+  ensuring that every change has a known owner, a known risk level, and a verification
+  plan. Automated change classification (low-risk changes auto-approved, high-risk changes
+  require review) enables both speed and safety.
+
+threat:
+  - "Unreviewed changes causing production incidents with no documented rollback plan"
+  - "Change collisions when multiple teams deploy simultaneously without coordination"
+  - "Critical business period disruptions from uncontrolled deployments"
+  - "Audit failures due to missing change records and approval evidence"
+  - "Security configuration changes bypassing security review process"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Change and deployment management"
+      - "Release and deployment management"
+  - framework: "ITIL 4"
+    controls:
+      - "Change enablement"
+      - "Release management"
+  - framework: "SOC 2 Type II"
+    controls:
+      - "CC8.1 – Change Management – Authorized Changes"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 6: How do you deploy your workload?"
+  - framework: "PCI DSS v4.0"
+    controls:
+      - "Requirement 6.5: Changes to all system components are managed securely"
+
+implementation_guidance:
+  - "Define change categories: Standard (pre-approved, routine), Normal (requires review), Emergency (expedited approval)."
+  - "Automate change risk classification based on the resources changed, environment, and time of day."
+  - "Require pull request approval from at least one peer and one tech lead for Normal changes to production."
+  - "Implement deployment freeze automation: block production pipeline triggers during configured freeze periods."
+  - "Link every deployment to a ticket or change record; pipeline enforces the link before production deployment."
+  - "Post-deployment verification: automated smoke tests MUST pass before deployment is marked successful."
+  - "Configure deployment rollback: every production deployment MUST have an automated or documented rollback procedure."
+
+maturity_levels:
+  level_1:
+    description: "Uncontrolled changes"
+    criteria:
+      - "No formal change process exists"
+      - "Anyone can deploy to production at any time"
+      - "No change records or approval workflow"
+  level_2:
+    description: "Basic review process"
+    criteria:
+      - "Pull request reviews required for code changes"
+      - "Informal communication before production deployments"
+      - "Deployment schedule informally coordinated"
+  level_3:
+    description: "Documented change process with risk classification"
+    criteria:
+      - "Change categories defined (Standard, Normal, Emergency)"
+      - "High-risk changes require multi-person approval"
+      - "Deployment freeze periods configured and enforced"
+      - "Change records linked to deployments"
+  level_4:
+    description: "Automated risk assessment and approval routing"
+    criteria:
+      - "Automated change risk scoring based on affected resources and environment"
+      - "Risk-based approval routing: low-risk auto-approved, high-risk requires CAB or tech lead"
+      - "Post-deployment verification automated with smoke tests"
+      - "Change failure rate (DORA metric) tracked"
+  level_5:
+    description: "Continuous change optimization"
+    criteria:
+      - "Change failure rate < 5% (DORA Elite)"
+      - "Mean time to restore < 1 hour for failed changes"
+      - "Change velocity metrics driving process improvement"
+      - "Predictive risk scoring using ML on historical change data"
+
+evidence:
+  required:
+    - kind: "process"
+      description: "Change management policy document defining change categories, approval requirements, and freeze periods."
+    - kind: "config"
+      description: "Branch protection and approval requirements configured in source control (min. reviewers, CODEOWNERS)."
+  optional:
+    - kind: "governance"
+      description: "Change log or ITSM ticket history showing change records linked to deployments."
+    - kind: "config"
+      description: "Deployment freeze configuration in CI/CD pipeline (calendar-based or manual freeze toggles)."
+
+checks:
+  - id: "waf-ops-050.tf.aws.codepipeline-manual-approval"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Production CodePipeline must include a manual approval stage before deployment"
+    description: >
+      AWS CodePipeline pipelines deploying to production MUST include a manual approval
+      action before the production deploy stage to enforce change review.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_codepipeline"
+    assertions:
+      - attribute: "stage"
+        op: "attribute_exists"
+        message: "Pipeline must define at least one stage with approval action."
+    on_fail: "violation"
+    remediation: >
+      Add a stage with an Approval action before the production Deploy stage in your
+      CodePipeline. Set the approval SNS topic and add a message referencing the change ticket.
+    example:
+      compliant: |
+        resource "aws_codepipeline" "app_pipeline" {
+          name     = "payment-service-pipeline"
+          role_arn = aws_iam_role.codepipeline_role.arn
+
+          artifact_store {
+            location = aws_s3_bucket.artifacts.bucket
+            type     = "S3"
+          }
+
+          stage { name = "Source" /* ... */ }
+          stage { name = "Build"  /* ... */ }
+          stage { name = "Deploy-Staging" /* ... */ }
+
+          stage {
+            name = "Approval-Production"
+            action {
+              name     = "ManualApproval"
+              category = "Approval"
+              owner    = "AWS"
+              provider = "Manual"
+              version  = "1"
+              configuration = {
+                NotificationArn = aws_sns_topic.approvals.arn
+                CustomData      = "Review checklist: https://wiki/deploy-checklist"
+              }
+            }
+          }
+
+          stage { name = "Deploy-Production" /* ... */ }
+        }
+      non_compliant: |
+        resource "aws_codepipeline" "app_pipeline" {
+          # Pipeline goes directly from staging to production
+          # with no approval gate – WAF-OPS-050 Violation
+          stage { name = "Source" }
+          stage { name = "Build" }
+          stage { name = "Deploy-Production" }
+        }
+
+  - id: "waf-ops-050.tf.azurerm.devops-environment-approval"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure DevOps production environment must require approval checks"
+    description: >
+      Azure DevOps environments used for production deployments MUST have approval
+      checks configured to enforce the change review process.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azuredevops_environment"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Azure DevOps environment must have a name."
+    on_fail: "violation"
+    remediation: >
+      Configure approval checks on the azuredevops_environment used for production via
+      azuredevops_check_approval or the Azure DevOps portal after environment creation.
+    example:
+      compliant: |
+        resource "azuredevops_environment" "production" {
+          project_id  = azuredevops_project.main.id
+          name        = "production"
+          description = "Production environment – requires approval before deployment"
+        }
+
+        # Configure approval check via API or portal:
+        # Approvers: tech-lead group, minimum 1 approval required
+      non_compliant: |
+        resource "azuredevops_environment" "production" {
+          project_id = azuredevops_project.main.id
+          name       = "production"
+          # No approval check configured – WAF-OPS-050 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-050"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-cicd.adoc"
+  related_controls:
+    - "WAF-OPS-010"
+    - "WAF-OPS-080"
+    - "WAF-OPS-070"

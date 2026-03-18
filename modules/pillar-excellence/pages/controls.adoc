@@ -1,0 +1,321 @@
+= Controls (WAF-OPS)
+:page-toc: right
+:description: Narrative Übersicht aller 10 WAF-OPS Controls der Operational Excellence Säule – mit Intent, Anforderungen, Terraform Checks und Evidenz.
+
+Diese Seite bietet eine narrative Übersicht aller 10 Controls der Operational Excellence Säule.
+Für vollständige Terraform-Beispiele und detaillierte Implementierungsanleitungen
+siehe die xref:best-practices/index.adoc[Best Practices].
+
+[#WAF-OPS-010]
+== WAF-OPS-010 – CI/CD Pipeline Defined & Automated
+
+*Severity:* High | *Kategorie:* Deployment-Automatisierung | *Automatisierbar:* Hoch
+
+=== Intent
+
+Jeder Produktions-Workload muss eine definierte, versionierte CI/CD-Pipeline haben.
+Manuelle Deployments in Produktion sind nicht zulässig.
+
+=== Anforderung
+
+* Pipeline-Definitionen MÜSSEN in Version-Control gespeichert sein
+* Alle Deployments in alle Umgebungen MÜSSEN automatisiert sein
+* Branch-Protection MUSS direkte Commits auf Produktions-Branches verhindern
+* Approval-Gates MÜSSEN vor Production-Deployments konfiguriert sein
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-010.tf.aws.codepipeline-exists` – AWS CodePipeline mit Source, Build und Deploy-Stage
+* `waf-ops-010.tf.azurerm.devops-pipeline-exists` – Azure DevOps Build-Definition mit Repository-Referenz
+* `waf-ops-010.tf.google.cloudbuild-trigger-exists` – GCP Cloud Build Trigger mit Build-Konfigurationsdatei
+
+=== Evidenz
+
+* Pipeline-Definitionen-Dateien in Version-Control
+* Branch-Protection-Konfiguration
+
+*Zugehörige Best Practice:* xref:best-practices/bp-cicd.adoc[CI/CD-Pipeline aufbauen und absichern]
+
+---
+
+[#WAF-OPS-020]
+== WAF-OPS-020 – Infrastructure as Code Enforced
+
+*Severity:* High | *Kategorie:* Infrastructure as Code | *Automatisierbar:* Hoch
+
+=== Intent
+
+Alle Cloud-Infrastruktur muss als Code definiert sein. Manuelle Ressourcenerstellung
+durch Cloud-Konsole ist in Produktion und Staging verboten.
+
+=== Anforderung
+
+* Alle Produktions- und Staging-Infrastruktur MUSS als IaC definiert sein
+* Manuelle Änderungen MÜSSEN durch IAM/SCP-Policy eingeschränkt sein
+* Remote-State-Backend mit Locking MUSS konfiguriert sein
+* Alle IaC-Änderungen MÜSSEN Pull Request-Review durchlaufen
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-020.tf.aws.s3-terraform-state-backend` – Terraform Remote-State im S3 Backend
+* `waf-ops-020.tf.aws.s3-state-bucket-versioning` – S3 State-Bucket mit aktiviertem Versioning
+* `waf-ops-020.tf.azurerm.terraform-state-storage` – Azure Storage Account für State mit Blob-Versioning
+
+=== Evidenz
+
+* Terraform-Repository mit Remote-State-Konfiguration
+* S3/Azure Storage State-Backend mit Versioning
+
+*Zugehörige Best Practice:* xref:best-practices/bp-iac.adoc[Infrastructure as Code konsequent umsetzen]
+
+---
+
+[#WAF-OPS-030]
+== WAF-OPS-030 – Observability Stack Configured
+
+*Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Hoch
+
+=== Intent
+
+Jeder Produktions-Workload muss strukturierte Logs emittieren, Metriken exponieren und
+Distributed Tracing unterstützen. Ein zentralisierter Observability-Stack muss konfiguriert sein.
+
+=== Anforderung
+
+* Alle Services MÜSSEN strukturierte JSON-Logs mit Trace-ID emittieren
+* Distributed Tracing MUSS konfiguriert und instrumentiert sein (OpenTelemetry, X-Ray)
+* RED-Metriken MÜSSEN für jeden Service exportiert sein
+* Log-Retention MUSS mindestens 30 Tage betragen (empfohlen: 90 Tage Applikation, 365 Tage Audit)
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-030.tf.aws.cloudwatch-log-group-retention` – CloudWatch Log Groups mit Retention-Policy
+* `waf-ops-030.tf.aws.xray-tracing-enabled` – Lambda Functions mit aktivem X-Ray Tracing
+* `waf-ops-030.tf.azurerm.log-analytics-workspace` – Azure Log Analytics Workspace mit Retention
+
+=== Evidenz
+
+* Log-Group-Konfiguration mit Retention-Einstellungen
+* Tracing-Konfiguration in Applikationscode
+
+*Zugehörige Best Practice:* xref:best-practices/bp-observability.adoc[Observability-Stack aufbauen]
+
+---
+
+[#WAF-OPS-040]
+== WAF-OPS-040 – Alerting on Symptoms, Not Causes
+
+*Severity:* High | *Kategorie:* Alerting | *Automatisierbar:* Hoch
+
+=== Intent
+
+Alle Produktions-Alerts müssen auf nutzer-sichtbaren Symptomen basieren (Fehlerrate, Latenz,
+Verfügbarkeit), nicht auf internen Ursachen (CPU, Memory). Jeder Page-Alert braucht ein Runbook.
+
+=== Anforderung
+
+* Alerts MÜSSEN symptom-basiert sein (Fehlerrate, Latenz, Verfügbarkeit)
+* Jeder paging Alert MUSS eine Runbook-URL in der Beschreibung haben
+* SLOs MÜSSEN für alle kritischen Services definiert sein
+* Alert-Noise-Metrik MUSS tracked werden (Ziel: < 10 Pages/Woche/Ingenieur)
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based` – CloudWatch Alarm mit Beschreibung und Alarm-Action
+* `waf-ops-040.tf.azurerm.monitor-alert-symptom` – Azure Monitor Alert mit Beschreibung und Action Group
+* `waf-ops-040.tf.google.monitoring-alert-symptom` – GCP Monitoring Alert Policy mit Notification Channels
+
+=== Evidenz
+
+* Alert-Regel-Definitionen mit symptom-basierten Metriken
+* SLO-Definitionen für kritische Services
+
+*Zugehörige Best Practice:* xref:best-practices/bp-alerting.adoc[Alerting auf Symptome statt Ursachen]
+
+---
+
+[#WAF-OPS-050]
+== WAF-OPS-050 – Change Management & Deployment Risk Assessment
+
+*Severity:* Medium | *Kategorie:* Change Management | *Automatisierbar:* Mittel
+
+=== Intent
+
+Alle Produktionsänderungen müssen durch einen definierten Change-Management-Prozess mit
+Risikobewertung, Approval-Workflow und Post-Deployment-Verifikation laufen.
+
+=== Anforderung
+
+* Change-Kategorien MÜSSEN definiert sein (Standard, Normal, Notfall)
+* High-Risk-Changes MÜSSEN Multi-Personen-Approval erfordern
+* Deployment-Freeze-Policies MÜSSEN für kritische Perioden konfiguriert sein
+* Change-Records MÜSSEN mit Deployment-Artefakten verknüpft sein
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-050.tf.aws.codepipeline-manual-approval` – CodePipeline mit manueller Approval-Stage vor Production
+* `waf-ops-050.tf.azurerm.devops-environment-approval` – Azure DevOps Environment mit Approval-Checks
+
+=== Evidenz
+
+* Change-Management-Policy
+* Branch-Protection und Approval-Konfiguration
+
+*Zugehörige Best Practice:* xref:best-practices/bp-cicd.adoc[CI/CD-Pipeline aufbauen und absichern]
+
+---
+
+[#WAF-OPS-060]
+== WAF-OPS-060 – Runbook & Operational Documentation Coverage
+
+*Severity:* Medium | *Kategorie:* Dokumentation | *Automatisierbar:* Niedrig
+
+=== Intent
+
+Jeder Produktions-Workload muss Runbooks für alle bekannten Fehlerfälle haben.
+Runbooks müssen versioniert, regelmäßig reviewed und mit Alerts verknüpft sein.
+
+=== Anforderung
+
+* Alle paging Alerts MÜSSEN mit Runbooks verknüpft sein
+* Runbooks MÜSSEN in Version-Control gespeichert und regelmäßig reviewed sein (quartalsweise)
+* Runbook-Coverage-Metrik MUSS tracked werden (Ziel: >= 90% für kritische Services)
+* Runbooks MÜSSEN ohne Authentifizierungsbarriere für On-Call-Engineers zugänglich sein
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation` – CloudWatch Alarms mit Runbook-URL in Description
+* `waf-ops-060.tf.aws.prometheus-alert-runbook-label` – Prometheus Alert Rules mit `runbook_url`-Annotation
+
+=== Evidenz
+
+* Runbook-Verzeichnis mit Versionsverlauf
+* Runbook-Coverage-Report
+
+*Zugehörige Best Practice:* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen]
+
+---
+
+[#WAF-OPS-070]
+== WAF-OPS-070 – Post-Incident Review Process
+
+*Severity:* Medium | *Kategorie:* Incident-Learning | *Automatisierbar:* Niedrig
+
+=== Intent
+
+Jeder Produktions-Incident mit Nutzerauswirkung oder SLO-Verletzung muss ein Blameless
+Postmortem innerhalb von 5 Arbeitstagen auslösen. Action Items werden verfolgt und abgeschlossen.
+
+=== Anforderung
+
+* Alle SEV-1/P1 Incidents und SLO-Verletzungen MÜSSEN ein Postmortem auslösen
+* Postmortems MÜSSEN blameless sein und Action Items mit Owners produzieren
+* Action Items MÜSSEN in JIRA oder equivalent getrackt werden
+* Postmortems MÜSSEN innerhalb von 5 Arbeitstagen fertiggestellt sein
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-070.tf.aws.incident-management-sns-topic` – SNS Topic für Incident-Benachrichtigungen
+* `waf-ops-070.tf.azurerm.action-group-incident` – Azure Monitor Action Group mit konfigurierten Empfängern
+
+=== Evidenz
+
+* Post-Incident-Review-Policy
+* Postmortem-Archiv (letzte 3 Monate)
+
+*Zugehörige Best Practice:* xref:best-practices/bp-postmortem.adoc[Blameless Postmortems und kontinuierliches Lernen]
+
+---
+
+[#WAF-OPS-080]
+== WAF-OPS-080 – Feature Flag & Safe Deployment Patterns
+
+*Severity:* Medium | *Kategorie:* Deployment-Sicherheit | *Automatisierbar:* Hoch
+
+=== Intent
+
+Produktions-Deployments müssen Progressive-Delivery-Muster (Canary, Blue/Green, Feature Flags)
+verwenden. Rollback muss innerhalb von 5 Minuten ohne neues Deployment möglich sein.
+
+=== Anforderung
+
+* Alle Production-Deployments MÜSSEN Canary, Blue/Green oder Feature Flags verwenden
+* Rollback MUSS in < 5 Minuten ohne neues Deployment möglich sein
+* Neue Features MÜSSEN hinter Feature Flags deployt werden
+* Auto-Rollback MUSS bei Fehlerrate-Anstieg konfiguriert sein
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-080.tf.aws.codedeploy-deployment-config` – CodeDeploy mit Canary oder Linear-Konfiguration (nicht AllAtOnce)
+* `waf-ops-080.tf.aws.appconfig-feature-flag` – AWS AppConfig Application für Feature Flags
+* `waf-ops-080.tf.azurerm.traffic-manager-canary` – Azure Traffic Manager mit Weighted Routing für Canary
+
+=== Evidenz
+
+* Load Balancer / Deployment-Konfiguration mit Progressive Delivery
+* Feature Flag Service Konfiguration
+
+*Zugehörige Best Practice:* xref:best-practices/bp-deployment-safety.adoc[Sichere Deployments]
+
+---
+
+[#WAF-OPS-090]
+== WAF-OPS-090 – Configuration Drift Detection & Remediation
+
+*Severity:* High | *Kategorie:* Configuration Management | *Automatisierbar:* Hoch
+
+=== Intent
+
+Alle Produktions-Infrastruktur muss kontinuierlich gegen ihre IaC-Definition verglichen werden.
+Drift wird automatisch erkannt, gemeldet und innerhalb definierter SLAs behoben.
+
+=== Anforderung
+
+* Automatische Drift-Erkennung MUSS mindestens täglich laufen
+* Drift-Alerts MÜSSEN das zuständige Team innerhalb von 1 Stunde benachrichtigen
+* Notfall-Konsolen-Änderungen MÜSSEN innerhalb von 24 Stunden in IaC überführt werden
+* Drift-SLAs MÜSSEN definiert sein (kritisch: 4h, major: 24h, minor: 1 Sprint)
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-090.tf.aws.config-rule-enabled` – AWS Config Recorder mit Compliance Rules
+* `waf-ops-090.tf.aws.cloudtrail-enabled` – CloudTrail als Multi-Region Trail mit Log-Validierung
+* `waf-ops-090.tf.azurerm.policy-assignment-drift` – Azure Policy Initiative Assignment auf Subscription
+
+=== Evidenz
+
+* Drift-Detection-Konfiguration (EventBridge Schedule, AWS Config)
+* Drift-SLA-Policy
+
+*Zugehörige Best Practice:* xref:best-practices/bp-iac.adoc[Infrastructure as Code konsequent umsetzen]
+
+---
+
+[#WAF-OPS-100]
+== WAF-OPS-100 – Operational Debt Register & Review
+
+*Severity:* Medium | *Kategorie:* Operational Governance | *Automatisierbar:* Niedrig
+
+=== Intent
+
+Alle bekannten Operational Debt-Posten müssen in einem version-controlled Register
+dokumentiert, quartalsweise reviewed und mit Sprint-Kapazität für Abbau geplant werden.
+
+=== Anforderung
+
+* Operational Debt Register MUSS in Version-Control gespeichert sein
+* Jeder Eintrag MUSS Severity, Toil-Stunden, Owner und Zieldatum haben
+* Quarterly Review MUSS stattfinden mit Priorisierung und Kapazitätszuweisung
+* Sprint-Kapazität für Debt-Abbau MUSS explizit zugewiesen sein (mindestens 10%)
+
+=== Terraform Checks (Auszug)
+
+* `waf-ops-100.tf.aws.eventbridge-ops-review-schedule` – EventBridge Scheduled Rule für quartalsliche Review-Erinnerungen
+* `waf-ops-100.tf.aws.ssm-automation-runbook` – SSM Automation Documents für repetitive Operational Tasks
+
+=== Evidenz
+
+* Operational Debt Register (version-controlled)
+* Quarterly-Review-Protokoll
+
+*Zugehörige Best Practice:* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen]

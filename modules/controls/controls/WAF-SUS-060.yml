@@ -1,0 +1,254 @@
+id: WAF-SUS-060
+title: "Workload Scheduling & Time-Shifting"
+pillar: "sustainability"
+status: "active"
+severity: "low"
+category: "workload-scheduling"
+type: ['configuration', 'automation']
+tags: ['scheduling', 'time-shifting', 'batch', 'carbon-aware', 'off-peak', 'cron', 'eventbridge']
+
+description: >
+  Batch workloads, report generation, data processing pipelines, and other non-latency-sensitive
+  jobs MUST be scheduled during off-peak hours (22:00–06:00 local grid time) when carbon intensity
+  of the electricity grid is typically lower. Workloads with flexible execution windows SHOULD
+  integrate carbon intensity APIs (WattTime, electricityMaps) to execute during low-carbon windows.
+  All EventBridge scheduled jobs and cron-based workloads MUST document their scheduling rationale
+  including whether carbon-aware timing was considered.
+
+rationale: >
+  Electricity grid carbon intensity varies by time of day due to fluctuating renewable energy
+  generation (solar peaks midday, wind varies, hydro is consistent). Running batch jobs at night
+  in regions with high solar penetration (or when wind is strong) can reduce the carbon emissions
+  of the same compute by 20-60% without any architectural change. Time-shifting is a zero-cost
+  sustainability measure for non-latency-sensitive workloads. The Green Software Foundation
+  refers to this as "temporal shifting" — one of the core carbon-aware computing strategies.
+
+threat:
+  - "Batch jobs scheduled at peak-carbon-intensity times unnecessarily inflating Scope 3 emissions"
+  - "Missing temporal shifting opportunities leaving 20-60% carbon reduction potential untapped"
+  - "No documentation of scheduling decisions making carbon optimization audits impossible"
+  - "Fixed-schedule batch jobs preventing dynamic carbon-aware execution windows"
+
+regulatory_mapping:
+  - framework: "Green Software Foundation"
+    controls:
+      - "Carbon Aware Computing – Temporal Shifting"
+      - "Software Carbon Intensity (SCI) – time-based carbon optimization"
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – operational energy optimization"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 2 – Market-based method – time-of-use carbon intensity"
+
+implementation_guidance:
+  - "Audit all EventBridge Scheduler, cron, and Step Functions jobs; categorize as latency-sensitive vs. flexible."
+  - "For flexible batch jobs: reschedule to 22:00–06:00 UTC unless there is a documented business justification."
+  - "For advanced carbon-aware scheduling: integrate electricityMaps API to get real-time grid carbon intensity."
+  - "Use AWS EventBridge Scheduler with flexible window to allow a ±2h execution window for batch jobs."
+  - "For Kubernetes-based batch: use KEDA or Volcano for carbon-aware job scheduling."
+  - "Document the carbon rationale for all fixed-schedule jobs: why the specific time was chosen."
+  - "Track carbon intensity at job execution time and include in workload carbon footprint calculations."
+  - "For multi-region flexible workloads: combine region selection with time-shifting for maximum carbon reduction."
+
+maturity_levels:
+  level_1:
+    description: "No scheduling strategy – batch runs at arbitrary times"
+    criteria:
+      - "Batch jobs scheduled for developer convenience, not energy efficiency"
+      - "No awareness of carbon intensity time-of-day variation"
+      - "No documentation of scheduling decisions"
+  level_2:
+    description: "Off-peak scheduling adopted for some workloads"
+    criteria:
+      - "Large batch jobs manually rescheduled to off-peak hours"
+      - "Team aware of carbon-aware scheduling concept"
+      - "No automated carbon intensity integration"
+  level_3:
+    description: "Systematic off-peak scheduling with documentation"
+    criteria:
+      - "All flexible batch workloads scheduled to 22:00–06:00 UTC"
+      - "Scheduling decisions documented (carbon rationale)"
+      - "EventBridge flexible windows used where applicable"
+      - "Estimated carbon savings from time-shifting tracked"
+  level_4:
+    description: "Carbon intensity API integration for dynamic scheduling"
+    criteria:
+      - "electricityMaps or WattTime API integrated for real-time carbon intensity data"
+      - "Batch jobs dynamically scheduled to lowest-carbon window within allowed time range"
+      - "Carbon savings from time-shifting reported in sustainability dashboard"
+  level_5:
+    description: "Fully carbon-aware batch orchestration"
+    criteria:
+      - "All non-latency-sensitive workloads use carbon-aware scheduling"
+      - "Carbon intensity at job execution time logged and included in SCI calculation"
+      - "Combined temporal + spatial shifting (region + time) for maximum reduction"
+      - "Carbon-aware scheduling contributes measurably to annual SCI improvement"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "EventBridge Scheduler or cron configuration showing batch jobs scheduled to off-peak hours with flexible windows."
+  optional:
+    - kind: "process"
+      description: "Carbon intensity API integration code or configuration showing dynamic scheduling based on grid intensity."
+    - kind: "governance"
+      description: "Scheduling decision documentation for major batch pipelines including carbon rationale."
+
+checks:
+  - id: "waf-sus-060.tf.aws.eventbridge-flexible-window"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "low"
+    title: "EventBridge Scheduler schedules should use flexible time windows for batch workloads"
+    description: >
+      EventBridge Scheduler supports a flexible_time_window that allows AWS to execute the
+      schedule within a defined window around the target time. This enables carbon-aware
+      execution: the job can be deferred to a lower-carbon window within the allowed range.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_scheduler_schedule"
+    assertions:
+      - attribute: "flexible_time_window.mode"
+        op: "not_equals"
+        value: "OFF"
+        message: "EventBridge schedule uses no flexible window – enable FLEXIBLE mode to allow carbon-aware execution."
+    on_fail: "warning"
+    remediation: >
+      Set flexible_time_window { mode = "FLEXIBLE"; maximum_window_in_minutes = 120 }
+      on all non-latency-sensitive batch schedules. This allows AWS to execute the job
+      within a 2-hour window, enabling carbon-aware timing without missing SLAs.
+    example:
+      compliant: |
+        resource "aws_scheduler_schedule" "nightly_report" {
+          name = "nightly-report-generator"
+
+          schedule_expression = "cron(0 22 * * ? *)"  # 22:00 UTC – off-peak window
+
+          flexible_time_window {
+            mode                      = "FLEXIBLE"
+            maximum_window_in_minutes = 120  # allow up to 2h window for carbon-aware exec
+          }
+
+          target {
+            arn      = aws_lambda_function.report_generator.arn
+            role_arn = aws_iam_role.scheduler.arn
+          }
+        }
+      non_compliant: |
+        resource "aws_scheduler_schedule" "nightly_report" {
+          name = "nightly-report-generator"
+
+          schedule_expression = "cron(9 9 * * ? *)"  # 09:00 – peak hours, no reason documented
+
+          flexible_time_window {
+            mode = "OFF"  # WAF-SUS-060 Warning: no flexible window, fixed peak-time execution
+          }
+        }
+
+  - id: "waf-sus-060.tf.aws.batch-compute-spot"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "low"
+    title: "AWS Batch compute environments should use SPOT allocation strategy"
+    description: >
+      AWS Batch jobs are by definition batch/asynchronous workloads that can tolerate spot
+      interruption. Using SPOT allocation strategy reduces energy consumption from dedicated
+      on-demand capacity and improves overall data center utilization efficiency.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_batch_compute_environment"
+    assertions:
+      - attribute: "compute_resources.type"
+        op: "in"
+        value: ["SPOT", "FARGATE_SPOT"]
+        message: "Batch compute environment uses ON_DEMAND – consider SPOT for batch workloads to reduce energy overhead."
+    on_fail: "warning"
+    remediation: >
+      Change compute_resources.type to "SPOT" for AWS Batch compute environments.
+      Configure spot_iam_fleet_role and bid_percentage = 100 to maximize spot usage.
+      Implement retry policies on batch jobs to handle spot interruptions gracefully.
+    example:
+      compliant: |
+        resource "aws_batch_compute_environment" "processing" {
+          compute_environment_name = "data-processing"
+          type                     = "MANAGED"
+
+          compute_resources {
+            type                = "SPOT"
+            allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
+            instance_role       = aws_iam_instance_profile.batch.arn
+            spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
+
+            min_vcpus     = 0
+            max_vcpus     = 256
+            desired_vcpus = 0
+
+            instance_type = ["m7g", "c7g", "r7g"]  # Graviton3 spot instances
+          }
+        }
+      non_compliant: |
+        resource "aws_batch_compute_environment" "processing" {
+          compute_environment_name = "data-processing"
+          type                     = "MANAGED"
+
+          compute_resources {
+            type      = "ON_DEMAND"  # WAF-SUS-060 Warning: batch workload on on-demand
+            min_vcpus = 4  # always-on capacity
+            max_vcpus = 64
+          }
+        }
+
+  - id: "waf-sus-060.tf.google.cloud-scheduler-timezone"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "low"
+    title: "GCP Cloud Scheduler jobs should use UTC timezone and off-peak scheduling"
+    description: >
+      GCP Cloud Scheduler jobs should be scheduled in UTC timezone to enable consistent
+      off-peak scheduling aligned with grid carbon intensity data.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloud_scheduler_job"
+    assertions:
+      - attribute: "time_zone"
+        op: "equals"
+        value: "Etc/UTC"
+        message: "Cloud Scheduler job uses local timezone – use UTC for consistent carbon-aware scheduling."
+    on_fail: "warning"
+    remediation: >
+      Set time_zone = "Etc/UTC" on all Cloud Scheduler jobs and adjust schedule expressions
+      to target off-peak UTC hours (22:00-06:00 UTC). This ensures consistency with
+      carbon intensity data which is typically published in UTC.
+    example:
+      compliant: |
+        resource "google_cloud_scheduler_job" "data_export" {
+          name      = "nightly-data-export"
+          schedule  = "0 23 * * *"  # 23:00 UTC – off-peak hours
+          time_zone = "Etc/UTC"
+
+          http_target {
+            uri         = var.export_endpoint
+            http_method = "POST"
+          }
+        }
+      non_compliant: |
+        resource "google_cloud_scheduler_job" "data_export" {
+          name      = "data-export"
+          schedule  = "0 9 * * *"  # 09:00 – peak hours
+          time_zone = "Europe/Berlin"  # WAF-SUS-060 Warning: local timezone, peak hours
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-060"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-workload-scheduling.adoc"
+  related_controls:
+    - "WAF-SUS-040"
+    - "WAF-SUS-030"
+    - "WAF-SUS-020"

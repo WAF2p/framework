@@ -1,0 +1,157 @@
+= WAF-PERF-090 – Storage I/O Performance & Throughput Optimization
+:page-toc: right
+:control-id: WAF-PERF-090
+:pillar: performance
+:severity: medium
+:category: storage-performance
+:automated: high
+:description: WAF++ Performance Efficiency – EBS gp3, Storage-Typen und I/O-Monitoring für Produktionssysteme konfigurieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Storage Performance | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Block-Storage-Volumes MÜSSEN den für den Workload geeigneten Storage-Typ verwenden.
+AWS EBS MUSS gp3 statt gp2 für neue Deployments verwenden.
+IOPS und Throughput MÜSSEN explizit konfiguriert sein (nicht Default-Werte).
+Storage-I/O-Metriken (Queue-Depth, Throughput, Burst-Balance) MÜSSEN überwacht und
+bei Sättigung alarmiert werden. Datenbank-Volumes MÜSSEN Premium-SSD oder äquivalent verwenden.
+
+== Rationale
+
+Storage-I/O-Sättigung ist ein häufig übersehener Performance-Bottleneck.
+CPU und Netzwerk erscheinen normal, aber Datenbanklatenz steigt – weil das EBS-Volume
+die maximale IOPS erreicht hat oder die gp2-Burst-Bucket erschöpft ist.
+gp3 bietet 3.000 IOPS und 125 MB/s Baseline (ohne Burst-Mechanik) zu 20% niedrigerem Preis als gp2.
+Für Datenbanken ist der richtige Disk-Typ oft wichtiger als der Instanztyp.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*gp2 Burst-Erschöpfung*
+|gp2-Volumes akkumulieren I/O-Credits und verlieren sie bei anhaltender Last → plötzlicher Performance-Einbruch.
+
+|*I/O-Sättigung*
+|Zu wenige IOPS für Workload → Query-Latenz steigt bei normaler CPU/Network → schwer zu diagnostizieren.
+
+|*Falscher Disk-Typ*
+|Standard-HDD (pd-standard, Standard_LRS) für Datenbankvolumes → 10x höhere Latenz als SSD.
+
+|*Snapshot-I/O-Interferenz*
+|Backup-Snapshots auf gleichem Volume wie Produktions-Daten → I/O-Spikes während Backup-Fenster.
+
+|===
+
+== Anforderung
+
+* Alle neuen AWS EBS Volumes MÜSSEN gp3 statt gp2 verwenden
+* IOPS und Throughput MÜSSEN für gp3-Volumes explizit konfiguriert sein (wenn > Default benötigt)
+* Datenbank-Volumes MÜSSEN Premium-SSD/io2/pd-ssd verwenden
+* Storage-I/O-Monitoring MUSS aktiv sein mit Alerts bei Queue-Depth > 1 oder Burst-Balance < 30%
+
+== Implementierungsanleitung
+
+. *Inventory: gp2-Volumes identifizieren*: `aws ec2 describe-volumes --filters Name=volume-type,Values=gp2`
+. *gp3-Migration planen*: Online-Migration (kein Downtime): `aws ec2 modify-volume --volume-type gp3`
+. *IOPS/Throughput konfigurieren*: Basis: 3000 IOPS, 125 MB/s; Datenbanken: basierend auf `pg_stat_bgwriter` oder equivalent
+. *Terraform aktualisieren*: `volume_type = "gp3"`, `iops`, `throughput` explizit setzen
+. *I/O-Monitoring aktivieren*: CloudWatch `VolumeQueueLength`, `BurstBalance`, `VolumeReadOps`, `VolumeWriteOps`
+. *Alerts konfigurieren*: `VolumeQueueLength > 1` für 5 Minuten = Alert; `BurstBalance < 30%` = Warning
+. *Azure/GCP äquivalent*: Premium_LRS für Azure Datenbank-Disks; pd-ssd oder pd-balanced für GCP
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Default-Storage
+|Alle Volumes gp2 oder Default; keine I/O-Überwachung; Storage-I/O-Probleme unbekannt.
+
+|*2*
+|Storage-Typ selektiert
+|SSD für Datenbanken, HDD für Archive; keine expliziten IOPS; kein I/O-Monitoring.
+
+|*3*
+|gp3 + I/O-Monitoring
+|Alle neuen Volumes gp3; Migration-Plan für gp2; I/O-Alerts konfiguriert.
+
+|*4*
+|Vollständig optimiert
+|gp2-Migration abgeschlossen; IOPS explizit dimensioniert; Snapshot-Scheduling optimiert.
+
+|*5*
+|Intelligent Tiering
+|Automatische Storage-Tier-Empfehlungen; I/O als SLI in SLO-Definitionen.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-090.tf.aws.ebs-gp3-volume-type
+*Prüft:* EBS-Volumes dürfen kein gp2 verwenden; gp3 oder spezifische io-Typen sind Pflicht.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_ebs_volume" "data" {
+  availability_zone = "eu-west-1a"
+  size              = 100
+  type              = "gp3"
+  iops              = 6000    # Explizit > Default 3000
+  throughput        = 250     # Explizit > Default 125 MB/s
+  encrypted         = true
+}
+----
+a|[source,hcl]
+----
+resource "aws_ebs_volume" "data" {
+  availability_zone = "eu-west-1a"
+  size              = 100
+  type              = "gp2"
+  # Burst-basiert – WAF-PERF-090
+  # Violation
+}
+----
+|===
+
+*Remediation:* `type = "gp3"` setzen. Migration ist online und nicht-disruptiv.
+gp3 bietet gleiche oder bessere Performance bei 20% niedrigerem Preis als gp2.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit explizitem Storage-Typ, IOPS und Throughput.
+
+|*Config*
+|✅ Pflicht
+|Monitoring-Konfiguration für I/O-Alerts (Queue-Depth, Throughput, Burst-Balance).
+
+|*Process*
+|Optional
+|Storage-I/O-Baseline (P95/P99 Queue-Depth und Throughput-Auslastung).
+
+|*Governance*
+|Optional
+|Storage-Tier-Richtlinien nach Workload-Typ.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline & Index Strategy]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]

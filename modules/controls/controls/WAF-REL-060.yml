@@ -1,0 +1,280 @@
+id: WAF-REL-060
+title: "Incident Response & Runbook Readiness"
+pillar: "reliability"
+status: "active"
+severity: "high"
+category: "incident-response"
+type: ['governance', 'configuration', 'automation']
+tags: ['incident-response', 'runbook', 'on-call', 'escalation', 'postmortem', 'sre', 'alerting']
+
+description: >
+  Every production workload MUST have a documented Incident Response (IR) plan with
+  defined severity levels, escalation paths, and on-call rotations. Runbooks MUST
+  exist for all critical alerts and MUST be version-controlled. Runbooks MUST be
+  linked directly from alert notifications. Post-incident reviews MUST be conducted
+  within 5 business days and findings MUST be tracked as actionable items.
+  Mean Time to Recovery (MTTR) MUST be measured per incident.
+
+rationale: >
+  Without defined incident response procedures, MTTR increases dramatically as on-call
+  engineers spend time reconstructing diagnostic steps under pressure. Runbooks codify
+  institutional knowledge, enabling consistent incident resolution regardless of who
+  is on call. Severity-based escalation paths prevent both under-response (treating
+  critical outages as minor) and over-escalation (paging senior leadership for minor
+  degradations). Post-incident reviews prevent recurrence.
+
+threat:
+  - "Extended MTTR due to lack of documented diagnostic and remediation steps"
+  - "Knowledge loss when key engineers are unavailable during incidents"
+  - "Inconsistent severity classification leading to inappropriate escalation"
+  - "Repeated incidents due to absence of post-mortem action item tracking"
+  - "Compliance gap: regulated industries require documented incident response capability"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.16.1 – Management of information security incidents and improvements"
+  - framework: "ITIL 4"
+    controls:
+      - "Incident Management"
+      - "Problem Management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "OPS 11 – Respond to events"
+  - framework: "BSI C5:2022"
+    controls:
+      - "IS-09 – Incident Management"
+  - framework: "GDPR"
+    controls:
+      - "Article 33 – Notification of a personal data breach to the supervisory authority"
+
+implementation_guidance:
+  - "Define 4 incident severity levels: SEV1 (complete outage) through SEV4 (minor degradation)."
+  - "Create on-call rotation in PagerDuty, OpsGenie, or equivalent for each production service."
+  - "Write runbooks for the top 5 most frequent alerts of each service."
+  - "Link runbook URL in each alert notification body."
+  - "Define escalation policy: 15 min to secondary, 30 min to engineering manager."
+  - "Conduct blameless post-mortems within 5 business days of SEV1/SEV2 incidents."
+  - "Track MTTR, MTTD (Mean Time to Detect), and incident frequency as reliability metrics."
+  - "Run tabletop exercises quarterly to test incident response readiness."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc incident response, no documented procedures"
+    criteria:
+      - "No defined incident severity levels"
+      - "Incident response depends on available individuals"
+      - "No post-incident reviews"
+  level_2:
+    description: "Incident process documented, on-call defined"
+    criteria:
+      - "Severity levels and escalation paths documented"
+      - "On-call rotation configured"
+      - "Basic runbooks exist for most critical alerts"
+  level_3:
+    description: "Runbooks linked from alerts, MTTR tracked"
+    criteria:
+      - "All critical alerts link to runbooks"
+      - "MTTR tracked per incident and reviewed monthly"
+      - "Post-mortems conducted for all SEV1/SEV2 incidents"
+      - "Action items from post-mortems tracked to completion"
+  level_4:
+    description: "Automated incident triage and runbook execution"
+    criteria:
+      - "Automated diagnostic data collection on alert trigger"
+      - "Runbook steps partially automated (auto-scaling, restart)"
+      - "Incident timelines auto-generated from logs"
+  level_5:
+    description: "Self-healing with automated incident response"
+    criteria:
+      - "AIOps-driven incident correlation and automated remediation"
+      - "MTTR < 5 minutes for known failure classes"
+      - "Incident response continuously improved through ML analysis"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Incident Response plan with severity definitions, escalation paths, and on-call structure."
+    - kind: "process"
+      description: "Post-incident review records for SEV1/SEV2 incidents in the last 12 months."
+  optional:
+    - kind: "config"
+      description: "On-call schedule configuration in PagerDuty/OpsGenie showing current rotation."
+    - kind: "governance"
+      description: "Runbook catalog with links to all critical alert runbooks."
+
+checks:
+  - id: "waf-rel-060.tf.aws.sns-topic-alarm-action"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS CloudWatch alarms must route to SNS topics for on-call notification"
+    description: >
+      CloudWatch alarms for production services must have alarm_actions pointing
+      to SNS topics that are connected to on-call notification systems.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_metric_alarm"
+    assertions:
+      - attribute: "alarm_actions"
+        op: "not_empty"
+        message: "CloudWatch alarm must have alarm_actions configured for on-call notification."
+      - attribute: "ok_actions"
+        op: "not_empty"
+        message: "CloudWatch alarm must have ok_actions to notify when alert resolves."
+    on_fail: "violation"
+    remediation: >
+      Add alarm_actions and ok_actions pointing to an SNS topic. The SNS topic
+      should be subscribed to by PagerDuty, OpsGenie, or email for on-call notification.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_metric_alarm" "api_errors" {
+          alarm_name          = "payment-api-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 3
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApiGateway"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          alarm_actions       = [aws_sns_topic.oncall_critical.arn]
+          ok_actions          = [aws_sns_topic.oncall_critical.arn]
+          alarm_description   = "SEV2: Payment API error rate > 1%. Runbook: https://wiki/runbooks/payment-api-errors"
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "api_errors" {
+          alarm_name          = "payment-api-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 3
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApiGateway"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          # Missing: alarm_actions – alert fires but no one is notified
+          # WAF-REL-060 violation
+        }
+
+  - id: "waf-rel-060.tf.azurerm.action-group-configured"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Monitor action groups must have webhook or email receivers configured"
+    description: >
+      Azure Monitor action groups used by metric alerts must have at least one
+      email_receiver or webhook_receiver configured for on-call notification.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_monitor_action_group"
+    assertions:
+      - attribute: "short_name"
+        op: "not_empty"
+        message: "Action group must have a short_name for SMS/voice notifications."
+      - attribute: "email_receiver"
+        op: "attribute_exists"
+        message: "Action group must have at least one email_receiver or webhook_receiver."
+    on_fail: "violation"
+    remediation: >
+      Add email_receiver or webhook_receiver blocks to the azurerm_monitor_action_group.
+      For PagerDuty or OpsGenie integration, use webhook_receiver pointing to their API URL.
+    example:
+      compliant: |
+        resource "azurerm_monitor_action_group" "oncall" {
+          name                = "oncall-critical"
+          resource_group_name = azurerm_resource_group.main.name
+          short_name          = "oncall"
+
+          email_receiver {
+            name          = "on-call-team"
+            email_address = var.oncall_email
+          }
+
+          webhook_receiver {
+            name        = "pagerduty"
+            service_uri = var.pagerduty_webhook_url
+          }
+        }
+      non_compliant: |
+        resource "azurerm_monitor_action_group" "alerts" {
+          name                = "alerts"
+          resource_group_name = azurerm_resource_group.main.name
+          short_name          = "alerts"
+          # Missing: no receivers configured – alerts fire silently
+          # WAF-REL-060 violation
+        }
+
+  - id: "waf-rel-060.tf.google.monitoring-notification-channel"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP alert policies must have notification channels configured"
+    description: >
+      GCP Monitoring alert policies must reference at least one notification channel
+      to ensure on-call teams are notified during incidents.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_monitoring_alert_policy"
+    assertions:
+      - attribute: "notification_channels"
+        op: "not_empty"
+        message: "Alert policy must reference at least one notification channel."
+      - attribute: "display_name"
+        op: "not_empty"
+        message: "Alert policy must have a descriptive display name including service context."
+    on_fail: "violation"
+    remediation: >
+      Add notification_channels to the google_monitoring_alert_policy referencing
+      configured google_monitoring_notification_channel resources.
+    example:
+      compliant: |
+        resource "google_monitoring_notification_channel" "pagerduty" {
+          display_name = "PagerDuty On-Call"
+          type         = "pagerduty"
+          labels = {
+            service_key = var.pagerduty_service_key
+          }
+        }
+
+        resource "google_monitoring_alert_policy" "api_error_rate" {
+          display_name          = "Payment API – Error Rate SEV2"
+          combiner              = "OR"
+          notification_channels = [google_monitoring_notification_channel.pagerduty.name]
+          conditions {
+            display_name = "Error rate > 1%"
+            condition_threshold {
+              filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\""
+              comparison      = "COMPARISON_GT"
+              threshold_value = 100
+              duration        = "60s"
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_monitoring_alert_policy" "api_errors" {
+          display_name = "Errors"
+          combiner     = "OR"
+          conditions {
+            display_name = "Error count high"
+            condition_threshold {
+              filter          = "metric.type=\"logging.googleapis.com/user/errors\""
+              comparison      = "COMPARISON_GT"
+              threshold_value = 100
+              duration        = "60s"
+            }
+          }
+          # Missing: notification_channels – WAF-REL-060 violation
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-060"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-incident-response.adoc"
+  related_controls:
+    - "WAF-REL-010"
+    - "WAF-REL-040"
+    - "WAF-REL-070"

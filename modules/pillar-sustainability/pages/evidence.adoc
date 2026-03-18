@@ -1,0 +1,286 @@
+= Evidenz & Audit: Nachweise für Sustainability-Compliance
+:page-toc: right
+:description: WAF++ Sustainability – Evidenzanforderungen für Audits, CSRD-Prüfungen und ESG-Due-Diligence: Carbon-Reports, IaC-Nachweise, Governance-Dokumente.
+
+Diese Seite beschreibt, welche *Nachweise und Artefakte* für Sustainability-Audits,
+CSRD-Prüfungen, ESG-Due-Diligence und interne Governance-Reviews erforderlich sind.
+
+== Evidenztypen im WAF++
+
+[cols="1,3"]
+|===
+|Typ |Beschreibung
+
+|*Governance*
+|Policies, Entscheidungsdokumente, Taxonomien, ADRs, ESG-Reports
+
+|*IaC*
+|Terraform-/CloudFormation-Code, der die konforme Konfiguration nachweist
+
+|*Config*
+|Cloud-Provider-Konfiguration: Screenshots, API-Outputs, Compliance-Reports
+
+|*Process*
+|Prozessnachweise: Meeting-Protokolle, Reports, Backlog-Einträge, Monitoring-Konfiguration
+
+|===
+
+== Pflicht-Evidenz pro Control
+
+=== WAF-SUS-010 – Carbon Footprint Measurement
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Config
+|✅ Pflicht
+|Screenshot oder API-Bestätigung, dass AWS CCF Tool / Azure EID / GCP Carbon Footprint aktiviert ist
+
+|Governance
+|✅ Pflicht
+|Monthly Carbon Footprint Exports (mindestens 3 Monate) mit Workload-Breakdown
+
+|Process
+|Optional
+|Carbon-Review-Meeting-Protokolle oder Jira-Tickets mit monatlichem Review-Nachweis
+
+|Governance
+|Optional
+|ESG/CSRD-Report-Sektion (ESRS E1) mit Quellenangabe auf Cloud-Carbon-Daten
+
+|===
+
+=== WAF-SUS-020 – Energy-Efficient Compute
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|IaC
+|✅ Pflicht
+|Terraform-Konfiguration mit Graviton/arm64 Instanztypen (EC2, Lambda `architectures = ["arm64"]`)
+
+|Config
+|✅ Pflicht
+|Cloud-Inventory-Report mit Distribution der Instanztypen nach Familie (ARM-Share in %)
+
+|Governance
+|Optional
+|Compute-Sustainability-Policy mit bevorzugten Instanzfamilien pro Workload-Typ
+
+|Process
+|Optional
+|Migrationsplan für verbleibende x86-Workloads mit Timeline
+
+|===
+
+=== WAF-SUS-030 – Green Region Selection
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Governance
+|✅ Pflicht
+|ADR oder Region-Selection-Dokument, das Carbon Intensity als berücksichtigten Faktor dokumentiert
+
+|Config
+|✅ Pflicht
+|Terraform-Provider-Konfiguration mit eingesetzten Regionen; zugeordnet zu öffentlich verfügbaren Carbon-Intensity-Daten
+
+|Governance
+|Optional
+|Renewable Energy Certificate (REC) oder Power Purchase Agreement (PPA) für eingesetzte Regionen
+
+|===
+
+=== WAF-SUS-040 – Idle & Underutilized Resource Elimination
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Config
+|✅ Pflicht
+|Autoscaling-Konfiguration (min/max/desired) für stateless Compute
+
+|Config
+|✅ Pflicht
+|Non-Production Scheduled-Shutdown-Konfiguration (AWS Instance Scheduler, Lambda, etc.)
+
+|Process
+|Optional
+|Idle-Detection-Alert-Konfiguration (CloudWatch < 5% CPU für 14 Tage)
+
+|Process
+|Optional
+|Quarterly Zombie-Resource-Cleanup-Report mit terminierten Ressourcen und geschätzten Einsparungen
+
+|===
+
+=== WAF-SUS-050 – Storage Lifecycle
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|IaC
+|✅ Pflicht
+|Terraform mit `aws_s3_bucket_lifecycle_configuration` und `retention_in_days` auf CloudWatch Log Groups
+
+|Config
+|✅ Pflicht
+|AWS Config oder Cloud-Inventory-Report: kein S3-Bucket ohne Lifecycle-Policy
+
+|Process
+|Optional
+|Monthly Orphaned-Resource-Scan-Report (unattached EBS, stale Snapshots)
+
+|===
+
+=== WAF-SUS-060 – Workload Scheduling
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Config
+|✅ Pflicht
+|EventBridge-Scheduler oder Cron-Konfiguration mit Off-Peak-Scheduling und Flexible Windows
+
+|Process
+|Optional
+|Carbon-Intensity-API-Integration für dynamisches Scheduling
+
+|Governance
+|Optional
+|Scheduling-Entscheidungsdokumentation für Major-Batch-Pipelines mit Carbon-Rationale
+
+|===
+
+=== WAF-SUS-070 – Sustainable Software Design
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Governance
+|✅ Pflicht
+|ADR-Template oder Architecture-Review-Checkliste mit Energie-Effizienz/SCI-Sektion
+
+|Config
+|Optional
+|Container-Image-Size-Reports mit Einhaltung von Size-Budgets (Distroless/Alpine Base Images)
+
+|Process
+|Optional
+|SCI-Measurement-Report für Tier-1-Services mit Baseline und Trend
+
+|===
+
+=== WAF-SUS-080 – Network & Data Transfer Efficiency
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|IaC
+|✅ Pflicht
+|CDN-Konfiguration (CloudFront, Azure CDN, Cloud CDN) für user-facing Anwendungen
+
+|IaC
+|✅ Pflicht
+|VPC-Endpoint-Konfiguration für AWS Services (S3, DynamoDB mindestens)
+
+|Config
+|Optional
+|HTTP-Response-Headers mit Content-Encoding: gzip oder br auf API-Responses
+
+|Process
+|Optional
+|Monthly Data-Transfer-Cost-Report mit Cross-Region-Breakdown und Trend
+
+|===
+
+=== WAF-SUS-090 – ESG Reporting
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Governance
+|✅ Pflicht
+|CSRD-Scoping-Assessment: ist die Organisation in scope, und was ist zu berichten?
+
+|Process
+|✅ Pflicht
+|Emissions-Datenerfassungs-Prozess-Dokumentation: Quellen, Methodik, Frequenz, Verantwortlicher
+
+|Config
+|Optional
+|Automatisierter Cloud-Carbon-Export (S3 für AWS CCF Tool, BigQuery für GCP, Power BI für Azure EID)
+
+|Governance
+|Optional
+|ESRS E1 / GHG Protocol Scope 3 Report-Sektion mit IT-Emissionen und Methodikvermerk
+
+|===
+
+=== WAF-SUS-100 – Sustainability Debt Register
+
+[cols="1,1,3"]
+|===
+|Evidenztyp |Pflicht |Nachweis
+
+|Governance
+|✅ Pflicht
+|Sustainability Debt Register (versioniert) mit allen WAF-SUS-Control-Gaps, Owner, Carbon Impact, Zieldatum
+
+|Process
+|✅ Pflicht
+|Quarterly-Review-Meeting-Protokolle mit Fortschrittsverfolgung
+
+|Governance
+|Optional
+|ESG/Annual-Report-Sektion zum Sustainability-Governance-Prozess
+
+|===
+
+== Evidenz-Archivierung für CSRD
+
+CSRD verlangt die Aufbewahrung von Nachhaltigkeitsdaten und deren Quellenangaben.
+Für IT-Emissionsdaten empfehlen wir folgende Aufbewahrungsstrategie:
+
+[cols="1,2,2,1"]
+|===
+|Datenkategorie |Aufbewahrungsort |Retention |Begründung
+
+|Carbon Footprint Exports (Cloud-Provider)
+|S3 Glacier oder Azure Archive
+|7 Jahre (2555 Tage)
+|CSRD Aufbewahrungspflicht für Nachhaltigkeitsdaten
+
+|ESG-Report-Entwürfe und Final Reports
+|Dokumentenmanagement (versioniert)
+|7 Jahre
+|Prüfnachweise für ESRS E1
+
+|Sustainability Debt Register Versionen
+|Git-Repository
+|Unbegrenzt (Git History)
+|Governance-Nachweis für aktive Verwaltung
+
+|ADRs mit Carbon-Impact-Sektion
+|Architecture Repository (Git)
+|Lebensdauer der Architektur
+|Nachweis für carbon-aware Design-Entscheidungen
+
+|SCI-Messberichte
+|Reporting-Plattform oder S3
+|3 Jahre
+|Trend-Nachweis für Emissionsreduktion
+
+|===
+
+NOTE: Die 7-Jahres-Aufbewahrungspflicht unter CSRD orientiert sich an der EU-Handelsrecht-Aufbewahrungspflicht. Für Sustainability-Daten empfiehlt Deloitte/PwC eine Aufbewahrung bis 10 Jahre für Erstberichterstattungsperioden, da Vergleichsjahre rückwirkend angepasst werden können.

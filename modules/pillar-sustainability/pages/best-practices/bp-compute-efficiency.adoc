@@ -1,0 +1,295 @@
+= Best Practice: Energieeffiziente Compute-Auswahl (ARM/Graviton, Spot)
+:page-toc: right
+:description: WAF++ Sustainability – ARM/Graviton als Cloud-Compute-Standard: Migration von x86 auf arm64, Lambda-Architektur, Spot-Instanzen und CI-Gate für effiziente Instanztypen.
+
+== Kontext
+
+Compute ist typischerweise der größte Einzelposten sowohl in Cloud-Kosten als auch
+in Cloud-CO₂-Emissionen. Die Wahl des Prozessor-Typs hat dabei einen direkten,
+messbaren Einfluss: ARM/Graviton-Instanzen liefern 30–40% bessere Performance-per-Watt
+als äquivalente x86-Instanzen — bei gleichzeitig niedrigeren Kosten.
+
+Dies ist der seltene Fall, in dem *Nachhaltigkeit und Wirtschaftlichkeit vollständig ausgerichtet sind*.
+x86-Previous-Generation-Instanzen (t2, m4, c4) sind in jedem Sinn überholt.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-020[WAF-SUS-020] – Energy-Efficient Compute Selection
+* xref:controls.adoc#WAF-SUS-040[WAF-SUS-040] – Idle & Underutilized Resource Elimination
+
+== Zielbild
+
+* >85% der EC2-vCPU-Stunden auf ARM/Graviton
+* 100% der neuen Lambda-Funktionen auf arm64
+* Keine Previous-Generation-Instanzen ohne dokumentierte Ausnahme
+* CI-Gate blockiert neue x86-Deployments ohne Architecture Approval
+* Spot-Instanzen für >50% der non-production Compute-Last
+
+== Technische Umsetzung
+
+=== Schritt 1: Bestandsaufnahme — aktueller Instanztyp-Mix
+
+[source,bash]
+----
+# AWS: Alle EC2-Instanztypen inventarisieren und nach Familie gruppieren
+aws ec2 describe-instances \
+  --query "Reservations[].Instances[].[InstanceId,InstanceType,Tags[?Key=='environment'].Value|[0],State.Name]" \
+  --output json | jq '
+  group_by(.[1] | split(".")[0]) |
+  map({
+    family: .[0][1] | split(".")[0],
+    count: length,
+    instances: map(.[0])
+  })
+  | sort_by(.family)'
+
+# Filtern: Previous-Gen Familien identifizieren
+aws ec2 describe-instances \
+  --filters "Name=instance-state-name,Values=running" \
+  --query "Reservations[].Instances[].[InstanceId,InstanceType]" \
+  --output json | jq '.[] | select(.[1] | test("^(t2|m4|c4|r4|i2|d2|m3|c3)\\."))'
+----
+
+=== Schritt 2: Lambda auf arm64 migrieren
+
+Die Lambda-Migration auf arm64 ist die einfachste und wirkungsvollste Maßnahme:
+keine Container-Image-Rebuilds erforderlich (bei zip-basierten Funktionen), keine
+Code-Änderungen für Python, Node.js, Java, Go.
+
+[source,hcl]
+----
+# Bestehende Lambda-Funktion auf arm64 migrieren
+resource "aws_lambda_function" "api_handler" {
+  function_name = "api-handler"
+  runtime       = "python3.12"
+
+  # MIGRATION: x86_64 -> arm64
+  architectures = ["arm64"]  # War: ["x86_64"]
+
+  handler  = "main.handler"
+  role     = aws_iam_role.lambda_exec.arn
+  filename = "function.zip"
+
+  # Keine weiteren Änderungen erforderlich für Python/Node.js/Java
+  environment {
+    variables = {
+      ENVIRONMENT = var.environment
+    }
+  }
+
+  tags = {
+    workload                = "api-service"
+    environment             = var.environment
+    owner                   = "platform-team"
+    sustainability-reviewed = "2026-01-15"
+  }
+}
+
+# Lambda Layer: Prüfen ob arm64-kompatibel
+resource "aws_lambda_layer_version" "utils" {
+  layer_name  = "utils-layer"
+  filename    = "utils-layer.zip"
+
+  # Explizit arm64 kompatible Architektur angeben
+  compatible_architectures = ["arm64"]
+  compatible_runtimes      = ["python3.12", "python3.11"]
+}
+----
+
+=== Schritt 3: EC2-Instanzen auf Graviton migrieren
+
+[source,hcl]
+----
+# Greenfield: Graviton3 als Default
+resource "aws_launch_template" "app_lt" {
+  name_prefix   = "app-"
+  image_id      = data.aws_ami.ubuntu_arm64.id
+  instance_type = "m7g.large"  # Graviton3
+
+  # Graviton erfordert arm64-kompatibles AMI
+  # Ubuntu 22.04 LTS ARM64: ami-0xxxx (region-spezifisch)
+
+  tags = {
+    workload    = "app-service"
+    environment = var.environment
+  }
+}
+
+# AMI-Data-Source für ARM64
+data "aws_ami" "ubuntu_arm64" {
+  most_recent = true
+  owners      = ["099720109477"]  # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["arm64"]
+  }
+}
+
+# Graviton-Instanztyp-Mapping (x86 → Graviton Äquivalent):
+locals {
+  graviton_mapping = {
+    "t2.micro"   = "t4g.micro"
+    "t2.small"   = "t4g.small"
+    "t2.medium"  = "t4g.medium"
+    "t3.medium"  = "t4g.medium"
+    "m4.large"   = "m7g.large"
+    "m5.large"   = "m7g.large"
+    "m6i.large"  = "m7g.large"
+    "c4.large"   = "c7g.large"
+    "c5.large"   = "c7g.large"
+    "r4.large"   = "r7g.large"
+    "r5.large"   = "r7g.large"
+  }
+}
+----
+
+=== Schritt 4: CI-Gate für Instanztyp-Compliance
+
+[source,yaml]
+----
+# .github/workflows/sustainability-check.yml
+name: Sustainability Compliance Check
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**/*.tf'
+
+jobs:
+  compute-efficiency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: WAF++ Compute Efficiency Check
+        run: |
+          # Prüfe auf Previous-Generation Instanztypen
+          VIOLATIONS=$(grep -rn 'instance_type\s*=\s*"' infrastructure/ | \
+            grep -E '"(t2|m4|c4|r4|i2|d2|m3|c3)\.' || true)
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "WAF-SUS-020 Violation: Previous-generation instance types found:"
+            echo "$VIOLATIONS"
+            echo "Please use Graviton (m7g, c7g, r7g, t4g) or current-gen x86 (m6i, c6i)"
+            exit 1
+          fi
+
+          # Prüfe Lambda auf arm64
+          LAMBDA_X86=$(grep -rn 'architectures\s*=\s*\["x86_64"\]' infrastructure/ || true)
+          if [ -n "$LAMBDA_X86" ]; then
+            echo "WAF-SUS-020 Warning: Lambda functions using x86_64 architecture:"
+            echo "$LAMBDA_X86"
+            echo "Please use architectures = [\"arm64\"] for 20% energy reduction"
+          fi
+
+          echo "Compute efficiency check passed!"
+
+      - name: Summarize compute architecture
+        if: always()
+        run: |
+          echo "=== Compute Architecture Summary ==="
+          echo "ARM64/Graviton instances:"
+          grep -rn 'instance_type' infrastructure/ | \
+            grep -E '"(t4g|m7g|c7g|r7g|m6g|c6g|r6g|a1)\.' || echo "None found"
+          echo ""
+          echo "x86 instances:"
+          grep -rn 'instance_type' infrastructure/ | \
+            grep -E '"(t3|t4|m5|m6i|c5|c6i|r5|r6i)\.' || echo "None found"
+----
+
+=== Schritt 5: Spot-Instanzen für Non-Production und Batch
+
+[source,hcl]
+----
+# Autoscaling Group mit Spot-Integration für Dev-Umgebung
+resource "aws_autoscaling_group" "dev_workers" {
+  name                = "dev-workers-asg"
+  vpc_zone_identifier = var.private_subnets
+  min_size            = 0  # Scale to Zero
+  max_size            = 10
+  desired_capacity    = 0
+
+  mixed_instances_policy {
+    instances_distribution {
+      on_demand_base_capacity                  = 0
+      on_demand_percentage_above_base_capacity = 0   # 100% Spot für Dev
+      spot_allocation_strategy                 = "capacity-optimized"
+    }
+
+    launch_template {
+      launch_template_specification {
+        launch_template_id      = aws_launch_template.dev_worker.id
+        version                 = "$Latest"
+      }
+
+      # Mehrere Graviton-Typen für Spot-Resilienz
+      override {
+        instance_type = "t4g.medium"
+      }
+      override {
+        instance_type = "t4g.large"
+      }
+      override {
+        instance_type = "m7g.medium"
+      }
+      override {
+        instance_type = "c7g.medium"
+      }
+    }
+  }
+
+  tag {
+    key                 = "environment"
+    value               = "development"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "sustainability-reviewed"
+    value               = "2026-01-15"
+    propagate_at_launch = true
+  }
+}
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problembeschreibung
+
+|*"Migration ist zu aufwändig"*
+|Lambda: 1 Zeile ändern. Container: Base-Image neu bauen. EC2: AMI tauschen + testen. Meist weniger als 1 Tag Aufwand für einfache Services.
+
+|*"Unsere Software läuft nur auf x86"*
+|Gilt für native Binaries und einige JVM-Optimierungen. Python, Node.js, Java, Go: vollständig arm64-kompatibel. x86-Only-Annahmen ohne Prüfung sind Sustainability-Debt.
+
+|*"Spot ist nicht zuverlässig genug"*
+|Spot mit Graviton + capacity-optimized Strategie + mehreren Instanztypen hat >99% Verfügbarkeit. Batch-Jobs und stateless Services sind ideal für Spot.
+
+|*"Wir nutzen schon t3, das ist doch modern"*
+|t3 ist x86; t4g ist Graviton2 (ARM). t3 → t4g Migration: gleiche Preisklasse, 30% weniger Energie.
+
+|===
+
+== Metriken
+
+* *ARM/Graviton-Share (%)*: Anteil der vCPU-Stunden auf ARM/Graviton (Ziel: >60%)
+* *Lambda arm64-Adoptionsrate (%)*: Anteil der Lambda-Funktionen auf arm64 (Ziel: >80%)
+* *Previous-Gen-Instanzen (Anzahl)*: Zu eliminieren; Ziel: 0
+* *Spot-Instance-Share für Non-Prod (%)*: Anteil Spot an Non-Production-Compute (Ziel: >50%)
+* *CO₂-Reduktion durch Compute-Migration (tCO₂e)*: Quantifizierter Impact aus Carbon-Tool
+
+== Reifegrad
+
+Level 1 – Keine ARM/Graviton; Previous-Gen überall; kein Spot +
+Level 2 – Einige Graviton-Instanzen; keine systematische Policy +
+Level 3 – Policy + CI-Gate; >30% ARM; Lambda-Standard arm64 +
+Level 4 – >60% ARM; Brownfield-Migration aktiv; >50% Spot für Non-Prod +
+Level 5 – >85% ARM; alle Ausnahmen dokumentiert; SCI verbessert sich nachweislich
