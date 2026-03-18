@@ -1,0 +1,223 @@
+id: WAF-SUS-030
+title: "Green Region & Carbon-Aware Workload Placement"
+pillar: "sustainability"
+status: "active"
+severity: "medium"
+category: "region-selection"
+type: ['governance', 'configuration']
+tags: ['region', 'carbon-intensity', 'renewable-energy', 'placement', 'green-region', 'carbon-aware']
+
+description: >
+  Workloads without strict data-residency requirements MUST consider carbon intensity of cloud
+  regions in placement decisions. When architectural and regulatory constraints allow, workloads
+  SHOULD be placed in regions with high renewable energy mix or low grid carbon intensity.
+  Region selection decisions MUST document sustainability considerations alongside latency and
+  cost factors. Batch workloads with flexible placement MUST evaluate green region alternatives.
+
+rationale: >
+  Cloud regions vary significantly in their energy mix and resulting carbon intensity. AWS us-west-2
+  (Oregon), eu-west-1 (Ireland), eu-north-1 (Stockholm) and GCP europe-north1 (Finland) are among
+  the lowest carbon-intensity regions due to high renewable energy use. Running identical workloads
+  in a high-renewable region instead of a coal-heavy region can reduce cloud Scope 3 emissions by
+  60-80% without any architectural change. Carbon-aware placement is one of the highest-leverage,
+  lowest-effort sustainability measures available to architects.
+
+threat:
+  - "Unnecessarily high Scope 3 emissions from workloads placed in high-carbon-intensity regions"
+  - "Missing carbon-aware architecture documentation creating CSRD reporting gaps"
+  - "SBTi Scope 3 targets unachievable when workloads are locked in carbon-heavy regions"
+  - "Reputational risk: ESG-aware customers and investors scrutinize cloud region choices"
+
+regulatory_mapping:
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – Scope 3 reduction actions"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 2 – Market-based method (renewable energy certificates, PPAs)"
+      - "Scope 3 – Category 11: purchased cloud services location factor"
+  - framework: "Green Software Foundation"
+    controls:
+      - "Carbon Aware Computing – location-based optimization"
+      - "Software Carbon Intensity (SCI) – location component"
+  - framework: "ISO 14001"
+    controls:
+      - "6.1.2 – Environmental aspects: procurement and infrastructure decisions"
+
+implementation_guidance:
+  - "Consult cloud provider sustainability pages for renewable energy percentages per region before making placement decisions."
+  - "For AWS: prefer us-west-2, eu-west-1, eu-north-1, ap-southeast-2 (high renewable mix) over us-east-1 or ap-east-1."
+  - "For Azure: prefer northeurope (Ireland), swedencentral, norwayeast, westeurope for lowest carbon."
+  - "For GCP: prefer europe-north1 (Finland, near 100% renewable), europe-west1 (Belgium), us-west1 (Oregon)."
+  - "Add a 'Carbon Impact' section to ADRs and region selection documentation."
+  - "For batch workloads: evaluate WattTime or electricityMaps API for real-time carbon intensity data."
+  - "Consider multi-region active-active for latency-insensitive batch processing where carbon intensity varies."
+  - "Track deployed regions and their average carbon intensity annually; use in CSRD Scope 3 reporting."
+
+maturity_levels:
+  level_1:
+    description: "Region selected for cost/latency only – carbon not considered"
+    criteria:
+      - "No sustainability criteria in region selection process"
+      - "No documentation of carbon intensity for deployed regions"
+  level_2:
+    description: "Carbon awareness – sustainability considered informally"
+    criteria:
+      - "Team is aware of regional carbon intensity differences"
+      - "New workloads informally consider green regions when other constraints allow"
+      - "No formal process or documentation requirement"
+  level_3:
+    description: "Carbon documented in architecture decisions"
+    criteria:
+      - "Architecture decision templates include carbon impact section"
+      - "Region selection decisions document sustainability considerations"
+      - "High-renewable regions preferred when latency and compliance allow"
+      - "Deployed region carbon intensity tracked in sustainability report"
+  level_4:
+    description: "Carbon-aware placement for batch and flexible workloads"
+    criteria:
+      - "Batch workloads actively placed in lowest-carbon regions"
+      - "Carbon intensity APIs (WattTime, electricityMaps) integrated for dynamic scheduling"
+      - "Architecture principles mandate carbon-aware region selection review for all new services"
+  level_5:
+    description: "Dynamic carbon-aware routing and placement"
+    criteria:
+      - "Real-time carbon intensity data drives automated workload placement decisions"
+      - "Time-shifted batch jobs route to lowest-carbon region at execution time"
+      - "All region choices backed by renewable energy agreements (RECs or PPAs)"
+      - "Carbon intensity improvements documented and reported in CSRD filings"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Architecture decision record (ADR) or region selection document showing carbon intensity was considered."
+    - kind: "config"
+      description: "Terraform or cloud config showing deployed regions; mapped to publicly available carbon intensity data."
+  optional:
+    - kind: "governance"
+      description: "Renewable energy certificate (REC) or power purchase agreement (PPA) coverage for deployed regions."
+    - kind: "process"
+      description: "Carbon-aware scheduling configuration for batch workloads using carbon intensity APIs."
+
+checks:
+  - id: "waf-sus-030.tf.aws.preferred-regions"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS provider region should be a low-carbon-intensity region"
+    description: >
+      This check validates that the AWS provider is configured to use a region with known
+      high renewable energy mix. High-carbon regions are flagged as warnings to trigger
+      documentation of the sustainability justification.
+    scope:
+      block_type: "provider"
+      resource_types:
+        - "aws"
+    assertions:
+      - attribute: "region"
+        op: "in"
+        value: ["us-west-2", "eu-west-1", "eu-north-1", "eu-central-1", "eu-west-3", "ap-southeast-2", "ca-central-1", "us-east-2"]
+        message: "AWS region has a high carbon intensity. Consider us-west-2, eu-north-1, eu-west-1 for lower emissions."
+    on_fail: "warning"
+    remediation: >
+      If workloads can be placed in a lower-carbon region without violating data residency,
+      latency, or compliance requirements, prefer: us-west-2 (Oregon, ~89% renewable),
+      eu-north-1 (Stockholm, ~95% renewable), eu-west-1 (Ireland, ~80% renewable).
+      If high-carbon region is required, document the justification in an ADR and offset
+      through RECs for that region's workload footprint.
+    example:
+      compliant: |
+        provider "aws" {
+          region = "eu-north-1"  # Stockholm – ~95% renewable energy
+          # Sustainability justification: low carbon intensity region selected per WAF-SUS-030
+        }
+      non_compliant: |
+        provider "aws" {
+          region = "ap-east-1"  # Hong Kong – high carbon intensity grid
+          # WAF-SUS-030 Warning: document carbon justification or migrate to lower-carbon region
+        }
+
+  - id: "waf-sus-030.tf.google.preferred-regions"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP provider region should be a low-carbon-intensity region"
+    description: >
+      GCP regions vary significantly in carbon intensity. europe-north1 (Finland) and
+      europe-west1 (Belgium) are among the lowest carbon-intensity regions globally.
+    scope:
+      block_type: "provider"
+      resource_types:
+        - "google"
+    assertions:
+      - attribute: "region"
+        op: "in"
+        value: ["europe-north1", "europe-west1", "europe-west4", "us-west1", "us-central1", "northamerica-northeast1", "northamerica-northeast2"]
+        message: "GCP region has elevated carbon intensity. Consider europe-north1, europe-west1, or us-west1."
+    on_fail: "warning"
+    remediation: >
+      For GCP workloads, prefer europe-north1 (Finland, ~97% renewable), europe-west1 (Belgium),
+      or us-west1 (Oregon). GCP Carbon Footprint dashboard shows per-project emissions by region.
+      Use carbon-free energy percentage (CFE%) metric available in GCP Sustainability console.
+    example:
+      compliant: |
+        provider "google" {
+          project = var.project_id
+          region  = "europe-north1"  # Finland – 97% carbon-free energy
+        }
+      non_compliant: |
+        provider "google" {
+          project = var.project_id
+          region  = "asia-east1"  # Taiwan – lower renewable energy share
+          # WAF-SUS-030 Warning: document carbon justification
+        }
+
+  - id: "waf-sus-030.tf.azurerm.preferred-regions"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure provider location should be a low-carbon-intensity region"
+    description: >
+      Azure regions differ in their carbon intensity. Sweden Central, Norway East, and
+      North Europe (Ireland) consistently show the lowest carbon intensity in Azure's
+      Emissions Impact Dashboard.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_resource_group"
+    assertions:
+      - attribute: "location"
+        op: "in"
+        value: ["swedencentral", "norwayeast", "northeurope", "westeurope", "canadacentral", "australiaeast"]
+        message: "Azure region may have elevated carbon intensity. Consider swedencentral, norwayeast, or northeurope."
+    on_fail: "warning"
+    remediation: >
+      For Azure, prefer swedencentral (Sweden, ~95% renewable), norwayeast (Norway, hydro-powered),
+      or northeurope (Ireland). Review Azure Emissions Impact Dashboard for current carbon intensity
+      by region. Document sustainability rationale when using other regions.
+    example:
+      compliant: |
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-app-prod"
+          location = "swedencentral"  # Sweden – ~95% renewable energy
+          tags = {
+            sustainability-region = "green"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_resource_group" "main" {
+          name     = "rg-app-prod"
+          location = "eastasia"
+          # WAF-SUS-030 Warning: high carbon intensity region, document justification
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-030"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-green-regions.adoc"
+  related_controls:
+    - "WAF-SUS-010"
+    - "WAF-SUS-060"
+    - "WAF-SUS-090"

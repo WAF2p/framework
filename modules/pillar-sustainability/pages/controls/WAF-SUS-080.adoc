@@ -1,0 +1,201 @@
+= WAF-SUS-080 – Network & Data Transfer Efficiency
+:page-toc: right
+:control-id: WAF-SUS-080
+:pillar: sustainability
+:severity: medium
+:category: network-efficiency
+:automated: high
+:description: WAF++ Sustainability – Datentransfer minimieren: CDN mit Kompression, VPC Endpoints für AWS-Services, Same-Region Co-location, HTTP-Kompression auf allen APIs.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Network Efficiency | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Datentransfers MÜSSEN für minimale Netzwerkbelastung ausgelegt sein.
+CDN MUSS für alle user-facing statischen und semi-statischen Inhalte genutzt werden.
+HTTP-Kompression (gzip/brotli) MUSS auf allen CloudFront-Distributions aktiviert sein (`compress = true`).
+VPC Endpoints MÜSSEN für AWS-Service-Kommunikation genutzt werden (S3, DynamoDB mindestens).
+Cross-Region-Transfers MÜSSEN begründet sein. Azure CDN-Endpoints MÜSSEN `is_compression_enabled = true` haben.
+
+== Rationale
+
+Netzwerkgeräte (Switches, Router, Unterseekabel) verbrauchen Energie proportional zum Datenvolumen.
+CDN-Kompression reduziert Text-Payloads um 60–80% und eliminiert Long-Haul-Transfers für gecachte Inhalte.
+VPC Endpoints halten AWS-Service-Traffic im AWS-Backbone — weniger Netzwerk-Hops, keine Internet-Gateway-Energie.
+Same-Region Co-location vermeidet Cross-Region-Energie-Overhead. Diese Maßnahmen kombinieren
+Sustainability-Gewinne mit direkten Kosteneinsparungen (Egress-Gebühren).
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unkomprimierte CDN-Delivers*
+|Jeder User erhält unkomprimierte HTML/JSON-Payloads — 5–10× höherer Netzwerk-Energiebedarf.
+
+|*Internet-Gateway-Egress für AWS-Services*
+|S3, DynamoDB, CloudWatch-Calls über Internet-Gateway statt VPC Endpoint verursachen unnötige Netzwerk-Energie und Egress-Kosten.
+
+|*Fehlende Cross-Region-Governance*
+|Unbeabsichtigte Cross-Region-Replikation durch fehlende S3-Bucket-Policies oder falsch konfigurierte Multi-Region-Architectures.
+
+|*Maximale Payload-Größen ohne Filterung*
+|REST-APIs, die immer alle Felder zurückgeben statt nur angefragter Felder — unnötiger Transfer für jede Anfrage.
+
+|===
+
+== Anforderung
+
+* CDN MUSS für alle user-facing Anwendungen konfiguriert sein
+* CloudFront MUSS `compress = true` auf allen Cache Behaviors haben
+* Azure CDN MUSS `is_compression_enabled = true` haben
+* VPC Endpoints für S3 und DynamoDB MÜSSEN in allen produktiven VPCs vorhanden sein
+* HTTP-Kompression MUSS auf allen Load Balancern und API Gateways aktiviert sein
+* Cross-Region-Transfers MÜSSEN monatlich auf Notwendigkeit geprüft werden
+
+== Implementierungsanleitung
+
+. *CDN-Deployment*: CloudFront / Azure CDN / Cloud CDN für alle user-facing Properties
+. *Kompression aktivieren*: `compress = true` in CloudFront; `is_compression_enabled = true` in Azure CDN
+. *VPC Endpoints*: S3 + DynamoDB Gateway Endpoints (kostenlos); Interface Endpoints für SSM, ECR, CloudWatch
+. *Cache-Control-Headers*: `Cache-Control: max-age=86400` für statische Assets; `immutable` für versionierte Files
+. *API Field Filtering*: GraphQL-Projection oder OData `$select` für REST-APIs einführen
+. *Monatlicher Transfer-Review*: AWS Cost Explorer Egress-Kosten nach Region auswerten; Cross-Region-Spikes untersuchen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Optimierung
+|Kein CDN; keine Kompression; Internet-Gateway für alle AWS-Services; kein Transfer-Monitoring.
+
+|*2*
+|Basis CDN + Kompression
+|CDN für Haupt-Produkt; Kompression auf wichtigsten APIs; keine VPC Endpoints.
+
+|*3*
+|Systematisch mit VPC Endpoints
+|CDN überall; Kompression auf allen APIs; VPC Endpoints S3+DynamoDB; monatlicher Review.
+
+|*4*
+|Transfer-Budgets per Workload
+|Transfer-Budgets definiert; API-Payload-Profiling im CI; Cross-Region begründungspflichtig.
+
+|*5*
+|Netzwerk-CO₂ in SCI
+|Network-Emissionsfaktor (gCO₂e/GB) getrackt; Zero Cross-Region ohne ADR; Netzwerk-Effizienz in SCI.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-080.tf.aws.cloudfront-compression
+*Prüft:* CloudFront Distributions haben `compress = true`.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudfront_distribution" "web" {
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "web-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudfront_distribution" "web" {
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "web-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = false
+    # WAF-SUS-080 Violation: unkomprimierte Delivers
+  }
+}
+----
+|===
+
+*Remediation:* `compress = true` auf alle `cache_behavior` und `default_cache_behavior` Blöcke setzen. CloudFront komprimiert automatisch gzip/brotli-fähige Content-Types.
+
+---
+
+=== waf-sus-080.tf.aws.vpc-endpoint-s3
+*Prüft:* VPC hat S3- und DynamoDB-Gateway-Endpoints.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+}
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+}
+----
+a|[source,hcl]
+----
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+  # Keine VPC Endpoints
+  # WAF-SUS-080 Warning: AWS-Service-Traffic über Internet-GW
+}
+----
+|===
+
+*Remediation:* S3- und DynamoDB-Gateway-Endpoints erstellen (kostenlos). Alle Route Tables der privaten Subnets zuordnen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|CDN-Konfiguration (CloudFront, Azure CDN, Cloud CDN) für user-facing Anwendungen.
+
+|*IaC*
+|✅ Pflicht
+|VPC-Endpoint-Konfiguration für AWS-Services (S3, DynamoDB mindestens).
+
+|*Config*
+|Optional
+|HTTP-Response-Headers mit `Content-Encoding: gzip` oder `br` auf API-Responses.
+
+|*Process*
+|Optional
+|Monatlicher Data-Transfer-Cost-Report mit Cross-Region-Breakdown.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-050.adoc[WAF-SUS-050 – Storage Lifecycle & Data Minimization]
+* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+
+== Best Practice
+
+* xref:best-practices/bp-data-efficiency.adoc[Datenminimierung, Storage-Lifecycle, Transferoptimierung →]

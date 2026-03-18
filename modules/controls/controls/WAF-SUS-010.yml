@@ -1,0 +1,259 @@
+id: WAF-SUS-010
+title: "Carbon Footprint Measurement & Reporting"
+pillar: "sustainability"
+status: "active"
+severity: "high"
+category: "carbon-measurement"
+type: ['governance', 'configuration', 'automation']
+tags: ['carbon', 'ghg', 'csrd', 'measurement', 'reporting', 'scope3', 'esg', 'footprint']
+
+description: >
+  Organizations MUST measure and report the carbon footprint of their cloud workloads.
+  Cloud-provider carbon footprint tools (AWS Customer Carbon Footprint Tool, Azure Emissions
+  Impact Dashboard, GCP Carbon Footprint) MUST be enabled and queried at least monthly.
+  Emissions data MUST be exported, tagged by workload, and retained for ESG reporting.
+  Organizations subject to CSRD MUST integrate cloud IT emissions into their ESRS E1 reporting.
+
+rationale: >
+  You cannot reduce what you do not measure. Cloud IT emissions contribute to an organization's
+  Scope 3 GHG emissions (purchased cloud services). CSRD mandates disclosure of material
+  climate-related emissions for in-scope companies starting 2025-2027. Without systematic
+  measurement, carbon reduction targets (SBTi, net-zero commitments) cannot be validated,
+  and ESG auditors will flag gaps in IT emissions data. Measurement is the prerequisite
+  for every other sustainability optimization.
+
+threat:
+  - "CSRD non-compliance: missing IT emissions data in ESRS E1 reporting creates audit findings"
+  - "Unverifiable net-zero claims: sustainability commitments without measurement data are greenwashing risk"
+  - "Carbon blind spots: workloads with disproportionate emissions remain unoptimized"
+  - "SBTi target failure: Scope 3 reduction targets cannot be tracked without cloud emissions data"
+  - "Regulatory penalties: CSRD enforcement includes financial penalties for non-disclosure"
+
+regulatory_mapping:
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change"
+      - "ESRS E1-6 – Gross Scope 1, 2, 3 GHG emissions"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 3 – Category 11: Use of sold products"
+      - "Scope 2 – Energy Indirect Emissions (location-based and market-based)"
+  - framework: "Green Software Foundation"
+    controls:
+      - "Software Carbon Intensity (SCI) – measurement standard"
+  - framework: "SBTi (Science Based Targets initiative)"
+    controls:
+      - "ICT Sector Guidance – Scope 3 measurement requirements"
+  - framework: "ISO 14001"
+    controls:
+      - "6.1.2 – Environmental Aspects identification and assessment"
+      - "9.1 – Monitoring, measurement, analysis and evaluation"
+
+implementation_guidance:
+  - "Enable AWS Customer Carbon Footprint Tool in AWS Cost Explorer; export monthly reports via S3 or API."
+  - "Enable Azure Emissions Impact Dashboard in Microsoft Sustainability Manager; connect to Power BI."
+  - "Enable GCP Carbon Footprint reports in Cloud Console; export to BigQuery for analysis."
+  - "Tag all workloads consistently (workload, cost-center, environment) to enable per-workload emissions breakdown."
+  - "Establish a monthly emissions review: pull cloud provider data, aggregate by workload, compare against baseline."
+  - "Integrate emissions data into existing ESG reporting workflows (ESRS E1 section for IT Scope 3)."
+  - "Set a baseline in the first measurement cycle; define reduction targets (e.g. 10% YoY) for each pillar."
+  - "For multi-cloud: consolidate emissions from all providers into a single carbon ledger (spreadsheet or CSRD tool)."
+
+maturity_levels:
+  level_1:
+    description: "No measurement – carbon blind"
+    criteria:
+      - "No cloud provider carbon tools enabled"
+      - "No IT emissions data available for ESG reporting"
+      - "No person responsible for tracking IT emissions"
+  level_2:
+    description: "Ad-hoc measurement – tool enabled"
+    criteria:
+      - "Cloud provider carbon footprint tool is enabled"
+      - "Emissions are reviewed manually and occasionally"
+      - "Data is not systematically exported or retained"
+  level_3:
+    description: "Regular measurement with workload breakdown"
+    criteria:
+      - "Monthly emissions review process established"
+      - "Workload tagging allows per-workload emissions attribution"
+      - "Data exported and retained for at least 12 months"
+      - "Emissions included in internal sustainability dashboard"
+  level_4:
+    description: "Integrated ESG reporting with reduction tracking"
+    criteria:
+      - "Cloud emissions integrated into formal ESRS E1 / GHG Protocol reporting"
+      - "Year-on-year reduction targets defined and tracked per workload"
+      - "Automated monthly export from all cloud providers to carbon ledger"
+      - "SCI (Software Carbon Intensity) calculated for key workloads"
+  level_5:
+    description: "Real-time carbon visibility with automated CSRD data feeds"
+    criteria:
+      - "Real-time or near-real-time carbon dashboards per workload and service"
+      - "Automated CSRD/ESRS E1 data feeds from cloud carbon APIs"
+      - "Carbon budget per workload enforced (alerts on overrun)"
+      - "SCI tracked continuously; carbon reduction KPIs in engineering OKRs"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Screenshot or API confirmation that cloud provider carbon footprint tool is enabled (AWS CCF Tool, Azure EID, GCP Carbon Footprint)."
+    - kind: "governance"
+      description: "Monthly carbon footprint report exports (at minimum 3 months history) with workload breakdown."
+  optional:
+    - kind: "process"
+      description: "Carbon review meeting notes or JIRA tickets showing monthly emissions review cadence."
+    - kind: "governance"
+      description: "ESG report section (ESRS E1) referencing cloud IT emissions data with source attribution."
+    - kind: "config"
+      description: "Carbon budget alert configuration (e.g., alert when workload emissions increase >20% MoM)."
+
+checks:
+  - id: "waf-sus-010.tf.aws.cloudwatch-carbon-export"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS CloudWatch log group for carbon footprint data export must exist with retention"
+    description: >
+      A CloudWatch log group or S3 bucket export for AWS Customer Carbon Footprint Tool data
+      must be configured. This check verifies that a log retention policy is set on log groups
+      used for carbon/cost data (no infinite retention which also wastes storage energy).
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "attribute_exists"
+        message: "CloudWatch log group has no retention policy – infinite retention wastes storage and blocks carbon data lifecycle."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "Retention must be set to at least 1 day; recommended 90-365 days for carbon audit data."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days on all CloudWatch log groups. For carbon footprint audit logs,
+      use 365 days to satisfy CSRD 7-year record retention. Use lifecycle policies to
+      transition older logs to S3 Glacier for cost and energy efficiency.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "carbon_audit" {
+          name              = "/sustainability/carbon-footprint-exports"
+          retention_in_days = 365
+          tags = {
+            purpose     = "carbon-audit"
+            workload    = "sustainability-reporting"
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "carbon_audit" {
+          name = "/sustainability/carbon-footprint-exports"
+          # retention_in_days not set = infinite retention
+          # WAF-SUS-010 Violation
+        }
+
+  - id: "waf-sus-010.tf.aws.s3-carbon-export-lifecycle"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "S3 bucket for carbon footprint exports must have lifecycle rules"
+    description: >
+      S3 buckets used to store carbon footprint exports from AWS Cost Explorer or Cost
+      and Usage Reports must have lifecycle rules to transition data to cost-efficient
+      storage tiers and eventually expire old records.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_lifecycle_configuration"
+    assertions:
+      - attribute: "rule"
+        op: "not_empty"
+        message: "S3 bucket has no lifecycle rules – carbon export data will accumulate indefinitely."
+    on_fail: "violation"
+    remediation: >
+      Add lifecycle rules to transition objects to STANDARD_IA after 30 days, GLACIER after
+      90 days, and expire after 2555 days (7 years for CSRD compliance). This reduces
+      storage emissions while satisfying regulatory retention requirements.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
+          bucket = aws_s3_bucket.carbon_data.id
+          rule {
+            id     = "carbon-data-lifecycle"
+            status = "Enabled"
+            transition {
+              days          = 30
+              storage_class = "STANDARD_IA"
+            }
+            transition {
+              days          = 90
+              storage_class = "GLACIER"
+            }
+            expiration {
+              days = 2555
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "carbon_data" {
+          bucket = "acme-carbon-footprint-exports"
+          # No lifecycle rules – WAF-SUS-010 Violation
+        }
+
+  - id: "waf-sus-010.tf.azurerm.log-analytics-retention"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Log Analytics workspace for sustainability data must have retention configured"
+    description: >
+      Azure Log Analytics workspaces used for emissions dashboard data and sustainability
+      reporting must have explicit retention periods. Default unlimited retention accumulates
+      data with no governance.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_log_analytics_workspace"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "attribute_exists"
+        message: "Log Analytics workspace has no explicit retention period – data accumulates indefinitely."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 90
+        message: "Retention for sustainability audit data must be at least 90 days; recommended 365."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days to at least 365 for sustainability audit workspaces. Enable
+      data export to Azure Storage with lifecycle management for long-term CSRD retention.
+    example:
+      compliant: |
+        resource "azurerm_log_analytics_workspace" "sustainability" {
+          name                = "law-sustainability-reporting"
+          location            = var.location
+          resource_group_name = var.resource_group_name
+          sku                 = "PerGB2018"
+          retention_in_days   = 365
+          tags = {
+            purpose     = "carbon-audit"
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_log_analytics_workspace" "sustainability" {
+          name                = "law-sustainability-reporting"
+          location            = var.location
+          resource_group_name = var.resource_group_name
+          # retention_in_days not set – WAF-SUS-010 Violation
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-010"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-carbon-measurement.adoc"
+  related_controls:
+    - "WAF-SUS-090"
+    - "WAF-SUS-030"
+    - "WAF-SUS-100"

@@ -1,0 +1,301 @@
+= Best Practice: Idle-Ressourcen identifizieren und eliminieren
+:page-toc: right
+:description: WAF++ Sustainability – Idle EC2-Instanzen, Zombie-Ressourcen und überprovisionierte Compute-Lasten identifizieren und eliminieren: Autoscaling, Scheduled Shutdown, AWS Compute Optimizer.
+
+== Kontext
+
+Studien zeigen konsistent: *30–45% aller Cloud-Compute-Ressourcen laufen mit weniger als 10%
+CPU-Auslastung*. Eine EC2-Instanz, die bei 3% CPU läuft, verbraucht nahezu dieselbe Energie
+wie eine bei 80% — aber liefert nur einen Bruchteil des Nutzens.
+
+Non-Production-Umgebungen (Dev, Test, Staging) verschärfen das Problem: Sie laufen in vielen
+Organisationen *24/7*, obwohl ihr tatsächlicher Nutzungszeitraum nur 30–40% der Kalenderzeit
+ausmacht (Geschäftszeiten an Werktagen). Das bedeutet, 60–70% der Non-Prod-Energie wird
+für wartende, ungenutzte Infrastruktur verbraucht.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-040[WAF-SUS-040] – Idle & Underutilized Resource Elimination
+* xref:controls.adoc#WAF-SUS-060[WAF-SUS-060] – Workload Scheduling & Time-Shifting
+
+== Zielbild
+
+* Keine EC2-Instanz läuft > 14 Tage mit < 5% CPU-Auslastung ohne Review
+* Non-Production-Umgebungen stoppen außerhalb der Geschäftszeiten automatisch
+* Autoscaling mit Scale-to-Zero für alle zustandslosen Workloads
+* Quarterly Zombie-Resource-Hunt: detached EBS, stale Snapshots, leere ASGs
+* Spot-Instanzen für >50% der Non-Production- und Batch-Compute-Last
+
+== Technische Umsetzung
+
+=== Schritt 1: Idle-Ressourcen identifizieren
+
+[source,bash]
+----
+# AWS Compute Optimizer Recommendations auflisten
+aws compute-optimizer get-ec2-instance-recommendations \
+  --filters "name=Finding,values=Underprovisioned,Overprovisioned,Optimized,NotOptimized" \
+  --query "instanceRecommendations[?finding=='Underprovisioned' || finding=='Overprovisioned'].[
+    instanceArn,
+    finding,
+    utilizationMetrics[?name=='CPU'].value|[0],
+    recommendationOptions[0].instanceType
+  ]" \
+  --output table
+
+# CloudWatch: Alle EC2-Instanzen mit CPU < 5% in den letzten 14 Tagen
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/EC2 \
+  --metric-name CPUUtilization \
+  --dimensions Name=InstanceId,Value=i-XXXXX \
+  --start-time $(date -d "14 days ago" -u +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 86400 \
+  --statistics Average \
+  --query 'Datapoints[].Average'
+
+# Terraform: CloudWatch Alarm für Idle-Detection
+resource "aws_cloudwatch_metric_alarm" "idle_instance" {
+  for_each = toset(var.monitored_instance_ids)
+
+  alarm_name          = "idle-detection-${each.value}"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 14   # 14 Tage
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 86400 # 1 Tag
+  statistic           = "Average"
+  threshold           = 5     # < 5% CPU
+  alarm_description   = "WAF-SUS-040: Instance may be idle. Review for stop/terminate."
+
+  dimensions = {
+    InstanceId = each.value
+  }
+
+  alarm_actions = [aws_sns_topic.sustainability_alerts.arn]
+
+  tags = {
+    purpose = "sustainability-idle-detection"
+    control = "WAF-SUS-040"
+  }
+}
+----
+
+=== Schritt 2: Non-Production Scheduled Shutdown
+
+[source,hcl]
+----
+# AWS Systems Manager Maintenance Window für Scheduled Shutdown
+resource "aws_ssm_maintenance_window" "non_prod_shutdown" {
+  name              = "non-prod-shutdown"
+  schedule          = "cron(0 19 ? * MON-FRI *)"  # 19:00 Uhr Mo-Fr
+  duration          = 1
+  cutoff            = 0
+  allow_unassociated_targets = false
+
+  tags = {
+    purpose = "non-prod-scheduled-shutdown"
+    control = "WAF-SUS-040"
+  }
+}
+
+# Oder einfachere Variante mit EventBridge + Lambda
+resource "aws_cloudwatch_event_rule" "stop_non_prod" {
+  name                = "stop-non-prod-instances"
+  description         = "Stop all non-production EC2 instances evenings and weekends"
+  schedule_expression = "cron(0 18 ? * MON-FRI *)"  # 18:00 UTC Montag-Freitag
+}
+
+resource "aws_cloudwatch_event_rule" "start_non_prod" {
+  name                = "start-non-prod-instances"
+  description         = "Start non-production EC2 instances on weekday mornings"
+  schedule_expression = "cron(0 7 ? * MON-FRI *)"   # 07:00 UTC Montag-Freitag
+}
+
+resource "aws_lambda_function" "instance_scheduler" {
+  function_name = "non-prod-instance-scheduler"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "scheduler.handler"
+  role          = aws_iam_role.instance_scheduler.arn
+  filename      = "scheduler.zip"
+
+  environment {
+    variables = {
+      TAG_KEY   = "environment"
+      TAG_VALUE = "development,staging"  # Stop diese Umgebungen
+    }
+  }
+}
+----
+
+[source,python]
+----
+# scheduler.py – Lambda für Scheduled Stop/Start
+import boto3
+import os
+
+def handler(event, context):
+    ec2 = boto3.client('ec2')
+    action = event.get('action', 'stop')  # 'stop' oder 'start'
+
+    tag_key = os.environ['TAG_KEY']
+    tag_values = os.environ['TAG_VALUE'].split(',')
+
+    # Alle Instanzen mit dem Tag finden
+    response = ec2.describe_instances(
+        Filters=[
+            {
+                'Name': f'tag:{tag_key}',
+                'Values': tag_values
+            },
+            {
+                'Name': 'instance-state-name',
+                'Values': ['running'] if action == 'stop' else ['stopped']
+            }
+        ]
+    )
+
+    instance_ids = [
+        instance['InstanceId']
+        for reservation in response['Reservations']
+        for instance in reservation['Instances']
+    ]
+
+    if not instance_ids:
+        print(f"No instances to {action}")
+        return
+
+    if action == 'stop':
+        ec2.stop_instances(InstanceIds=instance_ids)
+        print(f"Stopped {len(instance_ids)} non-production instances")
+    else:
+        ec2.start_instances(InstanceIds=instance_ids)
+        print(f"Started {len(instance_ids)} non-production instances")
+----
+
+=== Schritt 3: Zombie-Ressourcen aufspüren
+
+[source,bash]
+----
+#!/bin/bash
+# zombie-hunt.sh – Findet und reportiert ungenutzte Ressourcen
+
+echo "=== Zombie Resource Hunt ==="
+
+# 1. Unattached EBS Volumes
+echo "--- Unattached EBS Volumes ---"
+aws ec2 describe-volumes \
+  --filters "Name=status,Values=available" \
+  --query "Volumes[].[VolumeId,Size,CreateTime,AvailabilityZone]" \
+  --output table
+
+# 2. Unassigned Elastic IPs
+echo "--- Unassigned Elastic IPs ---"
+aws ec2 describe-addresses \
+  --query "Addresses[?AssociationId==null].[AllocationId,PublicIp]" \
+  --output table
+
+# 3. Leere Load Balancer (keine Targets)
+echo "--- Load Balancers with no registered targets ---"
+aws elbv2 describe-load-balancers \
+  --query "LoadBalancers[].[LoadBalancerArn,LoadBalancerName,CreatedTime]" \
+  --output json | jq -r '.[] | @tsv' | while read ARN NAME CREATED; do
+    TARGETS=$(aws elbv2 describe-target-groups --load-balancer-arn "$ARN" \
+      --query "length(TargetGroups)" --output text)
+    if [ "$TARGETS" == "0" ]; then
+      echo "  $NAME (no target groups): $ARN"
+    fi
+  done
+
+# 4. Alte EBS Snapshots (> 365 Tage ohne zugehöriges aktives AMI)
+echo "--- EBS Snapshots older than 365 days ---"
+aws ec2 describe-snapshots \
+  --owner-ids self \
+  --query "Snapshots[?StartTime<='$(date -d '365 days ago' +%Y-%m-%d)'].[SnapshotId,VolumeId,StartTime,Description]" \
+  --output table
+----
+
+=== Schritt 4: Autoscaling mit Scale-to-Zero
+
+[source,hcl]
+----
+# Autoscaling mit Target Tracking für stateless Services
+resource "aws_autoscaling_group" "api_servers" {
+  name                = "api-servers"
+  vpc_zone_identifier = var.private_subnets
+  min_size            = 1     # Production: minimum 1 für HA
+  max_size            = 20
+  desired_capacity    = 2
+
+  mixed_instances_policy {
+    instances_distribution {
+      on_demand_base_capacity                  = 1
+      on_demand_percentage_above_base_capacity = 30
+      spot_allocation_strategy                 = "capacity-optimized"
+    }
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.api.id
+        version            = "$Latest"
+      }
+      override { instance_type = "m7g.medium" }
+      override { instance_type = "m7g.large" }
+      override { instance_type = "c7g.medium" }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [desired_capacity]
+  }
+}
+
+# Target Tracking: CPU-basiertes Autoscaling
+resource "aws_autoscaling_policy" "cpu_target" {
+  name                   = "cpu-target-tracking"
+  autoscaling_group_name = aws_autoscaling_group.api_servers.name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 65.0  # 65% CPU als Zielauslastung
+  }
+}
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*"Non-Prod muss immer laufen, weil Entwickler in verschiedenen Zeitzonen arbeiten"*
+|Lösung: Zeitzone-basiertes Scheduling (Team in Berlin → 07:00–20:00 CET); oder Self-Service-Start durch Developer.
+
+|*"Autoscaling ist zu komplex für unsere Anwendung"*
+|Managed Services (Lambda, Fargate, Cloud Run) sind Zero-Config Scale-to-Zero. Kein eigenes Autoscaling erforderlich.
+
+|*"Wir wissen nicht, wem die ungenutzten Ressourcen gehören"*
+|Fehlende Tags sind Sustainability-Governance-Problem. Zombie-Hunt macht den Handlungsbedarf sichtbar.
+
+|*"EBS Volumes brauchen wir vielleicht noch"*
+|Detached Volumes werden nie mehr genutzt — Backup-Snapshot erstellen, dann löschen.
+
+|===
+
+== Metriken
+
+* *Idle-Instance-Anteil (%)*: EC2-Instanzen mit < 10% CPU im 14-Tage-Schnitt
+* *Non-Prod-Betriebszeiten-Reduktion (%)*: Stunden gespart durch Scheduled Shutdown
+* *Zombie-Resource-Count*: unattached EBS Volumes + unused EIPs + leere ASGs (Ziel: 0)
+* *Autoscaling-Coverage (%)*: Anteil stateless Compute mit konfiguriertem Autoscaling
+
+== Reifegrad
+
+Level 1 – Kein Monitoring; Non-Prod läuft 24/7; kein Autoscaling +
+Level 2 – Manuelle Cleanup-Kampagnen; punktuelles Autoscaling +
+Level 3 – Idle-Detection-Alerts; Scheduled Shutdown; Autoscaling überall +
+Level 4 – >50% Spot für Non-Prod; Scale-to-Zero; Quarterly Zombie-Hunt +
+Level 5 – Zero idle Compute; alle Ressourcen demand-driven; Emissionsreduktion documentiert

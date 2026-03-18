@@ -1,0 +1,99 @@
+= Best Practices: Sustainability Übersicht
+:page-toc: right
+:description: WAF++ Sustainability – Übersicht aller Best Practices: CO₂-Messung, Compute-Effizienz, Green Regions, Idle-Elimination, Dateneffizienz, Time-Shifting, ESG-Reporting.
+
+Die Best Practices der Sustainability-Säule übersetzen die xref:controls.adoc[Controls (WAF-SUS)]
+in *konkrete, umsetzbare Anleitungen* für Cloud-Architekturen.
+Jede Best Practice deckt einen zentralen Optimierungsbereich ab und enthält
+technische Implementierungsbeispiele, typische Fehlmuster und Metriken.
+
+== Übersicht
+
+[cols="1,3,2,1"]
+|===
+|Best Practice |Fokus |Verwandte Controls |Reifegrad-Einstieg
+
+|xref:best-practices/bp-carbon-measurement.adoc[CO₂-Messung & Reporting]
+|Cloud-Provider-Tools aktivieren, Workload-Attribution, ESG-Integration
+|WAF-SUS-010, WAF-SUS-090
+|Level 1 → 3
+
+|xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute]
+|ARM/Graviton, Lambda arm64, Previous-Gen eliminieren
+|WAF-SUS-020, WAF-SUS-040
+|Level 1 → 4
+
+|xref:best-practices/bp-green-regions.adoc[Green Regions & Carbon-Aware Placement]
+|Region-Auswahl nach Carbon Intensity, ADR-Dokumentation
+|WAF-SUS-030
+|Level 2 → 4
+
+|xref:best-practices/bp-idle-elimination.adoc[Idle-Ressourcen eliminieren]
+|Autoscaling, Scheduled Shutdown, Spot-Instanzen
+|WAF-SUS-040, WAF-SUS-060
+|Level 1 → 4
+
+|xref:best-practices/bp-data-efficiency.adoc[Dateneffizienz & Lifecycle]
+|Storage-Lifecycle, Data Minimization, Netzwerkoptimierung
+|WAF-SUS-050, WAF-SUS-080
+|Level 1 → 3
+
+|xref:best-practices/bp-workload-scheduling.adoc[Workload Time-Shifting]
+|Off-Peak-Scheduling, Carbon-API-Integration, EventBridge Flexible Windows
+|WAF-SUS-060
+|Level 2 → 4
+
+|xref:best-practices/bp-esg-reporting.adoc[ESG-Reporting & CSRD]
+|CSRD-Pflicht, Datenerfassung automatisieren, GHG Protocol Scope 3
+|WAF-SUS-090, WAF-SUS-100
+|Level 2 → 4
+
+|===
+
+== Empfohlene Lesereihenfolge
+
+=== Quick-Start: Maximale Wirkung mit minimalem Aufwand (< 1 Woche)
+
+. xref:best-practices/bp-carbon-measurement.adoc[CO₂-Messung] — Carbon-Tools aktivieren (30 Minuten)
+. xref:best-practices/bp-data-efficiency.adoc[Dateneffizienz] — S3-Lifecycle-Policies und Log-Retention (2–4 Stunden)
+. xref:best-practices/bp-idle-elimination.adoc[Idle-Elimination] — Non-Prod Scheduled Shutdown (1–2 Stunden)
+
+=== Mittelfristige Optimierung (1–3 Monate)
+
+. xref:best-practices/bp-compute-efficiency.adoc[Compute-Effizienz] — Lambda auf arm64, EC2 auf Graviton
+. xref:best-practices/bp-green-regions.adoc[Green Regions] — ADR-Prozess für Carbon-Aware Region Selection
+. xref:best-practices/bp-workload-scheduling.adoc[Time-Shifting] — Batch-Jobs in Off-Peak verschieben
+
+=== ESG-Governance (parallel zu technischer Optimierung)
+
+. xref:best-practices/bp-esg-reporting.adoc[ESG-Reporting] — CSRD-Pflicht klären, Datenerfassung automatisieren
+
+== Zusammenhang zwischen Best Practices
+
+[plantuml, sustainability-bp-map, png]
+....
+@startuml
+rectangle "Messen" {
+  (CO₂-Messung\nbp-carbon-measurement) as MEASURE
+  (ESG-Reporting\nbp-esg-reporting) as ESG
+}
+rectangle "Compute" {
+  (Compute-Effizienz\nbp-compute-efficiency) as COMPUTE
+  (Idle-Elimination\nbp-idle-elimination) as IDLE
+  (Time-Shifting\nbp-workload-scheduling) as TIME
+}
+rectangle "Daten" {
+  (Dateneffizienz\nbp-data-efficiency) as DATA
+}
+rectangle "Region" {
+  (Green Regions\nbp-green-regions) as REGION
+}
+MEASURE --> ESG
+COMPUTE --> IDLE
+IDLE --> TIME
+DATA ..> COMPUTE
+REGION ..> TIME
+@enduml
+....
+
+NOTE: Die Best Practices sind nicht sequenziell abhängig — sie können parallel implementiert werden. Die Messung (CO₂-Messung) sollte jedoch vor oder parallel zu technischen Optimierungen gestartet werden, um die Wirkung der Maßnahmen nachweisen zu können.

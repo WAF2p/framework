@@ -1,0 +1,262 @@
+id: WAF-SUS-080
+title: "Network & Data Transfer Efficiency"
+pillar: "sustainability"
+status: "active"
+severity: "medium"
+category: "network-efficiency"
+type: ['configuration', 'automation']
+tags: ['network', 'data-transfer', 'cdn', 'compression', 'egress', 'same-region', 'caching', 'bandwidth']
+
+description: >
+  All data transfers MUST be designed to minimize unnecessary movement across network boundaries.
+  Cross-region data transfers MUST be justified; same-region communication MUST be preferred.
+  Content Delivery Networks (CDN) MUST be used for all user-facing static and semi-static content.
+  HTTP compression (gzip/brotli) MUST be enabled for all API responses larger than 1KB.
+  VPC Endpoints MUST be used for AWS service communication to avoid internet gateway egress.
+  Data transfer optimization is both a cost control and a carbon reduction measure: every byte
+  transferred consumes network energy; minimizing transfers minimizes emissions.
+
+rationale: >
+  Network data transfer is a significant and often underestimated source of cloud energy consumption
+  and carbon emissions. Network equipment — switches, routers, fiber optic systems — consumes
+  energy proportionally to the volume of data transferred. Unnecessary cross-region replication,
+  redundant API calls returning full payloads, missing CDN usage for static assets, and uncompressed
+  data over API all inflate network energy consumption. CDNs reduce origin load and eliminate
+  long-haul network transfers for repeat requests. Compression reduces payload sizes by 70-90%
+  for text-based content. Same-region communication uses shared data center infrastructure with
+  minimal additional network energy. These measures compound: together they can reduce network
+  energy by 60-80% for a typical web application.
+
+threat:
+  - "Cross-region data replication consuming significant energy for redundant or unnecessary transfers"
+  - "Missing CDN forcing each user to pull static assets across long-haul network connections"
+  - "Uncompressed API responses transferring 5-10x more data than necessary"
+  - "Internet gateway egress for AWS service calls when VPC Endpoints would eliminate network overhead"
+  - "N+1 API patterns causing excessive network round-trips per user interaction"
+  - "Large object uploads without multipart chunking causing retries and wasted bandwidth"
+
+regulatory_mapping:
+  - framework: "Green Software Foundation"
+    controls:
+      - "Energy Efficiency – minimize network data transfer"
+      - "Software Carbon Intensity (SCI) – network embodied energy"
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – operational energy efficiency"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 3 Category 11 – reducing network-related cloud emissions"
+
+implementation_guidance:
+  - "Audit cross-region data transfer charges monthly; flag any unexpected cross-region replication as a review item."
+  - "Deploy CloudFront, Azure CDN, or Cloud CDN for all user-facing applications; set appropriate cache-control headers."
+  - "Enable compression (gzip/brotli) on all API Gateways, Application Load Balancers, and application servers."
+  - "Create VPC Endpoints for all AWS services used (S3, DynamoDB, EC2, STS, CloudWatch) to eliminate internet gateway egress."
+  - "Review API response payloads: implement field filtering (GraphQL, OData $select) to return only requested data."
+  - "Use S3 Transfer Acceleration only when necessary; same-region uploads use direct S3 endpoints."
+  - "For streaming workloads: use adaptive bitrate streaming and only deliver quality levels appropriate to client bandwidth."
+  - "Monitor data transfer costs and set budget alerts; data transfer budget = sustainability proxy metric."
+
+maturity_levels:
+  level_1:
+    description: "No data transfer optimization – all traffic routed naively"
+    criteria:
+      - "No CDN in use for user-facing content"
+      - "No HTTP compression configured"
+      - "Cross-region transfers not monitored or minimized"
+      - "AWS service calls go through internet gateway"
+  level_2:
+    description: "Basic CDN and compression in place"
+    criteria:
+      - "CDN deployed for main user-facing properties"
+      - "Compression enabled on major API endpoints"
+      - "No systematic cross-region transfer review"
+  level_3:
+    description: "Systematic transfer optimization with VPC Endpoints"
+    criteria:
+      - "CDN used for all user-facing applications with appropriate cache headers"
+      - "Compression enabled on all APIs and static assets"
+      - "VPC Endpoints configured for all heavily-used AWS services"
+      - "Monthly data transfer cost/volume review"
+  level_4:
+    description: "Transfer efficiency as architectural requirement"
+    criteria:
+      - "Data transfer budgets defined per workload; alerts on overrun"
+      - "API payload size profiling in development pipeline"
+      - "Cross-region transfer justification required in ADRs"
+      - "Estimated network emissions included in per-workload carbon footprint"
+  level_5:
+    description: "Network carbon efficiency as continuous improvement metric"
+    criteria:
+      - "Network emission factor tracked (gCO2e per GB transferred)"
+      - "Adaptive response compression and caching tuned automatically"
+      - "Zero unnecessary cross-region transfers sustained"
+      - "Network efficiency improvements contribute to annual SCI score improvement"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "CDN configuration (CloudFront, Azure CDN, or Cloud CDN) for user-facing applications."
+    - kind: "iac"
+      description: "VPC Endpoint configuration for AWS services (S3, DynamoDB at minimum)."
+  optional:
+    - kind: "config"
+      description: "HTTP response headers showing Content-Encoding: gzip or br on API responses."
+    - kind: "process"
+      description: "Monthly data transfer cost report with cross-region breakdown and trend."
+
+checks:
+  - id: "waf-sus-080.tf.aws.cloudfront-compression"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "CloudFront distributions must enable compression"
+    description: >
+      CloudFront distributions must have compress = true on all cache behaviors to
+      automatically compress compressible content (text, JSON, HTML, CSS, JavaScript)
+      before delivery. This reduces data transfer volume by 60-80% for text content.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudfront_distribution"
+    assertions:
+      - attribute: "default_cache_behavior.compress"
+        op: "is_true"
+        message: "CloudFront distribution does not have compression enabled – enable compress = true for 60-80% transfer reduction."
+    on_fail: "violation"
+    remediation: >
+      Set compress = true on all cache_behavior and default_cache_behavior blocks in
+      the CloudFront distribution. CloudFront will automatically compress eligible
+      responses (text/html, text/css, application/json, etc.) using gzip or brotli.
+    example:
+      compliant: |
+        resource "aws_cloudfront_distribution" "web" {
+          default_cache_behavior {
+            allowed_methods        = ["GET", "HEAD"]
+            cached_methods         = ["GET", "HEAD"]
+            target_origin_id       = "web-origin"
+            viewer_protocol_policy = "redirect-to-https"
+            compress               = true  # 60-80% transfer reduction for text content
+          }
+          # ...
+        }
+      non_compliant: |
+        resource "aws_cloudfront_distribution" "web" {
+          default_cache_behavior {
+            allowed_methods        = ["GET", "HEAD"]
+            cached_methods         = ["GET", "HEAD"]
+            target_origin_id       = "web-origin"
+            viewer_protocol_policy = "redirect-to-https"
+            compress               = false  # WAF-SUS-080 Violation: uncompressed delivery
+          }
+        }
+
+  - id: "waf-sus-080.tf.aws.vpc-endpoint-s3"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "VPC should have S3 and DynamoDB gateway endpoints to avoid internet egress"
+    description: >
+      S3 and DynamoDB gateway VPC Endpoints allow EC2 instances and Lambda functions to
+      communicate with these services through the AWS private network instead of through
+      an internet gateway. This eliminates internet data transfer charges and energy,
+      as the traffic stays within AWS's backbone network.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc_endpoint"
+    assertions:
+      - attribute: "service_name"
+        op: "not_empty"
+        message: "VPC endpoint has no service_name – check configuration."
+    on_fail: "warning"
+    remediation: >
+      Create gateway VPC endpoints for com.amazonaws.REGION.s3 and
+      com.amazonaws.REGION.dynamodb in each VPC. Associate them with all route tables.
+      For interface endpoints (STS, ECR, CloudWatch, SSM): create them in private subnets
+      to eliminate all internet gateway dependencies.
+    example:
+      compliant: |
+        resource "aws_vpc_endpoint" "s3" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.region}.s3"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = aws_route_table.private[*].id
+          tags = {
+            Name    = "s3-gateway-endpoint"
+            purpose = "eliminate-internet-egress"
+          }
+        }
+
+        resource "aws_vpc_endpoint" "dynamodb" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.region}.dynamodb"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = aws_route_table.private[*].id
+        }
+      non_compliant: |
+        # VPC with no endpoints – all AWS service traffic goes via internet gateway
+        resource "aws_vpc" "main" {
+          cidr_block = "10.0.0.0/16"
+          # WAF-SUS-080 Warning: no VPC endpoints configured
+        }
+
+  - id: "waf-sus-080.tf.azurerm.cdn-compression"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure CDN endpoints must have compression enabled"
+    description: >
+      Azure CDN endpoints should have compression enabled to reduce data transfer volume
+      for compressible content types. Without compression, each user receives the full
+      uncompressed payload, multiplying network energy consumption.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_cdn_endpoint"
+    assertions:
+      - attribute: "is_compression_enabled"
+        op: "is_true"
+        message: "Azure CDN endpoint has compression disabled – enable for significant transfer reduction."
+    on_fail: "violation"
+    remediation: >
+      Set is_compression_enabled = true and provide content_types_to_compress list
+      including text/html, text/css, application/json, application/javascript.
+      Ensure origin also supports compressed responses or configure CDN-level compression.
+    example:
+      compliant: |
+        resource "azurerm_cdn_endpoint" "web" {
+          name                = "web-cdn"
+          profile_name        = azurerm_cdn_profile.main.name
+          resource_group_name = var.resource_group_name
+          location            = "global"
+          origin_host_header  = azurerm_storage_account.web.primary_blob_host
+
+          is_compression_enabled = true
+          content_types_to_compress = [
+            "text/html",
+            "text/css",
+            "application/json",
+            "application/javascript",
+            "image/svg+xml",
+          ]
+        }
+      non_compliant: |
+        resource "azurerm_cdn_endpoint" "web" {
+          name                   = "web-cdn"
+          profile_name           = azurerm_cdn_profile.main.name
+          resource_group_name    = var.resource_group_name
+          location               = "global"
+          is_compression_enabled = false  # WAF-SUS-080 Violation
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-080"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-data-efficiency.adoc"
+  related_controls:
+    - "WAF-SUS-050"
+    - "WAF-SUS-070"
+    - "WAF-SUS-040"

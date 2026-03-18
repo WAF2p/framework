@@ -1,0 +1,180 @@
+= Definition: IT-Sustainability als Architekturdisziplin
+:page-toc: right
+:description: WAF++ Sustainability – Definition, GHG Scopes 1/2/3, Software Carbon Intensity (SCI) und Zielbild für nachhaltige Cloud-Architekturen.
+
+== Was ist IT-Sustainability?
+
+*IT-Sustainability* ist die Disziplin, Informationssysteme so zu entwerfen, betreiben und
+weiterzuentwickeln, dass ihr Energieverbrauch, ihr Ressourceneinsatz und ihre Treibhausgasemissionen
+*messbar minimiert* werden — ohne Abstriche bei Funktionalität, Verfügbarkeit und Sicherheit.
+
+IT-Sustainability umfasst drei Ebenen:
+
+[cols="1,2,3"]
+|===
+|Ebene |Fokus |Beispiele
+
+|*Infrastruktur-Effizienz*
+|Physische und virtualisierte Ressourcen
+|ARM/Graviton-Instanzen, Green Regions, Idle-Elimination, Storage-Lifecycle
+
+|*Software-Effizienz*
+|Algorithmen, Architekturmuster, Datenflüsse
+|Event-driven statt Polling, Caching, SCI-Messung, schlanke Dependencies
+
+|*Governance & Reporting*
+|Messung, Reporting, regulatorische Compliance
+|CSRD-Berichtspflicht, GHG Protocol Scope 3, SBTi-Ziele, ESG-Daten-Automation
+
+|===
+
+== Das Sustainability-Reifespektrum
+
+Die Sustainability-Maturität einer IT-Organisation lässt sich in fünf Stufen beschreiben:
+
+[cols="1,2,4"]
+|===
+|Stufe |Bezeichnung |Charakteristika
+
+|*1*
+|*Blind*
+|Keine Messung, keine Verantwortlichkeit. Emissionen unbekannt. IT nicht in ESG-Reports.
+
+|*2*
+|*Sichtbar*
+|Cloud-Provider-Tools aktiviert. Emissionen werden periodisch eingesehen. Keine Targets.
+
+|*3*
+|*Reported*
+|Strukturierte Messung, Workload-Attribution. Daten fließen in ESG/CSRD-Reports ein. Baseline definiert.
+
+|*4*
+|*Optimiert*
+|Aktive Reduktionsmaßnahmen: Graviton, Idle-Elimination, Lifecycle-Policies. Ziele messbar verfolgt.
+
+|*5*
+|*Carbon-Neutral/Positiv*
+|Emissionsreduktion auf SBTi-Zielniveau. Verbleibende Emissionen verifiziert kompensiert oder vermieden.
+
+|===
+
+WARNING: Stufe 1 (Blind) ist für CSRD-pflichtige Organisationen keine akzeptable Position mehr. Die CSRD verlangt Offenlegung materieller Umweltinformationen — Unwissenheit ist keine Verteidigung.
+
+== GHG Protocol: Scope 1, 2, 3 im IT-Kontext
+
+Das *Greenhouse Gas (GHG) Protocol* ist der internationale Standard für die Messung und
+Berichterstattung von Treibhausgasemissionen. Es definiert drei Emissionsklassen:
+
+=== Scope 1 – Direkte Emissionen
+
+Eigene Verbrennungsprozesse und Fahrzeuge. Für die meisten Cloud-First-Organisationen marginal
+(On-Premise-Serverräume mit eigenem Diesel-Generator sind Scope 1).
+
+*IT-Relevanz*: Niedrig für reine Cloud-Betrieb; relevant für Hybrid-Szenarien mit eigenen Rechenzentren.
+
+=== Scope 2 – Eingekaufte Energie (indirekte Emissionen)
+
+Emissionen aus der Erzeugung eingekaufter Elektrizität, Wärme oder Dampf.
+
+*IT-Relevanz*: Cloud-Provider-Energie ist Scope 2 — aber Cloud-Anbieter kaufen diese Energie als
+Dienstleistung und verrechnen sie weiter. Für Kunden wird Cloud-Energie in der Regel als Scope 3 verbucht.
+
+[cols="1,3"]
+|===
+|Methode |Beschreibung
+
+|*Location-based*
+|Emissionsfaktor des regionalen Stromnetzes (gCO₂eq/kWh). Reflektiert tatsächlichen lokalen Mix.
+
+|*Market-based*
+|Emissionsfaktor des tatsächlich eingekauften Stroms (Herkunftsnachweise, PPAs, RECs).
+Erlaubt "Null-Emissionen" durch Zertifikate — umstritten in ihrer Verifikationsstärke.
+
+|===
+
+=== Scope 3 – Indirekte Emissionen in der Wertschöpfungskette
+
+Alle anderen indirekten Emissionen — vor- und nachgelagert.
+
+*IT-Relevanz*: *Cloud-IT ist Scope 3 der Kunden-Organisation*:
+
+* *Kategorie 11*: Nutzung verkaufter Produkte / eingekaufter Dienstleistungen → Cloud Compute, Storage, SaaS
+* *Kategorie 1*: Eingekaufte Waren/Dienstleistungen → Hardware, Software-Lizenzen
+
+NOTE: Scope 3 ist das schwerste zu messende und zu reduzierende Segment — und gleichzeitig das, das für Cloud-Unternehmen den größten Hebel bietet. AWS, Azure und GCP haben Werkzeuge zur Scope-3-Attribution an ihre Kunden entwickelt: AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard, GCP Carbon Footprint.
+
+== Software Carbon Intensity (SCI)
+
+Die *Software Carbon Intensity (SCI)* ist ein vom *Green Software Foundation* entwickelter Standard
+zur Messung der Kohlenstoffintensität von Software:
+
+----
+SCI = ((E × I) + M) / R
+----
+
+[cols="1,2,3"]
+|===
+|Variable |Bezeichnung |Beschreibung
+
+|`E`
+|Energy (kWh)
+|Vom System verbrauchte Energie für eine Funktionseinheit
+
+|`I`
+|Carbon Intensity (gCO₂eq/kWh)
+|Intensität des Stromnetzes am Ausführungsort (standort- oder marktbasiert)
+
+|`M`
+|Embodied Emissions (gCO₂eq)
+|Anteilige Emissionen der Hardwareherstellung und -entsorgung
+
+|`R`
+|Functional Unit
+|Referenzeinheit: eine API-Anfrage, eine Transaktion, eine Stunde, ein Nutzer
+
+|===
+
+*Beispiel*: Eine API verarbeitet 1.000 Anfragen/Stunde und verbraucht dabei 0,5 kWh.
+Bei einem Emissionsfaktor von 200 gCO₂eq/kWh (z.B. Region us-east-1) und vernachlässigtem M:
+
+----
+SCI = (0,5 kWh × 200 gCO₂eq/kWh) / 1.000 Anfragen
+    = 0,1 gCO₂eq / Anfrage
+----
+
+Verbesserungen können durch niedrigere Energie (E), grünere Region (I), oder
+effizientere Software (mehr R für gleiche E) erzielt werden.
+
+== Was IT-Sustainability NICHT ist
+
+[cols="1,3"]
+|===
+|Missverständnis |Realität
+
+|*"Wir kaufen CO₂-Offsets, also sind wir neutral"*
+|Offsets sind kein Ersatz für Reduktion. CSRD und SBTi verlangen echte Reduktion; Offsets sind ein letztes Mittel für nicht-vermeidbare Emissionen.
+
+|*"Cloud ist grün, also ist unser IT-Betrieb grün"*
+|Cloud-Anbieter betreiben ihre Infrastruktur zunehmend mit erneuerbarer Energie — aber die Kunden-Workloads bestimmen, wieviel davon verbraucht wird. Ineffizienz ist ineffizient, egal ob in der Cloud oder on-premise.
+
+|*"Nachhaltigkeit bedeutet, einfach alles abzuschalten"*
+|Nachhaltigkeit optimiert für CO₂ pro Funktionseinheit (SCI) — nicht für absolute Abschaltung. Das Ziel ist, dieselbe Funktionalität mit weniger Ressourcen bereitzustellen.
+
+|*"Das ist ein Thema für die CSR-Abteilung, nicht für Engineers"*
+|CSRD, SBTi und ESG-Reporting erfordern Daten aus dem IT-Betrieb. Architekten und Engineers sind die Einzigen, die diese Daten erzeugen können — Sustainability ist ein Engineering-Thema.
+
+|===
+
+== Zielbild
+
+Eine Sustainability-reife IT-Organisation:
+
+* misst Emissionen *kontinuierlich* pro Workload und Service
+* betreibt Compute *energieeffizient* (ARM/Graviton, keine Idle-Ressourcen)
+* wählt Regionen *kohlenstoffbewusst* und begründet Ausnahmen
+* *minimiert Daten* durch konsequente Lifecycle-Policies
+* *verschiebt Batch-Jobs* in emissionsarme Zeitfenster
+* berichtet *CSRD-konform* mit automatisierten Datenflüssen
+* verwaltet Sustainability-Schulden in einem *vierteljährlich reviewten Register*
+
+NOTE: Dieses Zielbild entspricht Reifegrad 4 (Optimiert) im WAF++ Sustainability-Modell. Reifegrad 5 (Carbon-Neutral) erfordert zusätzlich verifizierte Kompensation oder vollständige Vermeidung verbleibender Emissionen.

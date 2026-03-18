@@ -1,0 +1,255 @@
+id: WAF-SUS-070
+title: "Sustainable Software Design Standards"
+pillar: "sustainability"
+status: "active"
+severity: "medium"
+category: "software-efficiency"
+type: ['governance', 'configuration']
+tags: ['software-design', 'algorithms', 'efficiency', 'sci', 'dependencies', 'green-software', 'architecture']
+
+description: >
+  Software MUST be designed with energy efficiency as an explicit quality attribute.
+  Architecture Decision Records MUST include energy efficiency considerations for algorithm
+  and data structure choices. Dependencies MUST be reviewed for efficiency: unused libraries,
+  heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and
+  event-driven designs. Software Carbon Intensity (SCI) SHOULD be measured for critical
+  workloads and included in architecture reviews. Teams MUST avoid over-engineering:
+  monolithic frameworks, excessive microservice proliferation, and redundant compute layers
+  all increase energy consumption without delivering proportional value.
+
+rationale: >
+  Software design decisions have a multiplicative effect on energy consumption. An inefficient
+  algorithm running on efficient hardware still consumes more energy than an efficient algorithm
+  on the same hardware. The Green Software Foundation defines software carbon intensity (SCI)
+  as the primary metric for measuring software sustainability. Reducing SCI requires both
+  hardware efficiency (WAF-SUS-020) and software efficiency: better algorithms, event-driven
+  patterns over polling, lazy loading, caching, and minimal dependency footprints.
+  Over-engineered software (microservices sprawl, heavy ORMs, redundant data copies) wastes
+  energy without delivering business value — this is software sustainability debt.
+
+threat:
+  - "Inefficient algorithms causing 10-100x excess compute cycles per operation"
+  - "Polling patterns generating constant API calls against event-driven alternatives"
+  - "Bloated dependency trees causing excessive container image sizes and cold-start energy"
+  - "Microservice sprawl: 50 services doing what 5 could do at 5x the network and compute overhead"
+  - "Missing SCI measurement preventing identification of high-emission software components"
+  - "Over-provisioned synchronous architectures with low utilization masking inefficiency"
+
+regulatory_mapping:
+  - framework: "Green Software Foundation"
+    controls:
+      - "Software Carbon Intensity (SCI) – measurement and optimization standard"
+      - "Energy Efficiency – algorithmic and architectural efficiency"
+      - "Carbon Efficiency – reducing energy per functional unit"
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – operational measures to reduce emissions"
+  - framework: "ISO 14001"
+    controls:
+      - "6.1.2 – Environmental Aspects – software design as environmental aspect"
+
+implementation_guidance:
+  - "Add SCI measurement to architecture review checklist: what is the carbon per functional unit for this service?"
+  - "Mandate event-driven patterns (SQS, EventBridge, Pub/Sub) over polling for all asynchronous communication."
+  - "Define a dependency review process: no new runtime dependency without size, license, and efficiency review."
+  - "Implement caching at every appropriate layer: CDN, application cache (Redis/Elasticache), query result cache."
+  - "Set container image size budgets: alert when base images exceed 500MB; use distroless or Alpine base images."
+  - "Review N+1 query patterns in ORM usage; use query batching and preloading to eliminate redundant DB calls."
+  - "Measure and track SCI score for Tier-1 services; publish in team sustainability dashboard."
+  - "Include energy efficiency in Definition of Done for new features in sustainability-committed teams."
+
+maturity_levels:
+  level_1:
+    description: "No energy efficiency in software design – purely functional focus"
+    criteria:
+      - "No energy efficiency considerations in design reviews"
+      - "Polling patterns common, no event-driven architecture adoption"
+      - "No dependency hygiene process"
+  level_2:
+    description: "Awareness – energy efficiency mentioned in code reviews"
+    criteria:
+      - "Team aware of SCI concept and GHG implications of software design"
+      - "Some event-driven patterns adopted voluntarily"
+      - "Container images are reviewed for obvious bloat"
+  level_3:
+    description: "Systematic energy efficiency in architecture reviews"
+    criteria:
+      - "ADR template includes energy efficiency and SCI consideration"
+      - "Event-driven patterns mandated for async communication"
+      - "Dependency review process in place; size budgets enforced in CI"
+      - "SCI calculated for Tier-1 services at least annually"
+  level_4:
+    description: "SCI tracked and improved as engineering metric"
+    criteria:
+      - "SCI tracked monthly for all Tier-1 services"
+      - "Energy efficiency included in Definition of Done"
+      - "Algorithm complexity reviews conducted for high-frequency code paths"
+      - "Caching coverage monitored; N+1 queries detected automatically"
+  level_5:
+    description: "Continuous SCI improvement embedded in engineering culture"
+    criteria:
+      - "SCI improvement is an OKR for engineering teams"
+      - "Automated SCI regression alerts: PR blocked if SCI score degrades >10%"
+      - "Energy profiling tools used in development workflow"
+      - "Software sustainability debt register maintained with SCI targets"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Architecture review checklist or ADR template showing energy efficiency / SCI consideration."
+  optional:
+    - kind: "config"
+      description: "Container image size reports showing adherence to size budgets (distroless base images, layer optimization)."
+    - kind: "process"
+      description: "SCI measurement report for Tier-1 services with baseline and trend."
+    - kind: "governance"
+      description: "Dependency review policy and audit log."
+
+checks:
+  - id: "waf-sus-070.tf.aws.lambda-no-large-layers"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Lambda functions should not attach excessive numbers of layers"
+    description: >
+      Lambda functions with many layers have larger deployment packages, higher cold-start
+      energy consumption, and more complex dependency footprints. Each layer must be
+      justified by the functionality it provides.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lambda_function"
+    assertions:
+      - attribute: "layers"
+        op: "attribute_exists"
+        message: "No layers attribute found – this check passes; single-package deployments are preferred."
+    on_fail: "warning"
+    remediation: >
+      Review Lambda layer usage. Consolidate multiple utility layers into a single optimized
+      layer. Use dependency management (requirements.txt, package.json) to control package
+      size. Consider Lambda container images for complex dependency trees with multi-arch builds.
+    example:
+      compliant: |
+        resource "aws_lambda_function" "api" {
+          function_name = "api-handler"
+          runtime       = "python3.12"
+          architectures = ["arm64"]
+          handler       = "main.handler"
+          role          = aws_iam_role.lambda.arn
+          filename      = "function.zip"
+          # No unnecessary layers – slim deployment package
+        }
+      non_compliant: |
+        resource "aws_lambda_function" "api" {
+          function_name = "api-handler"
+          runtime       = "python3.12"
+          architectures = ["x86_64"]
+          layers = [
+            aws_lambda_layer_version.utils.arn,
+            aws_lambda_layer_version.logging.arn,
+            aws_lambda_layer_version.db_client.arn,
+            aws_lambda_layer_version.aws_sdk_extras.arn,
+            aws_lambda_layer_version.common.arn,
+            # WAF-SUS-070 Warning: 5 layers – review and consolidate
+          ]
+        }
+
+  - id: "waf-sus-070.tf.aws.sqs-not-polling"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "SQS event source mapping should use long polling for Lambda triggers"
+    description: >
+      Lambda functions triggered by SQS should use long polling (maximum_batching_window_in_seconds > 0)
+      to batch messages and reduce the number of Lambda invocations. Short polling or no batching
+      causes excessive invocations per message, increasing energy consumption per unit of work.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lambda_event_source_mapping"
+    assertions:
+      - attribute: "maximum_batching_window_in_seconds"
+        op: "greater_than_or_equal"
+        value: 5
+        message: "SQS Lambda trigger uses no batching window – enable long polling to reduce invocations per message."
+    on_fail: "warning"
+    remediation: >
+      Set maximum_batching_window_in_seconds = 30 (or higher) and batch_size = 100 on
+      SQS event source mappings to maximize message batching. This reduces Lambda
+      invocations by up to 90% for high-volume queues, directly reducing energy per
+      message processed.
+    example:
+      compliant: |
+        resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+          event_source_arn                   = aws_sqs_queue.events.arn
+          function_name                      = aws_lambda_function.processor.arn
+          batch_size                         = 100
+          maximum_batching_window_in_seconds = 30  # batch for 30s before invoking
+          function_response_types            = ["ReportBatchItemFailures"]
+        }
+      non_compliant: |
+        resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+          event_source_arn = aws_sqs_queue.events.arn
+          function_name    = aws_lambda_function.processor.arn
+          batch_size       = 1  # WAF-SUS-070 Warning: 1 invocation per message, very inefficient
+        }
+
+  - id: "waf-sus-070.tf.google.cloud-run-min-instances-zero"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Cloud Run services should scale to zero in non-production"
+    description: >
+      Cloud Run services with min_instance_count > 0 maintain warm instances continuously
+      even when there is no traffic. Setting min_instance_count = 0 allows scale-to-zero,
+      eliminating idle compute energy consumption.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloud_run_v2_service"
+    assertions:
+      - attribute: "template.scaling.min_instance_count"
+        op: "equals"
+        value: 0
+        message: "Cloud Run service has minimum instances > 0 – idle instances consume energy. Consider scale-to-zero."
+    on_fail: "warning"
+    remediation: >
+      Set min_instance_count = 0 for all non-production Cloud Run services. For production
+      services with strict cold-start SLAs, use min_instance_count = 1 and document the
+      sustainability trade-off in the architecture decision record.
+    example:
+      compliant: |
+        resource "google_cloud_run_v2_service" "api" {
+          name     = "api-service"
+          location = "europe-north1"
+
+          template {
+            scaling {
+              min_instance_count = 0   # scale to zero – no idle energy
+              max_instance_count = 10
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_cloud_run_v2_service" "api" {
+          name     = "api-service"
+          location = "us-east1"
+
+          template {
+            scaling {
+              min_instance_count = 5   # WAF-SUS-070 Warning: always-on instances, idle energy
+              max_instance_count = 50
+            }
+          }
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-070"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-compute-efficiency.adoc"
+  related_controls:
+    - "WAF-SUS-020"
+    - "WAF-SUS-040"
+    - "WAF-SUS-080"

@@ -1,0 +1,333 @@
+= Best Practice: ESG-Reporting automatisieren (CSRD, GHG Protocol)
+:page-toc: right
+:description: WAF++ Sustainability – CSRD-Pflicht für IT-Emissionen, ESG-Datenerfassung automatisieren, GHG Protocol Scope 3 Attribution und ESRS E1 Berichterstattung.
+
+== Kontext
+
+*ESG-Reporting ist für viele Organisationen keine Best Practice mehr — es ist Gesetz.*
+
+Die EU CSRD (Corporate Sustainability Reporting Directive) verpflichtet:
+* Ab 2025: Alle großen Unternehmen (>500 Mitarbeiter) und börsennotierte Unternehmen
+* Ab 2026: Alle anderen großen Unternehmen (>250 Mitarbeiter oder >€40M Umsatz)
+* Ab 2027: Börsennotierte KMUs
+
+CSRD verlangt die Offenlegung nach *ESRS E1 (Climate Change)*, einschließlich
+Scope 1, 2 und *Scope 3 Kategorie 11* — worunter Cloud-IT-Dienste fallen.
+
+Fehlende oder fehlerhafte ESG-Berichte können zu Bußgeldern führen. Fehlende
+IT-Emissionsdaten im ESG-Audit sind ein klassisches Finding der ersten CSRD-Prüfungsrunden.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-090[WAF-SUS-090] – ESG Reporting & Compliance Automation
+* xref:controls.adoc#WAF-SUS-100[WAF-SUS-100] – Sustainability Debt Register & Quarterly Review
+* xref:controls.adoc#WAF-SUS-010[WAF-SUS-010] – Carbon Footprint Measurement & Reporting
+
+== Zielbild
+
+* CSRD-Scoping-Assessment abgeschlossen; Reporting-Pflicht und -Umfang geklärt
+* Automatisierte monatliche Exports aus allen Cloud-Provider-Carbon-Tools
+* Multi-Cloud Carbon Ledger als Single Source of Truth für ESG-Daten
+* ESRS E1-6 Reporting vollständig und audit-fähig (GHG Protocol konform)
+* Sustainability Debt Register aktiv und vierteljährlich reviewed
+
+== Technische Umsetzung
+
+=== Schritt 1: CSRD-Scoping-Assessment
+
+[source,yaml]
+----
+# docs/csrd-scope-assessment.yml – CSRD-Pflicht-Bewertung
+assessment_date: "2026-01-15"
+assessed_by: "Legal & Sustainability Team"
+next_review: "2027-01-15"
+
+organization:
+  name: "Acme Cloud GmbH"
+  employees: 800
+  revenue_eur_million: 95
+  listed: false
+  eu_member_state: "Deutschland"
+
+csrd_scope:
+  directly_in_scope: true
+  applicable_from_fiscal_year: 2025
+  reason: "Mehr als 500 Mitarbeiter und mehr als €40M Umsatz"
+
+reporting_requirements:
+  standard: "ESRS"
+  climate_change:
+    standard: "ESRS E1"
+    required_disclosures:
+      - "ESRS E1-1: Transition plan for climate change mitigation"
+      - "ESRS E1-4: Targets related to climate change mitigation"
+      - "ESRS E1-6: Gross Scope 1, 2, 3 GHG emissions"
+    scope_3_categories_material:
+      - "Category 11: Use of sold products / purchased cloud services"
+
+it_emissions_materiality:
+  material: true
+  reasoning: "Cloud-IT-Ausgaben > €2M/Jahr; Scope-3-Kategorie-11 schätzungsweise 5–15% des Gesamtfußabdrucks"
+  action_required: "Cloud-IT-Emissionen in ESRS E1-6 aufnehmen"
+----
+
+=== Schritt 2: Carbon-Daten-Pipeline aufbauen
+
+[source,hcl]
+----
+# AWS: S3 + Lambda Pipeline für automatisierte Carbon-Daten-Sammlung
+resource "aws_s3_bucket" "esg_carbon_ledger" {
+  bucket = "${var.org_name}-esg-carbon-ledger"
+
+  tags = {
+    purpose     = "csrd-esg-reporting"
+    owner       = "sustainability-team"
+    environment = "production"
+    workload    = "esg-reporting"
+    csrd-scope  = "true"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "esg_ledger" {
+  bucket = aws_s3_bucket.esg_carbon_ledger.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "esg_ledger" {
+  bucket = aws_s3_bucket.esg_carbon_ledger.id
+  rule {
+    id     = "csrd-7year-retention"
+    status = "Enabled"
+    transition {
+      days          = 365
+      storage_class = "GLACIER"
+    }
+    expiration {
+      days = 2555  # 7 Jahre CSRD-Pflicht
+    }
+  }
+}
+
+# EventBridge: Monatlicher Trigger für Carbon-Daten-Export
+resource "aws_cloudwatch_event_rule" "monthly_carbon_collection" {
+  name                = "monthly-esg-carbon-collection"
+  description         = "CSRD: Monatliche Carbon-Daten-Sammlung aus allen Cloud-Providern"
+  schedule_expression = "cron(0 2 1 * ? *)"  # 1. des Monats, 02:00 UTC
+
+  tags = {
+    purpose = "csrd-automation"
+    control = "WAF-SUS-090"
+  }
+}
+
+resource "aws_lambda_function" "esg_collector" {
+  function_name = "esg-carbon-data-collector"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "collector.handler"
+  role          = aws_iam_role.esg_collector.arn
+  filename      = "collector.zip"
+  timeout       = 300
+
+  environment {
+    variables = {
+      CARBON_LEDGER_BUCKET = aws_s3_bucket.esg_carbon_ledger.bucket
+      AZURE_CLIENT_ID      = var.azure_client_id
+      AZURE_CLIENT_SECRET  = var.azure_client_secret
+      GCP_PROJECT_ID       = var.gcp_project_id
+    }
+  }
+}
+----
+
+=== Schritt 3: GHG Protocol Scope 3 Attribution
+
+[source,python]
+----
+# ghg_protocol_reporter.py
+# Erstellt GHG Protocol konformen Scope-3-Bericht aus Cloud-Carbon-Daten
+
+import json
+import boto3
+from datetime import datetime, date
+from dataclasses import dataclass, asdict
+
+@dataclass
+class GHGEmissionEntry:
+    """Einzelner GHG-Emissionseintrag nach GHG Protocol"""
+    year: int
+    month: int
+    provider: str           # aws, azure, gcp
+    region: str
+    scope: int              # 2 oder 3
+    category: str           # Scope 3 Category 11
+    service: str            # ec2, lambda, s3, etc.
+    workload: str           # aus Tag-Attribution
+    mtco2e: float           # Metrische Tonnen CO2e
+    methodology: str        # market-based oder location-based
+    data_source: str        # AWS CCF Tool, Azure EID, GCP Carbon Footprint
+
+class GHGProtocolReporter:
+    """
+    Erstellt GHG Protocol konforme Berichte aus Cloud-Carbon-Daten
+    Methodik: Corporate Standard + Scope 2 Guidance (market-based)
+    """
+
+    GHG_PROTOCOL_SCOPE3_CAT11 = "Category 11: Use of sold products"
+    GHG_PROTOCOL_SCOPE2 = "Scope 2: Energy indirect emissions"
+
+    def __init__(self, ledger_bucket: str):
+        self.s3 = boto3.client('s3')
+        self.ledger_bucket = ledger_bucket
+
+    def load_monthly_data(self, year: int, month: int) -> list[dict]:
+        """Lädt Carbon-Daten aus dem Carbon Ledger"""
+        key = f"carbon-data/{year}/{month:02d}/aggregated.json"
+        response = self.s3.get_object(Bucket=self.ledger_bucket, Key=key)
+        return json.loads(response['Body'].read())
+
+    def generate_esrs_e1_section(self, year: int) -> dict:
+        """
+        Generiert ESRS E1-6 konforme Offenlegung für IT-Emissionen
+        """
+        annual_data = []
+        for month in range(1, 13):
+            try:
+                monthly = self.load_monthly_data(year, month)
+                annual_data.extend(monthly)
+            except Exception:
+                pass  # Monat noch nicht abgeschlossen
+
+        total_scope3_cat11 = sum(
+            e['mtco2e'] for e in annual_data
+            if e.get('scope') == 3
+        )
+        by_provider = {}
+        for entry in annual_data:
+            provider = entry.get('provider', 'unknown')
+            by_provider[provider] = by_provider.get(provider, 0) + entry['mtco2e']
+
+        return {
+            "esrs_disclosure": "ESRS E1-6",
+            "reporting_year": year,
+            "methodology": {
+                "standard": "GHG Protocol Corporate Standard",
+                "scope2_method": "Market-based",
+                "scope3_categories": ["Category 11: Purchased cloud services"]
+            },
+            "it_emissions_tco2e": {
+                "total": round(total_scope3_cat11, 2),
+                "by_provider": {k: round(v, 2) for k, v in by_provider.items()}
+            },
+            "data_sources": [
+                "AWS Customer Carbon Footprint Tool (via Cost Explorer API)",
+                "Microsoft Azure Emissions Impact Dashboard",
+                "Google Cloud Carbon Footprint (BigQuery export)"
+            ],
+            "assurance": "Internal review; Third-party assurance planned for FY2027",
+            "notes": "Cloud IT services classified as Scope 3 Category 11 per GHG Protocol Corporate Standard"
+        }
+
+# Beispiel-Output:
+# {
+#   "esrs_disclosure": "ESRS E1-6",
+#   "reporting_year": 2025,
+#   "methodology": { "standard": "GHG Protocol Corporate Standard", ... },
+#   "it_emissions_tco2e": {
+#     "total": 145.8,
+#     "by_provider": { "aws": 98.2, "azure": 34.1, "gcp": 13.5 }
+#   }
+# }
+----
+
+=== Schritt 4: Sustainability Debt Register als YAML
+
+[source,yaml]
+----
+# sustainability-debt-register.yml (in Git versioniert)
+version: "1.0"
+last_reviewed: "2026-01-15"
+next_review: "2026-04-15"
+reviewed_by: "Architecture Board + Sustainability Lead"
+
+debt_items:
+
+  - id: "SUS-DEBT-001"
+    control: "WAF-SUS-020"
+    title: "EC2-Instanzen m4.large auf Graviton3 migrieren"
+    status: "in_progress"
+    description: "12 EC2-Instanzen im payment-service nutzen noch m4.large (Previous-Gen x86)"
+    carbon_impact: "high"
+    estimated_tco2e_per_year: 18.5
+    owner: "platform-team"
+    created_date: "2025-10-01"
+    target_resolution_date: "2026-03-31"
+    progress: "6 von 12 Instanzen migriert; Blocker: payment-service-legacy nutzt x86-Binaries"
+    blocker: "Legacy Binary für Zahlungsanbieter-SDK verfügbar als arm64 ab Q2 2026"
+
+  - id: "SUS-DEBT-002"
+    control: "WAF-SUS-050"
+    title: "S3-Buckets ohne Lifecycle-Policy: 8 Buckets identifiziert"
+    status: "planned"
+    description: "8 S3-Buckets aus Legacy-Projekten haben keine Lifecycle-Configuration"
+    carbon_impact: "medium"
+    estimated_tco2e_per_year: 3.2
+    owner: "infrastructure-team"
+    created_date: "2025-11-15"
+    target_resolution_date: "2026-02-28"
+    progress: "Lifecycle-Policies erstellt; Terraform-PRs in Review"
+
+  - id: "SUS-DEBT-003"
+    control: "WAF-SUS-030"
+    title: "Data Analytics Cluster in us-east-1 statt eu-north-1"
+    status: "backlog"
+    description: "EMR-Cluster für Datenanalyse läuft in us-east-1 aus historischen Gründen"
+    carbon_impact: "high"
+    estimated_tco2e_per_year: 45.0
+    owner: "data-team"
+    created_date: "2025-12-01"
+    target_resolution_date: "2026-Q3"
+    progress: "Region-Migration abhängig von Q2 2026 Data Platform Refactoring"
+
+quarterly_summary:
+  Q1_2026:
+    items_closed: 3
+    items_added: 2
+    total_tco2e_saved: 22.3
+    remaining_debt_tco2e_per_year: 66.7
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*"CSRD gilt für uns nicht"*
+|Oft falsch eingeschätzt; auch Tochtergesellschaften großer in-scope Unternehmen können berichtspflichtig werden. Legal-Assessment erforderlich.
+
+|*"Wir nehmen Cloud-Kosten als CO₂-Proxy"*
+|Kosten korrelieren grob mit Emissionen, aber nicht exakt. Für CSRD ist eine methodisch fundierte Emissionsberechnung erforderlich, keine Kosten-Näherung.
+
+|*"ESG-Report ist Aufgabe der Nachhaltigkeitsabteilung"*
+|CSRD-konforme IT-Emissionsdaten kommen aus der IT. Ohne Engineering-Beteiligung entstehen Datenlücken, die im Audit auffallen.
+
+|*"Wir machen das manuell einmal im Jahr"*
+|Manuelle jährliche Prozesse produzieren fehlerhafte Daten ohne Audit-Trail. Automatisierte Pipelines sind die CSRD-konforme Lösung.
+
+|===
+
+== Metriken
+
+* *Carbon-Data-Completeness (%)*: Anteil der Workloads mit vollständiger Carbon-Attribution
+* *ESG-Report-IT-Coverage (%)*: Anteil der Cloud-IT-Emissionen im ESG-Report erfasst
+* *Sustainability-Debt-Items (offen)*: Anzahl offener Einträge im Register
+* *CO₂-Reduktion YoY (%)*: Vergleich mit Vorjahres-Baseline
+
+== Reifegrad
+
+Level 1 – Keine ESG-Berichtspflicht bekannt; keine Prozesse +
+Level 2 – Manuelle Jahres-Datenabfragen; CSRD-Pflicht bekannt aber nicht adressiert +
+Level 3 – Quarterly Export; CSRD-Scoping Assessment; Cloud-IT in ESRS E1 +
+Level 4 – Automatisierte Pipeline; Assurance-ready; SBTi-Ziele gesetzt +
+Level 5 – Echtzeit-Carbon-Dashboard; Third-Party-Assurance; vollständige CSRD-Automation

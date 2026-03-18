@@ -1,0 +1,208 @@
+= WAF-SUS-060 – Workload Scheduling & Time-Shifting
+:page-toc: right
+:control-id: WAF-SUS-060
+:pillar: sustainability
+:severity: low
+:category: workload-scheduling
+:automated: medium
+:description: WAF++ Sustainability – Batch-Workloads in emissionsarme Zeitfenster verschieben: Off-Peak-Scheduling, EventBridge Flexible Windows, Carbon-Intensity-API-Integration.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Workload Scheduling | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Batch-Workloads, Report-Generierung und Datenverarbeitungs-Pipelines ohne harte Latenz-SLAs
+MÜSSEN auf Off-Peak-Stunden (22:00–06:00 UTC) geplant werden.
+EventBridge Schedules für nicht-latenz-sensitive Jobs MÜSSEN Flexible Time Windows aktivieren.
+Workloads mit flexiblem Ausführungsfenster SOLLEN Carbon-Intensity-APIs (WattTime, electricityMaps)
+für dynamisches Scheduling evaluieren.
+Alle Scheduling-Entscheidungen MÜSSEN die Carbon-Rationale dokumentieren.
+
+== Rationale
+
+Stromnetze haben zu verschiedenen Tageszeiten unterschiedliche Carbon Intensity.
+In Regionen mit hohem Solaranteil ist die Carbon Intensity mittags am niedrigsten
+und nachts tendenziell höher — in Regionen mit viel Windenergie kann es umgekehrt sein.
+Temporal Shifting — Batch-Jobs in das Zeitfenster mit niedrigster Carbon Intensity verschieben —
+kann 20–60% der Batch-Emissionen reduzieren ohne Code-Änderungen.
+EventBridge Flexible Time Windows ermöglichen diese Optimierung ohne zusätzliche Infrastruktur.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Peak-Stunden-Batch*
+|Batch-Jobs um 09:00 Uhr ausgeführt, wenn Stromverbrauch und Carbon Intensity ihr Tages-Maximum erreichen.
+
+|*Fehlende Dokumentation*
+|Scheduling-Entscheidungen ohne Carbon-Rationale sind CSRD-Governance-Gap.
+
+|*Kein Flexible Window*
+|Starre Ausführungszeiten verhindern Carbon-Aware-Optimierung ohne zusätzlichen Engineering-Aufwand.
+
+|*AWS Batch auf ON_DEMAND*
+|Batch-Workloads auf On-Demand statt SPOT verbrauchen dedizierte Kapazität statt geteilter ungenutzter.
+
+|===
+
+== Anforderung
+
+* Alle Batch-Workloads ohne Latenz-SLA MÜSSEN auf 22:00–06:00 UTC geplant werden
+* EventBridge Schedules SOLLTEN `flexible_time_window { mode = "FLEXIBLE" }` haben
+* AWS Batch SOLL `type = "SPOT"` für alle Batch Compute Environments nutzen
+* Scheduling-Entscheidungen MÜSSEN Carbon-Rationale dokumentieren
+* Carbon-Intensity-APIs SOLLEN für Tier-1-Batch-Workloads evaluiert werden
+
+== Implementierungsanleitung
+
+. *Batch-Workload-Inventar*: Alle EventBridge, Cron, Step-Functions-Jobs inventarisieren; Latenz-Klassifizierung
+. *Off-Peak-Scheduling*: Alle flexiblen Jobs auf `cron(0 22 * * ? *)` oder später umplanen
+. *Flexible Windows*: `maximum_window_in_minutes = 120` für alle non-latency-sensitive Jobs
+. *AWS Batch SPOT*: `type = "SPOT"`, `allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"`
+. *Carbon-API*: electricityMaps oder WattTime API für dynamisches Scheduling evaluieren
+. *Dokumentation*: Scheduling-Entscheidung für alle Major-Batch-Jobs mit Carbon-Begründung
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Willkürliche Zeiten
+|Batch läuft zu Entwickler-Convenience-Zeiten; kein Carbon-Bewusstsein.
+
+|*2*
+|Einige Off-Peak-Jobs
+|Einzelne große Jobs manuell auf Nacht verschoben; kein systematischer Ansatz.
+
+|*3*
+|Systematisch Off-Peak
+|Alle Flex-Jobs auf 22:00–06:00 UTC; EventBridge Flexible Windows; dokumentiert.
+
+|*4*
+|Carbon-API-Integration
+|electricityMaps/WattTime für dynamisches Scheduling; Carbon-Savings getrackt.
+
+|*5*
+|Temporal + Spatial Shifting
+|Region- und Zeit-Optimierung kombiniert; Carbon-Einsparungen in SCI documentiert.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-060.tf.aws.eventbridge-flexible-window
+*Prüft:* EventBridge Schedules nutzen Flexible Time Windows.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_scheduler_schedule" "nightly_report" {
+  name = "nightly-report"
+  schedule_expression = "cron(0 22 * * ? *)"
+
+  flexible_time_window {
+    mode                      = "FLEXIBLE"
+    maximum_window_in_minutes = 120
+  }
+
+  target {
+    arn      = aws_lambda_function.report.arn
+    role_arn = aws_iam_role.scheduler.arn
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_scheduler_schedule" "nightly_report" {
+  name = "nightly-report"
+  schedule_expression = "cron(0 9 * * ? *)"
+
+  flexible_time_window {
+    mode = "OFF"
+    # WAF-SUS-060 Warning: Peak-Zeit, kein Flex-Window
+  }
+}
+----
+|===
+
+*Remediation:* `schedule_expression` auf Off-Peak-Zeit setzen; `flexible_time_window { mode = "FLEXIBLE"; maximum_window_in_minutes = 120 }` aktivieren.
+
+---
+
+=== waf-sus-060.tf.aws.batch-compute-spot
+*Prüft:* AWS Batch Compute Environments nutzen SPOT-Allocation.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_batch_compute_environment" "processing" {
+  compute_environment_name = "data-processing"
+  type                     = "MANAGED"
+
+  compute_resources {
+    type                = "SPOT"
+    allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
+    min_vcpus           = 0
+    max_vcpus           = 256
+    instance_type       = ["m7g", "c7g"]
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_batch_compute_environment" "processing" {
+  compute_environment_name = "data-processing"
+  type                     = "MANAGED"
+
+  compute_resources {
+    type      = "ON_DEMAND"
+    min_vcpus = 4
+    max_vcpus = 64
+    # WAF-SUS-060 Warning: Batch auf On-Demand
+  }
+}
+----
+|===
+
+*Remediation:* `type = "SPOT"` und `allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"` setzen; `min_vcpus = 0` für echtes Scale-to-Zero.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|EventBridge Scheduler oder Cron-Konfiguration mit Off-Peak-Scheduling und Flexible Windows.
+
+|*Process*
+|Optional
+|Carbon-Intensity-API-Integration für dynamisches Scheduling.
+
+|*Governance*
+|Optional
+|Scheduling-Dokumentation für Major-Batch-Pipelines mit Carbon-Rationale.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
+* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
+
+== Best Practice
+
+* xref:best-practices/bp-workload-scheduling.adoc[Workload Time-Shifting und Carbon-Aware Scheduling →]

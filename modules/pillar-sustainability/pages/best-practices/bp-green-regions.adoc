@@ -1,0 +1,352 @@
+= Best Practice: Carbon-Aware Region- und Placement-Strategie
+:page-toc: right
+:description: WAF++ Sustainability – Green Regions für Cloud-Workloads: Carbon Intensity nach Region, Entscheidungsframework, ADR-Dokumentation und Carbon-Aware-Routing für Batch-Workloads.
+
+== Kontext
+
+Cloud-Regionen unterscheiden sich erheblich in ihrer Energie-Zusammensetzung.
+Eine identische Workload, die in Stockholm (eu-north-1, ~95% erneuerbare Energie) statt
+in Hong Kong (ap-east-1, ~25% erneuerbare Energie) läuft, kann *60–80% weniger CO₂ emittieren
+ohne einen einzigen Code-Change*.
+
+Diese "räumliche" Dimension der Nachhaltigkeit — Green Software Foundation nennt es
+*Spatial Shifting* — ist eine der wirkungsvollsten und gleichzeitig günstigsten
+Sustainability-Maßnahmen für Architekten.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-030[WAF-SUS-030] – Green Region & Carbon-Aware Workload Placement
+
+== Zielbild
+
+* Region-Auswahl-Entscheidungen dokumentieren Carbon Intensity als expliziten Faktor
+* Flexible Batch-Workloads werden in grüne Regionen platziert
+* ADR-Template enthält Carbon-Sektion für alle Infrastruktur-Entscheidungen
+* Multi-Region-Strategien bevorzugen grüne Regionen als primäre Deployment-Targets
+
+== Regionen nach Carbon Intensity
+
+=== AWS Regionen
+
+[cols="2,2,1,2"]
+|===
+|Region |Standort |Erneuerbare Energie (ca.) |Empfehlung
+
+|`eu-north-1`
+|Stockholm, Schweden
+|~95% (Wasser, Wind)
+|Bevorzugt: sehr niedrige CO₂-Intensität
+
+|`eu-west-1`
+|Dublin, Irland
+|~80% (Wind)
+|Bevorzugt: hoher Anteil erneuerbarer Energie
+
+|`us-west-2`
+|Oregon, USA
+|~89% (Wasser, Wind)
+|Bevorzugt: hoher Anteil erneuerbarer Energie
+
+|`ca-central-1`
+|Montreal, Kanada
+|~85% (Wasser)
+|Bevorzugt: Wasserkraft-dominiert
+
+|`eu-central-1`
+|Frankfurt, Deutschland
+|~60% (Wind/Solar/Mix)
+|Neutral: mittlere CO₂-Intensität
+
+|`eu-west-2`
+|London, GB
+|~50% (Mix)
+|Neutral: zunehmend erneuerbar
+
+|`us-east-1`
+|N. Virginia, USA
+|~40% (Mix)
+|Mittel: US-Grid, verbessernd
+
+|`ap-southeast-1`
+|Singapur
+|~30% (Mix)
+|Kritisch prüfen: hohe CO₂-Intensität
+
+|`ap-east-1`
+|Hong Kong
+|~25% (Mix mit Kohle)
+|Kritisch prüfen: hohe CO₂-Intensität
+
+|===
+
+=== GCP Regionen
+
+[cols="2,2,1,2"]
+|===
+|Region |Standort |CFE% (carbon-free energy) |Empfehlung
+
+|`europe-north1`
+|Hamina, Finnland
+|~97%
+|Bevorzugt: fast vollständig CO₂-frei
+
+|`europe-west1`
+|St. Ghislain, Belgien
+|~90%
+|Bevorzugt: sehr hoher CO₂-freier Anteil
+
+|`northamerica-northeast1`
+|Montréal, Kanada
+|~98%
+|Bevorzugt: Wasserkraft
+
+|`us-west1`
+|The Dalles, Oregon
+|~90%
+|Bevorzugt: hoher erneuerbarer Anteil
+
+|===
+
+=== Azure Regionen
+
+[cols="2,2,2"]
+|===
+|Region |Standort |Empfehlung
+
+|`swedencentral`
+|Gävle, Schweden
+|Bevorzugt: ~95% erneuerbare Energie
+
+|`norwayeast`
+|Oslo, Norwegen
+|Bevorzugt: Wasserkraft-dominiert (~98%)
+
+|`northeurope`
+|Dublin, Irland
+|Bevorzugt: hoher Wind-Anteil
+
+|`westeurope`
+|Amsterdam, Niederlande
+|Neutral: zunehmend erneuerbar
+
+|===
+
+== Entscheidungsframework für Region-Auswahl
+
+[source,yaml]
+----
+# docs/region-selection-decision.yml – Template für Region-Auswahl-Dokumentation
+
+workload: "payment-service"
+decision_date: "2026-01-15"
+decision_maker: "Architecture Board"
+
+# Schritt 1: Residency-Anforderungen
+data_residency_requirements:
+  - "Keine spezifischen Residency-Anforderungen für Compute"
+  - "Zahlungsdaten: Verarbeitung in EU erforderlich (PCI-DSS)"
+
+# Schritt 2: Latenz-Anforderungen
+latency_requirements:
+  target_p99_ms: 200
+  primary_user_regions: ["Europe", "DACH"]
+  acceptable_regions: ["eu-north-1", "eu-west-1", "eu-central-1"]
+
+# Schritt 3: Carbon-Intensity-Bewertung
+carbon_assessment:
+  eu_north_1:
+    renewable_percentage: 95
+    carbon_intensity_gco2_per_kwh: 10
+    assessment: "Preferred – lowest carbon intensity in EU"
+  eu_west_1:
+    renewable_percentage: 80
+    carbon_intensity_gco2_per_kwh: 30
+    assessment: "Good – high renewable mix, slight latency advantage over eu-north-1"
+  eu_central_1:
+    renewable_percentage: 60
+    carbon_intensity_gco2_per_kwh: 100
+    assessment: "Acceptable – higher carbon but best latency for DACH users"
+
+# Schritt 4: Entscheidung
+decision:
+  primary_region: "eu-north-1"
+  secondary_region: "eu-west-1"
+  rationale: >
+    eu-north-1 selected as primary for lowest carbon intensity (~10 gCO2eq/kWh).
+    Latency from Stockholm to DACH users is acceptable (<50ms). eu-west-1 as
+    secondary for DR. eu-central-1 rejected: carbon intensity 10x higher than
+    eu-north-1 without sufficient latency benefit.
+  sustainability_justification: "Green region selection reduces annual workload emissions by ~85% vs. default us-east-1"
+----
+
+== Technische Umsetzung
+
+=== Terraform: Green Region als Provider-Standard
+
+[source,hcl]
+----
+# providers.tf – Green Region als Standard-Konfiguration
+provider "aws" {
+  region = "eu-north-1"  # Stockholm – ~95% renewable energy
+  # Sustainability Note: eu-north-1 selected per WAF-SUS-030
+  # Carbon intensity: ~10 gCO2eq/kWh vs. us-east-1 ~300 gCO2eq/kWh
+}
+
+# Für Multi-Region: Green als Default, andere nur mit Begründung
+provider "aws" {
+  alias  = "primary"
+  region = "eu-north-1"  # Green primary
+}
+
+provider "aws" {
+  alias  = "dr"
+  region = "eu-west-1"  # Green DR (Ireland, ~80% renewable)
+}
+
+# Variable für Region mit erlaubten Green-Regionen
+variable "aws_region" {
+  type        = string
+  description = "AWS region for deployment. Must be a pre-approved green region."
+  default     = "eu-north-1"
+
+  validation {
+    condition = contains([
+      "eu-north-1",   # Stockholm (95% renewable)
+      "eu-west-1",    # Dublin (80% renewable)
+      "us-west-2",    # Oregon (89% renewable)
+      "ca-central-1", # Montreal (85% renewable)
+      "eu-central-1", # Frankfurt (60% renewable – acceptable with justification)
+    ], var.aws_region)
+    error_message = "Region must be a pre-approved green region. For high-carbon regions, document justification in ADR."
+  }
+}
+----
+
+=== Carbon-Aware Routing für Batch-Workloads
+
+[source,python]
+----
+# carbon_aware_router.py
+# Wählt die Region mit niedrigster Carbon Intensity für Batch-Jobs
+
+import requests
+import json
+from typing import Optional
+
+class CarbonAwareRouter:
+    """
+    Wählt die optimale Region basierend auf aktueller Carbon Intensity
+    Nutzt electricityMaps API für Echtzeit-Daten
+    """
+
+    REGION_TO_GRID = {
+        "eu-north-1": "SE",     # Schweden
+        "eu-west-1":  "IE",     # Irland
+        "eu-central-1": "DE",   # Deutschland
+        "us-west-2":  "US-NW",  # US Northwest
+        "us-east-1":  "US-MIDA" # US Mid-Atlantic
+    }
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.electricitymap.org/v3"
+
+    def get_carbon_intensity(self, grid_zone: str) -> float:
+        """Gibt Carbon Intensity in gCO2eq/kWh zurück"""
+        response = requests.get(
+            f"{self.base_url}/carbon-intensity/latest",
+            params={"zone": grid_zone},
+            headers={"auth-token": self.api_key}
+        )
+        data = response.json()
+        return data.get("carbonIntensity", 999)
+
+    def select_greenest_region(self, candidate_regions: list[str]) -> tuple[str, float]:
+        """Wählt die Region mit niedrigster Carbon Intensity"""
+        intensities = {}
+
+        for region in candidate_regions:
+            grid = self.REGION_TO_GRID.get(region)
+            if grid:
+                intensity = self.get_carbon_intensity(grid)
+                intensities[region] = intensity
+                print(f"  {region}: {intensity:.0f} gCO2eq/kWh")
+
+        if intensities:
+            best_region = min(intensities, key=intensities.get)
+            return best_region, intensities[best_region]
+        return candidate_regions[0], 999
+
+# Verwendung:
+router = CarbonAwareRouter(api_key="your-electricity-maps-key")
+best_region, intensity = router.select_greenest_region([
+    "eu-north-1", "eu-west-1", "eu-central-1"
+])
+print(f"Optimal region: {best_region} ({intensity:.0f} gCO2eq/kWh)")
+----
+
+=== ADR-Template mit Carbon-Sektion
+
+[source,markdown]
+----
+# ADR-042: Deployment Region für Analytics Pipeline
+
+**Status**: Accepted
+**Datum**: 2026-01-15
+**Entscheider**: Platform Architecture Board
+
+## Kontext
+
+Die neue Analytics Pipeline verarbeitet Batch-Daten ohne Latenz-SLA.
+Keine Data-Residency-Anforderungen.
+
+## Entscheidung
+
+**Primäre Region**: eu-north-1 (Stockholm)
+
+## Carbon Impact Assessment (WAF-SUS-030)
+
+| Region         | CO₂ Intensität | Erneuerbare | Begründung              |
+|----------------|---------------|-------------|-------------------------|
+| eu-north-1     | ~10 gCO₂/kWh  | 95%         | ✅ Ausgewählt – grünste  |
+| us-west-2      | ~25 gCO₂/kWh  | 89%         | Alternative (Fallback)  |
+| us-east-1      | ~300 gCO₂/kWh | 40%         | ❌ Abgelehnt – Carbon    |
+
+**Geschätzte Emissionsreduktion**: ~85% vs. us-east-1 (230 tCO₂e/Jahr gespart)
+
+## Konsequenzen
+
+- Latenz für europäische Nutzer optimal
+- Jährliche Carbon-Einsparung: ~230 tCO₂e gegenüber us-east-1
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*"us-east-1 als Default weil alle anderen das nutzen"*
+|Historischer Default ohne Carbon-Überlegung; us-east-1 hat ~300 gCO₂eq/kWh vs. eu-north-1 mit ~10.
+
+|*"Green Region für Produktion, aber Dev in us-east-1"*
+|Dev/Test erzeugt oft 40-60% des Gesamt-Footprints — auch Dev sollte in grünen Regionen deployed werden.
+
+|*"Carbon ist ein Tiebreaker, aber nicht wirklich ein Kriterium"*
+|Ohne formale ADR-Anforderung wird Carbon nie wirklich berücksichtigt — und CSRD verlangt Nachweis der Berücksichtigung.
+
+|===
+
+== Metriken
+
+* *Deployed-Region Carbon Intensity (gCO₂eq/kWh)*: gewichteter Durchschnitt über alle Workloads
+* *Anteil Workloads in grünen Regionen (%)*: (Ziel: >70% in Regionen mit >70% erneuerbarer Energie)
+* *Carbon-ADR-Coverage (%)*: Anteil aller Infrastruktur-ADRs mit Carbon-Sektion
+
+== Reifegrad
+
+Level 1 – Region nach Kosten/Latenz; kein Carbon-Bewusstsein +
+Level 2 – Team kennt Carbon-Intensitäts-Unterschiede; informelle Berücksichtigung +
+Level 3 – ADR-Pflicht für Carbon-Bewertung; grüne Regionen als Default für neue Workloads +
+Level 4 – Batch-Workloads in grünste verfügbare Region; Carbon-Aware-Routing-Evaluierung +
+Level 5 – Echtzeit-Carbon-Routing für flexible Workloads; Carbon-Intensität als kontinuierliche Metrik

@@ -1,0 +1,353 @@
+= Best Practice: Workload Time-Shifting und Carbon-aware Scheduling
+:page-toc: right
+:description: WAF++ Sustainability – Off-Peak-Scheduling, EventBridge Flexible Windows und Carbon-Intensity-API-Integration für Carbon-Aware Batch-Workload-Scheduling.
+
+== Kontext
+
+Batch-Jobs, Report-Generierung, ML-Training und ETL-Pipelines haben typischerweise
+*flexible Ausführungszeitfenster* — sie müssen bis zu einem Zeitpunkt fertig sein,
+aber der genaue Start-Zeitpunkt ist verhandelbar.
+
+Genau diese Flexibilität ist ein Sustainability-Hebel: Stromnetze haben unterschiedliche
+Carbon Intensität zu verschiedenen Tageszeiten. Nachts (22:00–06:00 Uhr) ist in vielen
+Regionen die Carbon Intensity geringer als tagsüber, besonders in Regionen mit hohem
+Solar-Anteil. Time-Shifting kann *20–60% der Batch-Emissionen reduzieren* ohne
+Änderungen am Code oder der Business-Logik.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-SUS-060[WAF-SUS-060] – Workload Scheduling & Time-Shifting
+
+== Zielbild
+
+* Alle Batch-Workloads ohne Latenz-SLA auf 22:00–06:00 UTC geplant
+* EventBridge Flexible Windows für alle nicht-latenz-sensitiven Jobs
+* Carbon-Intensity-API für dynamisches Scheduling der wichtigsten Batch-Pipelines
+* Scheduling-Entscheidungen für alle Major-Batch-Jobs dokumentiert (Carbon-Rationale)
+
+== Technische Umsetzung
+
+=== Schritt 1: Batch-Workloads inventarisieren und klassifizieren
+
+[source,bash]
+----
+# Alle EventBridge Schedules auflisten und Zeitplan prüfen
+aws scheduler list-schedules \
+  --query "Schedules[].[Name,ScheduleExpression,State]" \
+  --output table
+
+# Cron-Jobs in Lambda/EventBridge auf Peak-Zeiten prüfen
+aws events list-rules \
+  --query "Rules[?State=='ENABLED' && contains(ScheduleExpression,'cron')].[Name,ScheduleExpression,Description]" \
+  --output table
+----
+
+[source,yaml]
+----
+# Klassifizierungsmatrix für Batch-Workloads
+workloads:
+  - name: "nightly-report-generation"
+    current_schedule: "cron(0 8 * * ? *)"  # 08:00 UTC – Peak!
+    latency_requirement: "before_business_start"
+    recommended_window: "cron(0 22 * * ? *)"  # 22:00 UTC – Off-Peak
+    carbon_saving_estimate: "~40%"
+
+  - name: "weekly-analytics-aggregation"
+    current_schedule: "cron(0 9 ? * MON *)"  # Montag 09:00 UTC
+    latency_requirement: "available_by_monday_noon"
+    recommended_window: "cron(0 2 ? * MON *)"  # Montag 02:00 UTC
+    carbon_saving_estimate: "~50%"
+
+  - name: "ml-model-training"
+    current_schedule: "on-demand"
+    latency_requirement: "within_24h"
+    recommended_window: "carbon-aware-dynamic"
+    carbon_saving_estimate: "~60% with API integration"
+----
+
+=== Schritt 2: EventBridge Flexible Windows implementieren
+
+[source,hcl]
+----
+# Nightly Report: Off-Peak + Flexible Window
+resource "aws_scheduler_schedule" "nightly_report" {
+  name       = "nightly-report-generator"
+  group_name = "sustainability"
+
+  # Start um 22:00 UTC – Flexible Window erlaubt bis 00:00 UTC
+  schedule_expression          = "cron(0 22 * * ? *)"
+  schedule_expression_timezone = "UTC"
+
+  flexible_time_window {
+    mode                      = "FLEXIBLE"
+    maximum_window_in_minutes = 120  # +/- 2 Stunden Fenster
+  }
+
+  target {
+    arn      = aws_lambda_function.report_generator.arn
+    role_arn = aws_iam_role.scheduler_exec.arn
+
+    retry_policy {
+      maximum_event_age_in_seconds = 86400  # 24h retry window
+      maximum_retry_attempts       = 3
+    }
+  }
+
+  tags = {
+    purpose   = "sustainability-scheduling"
+    control   = "WAF-SUS-060"
+    workload  = "reporting"
+  }
+}
+
+# Wöchentliche Analytics: Sonntag Nacht statt Montag Morgen
+resource "aws_scheduler_schedule" "weekly_analytics" {
+  name = "weekly-analytics-aggregation"
+
+  schedule_expression          = "cron(0 1 ? * SUN *)"  # Sonntag 01:00 UTC
+  schedule_expression_timezone = "UTC"
+
+  flexible_time_window {
+    mode                      = "FLEXIBLE"
+    maximum_window_in_minutes = 180  # 3h Fenster
+  }
+
+  target {
+    arn      = aws_sfn_state_machine.analytics_pipeline.arn
+    role_arn = aws_iam_role.scheduler_exec.arn
+  }
+}
+----
+
+=== Schritt 3: AWS Batch auf Off-Peak mit Spot-Instanzen
+
+[source,hcl]
+----
+# Batch Compute Environment: Graviton Spot-Instanzen
+resource "aws_batch_compute_environment" "ml_training" {
+  compute_environment_name = "ml-training-green"
+  type                     = "MANAGED"
+  state                    = "ENABLED"
+
+  compute_resources {
+    type                = "SPOT"
+    allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
+
+    min_vcpus     = 0
+    max_vcpus     = 256
+    desired_vcpus = 0
+
+    instance_type = [
+      "m7g",   # Graviton3 – alle Sizes
+      "c7g",
+      "r7g",
+    ]
+
+    spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
+    instance_role       = aws_iam_instance_profile.batch.arn
+    subnets             = var.private_subnets
+    security_group_ids  = [aws_security_group.batch.id]
+
+    tags = {
+      purpose     = "ml-training"
+      environment = "production"
+    }
+  }
+
+  tags = {
+    sustainability = "spot-graviton"
+    control        = "WAF-SUS-060"
+  }
+}
+
+# Job Queue mit Time-Based Priority: Night = höhere Priorität
+resource "aws_batch_job_queue" "night_priority" {
+  name     = "night-priority-queue"
+  state    = "ENABLED"
+  priority = 100  # Höhere Priorität für Nacht-Submissions
+
+  compute_environment_order {
+    order               = 1
+    compute_environment = aws_batch_compute_environment.ml_training.arn
+  }
+}
+----
+
+=== Schritt 4: Carbon-Intensity-API für dynamisches Scheduling
+
+[source,python]
+----
+# carbon_aware_scheduler.py
+# Integriert electricityMaps API für dynamisches Carbon Scheduling
+
+import requests
+import boto3
+import json
+from datetime import datetime, timedelta
+
+class CarbonAwareScheduler:
+    """
+    Plant Batch-Jobs für den Zeitpunkt mit niedrigster Carbon Intensity
+    innerhalb eines definierten Ausführungsfensters
+    """
+
+    def __init__(self, em_api_key: str, region_zone: str = "EU"):
+        self.em_api_key = em_api_key
+        self.region_zone = region_zone
+        self.base_url = "https://api.electricitymap.org/v3"
+
+    def get_carbon_forecast(self, hours_ahead: int = 24) -> list:
+        """Holt Carbon Intensity Forecast für die nächsten N Stunden"""
+        response = requests.get(
+            f"{self.base_url}/carbon-intensity/forecast",
+            params={"zone": self.region_zone},
+            headers={"auth-token": self.em_api_key}
+        )
+        return response.json().get("forecast", [])
+
+    def find_optimal_window(
+        self,
+        deadline: datetime,
+        duration_minutes: int,
+        not_before: datetime = None
+    ) -> datetime:
+        """
+        Findet das optimale Ausführungsfenster basierend auf Carbon Intensity.
+
+        Args:
+            deadline: Spätester Fertigstellungszeitpunkt
+            duration_minutes: Geschätzte Laufzeit des Jobs
+            not_before: Frühestmöglicher Startzeit
+
+        Returns:
+            Optimaler Startzeitpunkt mit niedrigster Carbon Intensity
+        """
+        forecast = self.get_carbon_forecast(hours_ahead=48)
+        now = datetime.utcnow()
+        not_before = not_before or now
+
+        best_time = None
+        best_intensity = float('inf')
+
+        for point in forecast:
+            point_time = datetime.fromisoformat(point['datetime'].replace('Z', '+00:00'))
+            point_time = point_time.replace(tzinfo=None)
+
+            # Innerhalb des erlaubten Fensters?
+            if point_time < not_before:
+                continue
+            if point_time + timedelta(minutes=duration_minutes) > deadline:
+                break
+
+            intensity = point['carbonIntensity']
+            if intensity < best_intensity:
+                best_intensity = intensity
+                best_time = point_time
+
+        print(f"Optimal execution time: {best_time} (intensity: {best_intensity:.0f} gCO2eq/kWh)")
+        return best_time
+
+    def schedule_job(self, job_name: str, optimal_time: datetime, job_input: dict):
+        """Plant den Job auf den optimalen Zeitpunkt via EventBridge"""
+        scheduler = boto3.client('scheduler')
+
+        schedule_expression = (
+            f"at({optimal_time.strftime('%Y-%m-%dT%H:%M:%S')})"
+        )
+
+        scheduler.create_schedule(
+            Name=f"{job_name}-carbon-aware-{optimal_time.strftime('%Y%m%d%H%M')}",
+            ScheduleExpression=schedule_expression,
+            FlexibleTimeWindow={'Mode': 'FLEXIBLE', 'MaximumWindowInMinutes': 30},
+            Target={
+                'Arn': f"arn:aws:lambda:{boto3.session.Session().region_name}:...:function:{job_name}",
+                'Input': json.dumps(job_input)
+            }
+        )
+
+# Verwendung:
+scheduler = CarbonAwareScheduler(
+    em_api_key="your-electricity-maps-api-key",
+    region_zone="SE"  # Schweden für eu-north-1
+)
+optimal = scheduler.find_optimal_window(
+    deadline=datetime.utcnow() + timedelta(hours=20),
+    duration_minutes=45,
+)
+----
+
+=== Schritt 5: Kubernetes-Batch mit KEDA (Carbon-Aware)
+
+[source,yaml]
+----
+# keda-scaledjob-carbon.yaml
+# KEDA ScaledJob für Carbon-Aware Kubernetes Batch Processing
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: analytics-batch-processor
+  namespace: sustainability
+spec:
+  jobTargetRef:
+    template:
+      spec:
+        containers:
+        - name: processor
+          image: acme/analytics-processor:latest
+          # Graviton Node via Node Affinity
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+        nodeSelector:
+          kubernetes.io/arch: arm64   # Graviton/ARM Node
+        tolerations:
+        - key: "sustainability.io/carbon-optimized"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+
+  # Scaling basierend auf SQS Queue
+  triggers:
+  - type: aws-sqs-queue
+    metadata:
+      queueURL: https://sqs.eu-north-1.amazonaws.com/123456789/batch-jobs
+      awsRegion: eu-north-1  # Green Region
+      targetQueueLength: "5"  # Batch: 5 Messages per Job
+
+  # Nur zwischen 22:00 und 06:00 UTC skalieren
+  scalingModifiers:
+    target: "1"
+    formula: "isWorkingHours(time.Now()) ? 0 : 1"
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|*"Report muss um 07:00 Uhr fertig sein → läuft um 06:45"*
+|Report um 22:00 starten, bis 00:30 fertig, 6,5 Stunden Off-Peak → gleiche Verfügbarkeit, 40% weniger CO₂.
+
+|*"Wir können keine Flex-Windows nutzen, weil Abhängigkeiten bestehen"*
+|Abhängigkeiten zwischen Jobs werden durch Flex-Windows meist nicht verletzt — prüfen ob Abhängigkeit wirklich strikt zeitlich oder nur logisch ist.
+
+|*"Carbon-Intensity-APIs sind zu komplex für uns"*
+|Für die meisten Fälle reicht statisches Off-Peak-Scheduling. Carbon-API-Integration ist Level-4-Maßnahme, nicht Voraussetzung.
+
+|===
+
+== Metriken
+
+* *Anteil Batch-Jobs auf Off-Peak (%)*: (Ziel: >80% aller nicht-latenz-sensitiven Jobs)
+* *Flexible-Window-Aktivierung (%)*: Jobs mit Flexible Time Windows konfiguriert
+* *Geschätzte CO₂-Einsparung durch Time-Shifting (tCO₂e)*: Quantifiziert gegen Baseline
+
+== Reifegrad
+
+Level 1 – Batch läuft zu Entwickler-Convenience-Zeiten; keine Off-Peak-Strategie +
+Level 2 – Einzelne große Jobs manuell auf Nacht verschoben +
+Level 3 – Alle Flex-Jobs auf 22:00–06:00 UTC; EventBridge Flexible Windows +
+Level 4 – Carbon-Intensity-API für dynamisches Scheduling +
+Level 5 – Temporal + Spatial Shifting kombiniert; Carbon-Savings dokumentiert und in SCI

@@ -1,0 +1,268 @@
+id: WAF-SUS-040
+title: "Idle & Underutilized Resource Elimination"
+pillar: "sustainability"
+status: "active"
+severity: "high"
+category: "resource-efficiency"
+type: ['automation', 'configuration', 'governance']
+tags: ['idle', 'rightsizing', 'utilization', 'waste', 'shutdown', 'ec2', 'autoscaling', 'spot']
+
+description: >
+  All cloud compute resources MUST be continuously monitored for utilization. Resources with CPU
+  utilization below 5% for 14 consecutive days MUST be flagged as idle and subject to a
+  stop/terminate review. Non-production environments MUST have scheduled shutdown policies (evenings
+  and weekends). Autoscaling groups MUST be configured for all stateless compute workloads to
+  eliminate idle capacity during off-peak hours. EC2 instances with persistent idle state MUST
+  be converted to spot instances, reserved capacity, or terminated.
+
+rationale: >
+  Idle compute resources consume energy and generate carbon emissions without delivering business
+  value. Studies show that 30-45% of cloud compute is underutilized or idle. An idle t3.large
+  instance running 24/7 consumes the same energy as one serving traffic — the energy is wasted.
+  Non-production environments (dev, test, staging) are the worst offenders: running 24/7 when
+  business hours constitute only ~30% of calendar time. Eliminating idle resources is the highest
+  ROI sustainability action — it simultaneously reduces cost and carbon footprint.
+
+threat:
+  - "30-45% of cloud compute running idle, generating avoidable Scope 3 emissions"
+  - "Non-production environments running overnight and on weekends with zero utilization"
+  - "Zombie resources (forgotten instances, detached EBS volumes) accumulating energy costs"
+  - "Lack of autoscaling causing persistent overprovisioning for bursty workloads"
+  - "CSRD reporting showing high emissions despite low business activity"
+
+regulatory_mapping:
+  - framework: "Green Software Foundation"
+    controls:
+      - "Hardware Efficiency – eliminate idle compute"
+      - "Energy Efficiency – utilization-driven compute"
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – resource efficiency measures"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 3 Category 11 – reducing purchased cloud compute emissions"
+  - framework: "ISO 14001"
+    controls:
+      - "6.1.2 – Environmental Aspects – resource consumption reduction"
+      - "8.1 – Operational planning and control"
+
+implementation_guidance:
+  - "Enable AWS Compute Optimizer and review recommendations weekly; set a 14-day idle detection threshold."
+  - "Configure AWS Instance Scheduler or a Lambda-based scheduler to stop non-production instances outside business hours."
+  - "For all stateless compute: configure autoscaling groups with scale-to-zero capability during off-peak hours."
+  - "Set CloudWatch alarms for CPU utilization < 5% sustained over 14 days; trigger JIRA ticket for review."
+  - "Run a quarterly 'zombie resource hunt': identify and terminate detached EBS volumes, unassigned EIPs, idle RDS instances."
+  - "For EKS/Kubernetes: configure Cluster Autoscaler or Karpenter with scale-down enabled; use KEDA for event-driven scaling."
+  - "Implement spot instances for fault-tolerant batch and dev workloads to reduce emissions and cost."
+  - "Tag all non-production resources with shutdown-schedule tag; enforce via automation."
+
+maturity_levels:
+  level_1:
+    description: "No idle detection – resources run indefinitely"
+    criteria:
+      - "No utilization monitoring or alerting"
+      - "Non-production environments run 24/7 with no scheduled shutdown"
+      - "No autoscaling configured for compute workloads"
+  level_2:
+    description: "Manual idle review – occasional cleanup campaigns"
+    criteria:
+      - "Periodic (monthly or quarterly) manual review of underutilized instances"
+      - "Some non-production environments have manual shutdown processes"
+      - "No automated detection or remediation"
+  level_3:
+    description: "Automated idle detection and scheduled shutdowns"
+    criteria:
+      - "Automated idle detection alerts (CPU < 5% for 14 days) active for all environments"
+      - "Non-production scheduled shutdowns implemented (evenings, weekends)"
+      - "Autoscaling configured for all stateless compute"
+      - "Quarterly zombie resource cleanup process operational"
+  level_4:
+    description: "Proactive elimination with spot integration"
+    criteria:
+      - "Spot instances used for >50% of batch and non-production compute"
+      - "Scale-to-zero implemented for all serverless and container workloads"
+      - "Idle resource elimination metrics tracked: % of compute hours on active workloads"
+      - "Savings and emissions reduction from idle elimination reported monthly"
+  level_5:
+    description: "Zero idle compute – all resources demand-driven"
+    criteria:
+      - "All non-production environments auto-terminate after inactivity; recreated on demand"
+      - "Production compute auto-scales to zero for time-based workloads"
+      - "Real-time utilization dashboard with automated remediation for idle resources"
+      - "Idle elimination contributes measurably to annual SCI improvement"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Autoscaling configuration for stateless compute workloads (min/max/desired capacity settings)."
+    - kind: "config"
+      description: "Non-production scheduled shutdown configuration (Instance Scheduler, Lambda scheduler, or equivalent)."
+  optional:
+    - kind: "process"
+      description: "Idle resource detection alert configuration (CloudWatch alarms or Compute Optimizer recommendations)."
+    - kind: "process"
+      description: "Quarterly zombie resource cleanup report showing resources terminated and estimated emissions saved."
+
+checks:
+  - id: "waf-sus-040.tf.aws.autoscaling-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS autoscaling groups must have scale-in enabled to eliminate idle capacity"
+    description: >
+      Autoscaling groups must have scale-in policies defined to reduce capacity during
+      low utilization periods. Scale-in protection should not be enabled on all instances
+      as it prevents idle capacity from being terminated.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_autoscaling_group"
+    assertions:
+      - attribute: "min_size"
+        op: "attribute_exists"
+        message: "Autoscaling group has no min_size defined."
+      - attribute: "max_size"
+        op: "attribute_exists"
+        message: "Autoscaling group has no max_size defined."
+    on_fail: "violation"
+    remediation: >
+      Configure autoscaling groups with target tracking scaling policies based on CPU or
+      request count. Set min_size to 0 for non-production environments to allow complete
+      scale-in during off hours. Use predictive scaling for production to balance performance
+      and sustainability.
+    example:
+      compliant: |
+        resource "aws_autoscaling_group" "app" {
+          name                = "app-asg"
+          min_size            = 0  # scale to zero in off-peak
+          max_size            = 10
+          desired_capacity    = 2
+          vpc_zone_identifier = var.private_subnets
+
+          mixed_instances_policy {
+            instances_distribution {
+              on_demand_base_capacity                  = 1
+              on_demand_percentage_above_base_capacity = 20
+              spot_allocation_strategy                 = "capacity-optimized"
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_autoscaling_group" "app" {
+          name             = "app-asg"
+          min_size         = 5  # WAF-SUS-040: high minimum prevents scale-in
+          max_size         = 5  # fixed capacity, no scaling
+          desired_capacity = 5
+        }
+
+  - id: "waf-sus-040.tf.aws.spot-instances-for-dev"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "Non-production autoscaling groups should allow spot instances"
+    description: >
+      Spot instances use the same physical hardware as on-demand instances but allow AWS
+      to reclaim unused capacity. Using spot for non-production reduces demand for dedicated
+      on-demand capacity, improving overall data center energy efficiency.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_autoscaling_group"
+    assertions:
+      - attribute: "mixed_instances_policy"
+        op: "attribute_exists"
+        message: "Autoscaling group uses no mixed instances policy – missing opportunity for spot instance sustainability optimization."
+    on_fail: "warning"
+    remediation: >
+      Add mixed_instances_policy with spot allocation for non-production environments.
+      For production: use 20-40% spot on top of on-demand base capacity.
+      For dev/test: use 100% spot with instance type diversification for resilience.
+    example:
+      compliant: |
+        resource "aws_autoscaling_group" "dev" {
+          name = "dev-asg"
+
+          mixed_instances_policy {
+            instances_distribution {
+              on_demand_base_capacity                  = 0
+              on_demand_percentage_above_base_capacity = 0  # 100% spot for dev
+              spot_allocation_strategy                 = "capacity-optimized"
+            }
+            launch_template {
+              launch_template_specification {
+                launch_template_id = aws_launch_template.app.id
+              }
+              override {
+                instance_type = "t4g.medium"
+              }
+              override {
+                instance_type = "t4g.large"
+              }
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_autoscaling_group" "dev" {
+          name             = "dev-asg"
+          launch_template {
+            id      = aws_launch_template.app.id
+          }
+          # WAF-SUS-040 Warning: no spot instances configured for dev environment
+        }
+
+  - id: "waf-sus-040.tf.google.managed-instance-group-autoscaler"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP managed instance groups must have autoscaler configured"
+    description: >
+      GCP managed instance groups without autoscalers run at fixed capacity, consuming
+      energy proportionally regardless of actual load. Autoscalers allow scale-to-minimum
+      during low utilization periods.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_autoscaler"
+    assertions:
+      - attribute: "autoscaling_policy"
+        op: "attribute_exists"
+        message: "GCP autoscaler has no autoscaling policy defined."
+      - attribute: "autoscaling_policy.min_replicas"
+        op: "attribute_exists"
+        message: "Autoscaler must have min_replicas defined to allow scale-in."
+    on_fail: "violation"
+    remediation: >
+      Configure google_compute_autoscaler with CPU utilization target of 60-70% and
+      set min_replicas = 0 for non-production. For production, set min_replicas = 1
+      and max_replicas based on peak load testing.
+    example:
+      compliant: |
+        resource "google_compute_autoscaler" "app" {
+          name   = "app-autoscaler"
+          zone   = var.zone
+          target = google_compute_instance_group_manager.app.id
+
+          autoscaling_policy {
+            max_replicas    = 10
+            min_replicas    = 0  # scale to zero for non-prod
+            cooldown_period = 60
+
+            cpu_utilization {
+              target = 0.65
+            }
+          }
+        }
+      non_compliant: |
+        # google_compute_instance_group_manager with no autoscaler defined
+        # WAF-SUS-040 Violation: fixed capacity, no scale-in possible
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-040"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-idle-elimination.adoc"
+  related_controls:
+    - "WAF-SUS-020"
+    - "WAF-SUS-060"
+    - "WAF-SUS-050"

@@ -1,0 +1,192 @@
+= WAF-SUS-020 – Energy-Efficient Compute Selection
+:page-toc: right
+:control-id: WAF-SUS-020
+:pillar: sustainability
+:severity: high
+:category: compute-efficiency
+:automated: high
+:description: WAF++ Sustainability – ARM/Graviton-Instanzen als Standard; Lambda arm64; Previous-Generation-Instanztypen eliminieren.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Compute Efficiency | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Compute-Ressourcen MÜSSEN energieeffiziente Prozessor-Architekturen bevorzugen.
+AWS Lambda-Funktionen MÜSSEN `architectures = ["arm64"]` nutzen.
+EC2-Instanzen DÜRFEN NICHT previous-generation Familien (t2, m4, c4, r4) für Neudeployments verwenden.
+ARM/Graviton-Instanzen liefern 20–40% bessere Performance-per-Watt als äquivalente x86-Instanzen
+— bei gleichzeitig niedrigeren Kosten.
+
+== Rationale
+
+Compute-Instanztypen haben einen direkten, messbaren Einfluss auf Energieverbrauch pro Workload.
+Graviton3 (m7g, c7g, r7g) bietet ~40% bessere Performance-per-Watt als vergleichbare Intel-Instanzen.
+Lambda arm64 verbraucht ~20% weniger Energie pro Invocation. Previous-Generation-Instanzen haben
+bekannt schlechte Energieeffizienz und keine technische Rechtfertigung für Neudeployments.
+Dieser Control hat den höchsten Automatisierungsgrad aller WAF-SUS-Controls.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Excess Scope 3 Emissionen*
+|Previous-Gen x86-Instanzen emittieren 30–50% mehr CO₂/Workload als aktuelle Graviton-Äquivalente.
+
+|*SCI-Ziele verfehlt*
+|Software Carbon Intensity kann ohne energieeffiziente Hardware-Basis nicht nachhaltig verbessert werden.
+
+|*Sustainability-Schulden*
+|Ungeprüfte Instanztypen akkumulieren sich und werden bei Skalierung proportional teurer in CO₂ und Kosten.
+
+|*CI-Gate fehlt*
+|Ohne automatisierte Prüfung im Pipeline werden Previous-Gen-Typen unkontrolliert weiter deployed.
+
+|===
+
+== Anforderung
+
+* Neudeployments EC2 MÜSSEN aktuelle Instanzfamilien nutzen (t4g, m7g, c7g, r7g für Graviton-bevorzugte Workloads)
+* Lambda-Funktionen MÜSSEN `architectures = ["arm64"]` setzen
+* Previous-Generation-Instanztypen (t2, m4, c4, r4) DÜRFEN NICHT für neue Ressourcen verwendet werden
+* x86-Instanzen für Brownfield-Workloads MÜSSEN im Sustainability Debt Register dokumentiert sein
+* Ein CI-Gate SOLL bei Previous-Gen-Instanztypen warnen oder blockieren
+
+== Implementierungsanleitung
+
+. *Inventar erstellen*: `aws ec2 describe-instances` + Grouping nach Instanzfamilie; Previous-Gen identifizieren
+. *Migrationsreihenfolge*: Lambda (einfachste), Container (AMI-Rebuild), EC2 (Test erforderlich)
+. *Lambda migration*: `architectures = ["arm64"]` in allen Lambda-Ressourcen setzen
+. *EC2 Graviton*: ARM64-kompatibles AMI wählen; Graviton3-Äquivalent nutzen (m4 → m7g, c4 → c7g)
+. *CI-Gate*: Regex-Check für Previous-Gen-Instanztypen in Terraform-Pipeline einbauen
+. *Sustainability Debt Register*: Nicht-migrierbare x86-Workloads mit Begründung und Zieldatum dokumentieren
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Policy
+|Keine ARM/Graviton-Instanzen; Previous-Gen für Neudeployments; Lambda auf x86_64.
+
+|*2*
+|Awareness
+|Einige Graviton-Instanzen vorhanden; keine verbindliche Policy; kein Tracking.
+
+|*3*
+|Policy + CI-Gate
+|Compute-Sustainability-Policy dokumentiert; CI-Gate für Previous-Gen; >30% ARM; Lambda-Standard arm64.
+
+|*4*
+|Brownfield aktiv migriert
+|>60% vCPU-Stunden auf ARM/Graviton; Migrationsplan in Umsetzung; >80% Lambda arm64.
+
+|*5*
+|ARM-First
+|>85% ARM; alle Ausnahmen im Debt Register; SCI verbessert sich nachweislich YoY.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-020.tf.aws.lambda-arm64
+*Prüft:* Lambda-Funktionen nutzen arm64-Architektur.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_lambda_function" "handler" {
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "main.handler"
+  role          = aws_iam_role.lambda.arn
+  filename      = "function.zip"
+}
+----
+a|[source,hcl]
+----
+resource "aws_lambda_function" "handler" {
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+  # WAF-SUS-020 Violation: nutze arm64
+  handler  = "main.handler"
+  role     = aws_iam_role.lambda.arn
+  filename = "function.zip"
+}
+----
+|===
+
+*Remediation:* `architectures = ["arm64"]` setzen. Python, Node.js, Java, Go sind vollständig arm64-kompatibel.
+
+---
+
+=== waf-sus-020.tf.aws.ec2-no-previous-gen
+*Prüft:* EC2-Instanzen nutzen keine Previous-Generation-Familien.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+  # Graviton3 – 40% besser als m4.large
+}
+----
+a|[source,hcl]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "m4.large"
+  # WAF-SUS-020 Violation: Previous-Gen
+  # Migriere zu m7g.large
+}
+----
+|===
+
+*Remediation:* `m4.large` → `m7g.large` (Graviton3). ARM64-kompatibles AMI erforderlich.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit Graviton/arm64 Instanztypen für EC2 und Lambda.
+
+|*Config*
+|✅ Pflicht
+|Cloud-Inventory-Report mit Verteilung der Instanztypen nach Familie (ARM-Share in %).
+
+|*Governance*
+|Optional
+|Compute-Sustainability-Policy mit bevorzugten Instanzfamilien.
+
+|*Process*
+|Optional
+|Migrationsplan für verbleibende x86-Workloads mit Timeline und Progress-Tracking.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 – Workload Scheduling & Time-Shifting]
+* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
+
+== Best Practice
+
+* xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute: ARM/Graviton, Spot →]

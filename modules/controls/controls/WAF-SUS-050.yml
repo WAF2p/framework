@@ -1,0 +1,275 @@
+id: WAF-SUS-050
+title: "Storage Lifecycle & Data Minimization"
+pillar: "sustainability"
+status: "active"
+severity: "medium"
+category: "storage-efficiency"
+type: ['configuration', 'automation', 'governance']
+tags: ['storage', 'lifecycle', 'data-minimization', 's3', 'glacier', 'retention', 'tiering', 'data-gravity']
+
+description: >
+  All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS buckets) MUST have
+  lifecycle policies defined. Data MUST be automatically tiered to cost- and energy-efficient
+  cold storage after defined activity thresholds. Log data MUST have retention limits.
+  Temporary data (build artifacts, test data, cache) MUST have explicit expiration.
+  Unattached EBS volumes and unused snapshots MUST be detected and purged.
+  Organizations MUST apply the principle of data minimization: store only what is needed,
+  for as long as needed, in the most efficient tier.
+
+rationale: >
+  Storage energy consumption is proportional to stored data volume. Every gigabyte stored
+  in a hot storage tier (S3 Standard, Premium SSD) consumes more energy per unit than
+  cold tiers (Glacier, Archive, Cool). Unnecessary data retention not only increases energy
+  consumption and carbon emissions, but also increases compliance risk. Many organizations
+  store orders of magnitude more data than legally or operationally required, due to absent
+  lifecycle policies. The principle of data minimization — mandated by GDPR for personal data
+  and by sustainability best practice for all data — directly reduces storage carbon footprint.
+
+threat:
+  - "Unbounded data accumulation inflating storage energy consumption and Scope 3 emissions"
+  - "Log groups without retention causing terabyte-scale unreviewed data accumulation"
+  - "Orphaned EBS volumes and snapshots consuming persistent energy with no business purpose"
+  - "Temporary/cache data never expiring, filling hot storage tiers unnecessarily"
+  - "GDPR violations from excessive personal data retention due to missing lifecycle policies"
+  - "Storage costs and emissions growing at data-creation rate with no compounding efficiency"
+
+regulatory_mapping:
+  - framework: "EU CSRD (Corporate Sustainability Reporting Directive)"
+    controls:
+      - "ESRS E1 – Climate Change – resource efficiency in IT operations"
+  - framework: "GDPR"
+    controls:
+      - "Article 5(1)(e) – Storage limitation principle"
+      - "Article 25 – Data protection by design and by default"
+  - framework: "GHG Protocol"
+    controls:
+      - "Scope 3 Category 11 – reducing storage-related cloud emissions"
+  - framework: "Green Software Foundation"
+    controls:
+      - "Hardware Efficiency – minimize data stored in high-energy tiers"
+      - "Energy Efficiency – data tiering and lifecycle management"
+
+implementation_guidance:
+  - "Audit all S3 buckets: identify those without lifecycle policies and categorize data age and access patterns."
+  - "Define standard lifecycle tiers: Standard (0-30 days) -> Standard-IA (30-90 days) -> Glacier (90+ days) -> Delete (per retention policy)."
+  - "Apply lifecycle rules to ALL S3 buckets, including system and log buckets."
+  - "Set retention_in_days on ALL CloudWatch log groups; use a default of 90 days unless business requirements demand longer."
+  - "Enable S3 Intelligent-Tiering for buckets with unpredictable access patterns; it auto-tiers data based on actual access."
+  - "Identify and terminate unattached EBS volumes (automated monthly scan); delete snapshots older than 365 days without associated active AMI."
+  - "For databases: implement table partitioning and archival policies; move historical data to cheap cold storage or delete after retention period."
+  - "Tag all storage resources with data-classification and retention-period; use tags to drive automated lifecycle policy generation."
+
+maturity_levels:
+  level_1:
+    description: "No lifecycle policies – infinite retention everywhere"
+    criteria:
+      - "S3 buckets have no lifecycle rules"
+      - "CloudWatch log groups have no retention limits"
+      - "Unattached EBS volumes and stale snapshots accumulating without cleanup"
+  level_2:
+    description: "Manual cleanup – periodic storage reviews"
+    criteria:
+      - "Quarterly manual review of large storage buckets and log groups"
+      - "Some lifecycle policies in place for specific known high-volume buckets"
+      - "No systematic detection of orphaned storage resources"
+  level_3:
+    description: "Systematic lifecycle policies on all storage resources"
+    criteria:
+      - "All S3 buckets have lifecycle policies (transition + expiration)"
+      - "All CloudWatch log groups have retention_in_days set"
+      - "Monthly automated scan for orphaned EBS volumes and stale snapshots"
+      - "S3 Intelligent-Tiering enabled for variable-access buckets"
+  level_4:
+    description: "Data minimization policy enforced with automated governance"
+    criteria:
+      - "Data minimization policy documented and applies to all storage tiers"
+      - "Lifecycle rules auto-generated from data-classification tags"
+      - "Storage emissions tracked (estimated gCO2e per TB per tier)"
+      - "Zero unattached EBS volumes sustained over 30 days"
+  level_5:
+    description: "Optimized data gravity – minimal footprint, maximum accessibility"
+    criteria:
+      - "Storage emissions included in per-workload carbon footprint reporting"
+      - "AI/ML-driven data classification automatically applies retention policies"
+      - "Data minimization contributes measurably to annual storage emissions reduction"
+      - "GDPR storage limitation and sustainability data minimization fully aligned"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing S3 lifecycle rules and CloudWatch log group retention for all storage resources."
+    - kind: "config"
+      description: "AWS Config or cloud inventory report showing no S3 buckets without lifecycle policies."
+  optional:
+    - kind: "process"
+      description: "Monthly orphaned resource scan report (unattached EBS, stale snapshots, empty buckets)."
+    - kind: "governance"
+      description: "Data minimization policy document covering IT storage lifecycle standards."
+
+checks:
+  - id: "waf-sus-050.tf.aws.s3-lifecycle-required"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "S3 buckets must have lifecycle configuration"
+    description: >
+      Every S3 bucket must have an associated aws_s3_bucket_lifecycle_configuration resource
+      with at least one transition and expiration rule. Buckets without lifecycle rules
+      accumulate data indefinitely in the highest-energy storage tier.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_lifecycle_configuration"
+    assertions:
+      - attribute: "rule"
+        op: "not_empty"
+        message: "S3 lifecycle configuration has no rules defined."
+    on_fail: "violation"
+    remediation: >
+      Add lifecycle rules to all S3 buckets. Minimum recommended configuration:
+      Transition to STANDARD_IA after 30 days, GLACIER after 90 days, expire after
+      retention-policy-defined period. Enable S3 Intelligent-Tiering for unpredictable
+      access pattern buckets as an alternative.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_lifecycle_configuration" "app_data" {
+          bucket = aws_s3_bucket.app_data.id
+
+          rule {
+            id     = "data-lifecycle"
+            status = "Enabled"
+
+            transition {
+              days          = 30
+              storage_class = "STANDARD_IA"
+            }
+            transition {
+              days          = 90
+              storage_class = "GLACIER"
+            }
+            expiration {
+              days = 730  # 2 years – adjust per data retention policy
+            }
+          }
+
+          rule {
+            id     = "expire-incomplete-multipart"
+            status = "Enabled"
+            abort_incomplete_multipart_upload {
+              days_after_initiation = 7
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket" "app_data" {
+          bucket = "acme-app-data"
+          # No lifecycle configuration – WAF-SUS-050 Violation
+        }
+
+  - id: "waf-sus-050.tf.aws.ebs-no-orphan"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "EBS volumes should be set to delete on instance termination"
+    description: >
+      EBS volumes must have delete_on_termination = true unless there is a specific need
+      for data persistence beyond instance lifetime. This prevents orphaned volumes from
+      accumulating energy consumption after instances are terminated.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_instance"
+    assertions:
+      - attribute: "root_block_device.delete_on_termination"
+        op: "is_true"
+        message: "Root EBS volume should be set to delete on termination to prevent orphaned volumes."
+    on_fail: "warning"
+    remediation: >
+      Set delete_on_termination = true on root_block_device for EC2 instances unless
+      you have an explicit requirement to retain root volumes. For data volumes, use
+      separate aws_ebs_volume resources with lifecycle management.
+    example:
+      compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu_arm.id
+          instance_type = "m7g.large"
+
+          root_block_device {
+            volume_size           = 20
+            volume_type           = "gp3"
+            delete_on_termination = true  # prevent orphaned volumes
+          }
+        }
+      non_compliant: |
+        resource "aws_instance" "app" {
+          ami           = data.aws_ami.ubuntu.id
+          instance_type = "m4.large"
+
+          root_block_device {
+            volume_size           = 20
+            delete_on_termination = false  # WAF-SUS-050 Warning: orphaned volume risk
+          }
+        }
+
+  - id: "waf-sus-050.tf.azurerm.blob-lifecycle"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure storage accounts should have blob lifecycle management policies"
+    description: >
+      Azure Storage accounts must have lifecycle management policies to tier blobs to
+      Cool and Archive tiers after appropriate activity thresholds. This reduces energy
+      consumption in hot storage tiers.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_storage_management_policy"
+    assertions:
+      - attribute: "rule"
+        op: "not_empty"
+        message: "Azure storage management policy has no lifecycle rules."
+    on_fail: "violation"
+    remediation: >
+      Add lifecycle management rules to Azure Storage accounts. Transition blobs to
+      Cool tier after 30 days, Archive tier after 90 days. Configure delete rules
+      based on data retention policy. Use azurerm_storage_management_policy resource.
+    example:
+      compliant: |
+        resource "azurerm_storage_management_policy" "app_data" {
+          storage_account_id = azurerm_storage_account.app.id
+
+          rule {
+            name    = "data-lifecycle"
+            enabled = true
+            filters {
+              blob_types = ["blockBlob"]
+            }
+            actions {
+              base_blob {
+                tier_to_cool_after_days_since_modification_greater_than    = 30
+                tier_to_archive_after_days_since_modification_greater_than = 90
+                delete_after_days_since_modification_greater_than          = 730
+              }
+            }
+          }
+        }
+      non_compliant: |
+        resource "azurerm_storage_account" "app" {
+          name                     = "acmeappstorage"
+          resource_group_name      = var.resource_group_name
+          location                 = var.location
+          account_tier             = "Standard"
+          account_replication_type = "LRS"
+          # No lifecycle policy – WAF-SUS-050 Violation
+        }
+
+references:
+  narrative: "modules/pillar-sustainability/pages/controls.adoc#WAF-SUS-050"
+  best_practice: "modules/pillar-sustainability/pages/best-practices/bp-data-efficiency.adoc"
+  related_controls:
+    - "WAF-SUS-040"
+    - "WAF-SUS-010"
+    - "WAF-SUS-080"

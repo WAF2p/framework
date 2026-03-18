@@ -1,0 +1,184 @@
+= Reifegrad-Modell: Sustainability Maturity
+:page-toc: right
+:description: WAF++ Sustainability – 5-stufiges Reifegrad-Modell: Blind → Sichtbar → Reported → Optimiert → Carbon-Neutral. Self-Assessment-Checklisten und empfohlener Einstiegspfad.
+
+Das Reifegrad-Modell der Sustainability-Säule bewertet die *organisatorische und technische Maturität*
+entlang fünf Stufen — von keiner Messung bis zur aktiven CO₂-Reduktion auf Net-Zero-Pfad.
+
+== Die 5 Reifestufen
+
+[cols="1,2,4"]
+|===
+|Stufe |Bezeichnung |Beschreibung
+
+|*1*
+|*Blind*
+|IT-Emissionen unbekannt. Keine Cloud-Carbon-Tools aktiviert. Keine ESG-Reporting-Pflicht bekannt oder adressiert. Sustainability kein Architekturthema.
+
+|*2*
+|*Sichtbar*
+|Cloud-Carbon-Tools aktiviert. Emissionen werden gelegentlich eingesehen. Keine Targets, keine systematische Attribution nach Workload. Keine Automatisierung.
+
+|*3*
+|*Reported*
+|Strukturierte, monatliche Emissionsmessung mit Workload-Attribution. Daten fließen in ESG/CSRD-Bericht. Baseline definiert. Erste Optimierungsmaßnahmen (Lifecycle-Policies, Non-Prod Shutdown).
+
+|*4*
+|*Optimiert*
+|Aktive Reduktionsmaßnahmen operational: Graviton/ARM-Majority, Idle-Elimination, Storage-Lifecycle, Batch Time-Shifting. Reduktionsziele messbar verfolgt. SCI als Metrik etabliert.
+
+|*5*
+|*Carbon-Neutral/Positiv*
+|Emissionsreduktion auf SBTi 1,5°C-Zielniveau. Verbleibende unvermeidbare Emissionen durch verifizierte Kompensation (Gold Standard Carbon Credits) neutralisiert. Jährlicher Nachweis.
+
+|===
+
+== Control-Reifegrad-Matrix
+
+Diese Matrix zeigt für jeden WAF-SUS-Control den aktuell anzustrebenden Reifegrad pro Stufe:
+
+[cols="2,1,1,1,1,1"]
+|===
+|Control |Level 1 |Level 2 |Level 3 |Level 4 |Level 5
+
+|xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 Carbon Measurement]
+|Kein Tool
+|Tool aktiv, ad-hoc
+|Monatlich, Workload-Attribution
+|Automated Pipeline, ESG-integriert
+|Echtzeit-Dashboard, CSRD-Feed
+
+|xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 Efficient Compute]
+|Keine Policy
+|Einige ARM/Graviton
+|Policy + CI-Gate, >30% ARM
+|>60% ARM, Migration-Plan aktiv
+|>85% ARM, nur dokumentierte Ausnahmen
+
+|xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 Green Regions]
+|Keine Berücksichtigung
+|Informell bewusst
+|ADR-Requirement dokumentiert
+|Batch in Green Regions
+|Dynamic Carbon Routing
+
+|xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 Idle Elimination]
+|Kein Monitoring
+|Manuelle Reviews
+|Auto-Detection + Scheduled Shutdown
+|Spot >50%, Scale-to-Zero
+|Zero Idle, alles demand-driven
+
+|xref:controls/WAF-SUS-050.adoc[WAF-SUS-050 Storage Lifecycle]
+|Keine Policies
+|Einzelne Policies
+|Alle Ressourcen, Orphan-Scan
+|Data-Min Policy, Tags-driven
+|Storage-Emissionen in SCI
+
+|xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 Workload Scheduling]
+|Willkürliche Zeiten
+|Einige Off-Peak
+|Alle Flex-Jobs auf Off-Peak, dokumentiert
+|Carbon-API-Integration
+|Temporal + Spatial Shifting kombiniert
+
+|xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 Software Efficiency]
+|Kein SCI-Bewusstsein
+|Code-Review erwähnt Effizienz
+|ADR mit SCI, Dependency-Review
+|SCI als Metrik, DoD-Bestandteil
+|SCI-OKR, automatische Regression-Alerts
+
+|xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 Network Efficiency]
+|Kein CDN, keine Kompression
+|CDN + Kompression für Haupt-App
+|CDN überall, VPC Endpoints, monatliches Review
+|Transfer-Budgets per Workload
+|Network-Emissionen in SCI
+
+|xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 ESG Reporting]
+|Keine Reporting-Pflicht bekannt
+|Manuelle Jahres-Abfragen
+|Quartalsexport, Daten in CSRD-Report
+|Automatisierte Pipeline, Assurance-ready
+|Echtzeit-Dashboard, Drittpartei-Assurance
+
+|xref:controls/WAF-SUS-100.adoc[WAF-SUS-100 Debt Register]
+|Keine Governance
+|Informelle Awareness
+|Formales Register, Quartalsreview
+|Leadership-Reporting, Carbon-Savings dokumentiert
+|OKRs, Automated Health Checks, Net-Zero-Roadmap
+
+|===
+
+== Self-Assessment: Checkliste Level 2 (Sichtbar)
+
+Eine Organisation ist auf Level 2, wenn alle folgenden Punkte zutreffen:
+
+* [ ] AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard oder GCP Carbon Footprint ist aktiviert
+* [ ] Emissionen wurden in den letzten 6 Monaten mindestens einmal manuell exportiert und eingesehen
+* [ ] Die Frage "Wieviel CO₂ emittiert unser Cloud-Betrieb?" ist grob beantwortbar (Größenordnung)
+* [ ] Wenigstens ein Team nutzt ARM/Graviton-Instanzen oder Lambda arm64
+* [ ] CSRD-Pflicht der Organisation ist geklärt (in scope, out of scope, Tochtergesellschaft)
+
+== Self-Assessment: Checkliste Level 3 (Reported)
+
+Eine Organisation ist auf Level 3, wenn alle folgenden Punkte zutreffen:
+
+* [ ] Monatliche Carbon-Footprint-Exporte aus allen genutzten Cloud-Providern eingerichtet
+* [ ] Workload-Tagging ermöglicht Emissions-Attribution auf Workload-Ebene
+* [ ] Carbon-Daten sind Teil des offiziellen ESG- oder Nachhaltigkeitsberichts (oder Aufbau dafür ist dokumentiert)
+* [ ] Alle S3-Buckets haben Lifecycle-Policies
+* [ ] Alle CloudWatch Log Groups haben `retention_in_days` gesetzt
+* [ ] Non-Production-Umgebungen haben Scheduled-Shutdown-Regeln
+* [ ] Sustainability Debt Register existiert und wurde im letzten Quartal aktualisiert
+
+== Self-Assessment: Checkliste Level 4 (Optimiert)
+
+Eine Organisation ist auf Level 4, wenn alle folgenden Punkte zusätzlich zutreffen:
+
+* [ ] Mehr als 60% der EC2/Container-vCPU-Stunden laufen auf ARM/Graviton oder Ampere Altra
+* [ ] Mehr als 80% der Lambda-Funktionen nutzen arm64
+* [ ] Autoscaling mit Scale-to-Zero für alle zustandslosen Compute-Workloads konfiguriert
+* [ ] Alle Batch-Workloads sind auf Off-Peak (22:00–06:00 UTC) oder Flexible-Windows konfiguriert
+* [ ] CDN für alle user-facing Anwendungen; HTTP-Kompression auf allen APIs aktiv
+* [ ] VPC Endpoints für S3 und DynamoDB (und weitere AWS Services) in allen produktiven VPCs
+* [ ] SCI (Software Carbon Intensity) für mindestens die drei wichtigsten Tier-1-Services gemessen
+* [ ] Jahres-über-Jahres-CO₂-Reduktionsziel definiert und im letzten Quartalsbericht verfolgt
+
+== Empfohlener Einstiegspfad
+
+[cols="1,2,3,1"]
+|===
+|Phase |Zeitrahmen |Maßnahmen |Ziel-Level
+
+|*Phase 0: Baseline*
+|Woche 1–2
+|Carbon-Tools aktivieren, CSRD-Pflicht klären, aktuellen Zustand inventarisieren
+|Level 1 → 2
+
+|*Phase 1: Quick Wins*
+|Monat 1–2
+|S3-Lifecycle-Policies, Log-Retention, Non-Prod Scheduled Shutdown, Lambda auf arm64
+|Level 2 → 3
+
+|*Phase 2: Systematisierung*
+|Quartal 1–2
+|Sustainability Debt Register, CDN + Kompression, VPC Endpoints, Quarterly Reviews, ESG-Integration
+|Level 3
+
+|*Phase 3: Optimierung*
+|Quartal 2–4
+|Graviton-Migration EC2, Autoscaling + Scale-to-Zero, Batch Time-Shifting, SCI-Messung Tier-1
+|Level 3 → 4
+
+|*Phase 4: Continuous Improvement*
+|Dauerhaft
+|SCI-OKRs, automatisierte Carbon-Pipeline, SBTi-Ziele, jährliche Fortschrittsberichte
+|Level 4 → 5
+
+|===
+
+NOTE: Die meisten Organisationen befinden sich beim Start auf Level 1 oder 2. Level 3 ist das *CSRD-Minimum* für berichtspflichtige Unternehmen. Level 4 ist das angestrebte Reifeniveau für technologiegetriebene Unternehmen mit Sustainability-Commitment. Level 5 ist für die meisten Organisationen ein mittelfristiges Ziel (3–5 Jahre).

@@ -1,0 +1,167 @@
+= WAF-SUS-050 – Storage Lifecycle & Data Minimization
+:page-toc: right
+:control-id: WAF-SUS-050
+:pillar: sustainability
+:severity: medium
+:category: storage-efficiency
+:automated: high
+:description: WAF++ Sustainability – Lifecycle-Policies auf allen Storage-Ressourcen, Data Minimization, S3 Intelligent-Tiering, keine infinite Retention.
+
+[.metadata]
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Storage Efficiency | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Storage-Ressourcen (S3, EBS, Azure Blob, GCS) MÜSSEN Lifecycle-Policies haben.
+Daten MÜSSEN automatisch in energieeffiziente Cold-Storage-Tiers tiered werden.
+CloudWatch Log Groups MÜSSEN `retention_in_days` gesetzt haben.
+Temporäre Daten MÜSSEN Ablaufregeln haben. Detached EBS-Volumes und stale Snapshots MÜSSEN
+regelmäßig bereinigt werden. Das Prinzip: Speichere nur, was nötig ist — so lange wie nötig —
+im energieeffizientesten Tier.
+
+== Rationale
+
+Speicherenergie ist proportional zu gespeichertem Volumen und Tier-Energie.
+Hot-Storage (S3 Standard, Premium SSD) verbraucht mehr Energie pro GB als Cold-Tier (Glacier, Archive).
+Ohne Lifecycle-Policies akkumulieren Daten unbegrenzt im teuersten und energieintensivsten Tier.
+Das Prinzip der Datenminimierung (DSGVO Art. 5) und das Sustainability-Ziel sind vollständig
+ausgerichtet: weniger Daten = weniger Energie.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unbegrenzte Datenakkumulation*
+|S3-Buckets ohne Lifecycle-Rules wachsen unbegrenzt im teuersten Tier; Energieverbrauch steigt proportional.
+
+|*Infinite Log Retention*
+|CloudWatch ohne `retention_in_days` akkumuliert Terabytes historischer Logs ohne Governance.
+
+|*Orphaned EBS Volumes*
+|Detached EBS-Volumes nach Instanz-Terminierung laufen weiter und verbrauchen persistent Energie.
+
+|*DSGVO-Verstoß*
+|Excessive Retention von personenbezogenen Daten ohne Lifecycle-Regel ist Verstoß gegen Art. 5 DSGVO.
+
+|===
+
+== Anforderung
+
+* Alle S3-Buckets MÜSSEN `aws_s3_bucket_lifecycle_configuration` haben
+* Alle CloudWatch Log Groups MÜSSEN `retention_in_days` gesetzt haben
+* Temporäre Daten (Build-Artefakte, Test-Daten) MÜSSEN Expiration-Regeln haben
+* EBS-Volumes SOLLEN `delete_on_termination = true` haben
+* Quarterly Orphaned-Resource-Scan MUSS für detached EBS und stale Snapshots durchgeführt werden
+
+== Implementierungsanleitung
+
+. *S3-Audit*: Alle Buckets auflisten; Buckets ohne Lifecycle-Config identifizieren
+. *Standard-Lifecycle*: Standard → STANDARD_IA (30d) → GLACIER (90d) → DELETE (per Policy)
+. *CloudWatch Retention*: Modul für Standard-Log-Groups mit retention_in_days; Default 90 Tage
+. *S3 Intelligent-Tiering*: Für Buckets mit unbekanntem Zugriffsprofil; automatisches Tiering
+. *EBS Cleanup*: Quarterly: `aws ec2 describe-volumes --filters Name=status,Values=available`
+. *Incomplete Multipart*: `abort_incomplete_multipart_upload { days_after_initiation = 7 }` überall
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Policies
+|Alle Buckets ohne Lifecycle; Log Groups ohne Retention; orphaned EBS überall.
+
+|*2*
+|Manuelle Cleanup-Kampagnen
+|Gelegentliche manuelle Reviews; einzelne Lifecycle-Policies für bekannte Hochvolumen-Buckets.
+
+|*3*
+|Systematisch mit Orphan-Scan
+|Alle S3 mit Lifecycle; alle Log Groups mit Retention; monatlicher Orphan-Scan.
+
+|*4*
+|Data-Minimization Policy
+|Data-Min Policy dokumentiert; Tags-driven Lifecycle; Storage-Emissionen getrackt.
+
+|*5*
+|Storage-Emissionen in SCI
+|KI-gestützte Datenklassifikation; Storage-CO₂ in SCI; automatisierte GDPR+Sustainability-Ausrichtung.
+
+|===
+
+== Terraform Checks
+
+=== waf-sus-050.tf.aws.s3-lifecycle-required
+*Prüft:* S3 Lifecycle Configuration vorhanden mit mindestens einem Rule.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket_lifecycle_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+  rule {
+    id     = "data-lifecycle"
+    status = "Enabled"
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+    expiration { days = 730 }
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "data" {
+  bucket = "acme-app-data"
+  # Keine Lifecycle-Config
+  # WAF-SUS-050 Violation
+}
+----
+|===
+
+*Remediation:* `aws_s3_bucket_lifecycle_configuration` für alle S3-Buckets hinzufügen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform mit S3-Lifecycle-Rules und CloudWatch Log Group `retention_in_days` für alle Storage-Ressourcen.
+
+|*Config*
+|✅ Pflicht
+|AWS Config oder Cloud-Inventory: kein S3-Bucket ohne Lifecycle-Policy.
+
+|*Process*
+|Optional
+|Monthly Orphaned-Resource-Scan-Report.
+
+|*Governance*
+|Optional
+|Data-Minimization-Policy-Dokument.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
+* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
+* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+
+== Best Practice
+
+* xref:best-practices/bp-data-efficiency.adoc[Datenminimierung, Storage-Lifecycle, Transferoptimierung →]
