@@ -1,86 +1,86 @@
-= Design-Prinzipien – Performance Efficiency
+= Design Principles – Performance Efficiency
 :page-toc: right
-:description: WAF++ Performance Efficiency – Technische Design-Prinzipien für performante Cloud-Architekturen.
+:description: WAF++ Performance Efficiency – Technical design principles for performant cloud architectures.
 
-Design-Prinzipien beschreiben konkrete technische Leitlinien für Architektur- und Implementierungsentscheidungen.
-Sie ergänzen die xref:principles.adoc[7 Performance-Prinzipien] um technische Spezifität.
+Design principles describe concrete technical guidelines for architecture and implementation decisions.
+They complement the xref:principles.adoc[7 Performance Principles] with technical specificity.
 
-== DP1 – Trenne Workloads nach Lastprofil
+== DP1 – Separate Workloads by Load Profile
 
-Unterschiedliche Lastprofile erfordern unterschiedliche Skalierungsstrategien.
-Synchrone APIs, asynchrone Background-Jobs, Batch-Processing und Event-Driven-Workloads
-SOLLTEN architektonisch getrennt werden, um optimale Skalierungskonfigurationen
-pro Komponente zu ermöglichen.
+Different load profiles require different scaling strategies.
+Synchronous APIs, asynchronous background jobs, batch processing, and event-driven workloads
+SHOULD be architecturally separated to enable optimal scaling configurations
+per component.
 
-*Implikationen:*
+*Implications:*
 
-* API-Server: Stateless, horizontal skalierbar, Auto-Scaling auf Request-Rate
-* Background-Jobs: Queue-basiert, skaliert auf Queue-Depth (SQS, Azure Service Bus, Pub/Sub)
-* Batch-Processing: Spot/Preemptible Instances, zeitgeplante Skalierung
-* Echtzeit-Pipelines: Streaming-Services (Kinesis, Event Hubs, Dataflow)
+* API servers: stateless, horizontally scalable, auto-scaling on request rate
+* Background jobs: queue-based, scales on queue depth (SQS, Azure Service Bus, Pub/Sub)
+* Batch processing: spot/preemptible instances, scheduled scaling
+* Real-time pipelines: streaming services (Kinesis, Event Hubs, Dataflow)
 
 [source,hcl]
 ----
-# Anti-Pattern: Alles auf einem EC2
+# Anti-pattern: Everything on one EC2
 resource "aws_instance" "monolith" {
-  instance_type = "m5.8xlarge"  # Groß genug für alle Workloads?
+  instance_type = "m5.8xlarge"  # Large enough for all workloads?
 }
 
-# Besser: Getrennte Skalierungsdomänen
+# Better: Separate scaling domains
 resource "aws_autoscaling_group" "api" { min_size = 2; max_size = 20 }
 resource "aws_autoscaling_group" "workers" { min_size = 0; max_size = 50 }
-# Workers skalieren auf SQS-Queue-Depth
+# Workers scale on SQS queue depth
 ----
 
 ---
 
 == DP2 – Externalise State Before Scaling
 
-Vor der Implementierung von Auto-Scaling muss jeder in-process State externalisiert werden.
-Sessions, Caches, temporäre Dateien und Locks dürfen nicht lokal auf dem Instance gespeichert werden,
-da sie beim Scale-In verloren gehen und beim Scale-Out nicht verfügbar sind.
+Before implementing auto-scaling, all in-process state must be externalized.
+Sessions, caches, temporary files, and locks must not be stored locally on the instance,
+as they will be lost during scale-in and unavailable during scale-out.
 
-*State-Externalisierung:*
+*State externalization:*
 
 [cols="1,2,2"]
 |===
-|State-Typ |Anti-Pattern |Korrekte Lösung
+|State type |Anti-pattern |Correct solution
 
-|*HTTP-Session*
-|In-Memory Session Store (Standard in vielen Frameworks)
+|*HTTP Session*
+|In-memory session store (default in many frameworks)
 |Redis/ElastiCache (aws_elasticache_replication_group)
 
-|*Datei-Uploads*
-|Lokaler Dateisystem-Pfad `/tmp/uploads`
-|S3/Azure Blob/GCS direkt vom Client oder Pre-Signed URLs
+|*File Uploads*
+|Local filesystem path `/tmp/uploads`
+|S3/Azure Blob/GCS directly from client or pre-signed URLs
 
 |*Distributed Locks*
-|File-Lock oder In-Memory Mutex
-|Redis SETNX, DynamoDB Conditional Writes
+|File lock or in-memory mutex
+|Redis SETNX, DynamoDB conditional writes
 
-|*Temporäre Berechnungsdaten*
-|Lokale Datei für Multi-Step-Prozesse
-|S3 für Stage-Output, Queue für Stage-Koordination
+|*Temporary Computation Data*
+|Local file for multi-step processes
+|S3 for stage output, queue for stage coordination
 
 |===
 
 ---
 
-== DP3 – Verwende latenzoptimiertes Routing
+== DP3 – Use Latency-Optimized Routing
 
-Netzwerklatenz addiert sich bei jedem Service-Hop. In einer Microservices-Architektur
-kann eine Anfrage 10+ interne Service-Calls auslösen. Jeder Hop muss latenzoptimiert sein.
+Network latency accumulates at every service hop. In a microservices architecture,
+a request can trigger 10+ internal service calls. Every hop must be latency-optimized.
 
-*Routing-Entscheidungen:*
+*Routing decisions:*
 
-* *AZ-Affinity*: Service-A auf AZ-a kommuniziert bevorzugt mit Service-B auf AZ-a
-* *VPC Endpoints*: Alle Cloud-Service-APIs (S3, DynamoDB, SSM, ECR) über Gateway/Interface-Endpoints
-* *Service-Mesh*: Für hochfrequente Service-zu-Service-Kommunikation (Istio, AWS App Mesh)
-* *gRPC statt REST*: Für interne APIs mit hohem Call-Volumen (binäres Protokoll, HTTP/2)
+* *AZ affinity*: Service-A on AZ-a preferably communicates with Service-B on AZ-a
+* *VPC endpoints*: All cloud service APIs (S3, DynamoDB, SSM, ECR) via gateway/interface endpoints
+* *Service mesh*: For high-frequency service-to-service communication (Istio, AWS App Mesh)
+* *gRPC instead of REST*: For internal APIs with high call volume (binary protocol, HTTP/2)
 
 [source,hcl]
 ----
-# VPC Endpoints für alle major AWS Services
+# VPC endpoints for all major AWS services
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.s3"
@@ -100,41 +100,41 @@ resource "aws_vpc_endpoint" "ecr_api" {
 
 ---
 
-== DP4 – Konfiguriere Connection Pools explizit
+== DP4 – Configure Connection Pools Explicitly
 
-Connection-Pool-Erschöpfung ist eine der häufigsten Ursachen für Performance-Degradation
-unter Last. Jeder Service, der eine Datenbank oder ein externes API aufruft, MUSS explizit
-konfigurierte Connection-Pool-Größen haben.
+Connection pool exhaustion is one of the most common causes of performance degradation
+under load. Every service that calls a database or an external API MUST have explicitly
+configured connection pool sizes.
 
-*Pool-Sizing-Formel (Datenbankserver):*
+*Pool sizing formula (database server):*
 
 ----
-Optimale Pool-Größe = (CPU-Kerne * 2) + Anzahl aktiver Disks
-Beispiel: 4-Core RDS + 2 Disks = 10 Connections pro Application-Instanz
-Bei 10 App-Instanzen: max_connections_RDS = 100 (10 * 10)
+Optimal pool size = (CPU cores * 2) + number of active disks
+Example: 4-core RDS + 2 disks = 10 connections per application instance
+With 10 app instances: max_connections_RDS = 100 (10 * 10)
 ----
 
 [source,python]
 ----
-# SQLAlchemy – explizite Pool-Konfiguration
+# SQLAlchemy – explicit pool configuration
 engine = create_engine(
     DATABASE_URL,
-    pool_size=10,           # Immer offene Connections
-    max_overflow=5,         # Temporäre Zusatz-Connections
-    pool_timeout=30,        # Sekunden warten auf freie Connection
-    pool_recycle=3600,      # Connection nach 1h erneuern
-    pool_pre_ping=True,     # Verbindung testen vor Reuse
+    pool_size=10,           # Always-open connections
+    max_overflow=5,         # Temporary additional connections
+    pool_timeout=30,        # Seconds to wait for a free connection
+    pool_recycle=3600,      # Recycle connection after 1h
+    pool_pre_ping=True,     # Test connection before reuse
 )
 ----
 
 ---
 
-== DP5 – Definiere SLOs vor dem ersten Deployment
+== DP5 – Define SLOs Before the First Deployment
 
-SLOs MÜSSEN definiert werden, bevor ein Service produktiv geht – nicht danach.
-Ein Service ohne SLO hat kein objektives Kriterium für "gut genug Performance".
+SLOs MUST be defined before a service goes to production – not after.
+A service without an SLO has no objective criterion for "good enough performance".
 
-*SLO-Template:*
+*SLO template:*
 
 [source,yaml]
 ----
@@ -162,41 +162,41 @@ error_budget:
 
 ---
 
-== DP6 – Isoliere I/O-intensive Workloads
+== DP6 – Isolate I/O-Intensive Workloads
 
-I/O-intensive Workloads (Datenbankzugriffe, Datei-I/O, externe API-Calls) MÜSSEN
-von CPU-intensiven Workloads isoliert werden. Async-I/O und non-blocking Patterns
-sind für I/O-bound Services wichtiger als horizontales Scaling allein.
+I/O-intensive workloads (database access, file I/O, external API calls) MUST
+be isolated from CPU-intensive workloads. Async I/O and non-blocking patterns
+are more important for I/O-bound services than horizontal scaling alone.
 
-*I/O-Isolation-Patterns:*
+*I/O isolation patterns:*
 
 * *Async/Non-Blocking*: asyncio (Python), async/await (Node.js, .NET), Reactive (Java)
-* *Bulkhead Pattern*: Separate Thread-Pools für interne und externe Calls
-* *Circuit Breaker*: Verhindern von Cascading Failures bei langsamen Downstream-Services
-* *Timeout-Pyramid*: Outer-Timeout > Inner-Timeout > DB-Timeout
+* *Bulkhead Pattern*: Separate thread pools for internal and external calls
+* *Circuit Breaker*: Prevent cascading failures from slow downstream services
+* *Timeout Pyramid*: Outer timeout > inner timeout > DB timeout
 
 [source,python]
 ----
-# Bulkhead: Separate Executor für externe API-Calls
+# Bulkhead: Separate executor for external API calls
 internal_executor = ThreadPoolExecutor(max_workers=50)
-external_executor = ThreadPoolExecutor(max_workers=10)  # Begrenzt externe Calls
+external_executor = ThreadPoolExecutor(max_workers=10)  # Limits external calls
 
 async def get_payment(payment_id: str):
-    # Interne DB-Abfrage
+    # Internal DB query
     db_result = await loop.run_in_executor(internal_executor, db_query, payment_id)
-    # Externe API-Call (begrenzt)
+    # External API call (limited)
     ext_result = await loop.run_in_executor(external_executor, external_api, payment_id)
     return merge(db_result, ext_result)
 ----
 
 ---
 
-== DP7 – Performance-Validierung im CI/CD
+== DP7 – Performance Validation in CI/CD
 
-Performance-Validierung ist ein First-Class-Citizen im Deployment-Prozess.
-Performance-Regressions sind genauso ernst zu nehmen wie Funktions-Bugs.
+Performance validation is a first-class citizen in the deployment process.
+Performance regressions must be taken as seriously as functional bugs.
 
-*CI/CD-Performance-Gate-Aufbau:*
+*CI/CD performance gate setup:*
 
 [source,yaml]
 ----
@@ -224,19 +224,19 @@ jobs:
 
       - name: Compare to Baseline
         run: |
-          # Fail wenn P99 > 110% der letzten erfolgreichen Baseline
+          # Fail if P99 > 110% of the last successful baseline
           python scripts/compare-to-baseline.py results.json \
             --regression-threshold 0.10
 ----
 
 ---
 
-== DP8 – Dokumentiere Performance-Entscheidungen in ADRs
+== DP8 – Document Performance Decisions in ADRs
 
-Jede Architekturentscheidung mit Performance-Implikationen MUSS eine Performance-Sektion
-im zugehörigen Architecture Decision Record (ADR) enthalten.
+Every architectural decision with performance implications MUST include a performance section
+in the associated Architecture Decision Record (ADR).
 
-*ADR-Performance-Sektion-Template:*
+*ADR performance section template:*
 
 [source,markdown]
 ----

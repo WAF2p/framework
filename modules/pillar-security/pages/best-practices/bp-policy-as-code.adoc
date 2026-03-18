@@ -1,107 +1,107 @@
 = Best Practice: Policy-as-Code
 :toc: left
 :toclevels: 3
-:description: WAF++ Security – Policy-as-Code: Richtlinien als versionierte, ausführbare Regeln mit wafpass, OPA/Conftest, HashiCorp Sentinel und AWS Config.
+:description: WAF++ Security – Policy-as-Code: policies as versioned, executable rules with wafpass, OPA/Conftest, HashiCorp Sentinel, and AWS Config.
 
-== Kontext
+== Context
 
-Sicherheitsrichtlinien als PDF-Dokumente in SharePoint sind deklarativ, nicht
-durchsetzbar. Sie beschreiben das Soll, prüfen aber nie das Ist. Policy-as-Code
-löst dieses Problem: Richtlinien werden als versionierte, ausführbare Code-Artefakte
-formuliert – und in CI/CD-Pipelines, Deployment-Gates und kontinuierliche Monitoring-
-Systeme integriert.
+Security policies as PDF documents in SharePoint are declarative, not
+enforceable. They describe the target state but never verify the actual state. Policy-as-Code
+solves this problem: policies are formulated as versioned, executable code artifacts
+– and integrated into CI/CD pipelines, deployment gates, and continuous monitoring
+systems.
 
-Das Ergebnis: Compliance wird nicht behauptet, sondern bewiesen.
+The result: compliance is not claimed but proven.
 
-Typische Probleme ohne Policy-as-Code:
+Typical problems without Policy-as-Code:
 
-* Security-Reviews finden in Manuellen Review-Runden statt – skaliert nicht
-* Konfigurationsdrift zwischen Compliance-Audit und nächster Änderung
-* Jeder Entwickler interpretiert Sicherheitsrichtlinien anders
-* Audit-Vorbereitung bedeutet Wochen manueller Arbeit
-* Neue Ressourcen unterliegen nicht automatisch dem gleichen Sicherheitsstandard
+* Security reviews take place in manual review rounds – does not scale
+* Configuration drift between compliance audit and the next change
+* Every developer interprets security policies differently
+* Audit preparation means weeks of manual work
+* New resources are not automatically subject to the same security standard
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls/WAF-SEC-090.adoc[WAF-SEC-090] – Policy-as-Code & Compliance Automation
 * xref:controls/WAF-SEC-080.adoc[WAF-SEC-080] – Security Monitoring & Threat Detection
 
-== Was Policy-as-Code bedeutet
+== What Policy-as-Code Means
 
-Policy-as-Code (PaC) ist das Prinzip, Sicherheits- und Compliance-Anforderungen in
-maschinenausführbarer Form zu formulieren. Die Kernmerkmale:
+Policy-as-Code (PaC) is the principle of formulating security and compliance requirements in
+machine-executable form. The core characteristics:
 
-* *Versioniert*: Policies werden in Git verwaltet – Änderungen sind nachvollziehbar und
-  peer-reviewed wie jeder andere Code
-* *Ausführbar*: Policies können automatisch gegen Infrastruktur, Kubernetes-Manifeste
-  oder Terraform-Pläne ausgeführt werden
-* *Idempotent*: Dieselbe Policy liefert auf denselben Inputs immer dasselbe Ergebnis
-* *Dokumentiert durch Ausführung*: Der Policy-Test ist gleichzeitig die Dokumentation
-  der Anforderung
+* *Versioned*: Policies are managed in Git – changes are traceable and
+  peer-reviewed like any other code
+* *Executable*: Policies can be automatically executed against infrastructure, Kubernetes manifests,
+  or Terraform plans
+* *Idempotent*: The same policy always produces the same result on the same inputs
+* *Documented through execution*: The policy test is simultaneously the documentation
+  of the requirement
 
-== Tooling-Vergleich
+== Tooling Comparison
 
 [cols="2,3,3,2"]
 |===
-|Tool |Stärken |Schwächen |Empfohlener Einsatz
+|Tool |Strengths |Weaknesses |Recommended Use
 
 |*wafpass (WAF++)*
-|Nativ für WAF++-Controls; pillar-basierter Filter; direkte YAML-Control-Integration;
-Terraform Plan + Live-State prüfen
-|WAF++-spezifisch; keine Kubernetes-Manifeste
-|Primäres Tool für alle WAF-SEC-Controls
+|Native for WAF++ controls; pillar-based filter; direct YAML control integration;
+check Terraform plan + live state
+|WAF++-specific; no Kubernetes manifests
+|Primary tool for all WAF-SEC controls
 
 |*OPA / Conftest*
-|Hochflexibel; Rego-Sprache für komplexe Regeln; Kubernetes + Terraform + Docker;
-große Community; Gatekeeper für K8s Admission Control
-|Rego-Lernkurve; kein nativer WAF++-Bezug
-|Kubernetes Admission Control; Custom Business Rules
+|Highly flexible; Rego language for complex rules; Kubernetes + Terraform + Docker;
+large community; Gatekeeper for K8s admission control
+|Rego learning curve; no native WAF++ reference
+|Kubernetes admission control; custom business rules
 
 |*HashiCorp Sentinel*
-|Tief in Terraform Enterprise integriert; Policy-Sets über mehrere Workspaces;
-Enforcement-Level (advisory, soft-mandatory, hard-mandatory)
-|Nur Terraform Enterprise / HCP Terraform; proprietär
-|Terraform-Enterprise-Umgebungen
+|Deeply integrated in Terraform Enterprise; policy sets across multiple workspaces;
+enforcement levels (advisory, soft-mandatory, hard-mandatory)
+|Only Terraform Enterprise / HCP Terraform; proprietary
+|Terraform Enterprise environments
 
 |*AWS Config Rules*
-|Native AWS-Integration; managed Rules ohne Code; kontinuierliches Monitoring;
-Config Aggregator für Multi-Account
-|AWS-only; Lambda-Overhead für Custom Rules; keine Terraform-Plan-Integration
-|Kontinuierliches Live-State-Monitoring; AWS-spezifische Compliance
+|Native AWS integration; managed rules without code; continuous monitoring;
+Config Aggregator for multi-account
+|AWS-only; Lambda overhead for custom rules; no Terraform plan integration
+|Continuous live state monitoring; AWS-specific compliance
 
 |*Checkov*
-|Open Source; breite Terraform-Coverage; CI-Integration; SARIF-Output
-|Kein WAF++-Bezug; viele False Positives; weniger flexibel als OPA
-|CI-Pipeline als Ergänzung zu wafpass
+|Open source; broad Terraform coverage; CI integration; SARIF output
+|No WAF++ reference; many false positives; less flexible than OPA
+|CI pipeline as supplement to wafpass
 
 |===
 
 == WAF++ wafpass in CI/CD
 
-wafpass ist das native Policy-as-Code-Tool des WAF++-Frameworks. Es evaluiert
-Terraform-Pläne und -State gegen die WAF-SEC (und andere Pillar-) Controls.
+wafpass is the native policy-as-code tool of the WAF++ framework. It evaluates
+Terraform plans and state against WAF-SEC (and other pillar) controls.
 
-=== Grundlegende Verwendung
+=== Basic Usage
 
 [source,bash]
 ----
-# Alle Security-Controls prüfen
+# Check all security controls
 wafpass check --pillar security
 
-# Nur kritische Controls prüfen (CI-Gate: kein Deployment bei Failure)
+# Check only critical controls (CI gate: no deployment on failure)
 wafpass check --pillar security --severity critical --fail-on critical
 
-# Spezifische Controls prüfen
+# Check specific controls
 wafpass check --controls WAF-SEC-010,WAF-SEC-020,WAF-SEC-030
 
-# Terraform Plan prüfen (pre-deployment)
+# Check Terraform plan (pre-deployment)
 terraform plan -out=plan.tfplan
 wafpass check --plan plan.tfplan --pillar security
 
-# Report als JSON ausgeben
+# Output report as JSON
 wafpass check --pillar security --output json > security-report.json
 
-# Report als HTML für Management
+# Output report as HTML for management
 wafpass check --pillar security --output html > security-report.html
 ----
 
@@ -153,16 +153,16 @@ jobs:
           category: wafpass-security
 ----
 
-Der `--fail-on critical` Flag stellt sicher, dass kritische Control-Verletzungen
-den Deployment-Prozess blockieren, während High/Medium/Low Findings als Warnungen
-im SARIF-Report sichtbar sind.
+The `--fail-on critical` flag ensures that critical control violations
+block the deployment process, while High/Medium/Low findings are visible as warnings
+in the SARIF report.
 
-== OPA für Kubernetes: Gatekeeper
+== OPA for Kubernetes: Gatekeeper
 
-Open Policy Agent (OPA) mit Gatekeeper implementiert einen Kubernetes Admission
-Controller – jede Ressource wird vor dem Erstellen gegen Policies geprüft:
+Open Policy Agent (OPA) with Gatekeeper implements a Kubernetes admission
+controller – every resource is checked against policies before being created:
 
-=== Installation von Gatekeeper
+=== Installing Gatekeeper
 
 [source,bash]
 ----
@@ -175,7 +175,7 @@ helm install gatekeeper/gatekeeper \
   --set auditInterval=30
 ----
 
-=== ConstraintTemplate: Keine privilegierten Container
+=== ConstraintTemplate: No Privileged Containers
 
 [source,yaml]
 ----
@@ -197,7 +197,7 @@ spec:
           c := input.review.object.spec.containers[_]
           c.securityContext.privileged == true
           msg := sprintf(
-            "Container '%v' muss als non-privileged laufen (WAF-SEC-120)",
+            "Container '%v' must run as non-privileged (WAF-SEC-120)",
             [c.name]
           )
         }
@@ -206,7 +206,7 @@ spec:
           c := input.review.object.spec.initContainers[_]
           c.securityContext.privileged == true
           msg := sprintf(
-            "Init-Container '%v' muss als non-privileged laufen (WAF-SEC-120)",
+            "Init container '%v' must run as non-privileged (WAF-SEC-120)",
             [c.name]
           )
         }
@@ -214,20 +214,20 @@ spec:
 
 [source,yaml]
 ----
-# Constraint: Aktivierung der Template-Regel für den production Namespace
+# Constraint: activating the template rule for the production namespace
 apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sNoPrivilegedContainer
 metadata:
   name: no-privileged-containers
 spec:
-  enforcementAction: deny  # deny blockiert; warn nur warnt
+  enforcementAction: deny  # deny blocks; warn only warns
   match:
     namespaces: ["production", "staging"]
 ----
 
-=== Conftest für Terraform-Pläne
+=== Conftest for Terraform Plans
 
-Conftest verwendet OPA/Rego-Policies für Terraform-Pläne:
+Conftest uses OPA/Rego policies for Terraform plans:
 
 [source,rego]
 ----
@@ -241,7 +241,7 @@ deny contains msg if {
   resource.type == "aws_s3_bucket"
   resource.change.after.acl == "public-read"
   msg := sprintf(
-    "S3-Bucket '%v' darf nicht auf public-read gesetzt sein (WAF-SEC-130)",
+    "S3 bucket '%v' must not be set to public-read (WAF-SEC-130)",
     [resource.address]
   )
 }
@@ -251,7 +251,7 @@ deny contains msg if {
   resource.type == "aws_s3_bucket_public_access_block"
   resource.change.after.block_public_acls == false
   msg := sprintf(
-    "S3-Bucket '%v' muss Block Public ACLs aktiviert haben (WAF-SEC-130)",
+    "S3 bucket '%v' must have Block Public ACLs enabled (WAF-SEC-130)",
     [resource.address]
   )
 }
@@ -262,9 +262,9 @@ deny contains msg if {
 terraform show -json plan.tfplan | conftest test - --policy policies/security/
 ----
 
-== AWS Config: Kontinuierliches Live-Monitoring
+== AWS Config: Continuous Live Monitoring
 
-AWS Config überwacht den aktuellen Zustand der Infrastruktur und meldet Abweichungen:
+AWS Config monitors the current state of the infrastructure and reports deviations:
 
 [source,hcl]
 ----
@@ -274,7 +274,7 @@ resource "aws_config_configuration_recorder" "main" {
 
   recording_group {
     all_supported                 = true
-    include_global_resource_types = true  # IAM, CloudFront etc.
+    include_global_resource_types = true  # IAM, CloudFront, etc.
   }
 }
 
@@ -296,7 +296,7 @@ resource "aws_config_configuration_recorder_status" "main" {
   depends_on = [aws_config_delivery_channel.main]
 }
 
-# Managed Rule: MFA für Root-Account
+# Managed rule: MFA for root account
 resource "aws_config_rule" "root_mfa" {
   name = "root-account-mfa-enabled"
 
@@ -308,7 +308,7 @@ resource "aws_config_rule" "root_mfa" {
   depends_on = [aws_config_configuration_recorder_status.main]
 }
 
-# Managed Rule: VPC Flow Logs aktiviert
+# Managed rule: VPC flow logs enabled
 resource "aws_config_rule" "vpc_flow_logs" {
   name = "vpc-flow-logs-enabled"
 
@@ -318,7 +318,7 @@ resource "aws_config_rule" "vpc_flow_logs" {
   }
 }
 
-# Managed Rule: CloudTrail aktiviert
+# Managed rule: CloudTrail enabled
 resource "aws_config_rule" "cloudtrail_enabled" {
   name = "cloud-trail-enabled"
 
@@ -328,7 +328,7 @@ resource "aws_config_rule" "cloudtrail_enabled" {
   }
 }
 
-# Custom Rule via Lambda: WAF-SEC-spezifische Prüfung
+# Custom rule via Lambda: WAF-SEC-specific check
 resource "aws_config_rule" "custom_encryption_check" {
   name = "custom-waf-sec-030-encryption-check"
 
@@ -348,51 +348,51 @@ resource "aws_config_rule" "custom_encryption_check" {
 }
 ----
 
-== Versionierung von Policies
+== Policy Versioning
 
-Policies evolvieren – neue Anforderungen kommen, alte werden schärfer formuliert.
-Ohne Versionierungsstrategie führt das zu Breaking Changes:
+Policies evolve – new requirements emerge, old ones become stricter.
+Without a versioning strategy, this leads to breaking changes:
 
-=== Semantic Versioning für Policies
+=== Semantic Versioning for Policies
 
 [source,yaml]
 ----
 # wafpass-policies/security/WAF-SEC-010.policy.yml
 version: "2.1.0"
-# 2.x.x = Breaking Change (neue Mandatory-Assertion)
-# x.2.x = Non-breaking Enhancement (neues Optional-Check)
-# x.x.1 = Bugfix (korrigierte Assertion)
+# 2.x.x = Breaking change (new mandatory assertion)
+# x.2.x = Non-breaking enhancement (new optional check)
+# x.x.1 = Bugfix (corrected assertion)
 
 effective_date: "2025-01-01"
 deprecation_warning: null
 breaking_changes_from_previous:
-  - "Mindestpasswortlänge von 12 auf 14 Zeichen erhöht (BSI C5:2020 IAM-01 Update)"
+  - "Minimum password length increased from 12 to 14 characters (BSI C5:2020 IAM-01 update)"
 ----
 
-=== Graceful Migration: Warn-Modus vor Enforce-Modus
+=== Graceful Migration: Warn Mode Before Enforce Mode
 
-Neue Policies sollten zunächst im Warn-Modus laufen:
+New policies should initially run in warn mode:
 
 [source,yaml]
 ----
-# Phase 1 (Monat 1): Nur warnen
+# Phase 1 (month 1): warn only
 enforcement_level: warn
 
-# Phase 2 (Monat 2): Non-Compliance in Reports
+# Phase 2 (month 2): non-compliance in reports
 enforcement_level: report
 
-# Phase 3 (Monat 3): CI-Gate blockiert bei Neudeployments
+# Phase 3 (month 3): CI gate blocks on new deployments
 enforcement_level: fail-on-new
 
-# Phase 4 (Monat 4): CI-Gate blockiert alle Deployments
+# Phase 4 (month 4): CI gate blocks all deployments
 enforcement_level: fail
 ----
 
-== Monitoring und Messung
+== Monitoring and Measurement
 
-* *Config Compliance Dashboard*: Prozentsatz konformer Ressourcen pro Rule
-* *Config Aggregator*: Multi-Account Compliance-Übersicht für die gesamte Organisation
-* *Security Hub Findings*: Config-Findings aggregiert mit anderen Sicherheitsquellen
-* *Policy Coverage Metric*: Anteil der Ressourcen, die von mindestens einer Policy abgedeckt werden
-* *Mean Time to Remediation (MTTR)*: Wie lange dauert es, eine Config-Finding zu beheben?
+* *Config Compliance Dashboard*: Percentage of compliant resources per rule
+* *Config Aggregator*: Multi-account compliance overview for the entire organization
+* *Security Hub Findings*: Config findings aggregated with other security sources
+* *Policy Coverage Metric*: Share of resources covered by at least one policy
+* *Mean Time to Remediation (MTTR)*: How long does it take to fix a Config finding?
 * `wafpass check --pillar security --controls WAF-SEC-090 --output json | jq '.summary'`

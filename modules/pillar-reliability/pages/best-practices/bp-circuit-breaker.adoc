@@ -1,35 +1,35 @@
 = Best Practice: Circuit Breaker, Timeouts & Bulkheads
 :page-toc: right
-:description: WAF++ Reliability – Resilience Patterns gegen Cascading Failures: Circuit Breaker, Timeouts, Retry und Bulkhead.
+:description: WAF++ Reliability – Resilience patterns against cascading failures: Circuit Breaker, Timeouts, Retry and Bulkhead.
 
-== Kontext
+== Context
 
-Cascading Failures sind die häufigste Ursache großer Cloud-Outages. Eine langsame oder
-fehlerhafte Abhängigkeit ohne Circuit Breaker erschöpft schrittweise Thread Pools,
-Connection Pools und Request Queues des abhängigen Services – bis dieser ebenfalls ausfällt.
+Cascading failures are the most common cause of major cloud outages. A slow or
+failing dependency without a circuit breaker gradually exhausts thread pools,
+connection pools and request queues of the dependent service – until it also fails.
 
-Häufige Probleme ohne strukturierte Resilience Patterns:
+Common problems without structured resilience patterns:
 
-* Eine langsame externe API lässt alle API-Handler-Threads auf Timeout warten
-* Database Connection Pool erschöpft sich und blockiert alle Services, die denselben Pool nutzen
-* Retry Storms: 1000 Clients versuchen gleichzeitig ihre fehlgeschlagenen Requests zu wiederholen
-* Optionaler Enrichment-Service fällt aus und reißt den gesamten Haupt-Service mit
+* A slow external API leaves all API handler threads waiting for a timeout
+* Database connection pool is exhausted and blocks all services sharing the same pool
+* Retry storms: 1000 clients simultaneously retry their failed requests
+* An optional enrichment service fails and brings down the entire main service
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-REL-050[WAF-REL-050] – Circuit Breaker & Timeout Configuration
 * xref:controls.adoc#WAF-REL-080[WAF-REL-080] – Dependency & Upstream Resilience Management
 
-== Zielbild
+== Target State
 
-* Jeder ausgehende Call hat explizite Timeouts
-* Kritische Abhängigkeiten haben Circuit Breaker mit definierten Schwellenwerten
-* Retry-Logik verhindert Storms durch Exponential Backoff mit Jitter
-* Bulkheads isolieren verschiedene Abhängigkeitsklassen in separate Resource Pools
+* Every outgoing call has explicit timeouts
+* Critical dependencies have circuit breakers with defined thresholds
+* Retry logic prevents storms through exponential backoff with jitter
+* Bulkheads isolate different dependency classes into separate resource pools
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Python: Circuit Breaker mit pybreaker
+=== Python: Circuit Breaker with pybreaker
 
 [source,python]
 ----
@@ -39,22 +39,22 @@ import asyncio
 import logging
 from datetime import datetime
 
-# Circuit Breaker konfigurieren
+# Configure circuit breaker
 payment_gateway_cb = pybreaker.CircuitBreaker(
-    fail_max=5,          # Nach 5 Fehlern: OPEN
-    reset_timeout=30,    # Nach 30s: HALF-OPEN (ein Test-Request)
+    fail_max=5,          # After 5 failures: OPEN
+    reset_timeout=30,    # After 30s: HALF-OPEN (one test request)
     name="payment-gateway"
 )
 
-# Event-Listener für Logging
+# Event listener for logging
 @payment_gateway_cb.on_state_change
 def log_state_change(cb, old_state, new_state):
     logging.warning(f"CircuitBreaker[{cb.name}]: {old_state} -> {new_state}")
 
 async def charge_card(card_token: str, amount: float) -> dict:
-    """Zahlung mit Circuit Breaker und Timeout."""
+    """Payment with circuit breaker and timeout."""
     try:
-        # Circuit Breaker wrapping + Timeout
+        # Circuit breaker wrapping + timeout
         async with httpx.AsyncClient(timeout=httpx.Timeout(3.0)) as client:
             response = await payment_gateway_cb.call_async(
                 client.post,
@@ -64,15 +64,15 @@ async def charge_card(card_token: str, amount: float) -> dict:
             return response.json()
 
     except pybreaker.CircuitBreakerError:
-        # Circuit ist OPEN: Sofortige Ablehnung, keine Wartezeit
+        # Circuit is OPEN: immediate rejection, no wait time
         logging.warning("Payment gateway circuit open – fast failing")
         raise ServiceUnavailableError("Payment gateway temporarily unavailable")
 
     except httpx.TimeoutException:
-        # Timeout überschritten
+        # Timeout exceeded
         raise ServiceTimeoutError("Payment gateway timeout after 3s")
 
-# Retry mit Exponential Backoff + Jitter
+# Retry with exponential backoff + jitter
 async def charge_with_retry(card_token: str, amount: float) -> dict:
     max_attempts = 3
     for attempt in range(max_attempts):
@@ -81,7 +81,7 @@ async def charge_with_retry(card_token: str, amount: float) -> dict:
         except ServiceTimeoutError:
             if attempt == max_attempts - 1:
                 raise
-            # Exponential Backoff + Jitter
+            # Exponential backoff + jitter
             wait = (2 ** attempt) + (asyncio.get_event_loop().time() % 1)
             await asyncio.sleep(wait)
     raise ServiceUnavailableError("Max retry attempts exceeded")
@@ -102,7 +102,7 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 2
         automaticTransitionFromOpenToHalfOpenEnabled: true
         waitDurationInOpenState: 30s
-        failureRateThreshold: 50       # 50% Fehlerrate → OPEN
+        failureRateThreshold: 50       # 50% error rate → OPEN
         slowCallDurationThreshold: 2s
         slowCallRateThreshold: 80
   retry:
@@ -116,7 +116,7 @@ resilience4j:
   bulkhead:
     instances:
       payment-gateway:
-        maxConcurrentCalls: 10         # Max. gleichzeitige Calls
+        maxConcurrentCalls: 10         # Max. concurrent calls
         maxWaitDuration: 100ms
 
 // PaymentService.java
@@ -132,7 +132,7 @@ public class PaymentService {
 
     public ChargeResult paymentFallback(String cardToken, BigDecimal amount,
                                          CallNotPermittedException ex) {
-        // Circuit offen: Offline-Queue für spätere Verarbeitung
+        // Circuit open: offline queue for later processing
         offlineQueue.enqueue(cardToken, amount);
         return ChargeResult.queued("Payment queued for processing");
     }
@@ -164,14 +164,14 @@ spec:
         retryRemoteStatuses: "500,502,503"
 
     outlierDetection:
-      consecutive5xxErrors: 5         # 5 Fehler → Ausschluss
-      interval: 10s                   # Bewertungsfenster
-      baseEjectionTime: 30s           # Minimum Ausschlusszeit
-      maxEjectionPercent: 50          # Max. 50% der Hosts ausschließen
+      consecutive5xxErrors: 5         # 5 errors → ejection
+      interval: 10s                   # Evaluation window
+      baseEjectionTime: 30s           # Minimum ejection time
+      maxEjectionPercent: 50          # Eject max. 50% of hosts
       splitExternalLocalOriginErrors: true
 ----
 
-=== Terraform: ALB mit Timeout
+=== Terraform: ALB with Timeout
 
 [source,hcl]
 ----
@@ -181,7 +181,7 @@ resource "aws_lb" "api" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
-  idle_timeout       = 30    # Für REST APIs: 30s; Nicht Default 60s
+  idle_timeout       = 30    # For REST APIs: 30s; not the default 60s
 
   tags = var.mandatory_tags
 }
@@ -191,7 +191,7 @@ resource "aws_lb_target_group" "api" {
   port                 = 8080
   protocol             = "HTTP"
   vpc_id               = var.vpc_id
-  deregistration_delay = 30  # Graceful shutdown Fenster
+  deregistration_delay = 30  # Graceful shutdown window
 
   health_check {
     enabled             = true
@@ -205,24 +205,24 @@ resource "aws_lb_target_group" "api" {
 }
 ----
 
-== Typische Fehlmuster
+== Typical Anti-Patterns
 
-* *Circuit Breaker schützt alle Calls inkl. lesender Operationen*: Zu aggressiv – schreibende und lesende Calls separat konfigurieren
-* *Retry ohne Jitter*: Alle Clients retrien zur gleichen Zeit → Retry Storm
-* *Zu kurzer Reset-Timeout*: Circuit wechselt zu schnell zu HALF-OPEN → weitere Fehler
-* *Connection Pool für alle DBs geteilt*: Ein langsamer Query erschöpft Pool für alle anderen Services
+* *Circuit breaker protects all calls including read operations*: Too aggressive – configure write and read calls separately
+* *Retry without jitter*: All clients retry at the same time → retry storm
+* *Reset timeout too short*: Circuit switches to HALF-OPEN too quickly → further failures
+* *Connection pool shared for all DBs*: One slow query exhausts the pool for all other services
 
-== Metriken
+== Metrics
 
-* Circuit Breaker Open Rate: Anzahl Minuten pro Stunde im OPEN-State (Ziel: < 1 min/h)
-* Timeout Rate: % der Calls, die auf Timeout laufen (Ziel: < 0.1%)
-* Retry Rate: % der Calls, die mindestens einmal wiederholt wurden (Ziel: < 5%)
-* Bulkhead Rejection Rate: % der Calls, die durch Bulkhead abgelehnt wurden
+* Circuit Breaker Open Rate: Number of minutes per hour in OPEN state (target: < 1 min/h)
+* Timeout Rate: % of calls that time out (target: < 0.1%)
+* Retry Rate: % of calls that were retried at least once (target: < 5%)
+* Bulkhead Rejection Rate: % of calls rejected by the bulkhead
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Keine Timeouts, keine Circuit Breaker +
-Level 2 – Basis-Timeouts konfiguriert +
-Level 3 – Circuit Breaker für alle kritischen Abhängigkeiten; Retry mit Backoff +
-Level 4 – Bulkheads per Abhängigkeitsklasse; Service Mesh verwaltet CB deklarativ +
-Level 5 – Adaptive Thresholds; Request Hedging für latenz-kritische Pfade
+Level 1 – No timeouts, no circuit breakers +
+Level 2 – Basic timeouts configured +
+Level 3 – Circuit breakers for all critical dependencies; retry with backoff +
+Level 4 – Bulkheads per dependency class; service mesh manages CB declaratively +
+Level 5 – Adaptive thresholds; request hedging for latency-critical paths

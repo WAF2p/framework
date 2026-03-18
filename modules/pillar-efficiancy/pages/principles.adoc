@@ -1,36 +1,36 @@
-= Performance-Prinzipien
+= Performance Principles
 :page-toc: right
-:description: WAF++ Performance Efficiency – 7 Grundprinzipien für performante Cloud-Architekturen.
+:description: WAF++ Performance Efficiency – 7 core principles for performant cloud architectures.
 
-Die 7 Performance-Prinzipien des WAF++ sind Leitlinien für technische Entscheidungen.
-Sie beschreiben das *Warum* hinter den Controls und ermöglichen fundierte Urteile
-in Situationen, die kein Control direkt adressiert.
+The 7 performance principles of WAF++ are guidelines for technical decisions.
+They describe the *why* behind the controls and enable informed judgments
+in situations that no control directly addresses.
 
-== PP1 – Measure First (Messen vor Optimieren)
+== PP1 – Measure First
 
-*Tagline:* Ohne Messung ist Optimierung Raten.
+*Tagline:* Without measurement, optimization is guesswork.
 
-=== Erklärung
+=== Explanation
 
-Performance-Optimierung ohne Messung ist eine der häufigsten Ressourcenverschwendungen in der Softwareentwicklung.
-Entwickler optimieren Codepfade, die nicht gemessen wurden, und verpassen die tatsächlichen Bottlenecks.
-Das erste Prinzip des WAF++ lautet: Messen, bevor optimiert wird.
+Performance optimization without measurement is one of the most common forms of resource waste in software development.
+Developers optimize code paths that were never measured and miss the actual bottlenecks.
+The first principle of WAF++ is: measure before optimizing.
 
-Messen bedeutet:
+Measuring means:
 
-* *Baselines erheben*: P50, P95, P99 Latenz, Throughput, Fehlerrate vor jeder Optimierung dokumentieren
-* *Bottleneck identifizieren*: Welcher Layer ist der tatsächliche Engpass? CPU? Netzwerk? Datenbank? Cache?
-* *Erfolg definieren*: Welches Ergebnis gilt als Verbesserung? Ohne Ziel kein Fortschritt messbar
-* *Continuous Measurement*: Metriken dauerhaft sammeln, nicht nur bei Incidents
+* *Collecting baselines*: Document P50, P95, P99 latency, throughput, and error rate before every optimization
+* *Identifying bottlenecks*: Which layer is the actual constraint? CPU? Network? Database? Cache?
+* *Defining success*: What result counts as an improvement? Without a target, no progress can be measured
+* *Continuous measurement*: Collect metrics permanently, not only during incidents
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Vor jeder Sizing-Entscheidung: 2 Wochen Auslastungsdaten sammeln
-* Vor jeder Caching-Implementierung: Cache-Miss-Rate und Abfragehäufigkeit messen
-* Vor jeder Index-Optimierung: `EXPLAIN ANALYZE` auf die tatsächlichen Abfragen ausführen
-* Vor jedem Auto-Scaling-Tuning: Lastprofil messen und Skalierungsschwellenwerte ableiten
+* Before every sizing decision: collect 2 weeks of utilization data
+* Before every caching implementation: measure cache miss rate and query frequency
+* Before every index optimization: run `EXPLAIN ANALYZE` on the actual queries
+* Before every auto-scaling tuning: measure the load profile and derive scaling thresholds
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050] – Performance Monitoring & SLO Definition
 * xref:controls/WAF-PERF-040.adoc[WAF-PERF-040] – Database Performance Baseline & Index Strategy
@@ -39,48 +39,48 @@ Messen bedeutet:
 
 == PP2 – Right Technology for the Job
 
-*Tagline:* Die beste Technologie für einen Anwendungsfall ist nicht die leistungsfähigste – sondern die passendste.
+*Tagline:* The best technology for a use case is not the most powerful – it's the most suitable.
 
-=== Erklärung
+=== Explanation
 
-Jede Technologieentscheidung hat Performance-Implikationen. Eine relationale Datenbank für einen
-Key-Value-Store ist ebenso falsch wie ein NoSQL-Dokumentenstore für komplexe Transaktionen.
-Das Prinzip: Wähle die Technologie, die für den spezifischen Anwendungsfall *ausreichend* leistungsfähig
-und *optimal geeignet* ist – nicht die theoretisch schnellste.
+Every technology decision has performance implications. A relational database for a
+key-value store is just as wrong as a NoSQL document store for complex transactions.
+The principle: choose the technology that is *sufficiently* powerful
+and *optimally suited* for the specific use case – not the theoretically fastest one.
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Für variable Last: Serverless-Evaluation vor Classic-Compute (WAF-PERF-080)
-* Für Caching: Redis für Strukturdaten, CDN für Content, In-Process für Read-Heavy-Lookups
-* Für Storage: gp3 für allgemeinen Compute, io2 für Hochlast-Datenbanken (WAF-PERF-090)
-* Für globale Verteilung: CDN vor Multi-Region-Deployment evaluieren (WAF-PERF-070)
+* For variable load: evaluate serverless before classic compute (WAF-PERF-080)
+* For caching: Redis for structured data, CDN for content, in-process for read-heavy lookups
+* For storage: gp3 for general compute, io2 for high-load databases (WAF-PERF-090)
+* For global distribution: evaluate CDN before multi-region deployment (WAF-PERF-070)
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-010.adoc[WAF-PERF-010] – Compute Instance Type & Sizing Validated
 * xref:controls/WAF-PERF-080.adoc[WAF-PERF-080] – Serverless & Managed Services for Variable Load
 
 ---
 
-== PP3 – Scale Horizontally (Skaliere horizontal, nicht vertikal)
+== PP3 – Scale Horizontally
 
-*Tagline:* Mehr gleiche Instanzen schlägt größere einzelne Instanz.
+*Tagline:* More identical instances beats a single larger instance.
 
-=== Erklärung
+=== Explanation
 
-Vertikales Scaling (größere Instanz) hat Grenzen: irgendwann gibt es keine größere Instanz.
-Es erzeugt außerdem Single Points of Failure, hat Ausfallzeiten beim Resizing und bietet
-keine Redundanz. Horizontales Scaling (mehr Instanzen hinter einem Load Balancer) ist
-elastisch, hat keine harte Obergrenze und bietet natürliche Redundanz.
+Vertical scaling (larger instance) has limits: eventually there is no larger instance.
+It also creates single points of failure, has downtime during resizing, and provides
+no redundancy. Horizontal scaling (more instances behind a load balancer) is
+elastic, has no hard upper limit, and provides natural redundancy.
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Zustandslose Architektur ist eine Vorbedingung für horizontales Scaling
-* Session-State MUSS externalisiert werden (Redis, DynamoDB) – nicht im Prozess
-* Datenbankscaling: Read Replicas für Lesescaling, Sharding für Schreibscaling
-* Stateful Services (Datenbanken, Message Queues): Auto-Scaling auf Provider-Ebene nutzen
+* Stateless architecture is a prerequisite for horizontal scaling
+* Session state MUST be externalized (Redis, DynamoDB) – not kept in-process
+* Database scaling: read replicas for read scaling, sharding for write scaling
+* Stateful services (databases, message queues): use provider-level auto-scaling
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-020.adoc[WAF-PERF-020] – Auto-Scaling Configured & Tested
 * xref:controls/WAF-PERF-080.adoc[WAF-PERF-080] – Serverless & Managed Services for Variable Load
@@ -89,28 +89,28 @@ elastisch, hat keine harte Obergrenze und bietet natürliche Redundanz.
 
 == PP4 – Cache Strategically
 
-*Tagline:* Nicht alles cachen – aber alles Wiederholte cachen.
+*Tagline:* Don't cache everything – but cache everything that repeats.
 
-=== Erklärung
+=== Explanation
 
-Caching ist eine der wirkungsvollsten Performance-Optimierungen, wenn richtig angewendet.
-Falsch angewendet erzeugt es schwer diagnostizierbare Stale-Data-Probleme. Das Prinzip:
-Cache bewusst und dokumentiert – mit klaren Regeln für Kandidaten, TTLs und Invalidierung.
+Caching is one of the most effective performance optimizations when applied correctly.
+Applied incorrectly, it creates hard-to-diagnose stale data problems. The principle:
+cache consciously and with documentation – with clear rules for candidates, TTLs, and invalidation.
 
-Caching-Kandidaten:
+Caching candidates:
 
-* *Immer cachen*: Statische Assets, unveränderliche Konfiguration, externe API-Antworten mit Toleranz
-* *Cache mit kurzer TTL*: Aggregierte Metriken, Produktkataloge, Preislisten
-* *Nicht cachen*: Nutzerspezifische Transaktionsdaten, Echtzeit-Informationen, Sicherheitsentscheidungen
+* *Always cache*: Static assets, immutable configuration, external API responses with tolerance
+* *Cache with short TTL*: Aggregated metrics, product catalogs, price lists
+* *Do not cache*: User-specific transaction data, real-time information, security decisions
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Caching-Strategie MUSS dokumentiert werden mit Datentyp, Layer, TTL und Invalidierungslogik
-* Cache-Hit-Rate MUSS gemessen werden; Ziel: >= 80% Applikations-Cache, >= 95% CDN
-* Cache-Invalidierung bei Datenmutationen ist Pflicht – kein "wir cachen es einfach nicht"
-* Thundering-Herd-Schutz für Cache-Expiry-Events bei hochfrequentierten Schlüsseln
+* Caching strategy MUST be documented with data type, layer, TTL, and invalidation logic
+* Cache hit rate MUST be measured; target: >= 80% application cache, >= 95% CDN
+* Cache invalidation on data mutations is mandatory – no "we just won't cache it"
+* Thundering herd protection for cache expiry events on high-frequency keys
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-030.adoc[WAF-PERF-030] – Caching Strategy Defined & Implemented
 * xref:controls/WAF-PERF-070.adoc[WAF-PERF-070] – Network Latency & Topology Optimization
@@ -119,29 +119,29 @@ Caching-Kandidaten:
 
 == PP5 – Test Under Load
 
-*Tagline:* Ein ungetesteter Skalierungspfad ist kein Skalierungspfad.
+*Tagline:* An untested scaling path is not a scaling path.
 
-=== Erklärung
+=== Explanation
 
-Jede Architektur verhält sich unter Last anders als im Leerlauf. Connection Pools sättigen,
-Auto-Scaling-Trigger verzögern, Datenbankabfragen-Pläne ändern sich mit Datenmenge.
-Das Prinzip: Kein produktionskritisches System geht ohne Lasttest-Validation in Produktion.
+Every architecture behaves differently under load than at idle. Connection pools saturate,
+auto-scaling triggers are delayed, database query plans change with data volume.
+The principle: no production-critical system goes to production without load test validation.
 
-Lasttests decken auf:
+Load tests reveal:
 
-* Auto-Scaling-Konfigurationsfehler (zu hohe Schwellen, zu lange Cooldowns)
-* Connection-Pool-Erschöpfung unter Concurrent-Load
-* Datenbankperformance-Degradation durch Query-Plan-Änderungen unter Last
-* Memory-Leaks und Garbage-Collection-Pausen unter Extended Load
+* Auto-scaling configuration errors (thresholds too high, cooldowns too long)
+* Connection pool exhaustion under concurrent load
+* Database performance degradation from query plan changes under load
+* Memory leaks and garbage collection pauses under extended load
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Lasttests sind ein Deployment-Gate: Produktionsdeployment ohne bestandenen Lasttest ist eine Violation
-* Akzeptanzkriterien MÜSSEN vor dem Lasttest definiert werden: P95 < X ms, Error-Rate < Y%
-* Baseline für Regressionsvergleich MUSS nach jedem erfolgreichen Test aktualisiert werden
-* Stresstest (2x, 5x erwartete Last) mindestens quartalsweise für kritische Services
+* Load tests are a deployment gate: production deployment without a passed load test is a violation
+* Acceptance criteria MUST be defined before the load test: P95 < X ms, error rate < Y%
+* Baseline for regression comparison MUST be updated after every successful test
+* Stress test (2x, 5x expected load) at least quarterly for critical services
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-060.adoc[WAF-PERF-060] – Load & Stress Testing in CI/CD Pipeline
 * xref:controls/WAF-PERF-020.adoc[WAF-PERF-020] – Auto-Scaling Configured & Tested
@@ -150,54 +150,54 @@ Lasttests decken auf:
 
 == PP6 – Automate Scaling
 
-*Tagline:* Manuelle Kapazitätssteuerung ist ein 24/7-Betriebsproblem.
+*Tagline:* Manual capacity management is a 24/7 operational problem.
 
-=== Erklärung
+=== Explanation
 
-Manuelle Skalierung erfordert menschliche Intervention zu jeder Tages- und Nachtzeit,
-ist fehleranfällig, langsam und erzeugt Reaktionszeit-Lücken bei unerwarteten Traffic-Spitzen.
-Automatisiertes Scaling mit validierten Konfigurationen ist nicht nur effizienter –
-es ist zuverlässiger als jeder Mensch im On-Call-Rota.
+Manual scaling requires human intervention at any time of day or night,
+is error-prone, slow, and creates response time gaps during unexpected traffic spikes.
+Automated scaling with validated configurations is not only more efficient –
+it is more reliable than any person in an on-call rotation.
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Alle zustandslosen Produktions-Workloads MÜSSEN Auto-Scaling konfiguriert haben
-* Skalierungsmetriken MÜSSEN auf Anwendungsverhalten basieren (Latenz, Request-Rate, Queue-Depth)
-* Skalierungsschwellen MÜSSEN aus Lasttest-Daten abgeleitet werden – nicht aus Intuition
-* Scale-in MUSS konservativer sein als Scale-out (Cooldown: Scale-out kürzer als Scale-in)
+* All stateless production workloads MUST have auto-scaling configured
+* Scaling metrics MUST be based on application behavior (latency, request rate, queue depth)
+* Scaling thresholds MUST be derived from load test data – not intuition
+* Scale-in MUST be more conservative than scale-out (cooldown: scale-out shorter than scale-in)
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-020.adoc[WAF-PERF-020] – Auto-Scaling Configured & Tested
 * xref:controls/WAF-PERF-080.adoc[WAF-PERF-080] – Serverless & Managed Services for Variable Load
 
 ---
 
-== PP7 – Performance as Architecture Concern (Performance-Schuld dokumentieren)
+== PP7 – Performance as Architecture Concern (Document Performance Debt)
 
-*Tagline:* Bekannte Performance-Limitierungen sind Schulden – und Schulden wachsen mit Zins.
+*Tagline:* Known performance limitations are debt – and debt grows with interest.
 
-=== Erklärung
+=== Explanation
 
-Performance-Schuld entsteht, wenn Architekturentscheidungen oder Ressourcenkonstraints
-zu bekannten Performance-Limitierungen führen, die bewusst akzeptiert werden.
-Diese Schulden sind rational – aber nur, wenn sie dokumentiert und regelmäßig überprüft werden.
+Performance debt arises when architectural decisions or resource constraints
+lead to known performance limitations that are consciously accepted.
+This debt is rational – but only if it is documented and regularly reviewed.
 
-Undokumentierte Performance-Schulden:
+Undocumented performance debt:
 
-* Werden vergessen und akkumulieren unbemerkt
-* Erzeugen wiederholende Incidents, weil Ursachen nicht dokumentiert sind
-* Verhindern informierte Entscheidungen über Performance-Investitionen
-* Gehen verloren, wenn Mitarbeitende das Unternehmen verlassen
+* Is forgotten and accumulates unnoticed
+* Creates recurring incidents because root causes are not documented
+* Prevents informed decisions about performance investments
+* Is lost when employees leave the organization
 
-=== Konkrete Implikationen
+=== Concrete implications
 
-* Alle bekannten Performance-Einschränkungen MÜSSEN im Register dokumentiert werden
-* Quarterly Review MUSS stattfinden: welche Schulden wurden abgebaut, welche priorisiert?
-* Jeder Performance-Incident MUSS eine Register-Eintrag erzeugen
-* Neue Features MÜSSEN auf Performance-Schuld-Entstehung evaluiert werden (ADR-Performance-Sektion)
+* All known performance limitations MUST be documented in the register
+* Quarterly review MUST take place: which debts were resolved, which were prioritized?
+* Every performance incident MUST create a register entry
+* New features MUST be evaluated for performance debt creation (ADR performance section)
 
-=== Zugehörige Controls
+=== Related Controls
 
 * xref:controls/WAF-PERF-100.adoc[WAF-PERF-100] – Performance Debt Register & Quarterly Review
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050] – Performance Monitoring & SLO Definition

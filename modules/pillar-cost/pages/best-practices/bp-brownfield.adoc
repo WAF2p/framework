@@ -1,39 +1,39 @@
 = Best Practice: Brownfield Cost Optimization
 :page-toc: right
-:description: WAF++ Cost Optimization – Systematische Kostenoptimierung für Bestandsinfrastruktur: Assessment, Quick Wins, strukturelle Verbesserungen.
+:description: WAF++ Cost Optimization – Systematic cost optimization for existing infrastructure: assessment, quick wins, structural improvements.
 
-== Kontext
+== Context
 
-Brownfield-Cost-Optimization ist die schwierigste Disziplin der Cost-Säule.
-Bestehende Infrastruktur hat Abhängigkeiten, politische Geschichte und oft eine Schuldenlast,
-die sich über Jahre aufgebaut hat. Gleichzeitig bietet sie die größten Quick-Win-Potenziale:
-Idle-Instanzen, fehlende Lifecycle-Policies und ungenutzte Reservierungen sind oft mit
-minimalem Aufwand adressierbar.
+Brownfield cost optimization is the most challenging discipline of the cost pillar.
+Existing infrastructure has dependencies, political history, and often a debt load
+that has built up over years. At the same time, it offers the greatest quick-win potential:
+idle instances, missing lifecycle policies, and unused reservations are often addressable
+with minimal effort.
 
-Dieser Leitfaden strukturiert Brownfield-Optimierung in drei Phasen:
-Discovery → Quick Wins → Strukturelle Verbesserungen.
+This guide structures brownfield optimization into three phases:
+Discovery → Quick Wins → Structural Improvements.
 
-== Zugehörige Controls
+== Related Controls
 
-Alle WAF-COST Controls sind relevant; priorisierte Reihenfolge für Brownfield:
+All WAF-COST controls are relevant; prioritized order for brownfield:
 WAF-COST-010 → WAF-COST-020 → WAF-COST-040 → WAF-COST-030 → WAF-COST-100 → WAF-COST-050
 
-== Phase 1: Discovery (Wochen 1–4)
+== Phase 1: Discovery (Weeks 1–4)
 
-=== Schritt 1.1: Kosten-Baseline erstellen
+=== Step 1.1: Create Cost Baseline
 
-Bevor optimiert wird, muss der Ist-Zustand klar sein:
+Before optimizing, the current state must be clear:
 
 [source,bash]
 ----
 #!/bin/bash
-# scripts/cost-baseline.sh – AWS Kosten-Baseline
+# scripts/cost-baseline.sh – AWS Cost Baseline
 
 echo "=== Cost Baseline Report ==="
 echo ""
 
-# Gesamtkosten der letzten 3 Monate
-echo "--- Gesamtkosten (letzte 3 Monate) ---"
+# Total costs for the last 3 months
+echo "--- Total Costs (last 3 months) ---"
 aws ce get-cost-and-usage \
   --time-period Start=$(date -d '3 months ago' +%Y-%m-01),End=$(date +%Y-%m-01) \
   --granularity MONTHLY \
@@ -42,7 +42,7 @@ aws ce get-cost-and-usage \
   --output table
 
 echo ""
-echo "--- Top-10 Kostentreiber (Service) ---"
+echo "--- Top-10 Cost Drivers (Service) ---"
 aws ce get-cost-and-usage \
   --time-period Start=$(date -d '1 month ago' +%Y-%m-01),End=$(date +%Y-%m-01) \
   --granularity MONTHLY \
@@ -62,14 +62,14 @@ aws ce get-cost-and-usage \
   --output text
 ----
 
-=== Schritt 1.2: Waste-Discovery
+=== Step 1.2: Waste Discovery
 
 [source,bash]
 ----
 #!/bin/bash
-# scripts/waste-discovery.sh – Häufige Waste-Quellen identifizieren
+# scripts/waste-discovery.sh – Identify common waste sources
 
-echo "=== S3 Buckets ohne Lifecycle-Policy ==="
+echo "=== S3 Buckets Without Lifecycle Policy ==="
 aws s3api list-buckets --query "Buckets[].Name" --output text | \
   tr '\t' '\n' | while read BUCKET; do
     LIFECYCLE=$(aws s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" 2>/dev/null)
@@ -81,37 +81,37 @@ aws s3api list-buckets --query "Buckets[].Name" --output text | \
   done
 
 echo ""
-echo "=== CloudWatch Log Groups ohne Retention ==="
+echo "=== CloudWatch Log Groups Without Retention ==="
 aws logs describe-log-groups \
   --query 'logGroups[?retentionInDays==`null`].{Name:logGroupName, StoredBytes:storedBytes}' \
   --output table
 
 echo ""
-echo "=== Unbenutzte Elastic IPs ==="
+echo "=== Unused Elastic IPs ==="
 aws ec2 describe-addresses \
   --query 'Addresses[?AssociationId==`null`].{AllocationId:AllocationId, PublicIp:PublicIp}' \
   --output table
 
 echo ""
-echo "=== Unbenutzte EBS Volumes ==="
+echo "=== Unused EBS Volumes ==="
 aws ec2 describe-volumes \
   --filters Name=status,Values=available \
   --query 'Volumes[].{VolumeId:VolumeId, Size:Size, CreateTime:CreateTime}' \
   --output table
 ----
 
-=== Schritt 1.3: Tagging-Audit
+=== Step 1.3: Tagging Audit
 
 [source,bash]
 ----
 #!/bin/bash
-# scripts/tagging-audit.sh – Tagging-Compliance prüfen
+# scripts/tagging-audit.sh – Check tagging compliance
 
 MANDATORY_TAGS=("cost-center" "owner" "environment" "workload")
 NON_COMPLIANT=0
 TOTAL=0
 
-# EC2 Instanzen prüfen
+# Check EC2 instances
 echo "=== EC2 Tagging Compliance ==="
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[]' \
@@ -122,60 +122,60 @@ aws ec2 describe-instances \
     "NON-COMPLIANT: \(.id)"'
 ----
 
-== Phase 2: Quick Wins (Monate 1–3)
+== Phase 2: Quick Wins (Months 1–3)
 
-Quick Wins sind Maßnahmen mit hohem ROI und niedrigem Implementierungsaufwand.
-Sie schaffen sofortige Einsparungen und Momentum für die strukturellen Verbesserungen.
+Quick wins are measures with high ROI and low implementation effort.
+They create immediate savings and momentum for the structural improvements.
 
-=== Quick-Win-Priorisierungsmatrix
+=== Quick-Win Prioritization Matrix
 
 [cols="1,2,1,1,2"]
 |===
-|Kategorie |Maßnahme |Aufwand |Typische Einsparung |Control
+|Category |Measure |Effort |Typical Saving |Control
 
 |*Idle Shutdown*
-|Dev/Test-Instanzen identifizieren und abschalten
-|Niedrig
-|200–2.000 EUR/Monat
+|Identify and shut down dev/test instances
+|Low
+|200–2,000 EUR/month
 |WAF-COST-030
 
-|*Log-Retention setzen*
-|CloudWatch Log Groups mit retention_in_days != 0 konfigurieren
-|Niedrig
-|50–500 EUR/Monat
+|*Set Log Retention*
+|Configure CloudWatch Log Groups with retention_in_days != 0
+|Low
+|50–500 EUR/month
 |WAF-COST-040, WAF-COST-070
 
 |*S3 Lifecycle*
-|Lifecycle-Policies für Top-10 größte Buckets
-|Niedrig–Mittel
-|100–1.000 EUR/Monat
+|Lifecycle policies for the top 10 largest buckets
+|Low–Medium
+|100–1,000 EUR/month
 |WAF-COST-040
 
-|*Unbenutzte Ressourcen*
-|EIP, Unattached EBS, Ungenutzte Load Balancer
-|Niedrig
-|50–500 EUR/Monat
+|*Unused Resources*
+|EIP, unattached EBS, unused load balancers
+|Low
+|50–500 EUR/month
 |WAF-COST-030
 
 |*Non-Prod Auto-Shutdown*
-|Schedule für Dev/Test: Mo–Fr 8–20 Uhr
-|Mittel
-|500–3.000 EUR/Monat
+|Schedule for dev/test: Mon–Fri 8–20:00
+|Medium
+|500–3,000 EUR/month
 |WAF-COST-030
 
-|*RI-Nutzung prüfen*
-|Ungenutzte Reserved Instances identifizieren, umwidmen
-|Mittel
-|Variabel, oft signifikant
+|*Check RI Usage*
+|Identify unused reserved instances, reassign
+|Medium
+|Variable, often significant
 |WAF-COST-080
 
 |===
 
-=== Budget-Alerting sofort einrichten (WAF-COST-020)
+=== Set Up Budget Alerting Immediately (WAF-COST-020)
 
 [source,hcl]
 ----
-# Sofortmaßnahme: Budget-Alert für alle Accounts
+# Immediate action: budget alert for all accounts
 resource "aws_budgets_budget" "monthly_total" {
   name         = "monthly-total-budget"
   budget_type  = "COST"
@@ -201,54 +201,54 @@ resource "aws_budgets_budget" "monthly_total" {
 }
 ----
 
-== Phase 3: Strukturelle Verbesserungen (Monate 4–18)
+== Phase 3: Structural Improvements (Months 4–18)
 
-Strukturelle Verbesserungen adressieren die Architektonische Kostenschuld und erfordern
-mehr Koordination, Architecture-Board-Beteiligung und Planungsaufwand.
+Structural improvements address architectural cost debt and require
+more coordination, architecture board involvement, and planning effort.
 
-=== Strukturelle Maßnahmen
+=== Structural Measures
 
 [cols="1,3,2,1"]
 |===
-|Maßnahme |Beschreibung |Zeithorizont |Control
+|Measure |Description |Time Horizon |Control
 
-|*Tagging vollständig durchsetzen*
-|Mandatory-Tag-Modul einführen, CI-Gate aktivieren, Legacy-Ressourcen nachtaggen
-|3–6 Monate
+|*Fully enforce tagging*
+|Introduce mandatory tag module, activate CI gate, backfill legacy resources
+|3–6 months
 |WAF-COST-010
 
-|*FinOps-Review-Zyklus*
-|Monatliche und quartalsweise Reviews etablieren, Action-Item-Tracker
-|1–2 Monate
+|*FinOps review cycle*
+|Establish monthly and quarterly reviews, action item tracker
+|1–2 months
 |WAF-COST-060
 
-|*Cost-Debt-Register*
-|Bestandsschuld dokumentieren, Owner zuweisen, Paydown priorisieren
-|1–3 Monate
+|*Cost debt register*
+|Document existing debt, assign owners, prioritize paydown
+|1–3 months
 |WAF-COST-100
 
-|*ADR-Prozess erweitern*
-|Cost-Impact-Sektion in ADR-Template, rückwirkend für kritische Entscheidungen
-|2–4 Monate
+|*Extend ADR process*
+|Add cost impact section to ADR template, retroactively for critical decisions
+|2–4 months
 |WAF-COST-050
 
-|*Reservierungs-Restrukturierung*
-|RI-Portfolio analysieren, falsch zugeordnete RIs umstrukturieren, Savings Plans einführen
-|3–6 Monate
+|*Reservation restructuring*
+|Analyze RI portfolio, restructure misaligned RIs, introduce savings plans
+|3–6 months
 |WAF-COST-080
 
-|*HA-Review*
-|Multi-AZ/Multi-Region-Services auf SLO-Grundlage prüfen, Oversized-HA als Cost Debt erfassen
-|6–12 Monate
+|*HA review*
+|Review multi-AZ/multi-region services based on SLO, record oversized HA as cost debt
+|6–12 months
 |WAF-COST-050, WAF-COST-100
 
 |===
 
-=== Cost-Debt-Register für Brownfield initialisieren
+=== Initialize Cost Debt Register for Brownfield
 
 [source,yaml]
 ----
-# docs/cost-debt-register.yml – Brownfield-Start
+# docs/cost-debt-register.yml – Brownfield start
 version: "1.0"
 last_reviewed: "2025-03-01"
 status: "initial-population"
@@ -259,48 +259,48 @@ note: >
 
 entries:
   - id: CD-2025-INIT-001
-    title: "DISCOVERY: S3-Buckets ohne Lifecycle (23 Buckets, ~2 TB)"
+    title: "DISCOVERY: S3 buckets without lifecycle (23 buckets, ~2 TB)"
     category: "infinite-retention"
-    description: "Discovery Phase identifizierte 23 S3-Buckets ohne Lifecycle-Policy."
+    description: "Discovery phase identified 23 S3 buckets without lifecycle policy."
     detected: "2025-03-01"
-    owner: "TBD - Owner-Identifikation läuft"
+    owner: "TBD - owner identification in progress"
     estimated_annual_impact_eur: 3600
     status: "monitoring"
-    paydown_plan: "Lifecycle-Policies für alle 23 Buckets bis Q2 2025"
+    paydown_plan: "Lifecycle policies for all 23 buckets by Q2 2025"
     target_resolution: "2025-06-30"
     related_controls: [WAF-COST-040]
 
   - id: CD-2025-INIT-002
-    title: "DISCOVERY: 12 CloudWatch Log Groups ohne Retention"
+    title: "DISCOVERY: 12 CloudWatch Log Groups without retention"
     category: "infinite-retention"
     detected: "2025-03-01"
     owner: "infrastructure-team"
     estimated_annual_impact_eur: 800
     status: "paydown"
-    paydown_plan: "Terraform-Config für alle 12 Log Groups - Sprint 2025-03-2"
+    paydown_plan: "Terraform config for all 12 log groups - Sprint 2025-03-2"
     target_resolution: "2025-04-01"
     related_controls: [WAF-COST-040, WAF-COST-070]
 ----
 
-== Brownfield-spezifische Herausforderungen
+== Brownfield-Specific Challenges
 
-=== Politische Koordination
+=== Political Coordination
 
-Brownfield-Optimierung berührt Teams, die ihre Infrastruktur über Jahre gewachsen haben.
+Brownfield optimization touches teams whose infrastructure has grown over years.
 
-Empfehlungen:
+Recommendations:
 
-* *Kosten sichtbar machen, nicht anklagen*: Showback vor Chargeback
-* *Quick Wins zuerst*: Kleine Erfolge schaffen Vertrauen
-* *Ownership klären*: Wer bezahlt, wer entscheidet – muss klar sein
-* *Architecture Board als neutrale Instanz*: Cost-Debt-Register-Entscheidungen vom AB trägt politischen Druck
+* *Make costs visible, not accusatory*: showback before chargeback
+* *Quick wins first*: small successes build trust
+* *Clarify ownership*: who pays, who decides – must be clear
+* *Architecture Board as neutral instance*: cost debt register decisions from the AB carry the political burden
 
-=== Legacy-Ressourcen ohne klaren Owner
+=== Legacy Resources Without a Clear Owner
 
 [source,bash]
 ----
 #!/bin/bash
-# Ressourcen ohne klaren Owner identifizieren
+# Identify resources without a clear owner
 aws ec2 describe-instances \
   --query 'Reservations[].Instances[?!Tags[?Key==`owner`]].{
     InstanceId: InstanceId,
@@ -311,11 +311,11 @@ aws ec2 describe-instances \
   --output table
 ----
 
-Für Ressourcen ohne Owner: Letzten Modifier im CloudTrail identifizieren, Architecture Board als Default-Owner bis Klärung.
+For resources without an owner: identify the last modifier in CloudTrail, assign the Architecture Board as default owner until clarified.
 
-== Metriken (Brownfield-spezifisch)
+== Metrics (Brownfield-Specific)
 
-* Untagged-Cost-Rate: Ziel monatlich -5% bis Ziel < 5% erreicht
-* Waste-Reduktion: EUR/Monat gegenüber Discovery-Baseline (Ziel: -20% in 6 Monaten)
-* Lifecycle-Coverage: % S3-Buckets mit Lifecycle-Policy (Ziel: 100% in 3 Monaten)
-* Cost-Debt-Register-Vollständigkeit: Alle Discovery-Findings erfasst mit Owner (Ziel: 100% in 2 Monaten)
+* Untagged cost rate: target monthly -5% until goal of < 5% is reached
+* Waste reduction: EUR/month vs. discovery baseline (target: -20% in 6 months)
+* Lifecycle coverage: % of S3 buckets with lifecycle policy (target: 100% in 3 months)
+* Cost debt register completeness: all discovery findings recorded with owner (target: 100% in 2 months)

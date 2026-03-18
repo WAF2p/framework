@@ -1,112 +1,112 @@
-= Assessment-Methodik
-:description: Schritt für Schritt durch ein WAF++ Assessment – von Scoping bis Remediation
+= Assessment Methodology
+:description: Step by step through a WAF++ assessment – from scoping to remediation
 :toc: left
 :toclevels: 3
 
-Ein WAF++ Assessment ist kein einmaliges Audit, sondern ein strukturierter Prozess, der Architekturentscheidungen messbar und kontinuierlich verbesserbar macht.
-Diese Seite beschreibt den vollständigen Ablauf – von der Vorbereitung bis zur priorisierten Remediation.
+A WAF++ assessment is not a one-time audit, but a structured process that makes architectural decisions measurable and continuously improvable.
+This page describes the complete workflow – from preparation to prioritized remediation.
 
-== Überblick
+== Overview
 
-Ein Assessment durchläuft vier Phasen:
+An assessment goes through four phases:
 
 [cols="1,3,2", options="header"]
 |===
-| Phase | Inhalt | Ergebnis
+| Phase | Content | Output
 
 | *1. Scoping*
-| Welche Säulen, welche Umgebung, welche Tiefe
-| Assessment-Plan
+| Which pillars, which environment, which depth
+| Assessment plan
 
-| *2. Prüfung*
-| Automatisierte Checks (wafpass) + manuelle Reviews
-| Roh-Befunde (PASS / FAIL / SKIP)
+| *2. Review*
+| Automated checks (wafpass) + manual reviews
+| Raw findings (PASS / FAIL / SKIP)
 
-| *3. Bewertung*
-| Schweregrad, Reifegrad, regulatorische Relevanz
-| Priorisierte Befundliste
+| *3. Evaluation*
+| Severity, maturity, regulatory relevance
+| Prioritized findings list
 
 | *4. Remediation*
-| Maßnahmenplan, Zuweisung, Tracking
-| Verbesserte Compliance-Posture
+| Action plan, assignment, tracking
+| Improved compliance posture
 |===
 
 ---
 
 == Phase 1: Scoping
 
-=== Säulen auswählen
+=== Select Pillars
 
-Nicht jedes Assessment muss alle 7 Säulen abdecken.
-Typische Einstiegspunkte:
+Not every assessment needs to cover all 7 pillars.
+Typical entry points:
 
 [cols="2,3", options="header"]
 |===
-| Kontext | Empfohlene Säulen
+| Context | Recommended pillars
 
-| Erstes Assessment (Greenfield)
+| First assessment (greenfield)
 | Pillar 1 (Security), Pillar 7 (Sovereign), Pillar 2 (Cost)
 
-| Vor einem Compliance-Audit (GDPR / BSI C5)
+| Before a compliance audit (GDPR / BSI C5)
 | Pillar 7 (Sovereign), Pillar 1 (Security)
 
-| Cost Review / FinOps-Initiative
+| Cost review / FinOps initiative
 | Pillar 2 (Cost Optimization)
 
-| Plattform-Reifegradmessung (vollständig)
-| Alle 7 Säulen
+| Platform maturity measurement (full)
+| All 7 pillars
 
-| Incident Post-Mortem
+| Incident post-mortem
 | Pillar 4 (Reliability), Pillar 5 (Operational Excellence)
 |===
 
-=== Umgebung und Scope festlegen
+=== Define Environment and Scope
 
-Definiere vor dem Start:
+Define before starting:
 
-* **Ziel-Environment** – `production`, `staging` oder beides?
-* **Provider-Scope** – AWS, Azure, GCP oder Multi-Cloud?
-* **Infrastruktur-Scope** – welche Terraform-Repos, Kubernetes-Cluster, Cloud-Accounts?
-* **Ausnahmen** – Legacy-Systeme oder Drittanbieter-Komponenten, die explizit ausgenommen werden
+* **Target environment** – `production`, `staging`, or both?
+* **Provider scope** – AWS, Azure, GCP, or multi-cloud?
+* **Infrastructure scope** – which Terraform repos, Kubernetes clusters, cloud accounts?
+* **Exceptions** – legacy systems or third-party components that are explicitly excluded
 
 [TIP]
 ====
-Halte den Scope eng für ein erstes Assessment.
-Starte mit einem Pillar und einer Umgebung – das schafft schnelle, verwertbare Ergebnisse.
+Keep the scope tight for a first assessment.
+Start with one pillar and one environment – this creates fast, actionable results.
 ====
 
-=== Schweregrad-Schwelle festlegen
+=== Set Severity Threshold
 
-Entscheide vorab, welcher Schweregrad als Blocking gilt:
+Decide upfront which severity level is considered blocking:
 
 [cols="1,2,2", options="header"]
 |===
-| Schweregrad | Bedeutung | Empfohlene Handlung
+| Severity | Meaning | Recommended action
 
 | `critical`
-| Unmittelbares Sicherheits- oder Compliance-Risiko
-| Sofortige Remediation, kein Deploy ohne Fix
+| Immediate security or compliance risk
+| Immediate remediation, no deploy without fix
 
 | `high`
-| Erhebliches Risiko, kurzfristig adressieren
-| Sprint-Ziel, max. 2 Wochen
+| Significant risk, address short-term
+| Sprint goal, max. 2 weeks
 
 | `medium`
-| Verbesserungsbedarf, mittelfristig
-| Backlog, nächste Quartalplanung
+| Improvement needed, medium-term
+| Backlog, next quarterly planning
 
 | `low`
-| Best-Practice-Abweichung
-| Nice-to-have, opportunistisch
+| Best-practice deviation
+| Nice-to-have, opportunistic
 |===
 
 ---
 
-== Phase 2: Prüfung
+== Phase 2: Review
 
-=== Automatisierte Checks mit wafpass
+=== Automated Checks with wafpass
 
-`wafpass` liest die WAF++ Controls (YAML) und prüft Terraform-Konfigurationen gegen die definierten Assertions.
+`wafpass` reads the WAF++ controls (YAML) and checks Terraform configurations against the defined assertions.
 
 ==== Installation
 
@@ -115,14 +115,14 @@ Entscheide vorab, welcher Schweregrad als Blocking gilt:
 pip install wafpass
 ----
 
-==== Einfacher Check (alle Controls)
+==== Simple check (all controls)
 
 [source,bash]
 ----
 wafpass check ./infrastructure/
 ----
 
-==== Gefiltert nach Säule
+==== Filtered by pillar
 
 [source,bash]
 ----
@@ -130,34 +130,34 @@ wafpass check ./infrastructure/ --pillar sovereign
 wafpass check ./infrastructure/ --pillar cost
 ----
 
-==== Nur kritische und hohe Findings
+==== Critical and high findings only
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --severity critical,high
 ----
 
-==== CI/CD – Exit Code bei Findings
+==== CI/CD – exit code on findings
 
 [source,bash]
 ----
-# Schlägt fehl, wenn critical-Findings gefunden werden
+# Fails if critical findings are found
 wafpass check ./infrastructure/ --fail-on critical
 
-# Für striktere Pipelines: auch high als Blocking
+# For stricter pipelines: also block on high
 wafpass check ./infrastructure/ --fail-on critical,high
 ----
 
-==== Vollständige Ausgabe mit Assertion-Details
+==== Full output with assertion details
 
 [source,bash]
 ----
 wafpass check ./infrastructure/ --verbose
 ----
 
-=== Ausgabe verstehen
+=== Understanding the Output
 
-Ein typischer wafpass-Output:
+A typical wafpass output:
 
 [source]
 ----
@@ -175,145 +175,145 @@ WAF-COST-040 Retention Lifecycle          FAIL   medium
   ✗ aws_cloudwatch_log_group.debug_logs: retention_in_days = 0
 
 ────────────────────────────────────────────────
-Controls geprüft:  12     PASS: 7    FAIL: 4    SKIP: 1
+Controls checked:  12     PASS: 7    FAIL: 4    SKIP: 1
 Critical FAILs:     1     High FAILs: 1
 ----
 
 [cols="1,3", options="header"]
 |===
-| Status | Bedeutung
+| Status | Meaning
 
 | `PASS`
-| Alle Assertions für diesen Control erfüllt
+| All assertions for this control satisfied
 
 | `FAIL`
-| Mindestens eine Assertion nicht erfüllt – Befund mit Details
+| At least one assertion not satisfied – finding with details
 
 | `SKIP`
-| Control nicht automatisiert prüfbar (z.B. Governance-Controls) oder keine passende Ressource im Scope
+| Control not automatically checkable (e.g. governance controls) or no matching resource in scope
 |===
 
-=== Manuelle Ergänzungen
+=== Manual Additions
 
-Nicht alle Controls sind automatisierbar.
-Controls mit `automated: false` (typisch für Governance- und Prozess-Controls) erfordern manuelle Prüfung:
+Not all controls are automatable.
+Controls with `automated: false` (typically governance and process controls) require manual review:
 
 [cols="2,3", options="header"]
 |===
-| Control-Typ | Manuelle Prüfschritte
+| Control type | Manual review steps
 
 | WAF-COST-050 (Cost Impact Assessment)
-| ADR-Dokumente prüfen: enthält jede ADR einen Cost-Impact-Abschnitt?
+| Check ADR documents: does each ADR contain a cost impact section?
 
 | WAF-COST-060 (FinOps Review Cadence)
-| Kalendereinträge und Protokolle der monatlichen/quartärlichen FinOps-Reviews prüfen
+| Check calendar entries and meeting notes of monthly/quarterly FinOps reviews
 
 | WAF-SOV-070 (Break-Glass)
-| Break-Glass-Prozess dokumentiert und regelmäßig getestet?
+| Is the break-glass process documented and regularly tested?
 
 | WAF-SOV-100 (Exit Plan)
-| Liegt ein aktueller Exit-Plan vor? Letztes Test-Datum?
+| Is a current exit plan in place? Date of last test?
 |===
 
 ---
 
-== Phase 3: Bewertung
+== Phase 3: Evaluation
 
-=== Findings priorisieren
+=== Prioritize Findings
 
-Kombiniere Schweregrad und Reifegrad für eine Handlungsmatrix:
+Combine severity and maturity for an action matrix:
 
 [cols="2,2,2,2", options="header"]
 |===
 | | Critical | High | Medium / Low
 
 | *Level 1 (Ad hoc)*
-| Sofort – kein Deploy
-| Sprint-Ziel
-| Quartal
+| Immediate – no deploy
+| Sprint goal
+| Quarter
 
 | *Level 2–3*
-| Sofort – kein Deploy
-| 2 Wochen
-| Opportunistisch
+| Immediate – no deploy
+| 2 weeks
+| Opportunistic
 
 | *Level 4–5*
-| Exception-Prozess
+| Exception process
 | Backlog
-| Ignorieren ok
+| Ignore ok
 |===
 
-=== Reifegrad bestimmen
+=== Determine Maturity
 
-Das WAF++ Maturity Model hat 5 Stufen.
-Für jeden Pillar ergibt sich ein Reifegrad aus den PASS-Quoten per Level:
+The WAF++ Maturity Model has 5 levels.
+For each pillar a maturity level is derived from PASS rates per level:
 
 [cols="1,3,2", options="header"]
 |===
-| Level | Kriterium | Typische PASS-Quote
+| Level | Criterion | Typical PASS rate
 
 | Level 1 – Ad hoc
-| Keine strukturierten Controls vorhanden
+| No structured controls in place
 | < 30 %
 
-| Level 2 – Standardisiert
-| Grundkontrollen vorhanden, manuell
+| Level 2 – Standardized
+| Basic controls in place, manual
 | 30–60 %
 
-| Level 3 – Integriert
-| Automatisierte Checks, CI-Integration
+| Level 3 – Integrated
+| Automated checks, CI integration
 | 60–80 %
 
-| Level 4 – Souverän
-| Vollständige Automatisierung, Audit-ready
+| Level 4 – Sovereign
+| Full automation, audit-ready
 | 80–95 %
 
-| Level 5 – Optimiert
-| Kontinuierliche Verbesserung, Metriken
+| Level 5 – Optimized
+| Continuous improvement, metrics
 | > 95 %
 |===
 
 [TIP]
 ====
-Der Gesamtreifegrad ist das Minimum über alle bewerteten Säulen – eine Kette ist so stark wie ihr schwächstes Glied.
+The overall maturity is the minimum across all assessed pillars – a chain is only as strong as its weakest link.
 ====
 
-=== Regulatorische Einordnung
+=== Regulatory Classification
 
-Jedem WAF++ Control sind regulatorische Rahmenwerke zugeordnet (GDPR, BSI C5:2020, ISO 27001:2022, EUCS, GAIA-X).
-Nutze diese Zuordnung, um Befunde in den Compliance-Kontext einzuordnen:
+Each WAF++ control is mapped to regulatory frameworks (GDPR, BSI C5:2020, ISO 27001:2022, EUCS, GAIA-X).
+Use this mapping to put findings into compliance context:
 
-* **GDPR Art. 32** – technische und organisatorische Maßnahmen → vor allem Pillar 1 + 7
-* **BSI C5:2020** – Infrastruktur-Controls → Pillar 7 (Sovereign)
-* **ISO 27001:2022** – ISMS-Controls → Pillar 1, 5, 7
-* **EUCS** – EU Cloud-Zertifizierung → Pillar 7
+* **GDPR Art. 32** – technical and organizational measures → primarily Pillar 1 + 7
+* **BSI C5:2020** – infrastructure controls → Pillar 7 (Sovereign)
+* **ISO 27001:2022** – ISMS controls → Pillar 1, 5, 7
+* **EUCS** – EU cloud certification → Pillar 7
 
-Die genaue Zuordnung pro Control ist im xref:controls:catalog.adoc[Controls-Katalog] hinterlegt.
+The detailed mapping per control is in the xref:controls:catalog.adoc[Controls Catalog].
 
 ---
 
 == Phase 4: Remediation
 
-=== Maßnahmenplan aufbauen
+=== Build an Action Plan
 
-Für jedes FAIL-Finding empfiehlt wafpass konkrete Remediationen direkt in der Ausgabe (`--verbose`).
-Überführe die Findings in dein Ticket-System mit folgenden Feldern:
+For every FAIL finding, wafpass recommends concrete remediations directly in the output (`--verbose`).
+Transfer the findings into your ticket system with the following fields:
 
 [source]
 ----
-Titel:       [WAF-COST-010] aws_instance.web – fehlende Tags cost-center, owner
-Schweregrad: high
+Title:       [WAF-COST-010] aws_instance.web – missing tags cost-center, owner
+Severity:    high
 Control:     WAF-COST-010 – Cost Allocation Tagging
-Ressource:   aws_instance.web (compute.tf:9)
-Befund:      Tags 'cost-center' und 'owner' fehlen
-Maßnahme:    Tags ergänzen, wafpass-Check in CI integrieren
-Frist:       2 Wochen
-Zuständig:   Platform Team
+Resource:    aws_instance.web (compute.tf:9)
+Finding:     Tags 'cost-center' and 'owner' missing
+Action:      Add tags, integrate wafpass check in CI
+Due date:    2 weeks
+Owner:       Platform Team
 ----
 
-=== CI/CD-Integration
+=== CI/CD Integration
 
-Für kontinuierliche Compliance empfiehlt sich die Integration in die Pipeline:
+For continuous compliance, integration into the pipeline is recommended:
 
 ==== GitHub Actions
 
@@ -344,33 +344,33 @@ jobs:
 wafpass check ./infrastructure/ --fail-on critical --severity critical,high
 ----
 
-=== Tracking und Wiederholung
+=== Tracking and Repetition
 
-Ein Assessment ist kein einmaliges Event.
-Empfohlener Rhythmus:
+An assessment is not a one-time event.
+Recommended cadence:
 
 [cols="2,3", options="header"]
 |===
-| Trigger | Aktion
+| Trigger | Action
 
-| Jeder Pull Request
-| Automatisierter wafpass-Check (--fail-on critical)
+| Every pull request
+| Automated wafpass check (--fail-on critical)
 
-| Monatlich
-| Vollständiges Assessment aller Säulen, Reifegrad-Update
+| Monthly
+| Full assessment of all pillars, maturity update
 
-| Vor jedem Release
-| Critical + High vollständig PASS
+| Before every release
+| Critical + High fully PASS
 
-| Vor Audit / Zertifizierung
-| Alle Controls PASS oder dokumentierte Ausnahmen
+| Before audit / certification
+| All controls PASS or documented exceptions
 |===
 
 ---
 
-== Weiterführende Seiten
+== Further Reading
 
-* xref:controls:catalog.adoc[Controls-Katalog] – alle Controls mit Assertions und Remediation
-* xref:pillar-cost:index.adoc[Pillar 2 – Cost Optimization] – vollständige Säulendokumentation
-* xref:pillar-sovereign:index.adoc[Pillar 7 – Sovereign] – vollständige Säulendokumentation
-* xref:architektur/index.adoc[Architektur] – Referenzmodelle und Entscheidungsleitfäden
+* xref:controls:catalog.adoc[Controls Catalog] – all controls with assertions and remediation
+* xref:pillar-cost:index.adoc[Pillar 2 – Cost Optimization] – full pillar documentation
+* xref:pillar-sovereign:index.adoc[Pillar 7 – Sovereign] – full pillar documentation
+* xref:architektur/index.adoc[Architecture] – reference models and decision guides

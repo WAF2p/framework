@@ -1,144 +1,142 @@
-= Reliability-Prinzipien
+= Reliability Principles
 :page-toc: right
-:description: WAF++ Reliability – 7 Grundprinzipien für zuverlässige Cloud-Systeme (RP1–RP7).
+:description: WAF++ Reliability – 7 core principles for reliable cloud systems (RP1–RP7).
 
-Die Reliability-Säule basiert auf sieben Grundprinzipien (RP1–RP7).
-Jedes Prinzip ist kein Implementierungsdetail, sondern eine *architektonische Haltung*,
-die alle Reliability-Controls und Best Practices untermauert.
+The Reliability pillar is based on seven core principles (RP1–RP7).
+Each principle is not an implementation detail, but an *architectural stance*
+that underpins all reliability controls and best practices.
 
-== RP1 – Measure First (Messen vor Optimieren)
+== RP1 – Measure First
 
 === Tagline
-_Reliability, die nicht gemessen wird, existiert nicht._
+_Reliability that is not measured does not exist._
 
-=== Erklärung
+=== Explanation
 
-Reliability-Investitionen ohne messbare Ziele führen zu Aktivitäten ohne Wirkung.
-Bevor ein Team Multi-AZ deployed, Circuit Breaker konfiguriert oder Chaos-Tests
-durchführt, muss es wissen: *Was ist das aktuelle Zuverlässigkeitsniveau?*
-Was ist das akzeptable Minimum? Was ist die Erwartung von Nutzern und Stakeholdern?
+Reliability investments without measurable goals lead to activities without impact.
+Before a team deploys Multi-AZ, configures circuit breakers or runs chaos tests,
+it must know: *What is the current reliability level?*
+What is the acceptable minimum? What are the expectations of users and stakeholders?
 
-SLOs sind das Fundament. Ohne SLOs kann eine Organisation nicht entscheiden,
-ob sie over-engineered (zu viel in Reliability investiert) oder under-engineered
-(zu wenig) ist. Error Budgets transformieren SLOs von statischen Zielen zu
-dynamischen Entscheidungsgrundlagen.
+SLOs are the foundation. Without SLOs, an organization cannot decide whether it is
+over-engineered (investing too much in reliability) or under-engineered
+(investing too little). Error Budgets transform SLOs from static goals into
+dynamic decision-making bases.
 
-=== Implikationen
+=== Implications
 
-* Jeder Workload braucht ein SLO, bevor er in Produktion geht
-* MTTR und Error Budget Burn Rate müssen trackbare Metriken sein
-* Reliability-Investitionen werden durch Data, nicht Intuition, priorisiert
+* Every workload needs an SLO before it goes to production
+* MTTR and Error Budget Burn Rate must be trackable metrics
+* Reliability investments are prioritized by data, not intuition
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-010[WAF-REL-010], xref:controls.adoc#WAF-REL-100[WAF-REL-100]
 
 ---
 
-== RP2 – Design for Failure (Ausfälle einplanen, nicht vermeiden)
+== RP2 – Design for Failure
 
 === Tagline
-_Ausfälle sind unvermeidlich. Wer sie nicht einplant, plant zu scheitern._
+_Failures are inevitable. Those who don't plan for them, plan to fail._
 
-=== Erklärung
+=== Explanation
 
-In Cloud-Umgebungen sind Hardware-Ausfälle, AZ-Störungen, Netzwerkunterbrechungen
-und Software-Bugs keine Ausnahmen – sie sind Normalzustände, die statistisch auftreten.
-Ein System, das auf den Ausfall *einer* Komponente mit einem Gesamtausfall reagiert,
-wurde nicht für Reliability designed.
+In cloud environments, hardware failures, AZ disruptions, network interruptions
+and software bugs are not exceptions – they are normal states that occur statistically.
+A system that responds to the failure of *one* component with a complete outage
+was not designed for reliability.
 
-Reliability-Design bedeutet: *Jeder Ausfall einer Komponente darf die Gesamtverfügbarkeit
-nur innerhalb definierter Grenzen beeinträchtigen.* Multi-AZ-Deployment ist die
-Umsetzung dieses Prinzips für AZ-Ausfälle. Circuit Breaker sind die Umsetzung für
-Abhängigkeitsausfälle.
+Reliability design means: *The failure of any single component may only impair overall availability
+within defined limits.* Multi-AZ deployment is the implementation of this principle for AZ failures.
+Circuit breakers are the implementation for dependency failures.
 
-=== Implikationen
+=== Implications
 
-* Single Points of Failure (SPOFs) sind architektonische Schulden
-* Redundanz muss explizit deployed werden; sie entsteht nicht zufällig
-* Graceful Degradation ist wertvoller als vollständige Verfügbarkeit von 100% der Features
+* Single Points of Failure (SPOFs) are architectural debt
+* Redundancy must be explicitly deployed; it does not arise accidentally
+* Graceful degradation is more valuable than 100% availability of all features
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-030[WAF-REL-030], xref:controls.adoc#WAF-REL-050[WAF-REL-050], xref:controls.adoc#WAF-REL-080[WAF-REL-080]
 
 ---
 
-== RP3 – Automate Recovery (Automatische Heilung vor manueller Intervention)
+== RP3 – Automate Recovery
 
 === Tagline
-_Manuelle Recovery skaliert nicht. Systeme müssen lernen, sich selbst zu heilen._
+_Manual recovery does not scale. Systems must learn to heal themselves._
 
-=== Erklärung
+=== Explanation
 
-Menschliche Reaktionszeiten (MTTR durch manuellen Eingriff) sind in modernen,
-verteilten Systemen zu langsam für hochverfügbare Services. Auto-Healing-Mechanismen –
-Health Check-basiertes Instance Replacement, Kubernetes Pod Restart, Auto-Scaling
-bei Lastspitzen – reduzieren MTTR von Minuten auf Sekunden.
+Human response times (MTTR through manual intervention) are too slow for high-availability
+services in modern, distributed systems. Auto-healing mechanisms –
+health check-based instance replacement, Kubernetes pod restart, auto-scaling
+under load spikes – reduce MTTR from minutes to seconds.
 
-Automatisierte Recovery erfordert: valide Health Checks (RP1), klar definierte
-Fehlerzustände, idempotente Restart-Prozeduren und gut konfigurierte
-Infrastructure-as-Code. Automation ist nur sicher, wenn die Automatik testzertifiziert ist.
+Automated recovery requires: valid health checks (RP1), clearly defined
+failure states, idempotent restart procedures and well-configured
+infrastructure-as-code. Automation is only safe if the automation itself is test-certified.
 
-=== Implikationen
+=== Implications
 
-* Instanzen, die Health Checks nicht bestehen, werden automatisch ersetzt
-* Auto-Scaling reagiert auf Last, nicht auf manuellen Eingriff
-* IaC ermöglicht automatisierte Infra-Neuerstellung aus bekanntem Zustand
+* Instances that fail health checks are automatically replaced
+* Auto-scaling responds to load, not manual intervention
+* IaC enables automated infrastructure recreation from a known state
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-020[WAF-REL-020], xref:controls.adoc#WAF-REL-030[WAF-REL-030]
 
 ---
 
-== RP4 – Test Everything (Testen statt Hoffen)
+== RP4 – Test Everything
 
 === Tagline
-_Reliability, die nicht getestet wurde, ist eine Hypothese – keine Garantie._
+_Reliability that has not been tested is a hypothesis – not a guarantee._
 
-=== Erklärung
+=== Explanation
 
-Jede Reliability-Claim – "wir sind Multi-AZ", "unser Backup funktioniert",
-"der Circuit Breaker schützt uns" – ist ohne entsprechenden Test eine Behauptung.
-DR-Tests, Chaos-Engineering und Restore-Übungen sind keine nice-to-haves für
-fortgeschrittene Teams. Sie sind die einzige Methode, um Reliability-Behauptungen
-in Evidenz umzuwandeln.
+Every reliability claim – "we are Multi-AZ", "our backup works",
+"the circuit breaker protects us" – is an assertion without a corresponding test.
+DR tests, chaos engineering and restore exercises are not nice-to-haves for
+advanced teams. They are the only method to convert reliability claims into evidence.
 
-Untestete Systeme scheitern anders, als Design-Reviews vorhersagen. Chaos Engineering
-als systematische Praxis ist der Unterschied zwischen einem Team, das glaubt, resilient
-zu sein, und einem Team, das es *weiß*.
+Untested systems fail differently than design reviews predict. Chaos Engineering
+as a systematic practice is the difference between a team that believes it is resilient
+and a team that *knows* it is.
 
-=== Implikationen
+=== Implications
 
-* DR-Tests sind mindestens halbjährlich obligatorisch
-* Backup-Restore-Tests sind mindestens quartalsweise obligatorisch
-* Chaos-Experimente haben ein dokumentiertes Hypothesen-Framework
+* DR tests are mandatory at least semi-annually
+* Backup restore tests are mandatory at least quarterly
+* Chaos experiments have a documented hypothesis framework
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-040[WAF-REL-040], xref:controls.adoc#WAF-REL-070[WAF-REL-070], xref:controls.adoc#WAF-REL-090[WAF-REL-090]
 
 ---
 
-== RP5 – Limit Blast Radius (Auswirkungen von Fehlern begrenzen)
+== RP5 – Limit Blast Radius
 
 === Tagline
-_Ein Fehler darf nie das gesamte System treffen._
+_A single failure must never hit the entire system._
 
-=== Erklärung
+=== Explanation
 
-Blast Radius bezeichnet den Umfang des Schadens, den ein einzelner Fehler verursachen kann.
-Cascading Failures entstehen, wenn ein Fehler in einer Komponente unlimitierten Zugang
-zu Ressourcen anderer Komponenten hat: Thread Pools, Connection Pools, Anfrage-Queues.
+Blast radius describes the extent of damage that a single failure can cause.
+Cascading failures occur when a failure in one component has unlimited access
+to the resources of other components: thread pools, connection pools, request queues.
 
-Blast Radius Limitation ist das Ziel von Bulkheads (Isolation von Resource Pools),
-Circuit Breakers (Fast-Fail statt Resource-Drain), Feature Flags (selektive Deaktivierung)
-und AZ-Isolation (geografische Fehlergrenze).
+Blast radius limitation is the goal of bulkheads (isolation of resource pools),
+circuit breakers (fast-fail instead of resource drain), feature flags (selective deactivation)
+and AZ isolation (geographic fault boundary).
 
-=== Implikationen
+=== Implications
 
-* Jede kritische Abhängigkeit hat einen Circuit Breaker
-* Resource Pools sind per Abhängigkeitsklasse isoliert
-* Feature Flags ermöglichen selektive Deaktivierung nicht-kritischer Funktionen
+* Every critical dependency has a circuit breaker
+* Resource pools are isolated per dependency class
+* Feature flags enable selective deactivation of non-critical functions
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-050[WAF-REL-050], xref:controls.adoc#WAF-REL-080[WAF-REL-080]
 
 ---
@@ -146,53 +144,52 @@ xref:controls.adoc#WAF-REL-050[WAF-REL-050], xref:controls.adoc#WAF-REL-080[WAF-
 == RP6 – Eliminate Single Points of Failure
 
 === Tagline
-_Jeder SPOF ist eine Frage, nicht ob er ausfällt, sondern wann._
+_Every SPOF is a question of not if it fails, but when._
 
-=== Erklärung
+=== Explanation
 
-Ein Single Point of Failure (SPOF) ist eine Komponente, deren Ausfall zu einem
-Gesamtausfall oder einer SLO-Verletzung führt. In Cloud-Architekturen entstehen
-SPOFs häufig durch: Single-AZ-Deployments, Single-Instance-Datenbanken ohne Failover,
-Shared-Config-Endpoints, externe Abhängigkeiten ohne Fallback.
+A Single Point of Failure (SPOF) is a component whose failure leads to a
+complete outage or an SLO violation. In cloud architectures, SPOFs frequently arise from:
+single-AZ deployments, single-instance databases without failover,
+shared config endpoints, external dependencies without fallback.
 
-Das systematische Identifizieren und Eliminieren von SPOFs erfordert eine
-Architekturanalyse (Failure Mode and Effects Analysis, FMEA), die Reliability Debt
-Register (WAF-REL-100) dokumentiert und durch Chaos Engineering (WAF-REL-090)
-empirisch validiert.
+Systematically identifying and eliminating SPOFs requires an
+architectural analysis (Failure Mode and Effects Analysis, FMEA), which the Reliability Debt
+Register (WAF-REL-100) documents and empirically validates through Chaos Engineering (WAF-REL-090).
 
-=== Implikationen
+=== Implications
 
-* Jede Single-Instance-Komponente in Produktion ist ein SPOF und muss dokumentiert sein
-* SPOF-Eliminierung hat höchste Priorität im Reliability Debt Register
-* Architecture Reviews prüfen explizit auf neue SPOFs
+* Every single-instance component in production is a SPOF and must be documented
+* SPOF elimination has the highest priority in the Reliability Debt Register
+* Architecture reviews explicitly check for new SPOFs
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-030[WAF-REL-030], xref:controls.adoc#WAF-REL-100[WAF-REL-100]
 
 ---
 
-== RP7 – Reliability as Architecture Concern (Reliability ist Architekturverantwortung)
+== RP7 – Reliability as Architecture Concern
 
 === Tagline
-_Reliability entsteht durch Architekturentscheidungen – nicht durch Betriebsmaßnahmen._
+_Reliability is created by architecture decisions – not by operational measures._
 
-=== Erklärung
+=== Explanation
 
-Reliability kann nicht nachträglich in ein schlecht entworfenes System eingebaut werden.
-Entscheidungen über Multi-AZ, Datenbank-Failover, Circuit Breaker-Design und Recovery-Strategie
-werden im Architekturprozess getroffen – oder versäumt. Operations-Teams können durch
-Runbooks und Incident Response die Auswirkungen kompensieren, aber nicht die
-architektonischen Schulden eliminieren.
+Reliability cannot be retrofitted into a poorly designed system.
+Decisions about multi-AZ, database failover, circuit breaker design and recovery strategy
+are made – or missed – in the architecture process. Operations teams can compensate for
+the impact through runbooks and incident response, but cannot eliminate
+architectural debt.
 
-Reliability muss in Architecture Decision Records (ADRs), Design Reviews und
-Sprint-Planning als explizite Anforderung verankert sein. Architektur-Entscheidungen,
-die Reliability reduzieren, müssen im Reliability Debt Register dokumentiert werden.
+Reliability must be anchored as an explicit requirement in Architecture Decision Records (ADRs),
+design reviews and sprint planning. Architecture decisions that reduce reliability
+must be documented in the Reliability Debt Register.
 
-=== Implikationen
+=== Implications
 
-* Architecture Reviews beinhalten Reliability Assessment als Pflichtpunkt
-* ADRs dokumentieren Reliability-Implikationen explizit
-* Reliability Debt durch Architekturentscheidungen wird in REL-100 registriert
+* Architecture reviews include a reliability assessment as a mandatory item
+* ADRs document reliability implications explicitly
+* Reliability debt from architecture decisions is registered in REL-100
 
-=== Zugehörige Controls
+=== Related Controls
 xref:controls.adoc#WAF-REL-010[WAF-REL-010], xref:controls.adoc#WAF-REL-100[WAF-REL-100]

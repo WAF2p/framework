@@ -5,96 +5,96 @@
 :severity: medium
 :category: caching
 :automated: medium
-:description: WAF++ Performance Efficiency – Caching-Strategie dokumentieren und mehrschichtig implementieren.
+:description: WAF++ Performance Efficiency – Document and implement a multi-layer caching strategy.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Caching | *Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Category:* Caching | *Automatable:* Medium
 
-== Beschreibung
+== Description
 
-Alle Workloads mit wiederholenden Lesemustern oder hochlatenten Datenquellen MÜSSEN eine
-dokumentierte Caching-Strategie haben. Die Strategie MUSS Cache-Layer, TTL-Policies und
-Invalidierungsmechanismen spezifizieren. CDN MUSS für alle öffentlichen statischen und
-cachefähigen Inhalte konfiguriert sein. Distributed Cache (Redis, Memcached) MUSS für
-Session-Daten und hochfrequente Read-Heavy-Lookups eingesetzt werden.
+All workloads with repetitive read patterns or high-latency data sources MUST have a
+documented caching strategy. The strategy MUST specify cache layers, TTL policies and
+invalidation mechanisms. CDN MUST be configured for all public static and
+cacheable content. Distributed cache (Redis, Memcached) MUST be used for
+session data and high-frequency read-heavy lookups.
 
 == Rationale
 
-Wiederholte identische Datenbankabfragen ohne Caching erzeugen unnötige Last auf dem Datenbankserver,
-unnötige Latenz für den Nutzer und unnötige Kosten für Datentransfer.
-Ein gut konfigurierter Cache kann die Datenbankauslastung um 60–90% reduzieren.
-Schlechtes Caching (falsche TTLs, fehlende Invalidierung) erzeugt Stale-Data-Probleme,
-die schwerer zu debuggen sind als kein Caching.
+Repeated identical database queries without caching create unnecessary load on the database server,
+unnecessary latency for the user, and unnecessary data transfer costs.
+A well-configured cache can reduce database load by 60–90%.
+Poor caching (wrong TTLs, missing invalidation) creates stale-data problems
+that are harder to debug than no caching at all.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Datenbanküberlastung*
-|Identische Queries hundertfach pro Sekunde sättigen I/O und CPU des Datenbankservers.
+|*Database Overload*
+|Identical queries hundreds of times per second saturate the database server's I/O and CPU.
 
 |*Thundering Herd*
-|Cache-Expiry vieler gleichzeitiger Keys → simultane Backend-Anfragen → Datenbankausfall.
+|Cache expiry of many simultaneous keys → simultaneous backend requests → database failure.
 
 |*Stale Data*
-|Fehlende Cache-Invalidierung bei Datenmutationen → Nutzer sehen veraltete Daten.
+|Missing cache invalidation on data mutations → users see outdated data.
 
-|*Kein CDN → hohe Latenz*
-|Statische Assets ohne CDN von Origin ausgeliefert → unnötige Latenz für Nutzer außerhalb der Region.
+|*No CDN → High Latency*
+|Static assets served from origin without CDN → unnecessary latency for users outside the region.
 
 |===
 
-== Anforderung
+== Requirement
 
-* Caching-Strategie MUSS dokumentiert sein (Layer, TTL pro Datentyp, Invalidierungsmechanismus)
-* Distributed Cache MUSS für Session-Daten und hochfrequente Lookups verwendet werden
-* CDN MUSS für alle öffentlichen statischen Inhalte konfiguriert sein
-* Cache-Hit-Raten MÜSSEN gemessen und gemonitored werden (Ziel: >= 80% App-Cache, >= 95% CDN)
+* Caching strategy MUST be documented (layers, TTL per data type, invalidation mechanism)
+* Distributed cache MUST be used for session data and high-frequency lookups
+* CDN MUST be configured for all public static content
+* Cache hit rates MUST be measured and monitored (target: >= 80% app cache, >= 95% CDN)
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Zugriffsmuster analysieren*: Top-20-Datenbankabfragen identifizieren; Wiederholungsfrequenz messen
-. *Caching-Strategie-Dokument erstellen*: `docs/caching-strategy.yml` mit Layer, TTL, Invalidierungslogik
-. *Redis/ElastiCache deployen*: Multi-AZ, Automatic Failover, Encryption in Transit
-. *Cache-Aside Pattern implementieren*: Stampede-Schutz via Lock oder Probabilistic Early Expiration
-. *CDN konfigurieren*: CloudFront/Azure CDN/Cloud CDN für statische Assets
-. *Hit-Rate-Monitoring*: CloudWatch ElastiCache Metrics; Alert bei Hit-Rate < 70%
-. *Invalidierungslogik sicherstellen*: Jede Datenmutation muss zugehörige Cache-Entries invalidieren
+. *Analyze access patterns*: Identify top-20 database queries; measure repetition frequency
+. *Create caching strategy document*: `docs/caching-strategy.yml` with layers, TTL, invalidation logic
+. *Deploy Redis/ElastiCache*: Multi-AZ, automatic failover, encryption in transit
+. *Implement cache-aside pattern*: Stampede protection via lock or probabilistic early expiration
+. *Configure CDN*: CloudFront/Azure CDN/Cloud CDN for static assets
+. *Hit rate monitoring*: CloudWatch ElastiCache metrics; alert when hit rate < 70%
+. *Ensure invalidation logic*: Every data mutation must invalidate related cache entries
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Kein Cache
-|Alle Requests gehen auf Origin; keine CDN; keine distributed Cache.
+|No Cache
+|All requests go to origin; no CDN; no distributed cache.
 
 |*2*
 |Ad-hoc Cache
-|Einige Dinge gecacht ohne Strategie; TTLs arbiträr; keine Hit-Rate-Messung.
+|Some things cached without strategy; arbitrary TTLs; no hit rate measurement.
 
 |*3*
-|Dokumentierte Strategie
-|Caching-Strategie-Dokument; Hit-Rate gemessen; CDN aktiv; HA-Redis deployed.
+|Documented Strategy
+|Caching strategy document; hit rate measured; CDN active; HA Redis deployed.
 
 |*4*
-|Optimierter Cache
-|Hit-Rate >= 80% erreicht; automatische Invalidierung; Stampede-Schutz.
+|Optimized Cache
+|Hit rate >= 80% achieved; automatic invalidation; stampede protection.
 
 |*5*
-|Adaptiver Cache
-|ML-basiertes Cache-Warming; adaptive TTLs; intelligentes Edge-Caching.
+|Adaptive Cache
+|ML-based cache warming; adaptive TTLs; intelligent edge caching.
 
 |===
 
 == Terraform Checks
 
 === waf-perf-030.tf.aws.elasticache-cluster-configured
-*Prüft:* ElastiCache Replication Group muss Automatic Failover, multi-node und Encryption haben.
+*Checks:* ElastiCache Replication Group must have automatic failover, multi-node and encryption.
 
 [cols="1,1"]
 |===
@@ -117,40 +117,40 @@ resource "aws_elasticache_cluster" "main" {
   cluster_id      = "payment-cache"
   engine          = "redis"
   num_cache_nodes = 1
-  # Single node, kein Failover
+  # Single node, no failover
   # WAF-PERF-030 Violation
 }
 ----
 |===
 
-*Remediation:* `aws_elasticache_replication_group` mit `automatic_failover_enabled = true`,
-`num_cache_clusters >= 2`, `at_rest_encryption_enabled = true` verwenden.
+*Remediation:* Use `aws_elasticache_replication_group` with `automatic_failover_enabled = true`,
+`num_cache_clusters >= 2`, `at_rest_encryption_enabled = true`.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*Governance*
-|✅ Pflicht
-|Caching-Strategie-Dokument mit Layer, TTL-Policies und Invalidierungsmechanismus.
+|✅ Required
+|Caching strategy document with layers, TTL policies and invalidation mechanism.
 
 |*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration für Redis/ElastiCache und CDN mit Cache-Rules.
+|✅ Required
+|Terraform configuration for Redis/ElastiCache and CDN with cache rules.
 
 |*Config*
 |Optional
-|Cache-Hit-Rate-Dashboard (Ziel: >= 80% Applikations-Cache).
+|Cache hit rate dashboard (target: >= 80% application cache).
 
 |*Process*
 |Optional
-|Cache-Invalidierungs-Runbook für Datenmutationen.
+|Cache invalidation runbook for data mutations.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline]
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
@@ -158,4 +158,4 @@ resource "aws_elasticache_cluster" "main" {
 
 == Best Practice
 
-* xref:../best-practices/bp-caching.adoc[Caching-Strategie implementieren →]
+* xref:../best-practices/bp-caching.adoc[Implement Caching Strategy →]

@@ -5,98 +5,98 @@
 :severity: high
 :category: auto-scaling
 :automated: high
-:description: WAF++ Performance Efficiency – Auto-Scaling für zustandslose Workloads konfigurieren und durch Lasttest validieren.
+:description: WAF++ Performance Efficiency – Configure auto-scaling for stateless workloads and validate through load testing.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Auto-Scaling | *Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency | *Severity:* High | *Category:* Auto-Scaling | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle zustandslosen Produktions-Workloads mit variablem oder unvorhergesagtem Traffic
-MÜSSEN Auto-Scaling konfiguriert haben. Auto-Scaling-Policies MÜSSEN auf aussagekräftigen Metriken
-basieren (Anfrage-Latenz, Request-Rate, Queue-Tiefe). Auto-Scaling-Konfigurationen MÜSSEN unter
-realistischer Last getestet werden, bevor sie in Produktion gehen.
+All stateless production workloads with variable or unpredictable traffic
+MUST have auto-scaling configured. Auto-scaling policies MUST be based on meaningful metrics
+(request latency, request rate, queue depth). Auto-scaling configurations MUST be tested under
+realistic load before going into production.
 
-Kein Deployment in Produktion ohne validierten Skalierungspfad.
+No deployment to production without a validated scaling path.
 
 == Rationale
 
-Statische Kapazität erzeugt ein unlösbares Dilemma: Überprovisionierung für Peaks (teuer) oder
-Unterprovisionierung und Degradation bei unerwarteter Last (riskant). Auto-Scaling löst dieses
-Dilemma – aber nur, wenn korrekt konfiguriert. Falsche Schwellenwerte, fehlende Cooldowns
-oder das Fehlen von Instance Warmup-Konfiguration führen zu Scaling-Versagen im kritischen Moment.
+Static capacity creates an unsolvable dilemma: over-provisioning for peaks (expensive) or
+under-provisioning and degradation under unexpected load (risky). Auto-scaling solves this
+dilemma – but only if correctly configured. Wrong thresholds, missing cooldowns,
+or the absence of instance warmup configuration leads to scaling failure at the critical moment.
 
-Jede Auto-Scaling-Konfiguration, die nie unter Last getestet wurde, ist faktisch nicht vorhanden.
+Any auto-scaling configuration that has never been tested under load is effectively nonexistent.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Kapazitätsengpass bei Lastspitze*
-|Nicht-skalierender Service degradiert oder fällt aus während Traffic-Peaks.
+|*Capacity Bottleneck During Load Spike*
+|Non-scaling service degrades or fails during traffic peaks.
 
-|*Scaling-Oscillation*
-|Falsch konfigurierte Cooldowns führen zu konstantem Scale-out/Scale-in (Kosten + Instabilität).
+|*Scaling Oscillation*
+|Incorrectly configured cooldowns lead to constant scale-out/scale-in (cost + instability).
 
-|*Zu spätes Scaling*
-|Threshold zu hoch oder Skalierungsmetrik falsch → Scaling triggers erst wenn SLO bereits verletzt.
+|*Scaling Too Late*
+|Threshold too high or scaling metric wrong → scaling triggers only after SLO is already violated.
 
-|*Cold-Start-Latenz*
-|Instance Warmup fehlt → neue Instanzen werden sofort mit vollem Traffic belastet.
+|*Cold-Start Latency*
+|Instance warmup missing → new instances are immediately hit with full traffic before they are ready.
 
 |===
 
-== Anforderung
+== Requirement
 
-* Alle zustandslosen Produktions-Workloads MÜSSEN Auto-Scaling konfiguriert haben (min >= 1, max >= 2)
-* Scaling-Metriken MÜSSEN auf Anwendungsverhalten basieren, nicht nur auf CPU
-* Auto-Scaling MUSS durch Lasttest validiert werden (Nachweis: Test-Report)
-* Scale-in-Cooldown MUSS >= Scale-out-Cooldown (konservativer Scale-in)
+* All stateless production workloads MUST have auto-scaling configured (min >= 1, max >= 2)
+* Scaling metrics MUST be based on application behavior, not just CPU
+* Auto-scaling MUST be validated through load testing (evidence: test report)
+* Scale-in cooldown MUST be >= scale-out cooldown (conservative scale-in)
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Scaling-Metrik wählen*: ALB-Request-Count (HTTP-APIs), Queue-Depth (Worker), Custom Metrics (spezielle Workloads)
-. *Schwellenwerte aus Lasttest ableiten*: Welcher Request/s-Wert führt zur P95-Latenz von SLO/2?
-. *min/max konfigurieren*: min >= 2 für Redundanz; max = 3–5x erwartete Normallast
-. *Cooldowns konfigurieren*: Scale-out 60s, Scale-in 300s (konservativ)
-. *Instance Warmup konfigurieren*: 60–120s, damit neue Instanzen nicht sofort belastet werden
-. *Lasttest ausführen*: Gradual-Load-Profil bis 2x Peak; Auto-Scaling-Trigger validieren
-. *Monitoring konfigurieren*: Alert wenn Desired Capacity >= 80% Max Capacity
+. *Choose scaling metric*: ALB request count (HTTP APIs), queue depth (workers), custom metrics (special workloads)
+. *Derive thresholds from load test*: Which requests/s value leads to P95 latency of SLO/2?
+. *Configure min/max*: min >= 2 for redundancy; max = 3–5x expected normal load
+. *Configure cooldowns*: Scale-out 60s, scale-in 300s (conservative)
+. *Configure instance warmup*: 60–120s, so new instances are not immediately overloaded
+. *Run load test*: Gradual load profile to 2x peak; validate auto-scaling trigger
+. *Configure monitoring*: Alert when desired capacity >= 80% max capacity
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Statische Kapazität
-|Kein Auto-Scaling; manuelle Anpassung bei Lastspitzen; typischerweise unkritisch überprovisioniert.
+|Static Capacity
+|No auto-scaling; manual adjustment during load spikes; typically uncritically over-provisioned.
 
 |*2*
-|Konfiguriert, nicht validiert
-|ASG/VMSS konfiguriert; Default-CPU-Threshold; nie unter Last getestet.
+|Configured, Not Validated
+|ASG/VMSS configured; default CPU threshold; never tested under load.
 
 |*3*
-|Validiert mit Lasttest
-|Richtige Metriken; Lasttest-Validierung; dokumentierte Grenzen; Health-Check-Typ konfiguriert.
+|Validated with Load Test
+|Correct metrics; load test validation; documented limits; health check type configured.
 
 |*4*
 |Predictive & Event-Driven
-|Predictive Scaling; Queue-basiertes Scaling; Scale-out-Dauer im SLO gemessen.
+|Predictive scaling; queue-based scaling; scale-out duration measured within SLO.
 
 |*5*
-|Autonomes Capacity Management
-|Vollständig automatisiert; ML-basierte Policies; SLO-Breach-Prediction vor Eintreten.
+|Autonomous Capacity Management
+|Fully automated; ML-based policies; SLO breach prediction before occurrence.
 
 |===
 
 == Terraform Checks
 
 === waf-perf-020.tf.aws.autoscaling-group-policy
-*Prüft:* AWS Auto Scaling Groups müssen min >= 1, max >= 2 und Health-Check-Type haben.
+*Checks:* AWS Auto Scaling Groups must have min >= 1, max >= 2 and health check type.
 
 [cols="1,1"]
 |===
@@ -125,40 +125,40 @@ a|[source,hcl]
 resource "aws_autoscaling_group" "api" {
   min_size = 1
   max_size = 1
-  # max=min=1 – kein Scaling
+  # max=min=1 – no scaling
   # WAF-PERF-020 Violation
 }
 ----
 |===
 
-*Remediation:* `min_size >= 2` für Produktions-Redundanz, `max_size >= 3` für Scaling-Fähigkeit.
-Scaling-Policy hinzufügen (TargetTracking oder StepScaling). Health-Check-Type auf `ELB` setzen.
+*Remediation:* `min_size >= 2` for production redundancy, `max_size >= 3` for scaling capability.
+Add scaling policy (TargetTracking or StepScaling). Set health check type to `ELB`.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Auto-Scaling-Konfiguration mit min/max und Scaling-Policy.
+|✅ Required
+|Auto-scaling configuration with min/max and scaling policy.
 
 |*Process*
-|✅ Pflicht
-|Lasttest-Ergebnisse die belegen, dass Scaling innerhalb des Latenz-SLO auslöst.
+|✅ Required
+|Load test results demonstrating that scaling triggers within the latency SLO.
 
 |*Config*
 |Optional
-|CloudWatch/Azure Monitor/GCP-Alerts für Scaling-Events konfiguriert.
+|CloudWatch/Azure Monitor/GCP alerts for scaling events configured.
 
 |*Governance*
 |Optional
-|Runbook mit dokumentierten Skalierungsgrenzen und bekannten Engpässen.
+|Runbook with documented scaling limits and known bottlenecks.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
@@ -166,4 +166,4 @@ Scaling-Policy hinzufügen (TargetTracking oder StepScaling). Health-Check-Type 
 
 == Best Practice
 
-* xref:../best-practices/bp-autoscaling.adoc[Auto-Scaling konfigurieren →]
+* xref:../best-practices/bp-autoscaling.adoc[Configure Auto-Scaling →]

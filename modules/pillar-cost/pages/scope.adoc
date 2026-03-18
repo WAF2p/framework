@@ -1,214 +1,214 @@
-= Geltungsbereich (Cost Optimization)
+= Scope (Cost Optimization)
 :page-toc: right
-:description: WAF++ – Geltungsbereich der Cost-Optimization-Säule: Was ist im Scope, Brownfield vs. Greenfield, Multi-Cloud-Kostendynamik.
+:description: WAF++ – Scope of the Cost Optimization pillar: what is in scope, brownfield vs. greenfield, multi-cloud cost dynamics.
 
-== Was ist im Scope?
+== What is in scope?
 
-Die Cost-Optimization-Säule des WAF++ adressiert:
-
-[cols="1,3"]
-|===
-|Bereich |Scope
-
-|*Cloud-Infrastrukturkosten*
-|Compute, Storage, Netzwerk, Datenbank, Managed Services aller major Cloud-Provider (AWS, Azure, GCP, on-premises Hybrid).
-
-|*Observability-Kosten*
-|Logging, Tracing, Metriken, APM-Tools. Häufig überproportional teuer durch unkontrollierte Retention.
-
-|*Datentransfer- & Egress-Kosten*
-|Cross-Region, Cross-AZ, Internet-Egress, CDN. Oft unterschätzt und erst in der Rechnung sichtbar.
-
-|*Software-Lizenzkosten (cloud-gebunden)*
-|Bring-Your-Own-License (BYOL), Provider-Marketplace-Lizenzen, Enterprise Agreements mit Cloud-Bezug.
-
-|*Betriebsaufwand (FTE)*
-|Direkt der Infrastruktur zuzurechnende Betriebsstunden. Bestandteil des TCO-Modells.
-
-|*Architektonische Kostenschuld*
-|Durch vergangene Architekturentscheidungen eingefrierte Kostenstrukturen. Dokumentiert im Cost-Debt-Register.
-
-|*FinOps-Governance*
-|Review-Zyklen, Ownership-Strukturen, Budget-Prozesse, ADR-Cost-Impact-Assessments.
-
-|===
-
-== Was nicht im Scope ist
+The Cost Optimization pillar of WAF++ addresses:
 
 [cols="1,3"]
 |===
-|Bereich |Begründung
+|Area |Scope
 
-|*Allgemeine IT-Betriebskosten*
-|Rechenzentrum, Hardware, Netzwerkinfrastruktur on-premises ohne Cloud-Bezug: in der Operations-Säule.
+|*Cloud Infrastructure Costs*
+|Compute, storage, network, database, managed services of all major cloud providers (AWS, Azure, GCP, on-premises hybrid).
 
-|*HR und Personalkosten (gesamt)*
-|FTE-Kosten als TCO-Komponente sind im Scope; allgemeine Gehaltsplanung ist HR/Finance.
+|*Observability Costs*
+|Logging, tracing, metrics, APM tools. Often disproportionately expensive due to uncontrolled retention.
 
-|*Business-Case-Erstellung für Projekte*
-|ROI-Entscheidung liegt bei Product/Finance. WAF++ liefert die Kostendatenbasis, nicht die Entscheidung.
+|*Data Transfer & Egress Costs*
+|Cross-region, cross-AZ, internet egress, CDN. Often underestimated and only visible in the bill.
 
-|*Cloud-Provider-Vertragsverhandlungen*
-|Enterprise Agreements, Rabattverhandlungen sind Einkauf/Beschaffung.
+|*Software License Costs (cloud-bound)*
+|Bring-Your-Own-License (BYOL), provider marketplace licenses, enterprise agreements with cloud relation.
 
-|*Sicherheitskosten als Ersparnis*
-|Security-Investitionen werden in der Security-Säule bewertet, nicht als Cost-Optimierungsmaßnahme.
+|*Operational Effort (FTE)*
+|Operating hours directly attributable to infrastructure. Part of the TCO model.
+
+|*Architectural Cost Debt*
+|Cost structures frozen by past architecture decisions. Documented in the cost debt register.
+
+|*FinOps Governance*
+|Review cycles, ownership structures, budget processes, ADR cost impact assessments.
 
 |===
 
-== Brownfield vs. Greenfield: Fundamentale Unterschiede
+== What is not in scope
 
-Die Anwendung von Cost-Optimization-Maßnahmen unterscheidet sich grundlegend je nach Ausgangssituation.
+[cols="1,3"]
+|===
+|Area |Reason
+
+|*General IT operational costs*
+|Data center, hardware, network infrastructure on-premises without cloud relation: in the Operations pillar.
+
+|*HR and personnel costs (total)*
+|FTE costs as a TCO component are in scope; general salary planning is HR/Finance.
+
+|*Business case creation for projects*
+|ROI decisions lie with Product/Finance. WAF++ provides the cost data basis, not the decision.
+
+|*Cloud provider contract negotiations*
+|Enterprise agreements, discount negotiations are procurement/purchasing.
+
+|*Security costs as savings*
+|Security investments are assessed in the Security pillar, not as a cost optimization measure.
+
+|===
+
+== Brownfield vs. Greenfield: Fundamental Differences
+
+The application of cost optimization measures differs fundamentally depending on the starting situation.
 
 [cols="1,2,2"]
 |===
-|Dimension |Brownfield (bestehende Infrastruktur) |Greenfield (Neuaufbau)
+|Dimension |Brownfield (existing infrastructure) |Greenfield (new build)
 
-|*Tagging-Durchsetzung*
-|Nachträgliches Tagging erfordert Discovery, Bestandsaufnahme, koordinierte Rollout-Kampagne. Risk: untagged Legacy-Ressourcen bleiben unsichtbar.
-|Tagging von Tag 0 als IaC-Standard. Kein Deployment ohne Pflicht-Tags im CI-Gate.
+|*Tagging enforcement*
+|Retroactive tagging requires discovery, inventory, coordinated rollout campaign. Risk: untagged legacy resources remain invisible.
+|Tagging from day 0 as an IaC standard. No deployment without mandatory tags in the CI gate.
 
-|*Architektonische Kostenschuld*
-|Hohe Wahrscheinlichkeit existierender Schuld: unkontrollierte Retention, überdimensionierte Reservierungen, ineffiziente Patterns.
-|Kostenschuld entsteht erst durch Entscheidungen. Cost Impact Assessments verhindern Akkumulation.
+|*Architectural Cost Debt*
+|High probability of existing debt: uncontrolled retention, over-sized reservations, inefficient patterns.
+|Cost debt only arises from decisions. Cost impact assessments prevent accumulation.
 
-|*Budget-Kontrolle*
-|Bestandsbudgets oft historisch gewachsen ohne klare Workload-Zuordnung. Restrukturierung politisch komplex.
-|Budgets können von Anfang an nach Workload, Umgebung und Team strukturiert werden.
+|*Budget control*
+|Existing budgets often historically grown without clear workload attribution. Restructuring is politically complex.
+|Budgets can be structured from the start by workload, environment and team.
 
 |*Rightsizing*
-|Viele Ressourcen seit Jahren unreviewed. Quick Wins durch einfache Downsizing-Maßnahmen oft realistisch.
-|Ressourcen werden initial nach gemessener Last dimensioniert. Erste Reviews nach 30-90 Tagen Betrieb.
+|Many resources unreviewed for years. Quick wins through simple downsizing measures often realistic.
+|Resources are initially sized based on measured load. First reviews after 30–90 days of operation.
 
-|*Reservierungen*
-|Bestehende Reservierungen möglicherweise falsch für aktuelle Workloads. Analyse und Umstrukturierung erforderlich.
-|Committments erst nach 30 Tagen Baseline-Messung. Keine vorzeitigen Long-Term-Reservierungen.
+|*Reservations*
+|Existing reservations possibly wrong for current workloads. Analysis and restructuring required.
+|Commitments only after 30 days of baseline measurement. No premature long-term reservations.
 
-|*Compliance-Aufwand*
-|Höher: Discovery-Phase, Bestandserfassung, politische Koordination mit betroffenen Teams.
-|Niedriger: Standards werden von Anfang an implementiert; kein Legacy-Debt.
+|*Compliance effort*
+|Higher: discovery phase, inventory, political coordination with affected teams.
+|Lower: standards implemented from the start; no legacy debt.
 
-|*Zeithorizont*
-|Strukturelle Verbesserungen: 6–18 Monate. Quick Wins (Idle Shutdown, Rightsizing): 30–90 Tage.
-|Volle Compliance: 0–90 Tage (wenn konsequent umgesetzt).
+|*Time horizon*
+|Structural improvements: 6–18 months. Quick wins (idle shutdown, rightsizing): 30–90 days.
+|Full compliance: 0–90 days (if implemented consistently).
 
 |===
 
-=== Brownfield-Entscheidungsbaum
+=== Brownfield Decision Tree
 
 [source,text]
 ----
 Brownfield Cost Assessment Start
   │
-  ├── Schritt 1: Tagging-Compliance prüfen
-  │   ├── < 50% getaggt → Tagging-Kampagne vor allen anderen Maßnahmen
-  │   └── > 80% getaggt → Weiter zu Schritt 2
+  ├── Step 1: Check tagging compliance
+  │   ├── < 50% tagged → Tagging campaign before all other measures
+  │   └── > 80% tagged → Continue to step 2
   │
-  ├── Schritt 2: Budget-Alerting prüfen
-  │   ├── Kein Budget → Budget per IaC sofort einrichten (WAF-COST-020)
-  │   └── Budget existiert → Auf Workload-Granularität prüfen
+  ├── Step 2: Check budget alerting
+  │   ├── No budget → Set up budget via IaC immediately (WAF-COST-020)
+  │   └── Budget exists → Check workload granularity
   │
-  ├── Schritt 3: Idle/Waste Discovery
-  │   ├── Idle Instances vorhanden → Abschalten oder Rightsize in 30 Tagen
-  │   ├── Ungenutzte Reserved Instances → Plan für Umstrukturierung
-  │   └── Keine Retention-Policies → Lifecycle-Policies als Priority
+  ├── Step 3: Idle/Waste Discovery
+  │   ├── Idle instances present → Shut down or rightsize within 30 days
+  │   ├── Unused reserved instances → Plan for restructuring
+  │   └── No retention policies → Lifecycle policies as priority
   │
-  ├── Schritt 4: Architektonische Kostenschuld identifizieren
-  │   ├── High-Cost Services ohne klare SLO-Begründung → Cost Debt Register Eintrag
-  │   ├── Keine ADR-History zu Kosten → Prozess für neue ADRs einführen
-  │   └── Bekannte Lock-in-Situationen → Bewertung und Paydown-Plan
+  ├── Step 4: Identify Architectural Cost Debt
+  │   ├── High-cost services without clear SLO justification → Cost debt register entry
+  │   ├── No ADR history on costs → Introduce process for new ADRs
+  │   └── Known lock-in situations → Assessment and paydown plan
   │
-  └── Schritt 5: FinOps-Zyklus etablieren
-      ├── Monatliche Reviews noch nicht etabliert → Start mit einfachem Format
-      └── Architecture Board ohne Cost Review → Erweitern um Quarterly Cost Review
+  └── Step 5: Establish FinOps cycle
+      ├── Monthly reviews not yet established → Start with simple format
+      └── Architecture board without cost review → Extend with quarterly cost review
 ----
 
-=== Greenfield-Checkliste (Day 0)
+=== Greenfield Checklist (Day 0)
 
-Vor dem ersten `terraform apply`:
+Before the first `terraform apply`:
 
-* [ ] Tagging-Taxonomie definiert (cost-center, owner, environment, workload, project)
-* [ ] Mandatory-Tag-Modul im IaC-Template verankert
-* [ ] Budget als IaC-Ressource angelegt
-* [ ] Lifecycle-Policies für alle Storage- und Log-Ressourcen als Default
-* [ ] ADR-Template mit Cost-Impact-Assessment-Sektion vorhanden
-* [ ] Rightsizing-Tag-Pflicht definiert (mit Datum-Feld)
-* [ ] FinOps-Review-Zyklus in Team-Prozessen verankert
+* [ ] Tagging taxonomy defined (cost-center, owner, environment, workload, project)
+* [ ] Mandatory tag module anchored in IaC template
+* [ ] Budget created as IaC resource
+* [ ] Lifecycle policies for all storage and log resources as default
+* [ ] ADR template with cost impact assessment section available
+* [ ] Rightsizing tag requirement defined (with date field)
+* [ ] FinOps review cycle anchored in team processes
 
-== Multi-Cloud vs. Single-Cloud: Kostendynamik
+== Multi-Cloud vs. Single-Cloud: Cost Dynamics
 
-=== Single-Cloud-Kostentreiber
-
-[cols="1,3"]
-|===
-|Treiber |Beschreibung
-
-|*Enterprise-Agreement-Abhängigkeit*
-|EA-Volumen-Rabatte schaffen Wechselbarrieren. Verlassen des Providers bedeutet oft den Verlust signifikanter Rabatte.
-
-|*Proprietäre Managed Services*
-|Je mehr proprietäre Services genutzt werden (AWS Kinesis, Azure Service Bus, GCP Spanner), desto höher die Exit-Kosten.
-
-|*Skill-Konzentration*
-|Teams entwickeln tiefe Expertise in einem Provider. Wechsel erfordert Requalifizierung.
-
-|===
-
-=== Multi-Cloud-Kostentreiber
+=== Single-Cloud Cost Drivers
 
 [cols="1,3"]
 |===
-|Treiber |Beschreibung
+|Driver |Description
 
-|*Datentransferkosten*
-|Cross-Provider-Datentransfer ist teuer. Daten von AWS zu Azure bewegen sich nicht kostenlos.
-„Data Gravity" – Workloads tendieren zu den Daten.
+|*Enterprise Agreement dependency*
+|EA volume discounts create switching barriers. Leaving the provider often means losing significant discounts.
 
-|*Duplizierte Betriebskompetenz*
-|Zwei Provider bedeuten zwei Toolchains, zwei Schulungsbudgets, zwei Zertifizierungsportfolios.
+|*Proprietary managed services*
+|The more proprietary services are used (AWS Kinesis, Azure Service Bus, GCP Spanner), the higher the exit costs.
 
-|*Single-Cloud-Workarounds*
-|Um Abhängigkeit zu vermeiden, werden proprietäre Services gemieden und durch selbst-betriebene Alternativen ersetzt – oft teurer im Betrieb.
-
-|*Konsistenz-Overhead*
-|Gemeinsame Security-Policies, Monitoring, Compliance über zwei Provider: erheblicher Governance-Aufwand.
+|*Skill concentration*
+|Teams develop deep expertise in one provider. Switching requires requalification.
 
 |===
 
-NOTE: Multi-Cloud ist nicht automatisch günstiger oder teurer als Single-Cloud.
-Die Entscheidung muss auf Basis echter TCO-Modelle getroffen werden, die *alle* Kostentreiber einbeziehen.
-Siehe xref:best-practices/bp-greenfield.adoc[Greenfield FinOps by Design] und xref:cost-debt.adoc[Architektonische Kostenschuld].
+=== Multi-Cloud Cost Drivers
 
-== Cost-Driver-Überblick
+[cols="1,3"]
+|===
+|Driver |Description
 
-Die häufigsten Cloud-Kostentreiber nach Kategorie:
+|*Data transfer costs*
+|Cross-provider data transfer is expensive. Data moving from AWS to Azure is not free.
+"Data Gravity" – workloads tend toward the data.
+
+|*Duplicated operational competence*
+|Two providers mean two toolchains, two training budgets, two certification portfolios.
+
+|*Single-cloud workarounds*
+|To avoid dependency, proprietary services are avoided and replaced by self-operated alternatives – often more expensive to operate.
+
+|*Consistency overhead*
+|Shared security policies, monitoring, compliance across two providers: significant governance effort.
+
+|===
+
+NOTE: Multi-cloud is not automatically cheaper or more expensive than single-cloud.
+The decision must be made based on genuine TCO models that include *all* cost drivers.
+See xref:best-practices/bp-greenfield.adoc[Greenfield FinOps by Design] and xref:cost-debt.adoc[Architectural Cost Debt].
+
+== Cost Driver Overview
+
+The most common cloud cost drivers by category:
 
 [cols="1,2,2"]
 |===
-|Kategorie |Typische Treiber |Adressierender Control
+|Category |Typical Drivers |Addressing Control
 
 |*Compute*
-|Überprovisionierung, dauerlaufende Dev/Test-Instanzen, fehlende Auto-Scaling-Konfiguration
+|Over-provisioning, continuously running dev/test instances, missing auto-scaling configuration
 |WAF-COST-030
 
 |*Storage*
-|Infinite Retention, fehlende Lifecycle-Policies, vergessene Snapshots, redundante Buckets
+|Infinite retention, missing lifecycle policies, forgotten snapshots, redundant buckets
 |WAF-COST-040
 
-|*Netzwerk / Egress*
-|Fehlende VPC-Endpoints (S3, KMS), öffentliche IPs auf internen Services, kein CDN für Assets
+|*Network / Egress*
+|Missing VPC endpoints (S3, KMS), public IPs on internal services, no CDN for assets
 |WAF-COST-090
 
 |*Observability*
-|DEBUG-Logging in Produktion, unkontrollierte Log-Retention, kein Sampling für Traces
+|DEBUG logging in production, uncontrolled log retention, no sampling for traces
 |WAF-COST-070
 
-|*Datenbank*
-|Überdimensionierte RDS-Instanzen, Multi-AZ ohne SLO-Anforderung, fehlende Reserved Instances
+|*Database*
+|Over-sized RDS instances, multi-AZ without SLO requirement, missing reserved instances
 |WAF-COST-030, WAF-COST-080
 
-|*Architektonische Schuld*
-|HA/Multi-Region ohne SLO-Basis, Lock-in-Services ohne Exit-Plan, historische Reservierungen
+|*Architectural Debt*
+|HA/multi-region without SLO basis, lock-in services without exit plan, historical reservations
 |WAF-COST-050, WAF-COST-100
 
 |===

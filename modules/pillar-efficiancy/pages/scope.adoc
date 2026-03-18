@@ -1,180 +1,180 @@
-= Geltungsbereich – Performance Efficiency
+= Scope – Performance Efficiency
 :page-toc: right
-:description: WAF++ Performance Efficiency – Geltungsbereich, Abgrenzung und Brownfield/Greenfield-Unterschiede.
+:description: WAF++ Performance Efficiency – Scope, boundaries, and brownfield/greenfield differences.
 
-== Was ist im Scope?
+== What is in scope?
 
-Die Performance-Efficiency-Säule des WAF++ adressiert alle technischen und prozessualen Dimensionen,
-die die Leistung von Cloud-Workloads direkt beeinflussen.
+The Performance Efficiency pillar of WAF++ addresses all technical and procedural dimensions
+that directly influence the performance of cloud workloads.
 
-=== Compute & Skalierung
+=== Compute & Scaling
 
-* Auswahl und Validierung von Instanztypen und -größen
-* Auto-Scaling-Konfiguration und -Tests für zustandslose Workloads
-* Serverlose Architekturen und Managed Services für variable Last
-* Container-Ressourcen (CPU/Memory-Limits, Requests in Kubernetes)
+* Selection and validation of instance types and sizes
+* Auto-scaling configuration and testing for stateless workloads
+* Serverless architectures and managed services for variable load
+* Container resources (CPU/memory limits, requests in Kubernetes)
 
-=== Datenbanken & Persistenz
+=== Databases & Persistence
 
-* Datenbank-Performance-Baseline und Slow-Query-Analyse
-* Index-Strategie für hochfrequente Lese- und Schreiboperationen
-* Verbindungspool-Konfiguration und Connection-Pool-Sizing
-* Storage-I/O-Performance (Disk-Typ, IOPS, Throughput)
+* Database performance baseline and slow query analysis
+* Index strategy for high-frequency read and write operations
+* Connection pool configuration and connection pool sizing
+* Storage I/O performance (disk type, IOPS, throughput)
 
-=== Netzwerk & Delivery
+=== Network & Delivery
 
-* CDN-Konfiguration für statische und cachefähige Inhalte
-* VPC Endpoints und Private Endpoints für interne Service-Kommunikation
-* Netzwerktopologie-Design und AZ-Affinität für latenz-sensitive Pfade
-* DNS-Latenz und Connection-Reuse-Strategien
+* CDN configuration for static and cacheable content
+* VPC endpoints and private endpoints for internal service communication
+* Network topology design and AZ affinity for latency-sensitive paths
+* DNS latency and connection reuse strategies
 
 === Caching
 
-* Distributed-Caching-Strategie (Redis, Memcached, Managed Cache Services)
-* CDN-Caching für Web-Content
-* Application-Layer-Caching und In-Process-Caching
-* Cache-Invalidierungs-Mechanismen und TTL-Policies
+* Distributed caching strategy (Redis, Memcached, managed cache services)
+* CDN caching for web content
+* Application-layer caching and in-process caching
+* Cache invalidation mechanisms and TTL policies
 
 === Observability & Governance
 
-* SLO-Definition und SLI-Instrumentierung
-* Performance-Monitoring (P95/P99-Latenz, Throughput, Fehlerrate)
-* Lasttest- und Stresstest-Governance im CI/CD-Prozess
-* Performance-Schuld-Register und Quarterly-Review-Prozess
+* SLO definition and SLI instrumentation
+* Performance monitoring (P95/P99 latency, throughput, error rate)
+* Load test and stress test governance in the CI/CD process
+* Performance debt register and quarterly review process
 
-== Was ist nicht im Scope?
+== What is not in scope?
 
 [cols="2,3"]
 |===
-|Außerhalb Scope |Warum
+|Outside Scope |Why
 
-|*Algorithmus-Optimierungen im Code*
-|Code-level-Performance ist Softwareentwicklung; WAF++ adressiert Infrastruktur- und Architektur-Performance.
+|*Algorithm optimizations in code*
+|Code-level performance is software development; WAF++ addresses infrastructure and architecture performance.
 
-|*Vollständige Ausfallsicherheit & Recovery*
-|RTO/RPO, Backups, Failover-Mechanismen → Reliability-Säule.
+|*Full fault tolerance & recovery*
+|RTO/RPO, backups, failover mechanisms → Reliability pillar.
 
-|*Provider-Vertragsverhandlungen*
-|Enterprise Agreements und Pricing-Verhandlungen → Beschaffung/Cost-Säule.
+|*Provider contract negotiations*
+|Enterprise agreements and pricing negotiations → Procurement/Cost pillar.
 
-|*Sicherheits-Design-Entscheidungen*
-|TLS-Konfiguration, Authentifizierungslatenz als Sicherheitsanforderung → Security-Säule.
+|*Security design decisions*
+|TLS configuration, authentication latency as a security requirement → Security pillar.
 
-|*End-User-Device-Performance*
-|Browser-Rendering, App-Performance auf Endgeräten liegt außerhalb der Cloud-Infrastruktur.
+|*End-user device performance*
+|Browser rendering, app performance on end devices is outside cloud infrastructure.
 
 |===
 
 == Brownfield vs. Greenfield
 
-Performance-Optimierung in bestehenden und neuen Systemen erfordert fundamental unterschiedliche Ansätze.
+Performance optimization in existing and new systems requires fundamentally different approaches.
 
-=== Brownfield (bestehende Systeme)
+=== Brownfield (existing systems)
 
 [cols="1,3,2"]
 |===
-|Dimension |Herausforderung |Empfohlener Ansatz
+|Dimension |Challenge |Recommended approach
 
-|*Compute-Sizing*
-|Instanztypen wurden nie auf Basis von Metriken gewählt; Auslastungsdaten fehlen.
-|Baseline-Periode 2–4 Wochen; danach Rightsizing-Analyse.
+|*Compute Sizing*
+|Instance types were never selected based on metrics; utilization data is absent.
+|Baseline period 2–4 weeks; then rightsizing analysis.
 
 |*Auto-Scaling*
-|Statische Kapazität; Skalierung war nie notwendig oder wurde nie implementiert.
-|Schrittweise: zunächst Monitoring-Phase, dann ASG ohne aggressive Skalierungsschwellen.
+|Static capacity; scaling was never needed or never implemented.
+|Incrementally: first a monitoring phase, then ASG without aggressive scaling thresholds.
 
-|*Datenbank*
-|Performance Insights nie eingeschaltet; Slow-Query-Backlog unbekannt.
-|Enable Insights → Slow-Query-Analyse → Top-20-Queries optimieren.
+|*Database*
+|Performance Insights never enabled; slow query backlog unknown.
+|Enable Insights → slow query analysis → optimize top-20 queries.
 
 |*Caching*
-|Kein Cache oder ad-hoc implementierter Cache ohne Strategie.
-|Access-Pattern-Analyse → Cache-Layer einführen → Hit-Rate messen.
+|No cache or ad-hoc cache without a strategy.
+|Access pattern analysis → introduce cache layer → measure hit rate.
 
-|*Schulden-Register*
-|Viele bekannte Performance-Probleme, aber nirgendwo dokumentiert.
-|Kickoff-Workshop: bekannte Probleme erfassen → Register anlegen → priorisieren.
+|*Debt Register*
+|Many known performance problems, but nowhere documented.
+|Kickoff workshop: capture known problems → create register → prioritize.
 
 |===
 
-=== Greenfield (neue Systeme)
+=== Greenfield (new systems)
 
 [cols="1,3,2"]
 |===
-|Dimension |Chance |Empfohlener Ansatz
+|Dimension |Opportunity |Recommended approach
 
-|*Compute-Sizing*
-|Sizing-Entscheidung kann von Anfang an datenbasiert geplant werden.
-|Benchmark-Profile der Anwendung → konservatives Sizing → nach 2 Wochen adjustieren.
+|*Compute Sizing*
+|Sizing decisions can be planned data-driven from the start.
+|Benchmark profile of the application → conservative sizing → adjust after 2 weeks.
 
 |*Auto-Scaling*
-|Auto-Scaling kann von Beginn an eingeplant und sofort validiert werden.
-|Zustandslose Architektur first; Auto-Scaling in Lasttest-Phase validieren.
+|Auto-scaling can be planned from the beginning and validated immediately.
+|Stateless architecture first; validate auto-scaling in the load test phase.
 
 |*SLOs*
-|SLOs können vor dem ersten Deployment definiert werden.
-|SLOs als Teil der Definition-of-Done; Monitoring vor Go-Live instrumentieren.
+|SLOs can be defined before the first deployment.
+|SLOs as part of the definition of done; instrument monitoring before go-live.
 
-|*Lasttests*
-|CI/CD-Integration kann von Tag 1 eingerichtet werden.
-|Lasttestskripte in der ersten Sprint schreiben; Akzeptanzkriterien vor ersten Usern setzen.
+|*Load Tests*
+|CI/CD integration can be set up from day 1.
+|Write load test scripts in the first sprint; set acceptance criteria before first users.
 
 |===
 
-== Performance-Treiber Überblick
+== Performance Driver Overview
 
 [cols="1,2,2,1"]
 |===
-|Treiber |Typisches Symptom |Ursache |WAF-PERF Control
+|Driver |Typical Symptom |Root Cause |WAF-PERF Control
 
-|*Compute-Bottleneck*
-|Hohe CPU/Memory-Auslastung, erhöhte P99-Latenz
-|Instanz zu klein oder falsche Generation
+|*Compute Bottleneck*
+|High CPU/memory utilization, elevated P99 latency
+|Instance too small or wrong generation
 |WAF-PERF-010
 
-|*Fehlende Elastizität*
-|Service reagiert langsam bei Lastspitzen
-|Kein oder falsch konfiguriertes Auto-Scaling
+|*Missing Elasticity*
+|Service responds slowly during load spikes
+|No or incorrectly configured auto-scaling
 |WAF-PERF-020
 
-|*Cache-Miss-Flut*
-|Hohe Datenbankauslastung, hohe API-Latenz
-|Kein Cache oder niedrige Hit-Rate
+|*Cache Miss Flood*
+|High database utilization, high API latency
+|No cache or low hit rate
 |WAF-PERF-030
 
 |*Slow Queries*
-|Datenbank-CPU-Spike, Connection-Pool erschöpft
-|Fehlende Indizes, Full-Table-Scans
+|Database CPU spike, connection pool exhausted
+|Missing indexes, full table scans
 |WAF-PERF-040
 
-|*Unbekannte P99-Latenz*
-|SLA-Verletzungen unbemerkt
-|Kein SLO-Monitoring, nur Durchschnittswerte
+|*Unknown P99 Latency*
+|SLA violations go unnoticed
+|No SLO monitoring, only average values
 |WAF-PERF-050
 
-|*Performance-Regression*
-|Neue Version schlechter als vorherige
-|Kein automatisierter Lasttest im CI/CD
+|*Performance Regression*
+|New version worse than previous
+|No automated load test in CI/CD
 |WAF-PERF-060
 
-|*Hohe Netzwerklatenz*
-|Unerwartete Latenzen in Microservice-Calls
-|Cross-AZ-Traffic, kein CDN, kein VPC Endpoint
+|*High Network Latency*
+|Unexpected latencies in microservice calls
+|Cross-AZ traffic, no CDN, no VPC endpoint
 |WAF-PERF-070
 
-|*Cold-Start-Latenz*
-|Erste Requests nach Idle langsam
-|Lambda/Function ohne Warmup-Konfiguration
+|*Cold Start Latency*
+|First requests after idle are slow
+|Lambda/function without warmup configuration
 |WAF-PERF-080
 
-|*Storage-I/O-Sättigung*
-|Datenbanklatenz-Spikes trotz normaler CPU
-|gp2 Burst-Depletion, falscher Disk-Typ
+|*Storage I/O Saturation*
+|Database latency spikes despite normal CPU
+|gp2 burst depletion, wrong disk type
 |WAF-PERF-090
 
-|*Bekannte Probleme ignoriert*
-|Gleiche Performance-Incidents wiederholen sich
-|Kein Performance-Schuld-Register
+|*Known Problems Ignored*
+|Same performance incidents repeat
+|No performance debt register
 |WAF-PERF-100
 
 |===

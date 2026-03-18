@@ -5,95 +5,95 @@
 :severity: high
 :category: incident-response
 :automated: medium
-:description: WAF++ Reliability – Incident Response Plan, Runbooks, On-Call Rotation und Post-Incident Reviews.
+:description: WAF++ Reliability – Incident response plan, runbooks, on-call rotation and post-incident reviews.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Incident Response | *Automatisierbar:* Mittel
+*Pillar:* Reliability | *Severity:* High | *Category:* Incident Response | *Automatable:* Medium
 
-== Beschreibung
+== Description
 
-Alle Produktions-Workloads MÜSSEN einen dokumentierten Incident Response (IR) Plan mit
-Severity-Definitionen, Eskalationspfaden und On-Call-Rotation haben. Runbooks MÜSSEN
-für alle kritischen Alerts existieren und direkt aus Alert-Notifications verlinkt sein.
-Post-Incident Reviews MÜSSEN für SEV1/SEV2 innerhalb von 5 Werktagen durchgeführt werden.
+All production workloads MUST have a documented Incident Response (IR) plan with
+severity definitions, escalation paths and on-call rotation. Runbooks MUST
+exist for all critical alerts and be linked directly from alert notifications.
+Post-incident reviews MUST be conducted for SEV1/SEV2 within 5 business days.
 
 == Rationale
 
-Ohne definierten IR-Prozess steigt MTTR dramatisch, weil On-Call-Engineers unter Druck
-Schritte rekonstruieren, die bereits dokumentiert wurden. Runbooks kodieren institutionelles
-Wissen und ermöglichen konsistente Incident-Lösung unabhängig vom Dienst habenden Engineer.
-Post-Mortems verhindern Wiederholungen durch strukturierte Root Cause Analysis.
+Without a defined IR process, MTTR rises dramatically because on-call engineers under pressure
+reconstruct steps that have already been documented. Runbooks encode institutional
+knowledge and enable consistent incident resolution regardless of the engineer on duty.
+Post-mortems prevent recurrence through structured root cause analysis.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Verlängertes MTTR*
-|Ohne Runbooks verbringen Engineers wertvolle Minuten mit Diagnose statt Behebung.
+|*Extended MTTR*
+|Without runbooks, engineers spend valuable minutes diagnosing instead of resolving.
 
-|*Wissensverlust*
-|Schlüssel-Engineer im Urlaub; kein Backup hat Kontextwissen für kritischen Service.
+|*Knowledge Loss*
+|Key engineer on vacation; no backup has context knowledge for critical service.
 
-|*Inkonsistente Severity*
-|Ohne klare Kriterien wird SEV1 als SEV3 behandelt; keine angemessene Eskalation.
+|*Inconsistent Severity*
+|Without clear criteria, SEV1 is treated as SEV3; no appropriate escalation.
 
-|*Incident-Wiederholung*
-|Derselbe Root Cause verursacht dritten Incident; keine Post-Mortem Action Items verfolgt.
+|*Incident Recurrence*
+|The same root cause causes a third incident; no post-mortem action items tracked.
 
 |===
 
-== Anforderung
+== Requirement
 
-* 4 Severity-Stufen (SEV1–SEV4) mit objektiven, messbaren Kriterien
-* On-Call-Rotation mit primärem und sekundärem Kontakt konfiguriert
-* Runbooks für alle kritischen Alerts; direkt aus Alert-Body verlinkt
-* MTTR, MTTD und Incident-Frequenz als Metriken getrackt
-* Post-Incident Reviews für SEV1/SEV2 innerhalb 5 Werktage
-* Action Items aus Post-Mortems bis Zieldatum nachverfolgt
+* 4 severity levels (SEV1–SEV4) with objective, measurable criteria
+* On-call rotation with primary and secondary contact configured
+* Runbooks for all critical alerts; linked directly from the alert body
+* MTTR, MTTD and incident frequency tracked as metrics
+* Post-incident reviews for SEV1/SEV2 within 5 business days
+* Action items from post-mortems tracked to target date
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Severity-Definitionen*: YAML-Dokument mit messbaren Kriterien (error rate %, user impact %)
-. *On-Call einrichten*: PagerDuty/OpsGenie mit primärer und sekundärer Rotation
-. *Top-5-Runbooks*: Für die häufigsten 5 Alerts je Service Runbook schreiben
-. *Alert-Beschreibung*: `alarm_description` enthält Runbook-URL und Severity
-. *MTTR-Dashboard*: Incident-Metriken in Grafana oder native Tool sichtbar machen
-. *Post-Mortem-Kultur*: Blameless Post-Mortem Template einführen; Pflicht für SEV1/SEV2
+. *Severity definitions*: YAML document with measurable criteria (error rate %, user impact %)
+. *Set up on-call*: PagerDuty/OpsGenie with primary and secondary rotation
+. *Top-5 runbooks*: Write runbook for the top 5 alerts per service
+. *Alert description*: `alarm_description` contains runbook URL and severity
+. *MTTR dashboard*: Make incident metrics visible in Grafana or native tool
+. *Post-mortem culture*: Introduce blameless post-mortem template; mandatory for SEV1/SEV2
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
 |Ad-hoc
-|Kein definierter Prozess; Incidents von verfügbaren Personen behandelt.
+|No defined process; incidents handled by whoever is available.
 
 |*2*
-|Prozess dokumentiert
-|Severity und Eskalation definiert; On-Call konfiguriert; Basis-Runbooks vorhanden.
+|Process Documented
+|Severity and escalation defined; on-call configured; basic runbooks available.
 
 |*3*
-|Runbooks verlinkt, MTTR getrackt
-|Alle Critical Alerts mit Runbook-Link; MTTR monthly reviewed; Post-Mortems für SEV1/SEV2.
+|Runbooks Linked, MTTR Tracked
+|All critical alerts with runbook link; MTTR reviewed monthly; post-mortems for SEV1/SEV2.
 
 |*4*
-|Automatisierte Triage
-|Automatische Diagnose-Daten bei Alert; Runbook-Schritte teilweise automatisiert.
+|Automated Triage
+|Automated diagnostic data on alert; runbook steps partially automated.
 
 |*5*
 |Self-Healing
-|AIOps-Incident-Correlation; MTTR < 5 Minuten für bekannte Fehlerklassen.
+|AIOps incident correlation; MTTR < 5 minutes for known error classes.
 
 |===
 
 == Terraform Checks
 
 === waf-rel-060.tf.aws.sns-topic-alarm-action
-*Prüft:* CloudWatch Alarms haben `alarm_actions` und `ok_actions` für On-Call-Benachrichtigung.
+*Checks:* CloudWatch alarms have `alarm_actions` and `ok_actions` for on-call notification.
 
 [cols="1,1"]
 |===
@@ -121,41 +121,41 @@ resource "aws_cloudwatch_metric_alarm"
     "api_errors" {
   alarm_name = "payment-api-errors"
   # ... metric config ...
-  # Kein alarm_actions –
-  # Alert feuert lautlos
+  # No alarm_actions –
+  # alert fires silently
   # WAF-REL-060 Violation
 }
 ----
 |===
 
-*Remediation:* `alarm_actions` und `ok_actions` auf SNS-Topic zeigen lassen.
-`alarm_description` mit Runbook-URL und Severity-Klassifizierung befüllen.
+*Remediation:* Point `alarm_actions` and `ok_actions` to the SNS topic.
+Populate `alarm_description` with runbook URL and severity classification.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*Governance*
-|✅ Pflicht
-|Incident Response Plan mit Severity, Eskalationspfaden und On-Call-Struktur.
+|✅ Required
+|Incident response plan with severity, escalation paths and on-call structure.
 
 |*Process*
-|✅ Pflicht
-|Post-Incident Review Protokolle für alle SEV1/SEV2 Incidents letzter 12 Monate.
+|✅ Required
+|Post-incident review records for all SEV1/SEV2 incidents in the last 12 months.
 
 |*Config*
 |Optional
-|On-Call-Schedule in PagerDuty/OpsGenie mit aktueller Rotation.
+|On-call schedule in PagerDuty/OpsGenie with current rotation.
 
 |*Governance*
 |Optional
-|Runbook-Katalog mit Links zu allen Critical-Alert-Runbooks.
+|Runbook catalog with links to all critical alert runbooks.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
 * xref:controls/WAF-REL-040.adoc[WAF-REL-040 – Backup & Recovery]

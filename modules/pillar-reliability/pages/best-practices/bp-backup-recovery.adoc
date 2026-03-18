@@ -1,47 +1,47 @@
-= Best Practice: Backup, Recovery & Wiederherstellungstests
+= Best Practice: Backup, Recovery & Restore Tests
 :page-toc: right
-:description: WAF++ Reliability – Backup-Strategie, Cross-Account-Storage, PITR und dokumentierte Restore-Tests.
+:description: WAF++ Reliability – Backup strategy, cross-account storage, PITR and documented restore tests.
 
-== Kontext
+== Context
 
-Backup ohne getestete Recovery ist eine Sicherheitsillusion. Die häufigsten Backup-Fehler
-in der Praxis sind nicht fehlende Backups, sondern ungetestete Recovery-Verfahren, die
-im Ernstfall scheitern – weil manuelle Schritte fehlen, Schlüssel nicht verfügbar sind
-oder die IaC-Umgebung des Ziel-Accounts nicht existiert.
+Backup without tested recovery is a security illusion. The most common backup mistakes
+in practice are not missing backups, but untested recovery procedures that fail in
+an emergency – because manual steps are missing, keys are unavailable,
+or the IaC environment of the target account does not exist.
 
-Häufige Probleme ohne strukturierte Backup-Recovery-Praxis:
+Common problems without a structured backup recovery practice:
 
-* Backups sind konfiguriert, aber Restore-Prozedur wurde nie ausgeführt
-* Backup-Verschlüsselungsschlüssel im selben Account wie die Daten (Ransomware)
-* RTO-Ziel = 1 Stunde, aber letzter Restore-Test ergab 4 Stunden
-* PITR aktiviert, aber Restore-Prozedur nicht dokumentiert
+* Backups are configured, but the restore procedure has never been executed
+* Backup encryption keys are in the same account as the data (ransomware)
+* RTO target = 1 hour, but the last restore test took 4 hours
+* PITR enabled, but the restore procedure is not documented
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-REL-040[WAF-REL-040] – Backup & Recovery Validation
 * xref:controls.adoc#WAF-REL-070[WAF-REL-070] – Disaster Recovery Testing
 
-== Zielbild
+== Target State
 
-* Automatisierte Backups mit RPO-alignierten Retentionsperioden
-* Cross-Account-Speicherung verhindert Single-Account-Kompromittierung
-* PITR für granulare Wiederherstellung auf Transaktionsebene
-* Quartalsweise getestete und dokumentierte Restore-Prozedur
+* Automated backups with RPO-aligned retention periods
+* Cross-account storage prevents single-account compromise
+* PITR for granular recovery at the transaction level
+* Quarterly tested and documented restore procedure
 
-== Technische Umsetzung
+== Technical Implementation
 
 === AWS: Cross-Account RDS Backup
 
 [source,hcl]
 ----
-# Backup-Ziel: Separates AWS-Account
+# Backup target: Separate AWS account
 resource "aws_db_instance" "main" {
   identifier              = "payment-db-prod"
   engine                  = "postgres"
   engine_version          = "15.4"
   instance_class          = "db.t3.medium"
   allocated_storage       = 100
-  backup_retention_period = 14          # 14 Tage PITR
+  backup_retention_period = 14          # 14 days PITR
   backup_window           = "02:00-03:00"
   deletion_protection     = true
   copy_tags_to_snapshot   = true
@@ -49,7 +49,7 @@ resource "aws_db_instance" "main" {
   tags = var.mandatory_tags
 }
 
-# AWS Backup Plan für Cross-Account Replikation
+# AWS Backup Plan for cross-account replication
 resource "aws_backup_plan" "main" {
   name = "payment-db-backup-plan"
 
@@ -59,10 +59,10 @@ resource "aws_backup_plan" "main" {
     schedule          = "cron(0 2 * * ? *)"
 
     lifecycle {
-      delete_after = 90  # 90 Tage Retention
+      delete_after = 90  # 90 days retention
     }
 
-    # Cross-Account Kopie in Backup-Account
+    # Cross-account copy into backup account
     copy_action {
       destination_vault_arn = var.backup_account_vault_arn
       lifecycle {
@@ -72,12 +72,12 @@ resource "aws_backup_plan" "main" {
   }
 }
 
-# Backup Vault mit WORM-Schutz
+# Backup Vault with WORM protection
 resource "aws_backup_vault_lock_configuration" "main" {
   backup_vault_name   = aws_backup_vault.main.name
   min_retention_days  = 7
   max_retention_days  = 90
-  changeable_for_days = 3  # Compliance Mode nach 3 Tagen
+  changeable_for_days = 3  # Compliance mode after 3 days
 }
 ----
 
@@ -103,12 +103,12 @@ resource "aws_s3_bucket_object_lock_configuration" "data" {
   rule {
     default_retention {
       mode = "GOVERNANCE"
-      days = 30  # 30 Tage Löschschutz
+      days = 30  # 30 days deletion protection
     }
   }
 }
 
-# Replikation in Backup-Account
+# Replication into backup account
 resource "aws_s3_bucket_replication_configuration" "data" {
   bucket = aws_s3_bucket.data.id
   role   = aws_iam_role.replication.arn
@@ -135,8 +135,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
   location                     = "westeurope"
   version                      = "15"
   sku_name                     = "GP_Standard_D4s_v3"
-  backup_retention_days        = 35    # Maximaler Azure-Wert
-  geo_redundant_backup_enabled = true  # Cross-Region Backup
+  backup_retention_days        = 35    # Maximum Azure value
+  geo_redundant_backup_enabled = true  # Cross-region backup
 
   high_availability {
     mode                      = "ZoneRedundant"
@@ -147,13 +147,13 @@ resource "azurerm_postgresql_flexible_server" "main" {
 }
 ----
 
-=== Restore-Test Automatisierung (Bash/AWS CLI)
+=== Restore Test Automation (Bash/AWS CLI)
 
 [source,bash]
 ----
 #!/bin/bash
 # scripts/restore-test.sh
-# Quartalsweiser Backup-Restore-Test
+# Quarterly backup restore test
 
 set -euo pipefail
 
@@ -166,7 +166,7 @@ SNAPSHOT_ID=$(aws rds describe-db-snapshots \
 
 echo "Using snapshot: ${SNAPSHOT_ID}"
 
-# Restore in isoliertem Test-Subnet
+# Restore into isolated test subnet
 aws rds restore-db-instance-from-db-snapshot \
   --db-instance-identifier "${RESTORE_DB_ID}" \
   --db-snapshot-identifier "${SNAPSHOT_ID}" \
@@ -174,11 +174,11 @@ aws rds restore-db-instance-from-db-snapshot \
   --db-subnet-group-name restore-test-subnet-group \
   --no-publicly-accessible
 
-# Warten bis verfügbar
+# Wait until available
 aws rds wait db-instance-available \
   --db-instance-identifier "${RESTORE_DB_ID}"
 
-# Verbindungstest
+# Connection test
 DB_ENDPOINT=$(aws rds describe-db-instances \
   --db-instance-identifier "${RESTORE_DB_ID}" \
   --query 'DBInstances[0].Endpoint.Address' \
@@ -186,12 +186,12 @@ DB_ENDPOINT=$(aws rds describe-db-instances \
 
 echo "DB Endpoint: ${DB_ENDPOINT}"
 
-# Datenintegritätstest
+# Data integrity test
 PSQL_CMD="psql -h ${DB_ENDPOINT} -U admin -d payment_db"
 ROW_COUNT=$(${PSQL_CMD} -t -c "SELECT COUNT(*) FROM transactions WHERE created_at > NOW() - INTERVAL '24h'")
 echo "Rows in last 24h: ${ROW_COUNT}"
 
-# RTO messen
+# Measure RTO
 END_TIME=$(date +%s)
 echo "Restore completed. Elapsed: $((END_TIME - START_TIME))s"
 
@@ -201,24 +201,24 @@ aws rds delete-db-instance \
   --skip-final-snapshot
 ----
 
-== Typische Fehlmuster
+== Typical Anti-Patterns
 
-* *Backup im gleichen Account*: Ransomware verschlüsselt Backups gemeinsam mit Produktionsdaten
-* *Retentionsperiode = 1 Tag*: Datenfehler, die erst nach 48h entdeckt werden, können nicht behoben werden
-* *Restore-Test in derselben Umgebung wie Produktion*: Test benutzt Produktionskonfiguration; im Ernstfall fehlen Ressourcen
-* *Manuelle Restore-Anleitung veraltet*: Service-URLs, Secrets und IAM-Rollen haben sich geändert
+* *Backup in the same account*: Ransomware encrypts backups together with production data
+* *Retention period = 1 day*: Data errors discovered after 48h cannot be remediated
+* *Restore test in the same environment as production*: Test uses production configuration; in an emergency resources are missing
+* *Outdated manual restore guide*: Service URLs, secrets and IAM roles have changed
 
-== Metriken
+== Metrics
 
-* Backup Success Rate: % der geplanten Backup-Jobs, die erfolgreich waren (Ziel: 100%)
-* Restore Test RTO: Tatsächliche Zeit bis zur Wiederherstellung beim letzten Restore-Test
-* Data Integrity Score: % der validierten Datenpunkte nach Restore (Ziel: 100%)
-* Backup Age: Alter des neuesten verfügbaren Backups (Ziel: < RPO)
+* Backup Success Rate: % of scheduled backup jobs that succeeded (target: 100%)
+* Restore Test RTO: Actual time to recovery in the last restore test
+* Data Integrity Score: % of validated data points after restore (target: 100%)
+* Backup Age: Age of the newest available backup (target: < RPO)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Keine Backups oder Ad-hoc Snapshots +
-Level 2 – Automatisierte Backups, nie getestet +
-Level 3 – PITR, Cross-Account, Restore quartalsweise getestet und dokumentiert +
-Level 4 – Automatisierter monatlicher Restore-Test in Pipeline +
-Level 5 – WORM-Backups, CDP, kontinuierliche Backup-Integritätsvalidierung
+Level 1 – No backups or ad-hoc snapshots +
+Level 2 – Automated backups, never tested +
+Level 3 – PITR, cross-account, restore quarterly tested and documented +
+Level 4 – Automated monthly restore test in pipeline +
+Level 5 – WORM backups, CDP, continuous backup integrity validation

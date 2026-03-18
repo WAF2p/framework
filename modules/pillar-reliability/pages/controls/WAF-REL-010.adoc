@@ -5,101 +5,101 @@
 :severity: critical
 :category: reliability-governance
 :automated: medium
-:description: WAF++ Reliability – Dokumentierte und überwachte Service Level Objectives als Fundament aller Reliability-Maßnahmen.
+:description: WAF++ Reliability – Documented and monitored Service Level Objectives as the foundation of all reliability measures.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* Critical | *Kategorie:* Reliability Governance | *Automatisierbar:* Mittel
+*Pillar:* Reliability | *Severity:* Critical | *Category:* Reliability Governance | *Automatable:* Medium
 
-== Beschreibung
+== Description
 
-Jeder Produktions-Workload MUSS dokumentierte Service Level Objectives (SLOs) für Availability,
-Latenz und Fehlerrate haben. SLOs MÜSSEN in Monitoring-Dashboards mit Alerting auf Error Budget
-Burn Rate überwacht werden. Service Level Agreements (SLAs) MÜSSEN SLOs referenzieren.
+Every production workload MUST have documented Service Level Objectives (SLOs) for availability,
+latency and error rate. SLOs MUST be monitored in monitoring dashboards with alerting on error budget
+burn rate. Service Level Agreements (SLAs) MUST reference SLOs.
 
-Ohne SLOs ist Reliability nicht messbar. Alle anderen WAF-REL Controls setzen voraus,
-dass Ziele definiert wurden, gegen die gemessen werden kann.
+Without SLOs, reliability is not measurable. All other WAF-REL controls assume that goals have been
+defined against which measurement is possible.
 
 == Rationale
 
-SLOs transformieren Reliability von einer subjektiven Wahrnehmung in eine messbare,
-steuerbare Disziplin. Error Budgets leiten ab, wie viel Risiko noch tolerierbar ist
-und ermöglichen datengetriebene Entscheidungen über Release-Velocity vs. Stabilität.
-Ohne SLOs treffen Teams Reliability-Entscheidungen auf Basis von Bauchgefühl und
-politischem Druck – kein nachhaltiger Ansatz.
+SLOs transform reliability from a subjective perception into a measurable,
+controllable discipline. Error budgets derive how much risk is still tolerable
+and enable data-driven decisions about release velocity vs. stability.
+Without SLOs, teams make reliability decisions based on gut feeling and
+political pressure – not a sustainable approach.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Unmessbare Degradation*
-|Ohne SLO ist unklar, ab wann ein System als degradiert gilt; Incidents werden zu spät erkannt.
+|*Unmeasurable Degradation*
+|Without an SLO it is unclear when a system is considered degraded; incidents are detected too late.
 
-|*Fehlendes Error Budget*
-|Ohne Error Budget fehlt der operative Rahmen für Velocity-vs-Stability-Entscheidungen.
+|*Missing Error Budget*
+|Without an error budget the operational framework for velocity-vs-stability decisions is absent.
 
-|*SLA ohne Fundament*
-|Externe SLAs, die nicht auf gemessenen SLOs basieren, sind Versprechen ohne Evidenz.
+|*SLA Without Foundation*
+|External SLAs not based on measured SLOs are promises without evidence.
 
-|*Keine Eskalationsschwellen*
-|On-Call-Teams können Severity ohne definierte Schwellenwerte nicht konsistent einordnen.
+|*No Escalation Thresholds*
+|On-call teams cannot consistently classify severity without defined thresholds.
 
 |===
 
-== Anforderung
+== Requirement
 
-Jeder Produktions-Workload MUSS:
+Every production workload MUST:
 
-* Availability-SLO (%), Latenz-SLO (p99 ms) und Fehlerrate-SLO (%) dokumentieren
-* Messfenster (typisch 30 Tage rolling) definieren
-* Error Budget berechnen und automatisch tracken
-* Multi-Window Burn Rate Alerts konfigurieren (fast burn: 1h, slow burn: 6h)
-* SLO-Dokument versioniert in einem Code-Repository halten
-* Quarterly SLO-Review durchführen und dokumentieren
+* Document availability SLO (%), latency SLO (p99 ms) and error rate SLO (%)
+* Define a measurement window (typically 30 days rolling)
+* Calculate and automatically track error budget
+* Configure multi-window burn rate alerts (fast burn: 1h, slow burn: 6h)
+* Keep the SLO document versioned in a code repository
+* Conduct and document a quarterly SLO review
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *SLO-Dokument erstellen*: YAML oder Markdown, version-controlled, mit Availability, Latenz, Fehlerrate
-. *SLIs instrumentieren*: Prometheus-Metriken oder CloudWatch-Alarms für alle SLIs
-. *Error Budget berechnen*: `(1 - SLO_target) * measurement_window_seconds`
-. *Multi-Window Alerts*: Fast Burn (1h, 14.4x) + Slow Burn (6h, 6x)
-. *Dashboard erstellen*: Grafana oder native CloudWatch Dashboard mit SLO Compliance + Error Budget
-. *SLA referenzieren*: Externe SLAs auf SLO-Dokument verlinken
-. *Review-Kalender*: Quarterly Review im Team-Kalender als festes Meeting eintragen
+. *Create SLO document*: YAML or Markdown, version-controlled, with availability, latency, error rate
+. *Instrument SLIs*: Prometheus metrics or CloudWatch alarms for all SLIs
+. *Calculate error budget*: `(1 - SLO_target) * measurement_window_seconds`
+. *Multi-window alerts*: Fast Burn (1h, 14.4x) + Slow Burn (6h, 6x)
+. *Create dashboard*: Grafana or native CloudWatch Dashboard with SLO Compliance + Error Budget
+. *Reference SLA*: Link external SLAs to the SLO document
+. *Review calendar*: Quarterly review in the team calendar as a fixed meeting
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Keine SLOs
-|Keine Ziele definiert; Incidents reaktiv behandelt.
+|No SLOs
+|No goals defined; incidents treated reactively.
 
 |*2*
-|SLOs dokumentiert
-|SLO-Dokument vorhanden; kein automatisches Monitoring.
+|SLOs Documented
+|SLO document exists; no automatic monitoring.
 
 |*3*
-|SLOs überwacht
-|SLIs instrumentiert; Error Budget Burn Rate Alerts konfiguriert; quarterly Review.
+|SLOs Monitored
+|SLIs instrumented; error budget burn rate alerts configured; quarterly review.
 
 |*4*
-|Error Budget Policy aktiv
-|Deployments werden bei Budget-Erschöpfung pausiert; Multi-Window-Alerts.
+|Error Budget Policy Active
+|Deployments paused when budget is exhausted; multi-window alerts.
 
 |*5*
 |Adaptive SLOs
-|Automatisch angepasste SLOs; Customer-Dashboards; prädiktive Alerts.
+|Automatically adjusted SLOs; customer dashboards; predictive alerts.
 
 |===
 
 == Terraform Checks
 
 === waf-rel-010.tf.aws.cloudwatch-slo-alarm
-*Prüft:* CloudWatch-Alarm für SLO-Monitoring konfiguriert mit alarm_actions und threshold.
+*Checks:* CloudWatch alarm configured for SLO monitoring with alarm_actions and threshold.
 
 [cols="1,1"]
 |===
@@ -137,40 +137,40 @@ resource "aws_cloudwatch_metric_alarm"
   period              = 300
   statistic           = "Sum"
   threshold           = 100
-  # Kein alarm_actions –
-  # Alert feuert lautlos
+  # No alarm_actions –
+  # alert fires silently
 }
 ----
 |===
 
-*Remediation:* `alarm_actions` und `ok_actions` auf SNS-Topic setzen, das mit
-On-Call-System (PagerDuty/OpsGenie) verbunden ist.
+*Remediation:* Set `alarm_actions` and `ok_actions` to an SNS topic connected to
+the on-call system (PagerDuty/OpsGenie).
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*Governance*
-|✅ Pflicht
-|SLO-Dokument pro Workload (versioniert): Availability, Latenz, Fehlerrate, Messfenster.
+|✅ Required
+|SLO document per workload (versioned): availability, latency, error rate, measurement window.
 
 |*Config*
-|✅ Pflicht
-|Monitoring-Dashboard mit SLO-Compliance und Error Budget Burn Rate in Echtzeit.
+|✅ Required
+|Monitoring dashboard with SLO compliance and error budget burn rate in real time.
 
 |*Governance*
 |Optional
-|SLA-Vertrag mit Verweis auf SLO-Dokument und Eskalationsklauseln.
+|SLA contract with reference to SLO document and escalation clauses.
 
 |*Process*
 |Optional
-|Quarterly SLO-Review Protokolle mit Anpassungshistorie.
+|Quarterly SLO review minutes with history of adjustments.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
 * xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbook Readiness]
@@ -178,4 +178,4 @@ On-Call-System (PagerDuty/OpsGenie) verbunden ist.
 
 == Best Practice
 
-* xref:best-practices/bp-slo-definition.adoc[SLO & SLA definieren und messen →]
+* xref:best-practices/bp-slo-definition.adoc[Defining and Measuring SLOs & SLAs →]

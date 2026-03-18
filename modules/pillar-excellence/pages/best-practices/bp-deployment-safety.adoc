@@ -1,33 +1,33 @@
-= Best Practice: Sichere Deployments (Feature Flags, Canary, Blue/Green)
+= Best Practice: Safe Deployments (Feature Flags, Canary, Blue/Green)
 :page-toc: right
-:description: Progressive Delivery – Canary Releases, Blue/Green Deployments und Feature Flags in AWS, Azure und GCP implementieren. Automatischer Rollback, Blast-Radius-Reduktion.
+:description: Progressive Delivery – implementing Canary Releases, Blue/Green Deployments and Feature Flags on AWS, Azure and GCP. Automatic rollback, blast radius reduction.
 
-== Kontext
+== Context
 
-Big-Bang-Deployments – alle Änderungen auf alle Nutzer gleichzeitig – sind das Risikoprofil
-der 1990er Jahre. Progressive Delivery ist die Antwort: Neue Versionen erhalten schrittweise
-mehr Traffic, Metriken werden verglichen, Rollback ist automatisch.
+Big-bang deployments – all changes to all users simultaneously – belong to the risk profile
+of the 1990s. Progressive Delivery is the answer: new versions receive traffic incrementally,
+metrics are compared, and rollback is automatic.
 
-Das Ziel: Jedes Deployment ist sicher, messbar und reversibel.
+The goal: every deployment is safe, measurable, and reversible.
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-OPS-080[WAF-OPS-080 – Feature Flag & Safe Deployment Patterns]
 
-== Zielbild
+== Target State
 
-* Jedes Deployment beginnt bei 5-10% Traffic (Canary) oder in einer isolierten Umgebung (Blue/Green)
-* Metriken-Vergleich: Fehlerrate und Latenz der neuen Version vs. alter Version
-* Automatischer Rollback wenn Fehlerrate um X% steigt
-* Feature Flags ermöglichen Rollback ohne Deployment (< 30 Sekunden)
+* Every deployment starts at 5–10% traffic (canary) or in an isolated environment (blue/green)
+* Metrics comparison: error rate and latency of the new version vs. old version
+* Automatic rollback when error rate rises by X%
+* Feature flags enable rollback without deployment (< 30 seconds)
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Canary-Deployment mit AWS CodeDeploy (ECS)
+=== Canary Deployment with AWS CodeDeploy (ECS)
 
 [source,hcl]
 ----
-# Terraform: CodeDeploy Canary für ECS Service
+# Terraform: CodeDeploy Canary for ECS Service
 resource "aws_codedeploy_app" "payment_service" {
   name             = "payment-service"
   compute_platform = "ECS"
@@ -38,7 +38,7 @@ resource "aws_codedeploy_deployment_group" "production" {
   deployment_group_name  = "payment-service-production"
   service_role_arn       = aws_iam_role.codedeploy_role.arn
   deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
-  # Bedeutung: 10% Traffic auf neue Version, 5 Minuten beobachten, dann 100%
+  # Meaning: 10% traffic to new version, observe for 5 minutes, then 100%
 
   auto_rollback_configuration {
     enabled = true
@@ -89,12 +89,12 @@ resource "aws_codedeploy_deployment_group" "production" {
   }
 }
 
-# CloudWatch Alarm der den automatischen Rollback auslöst
+# CloudWatch Alarm that triggers automatic rollback
 resource "aws_cloudwatch_metric_alarm" "canary_error_rate" {
   alarm_name          = "canary-error-rate-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
-  threshold           = 20  # Rollback wenn 5xx > 20 in Canary-Periode
+  threshold           = 20  # Rollback when 5xx > 20 during canary period
 
   metric_query {
     id          = "error_count"
@@ -103,15 +103,15 @@ resource "aws_cloudwatch_metric_alarm" "canary_error_rate" {
     period      = 60
   }
 
-  alarm_actions = []  # CodeDeploy überwacht diesen Alarm direkt
+  alarm_actions = []  # CodeDeploy monitors this alarm directly
 }
 ----
 
-=== Blue/Green-Deployment mit AWS ALB (Lambda)
+=== Blue/Green Deployment with AWS ALB (Lambda)
 
 [source,hcl]
 ----
-# Lambda Blue/Green mit Alias und Gewichtung
+# Lambda Blue/Green with alias and weighting
 resource "aws_lambda_alias" "live" {
   name             = "live"
   function_name    = aws_lambda_function.payment_processor.function_name
@@ -119,7 +119,7 @@ resource "aws_lambda_alias" "live" {
 
   routing_config {
     additional_version_weights = {
-      # 10% Traffic auf neue Version (Canary)
+      # 10% traffic to new version (Canary)
       (aws_lambda_function.payment_processor_v2.version) = 0.1
     }
   }
@@ -127,16 +127,16 @@ resource "aws_lambda_alias" "live" {
 
 resource "aws_lambda_function" "payment_processor" {
   function_name = "payment-processor-stable"
-  # ... stabile Version
+  # ... stable version
 }
 
 resource "aws_lambda_function" "payment_processor_v2" {
   function_name = "payment-processor-v2"
-  # ... neue Version
+  # ... new version
 }
 ----
 
-=== Feature Flags mit AWS AppConfig
+=== Feature Flags with AWS AppConfig
 
 [source,hcl]
 ----
@@ -149,7 +149,7 @@ resource "aws_appconfig_environment" "production" {
   name           = "production"
   application_id = aws_appconfig_application.payment_service.id
 
-  # Kein Deployment ohne Monitoring
+  # No deployment without monitoring
   monitors {
     alarm_arn      = aws_cloudwatch_metric_alarm.payment_error_rate.arn
     alarm_role_arn = aws_iam_role.appconfig_monitor_role.arn
@@ -208,7 +208,7 @@ resource "aws_appconfig_hosted_configuration_version" "flags_v1" {
 }
 ----
 
-=== Feature-Flag-Nutzung im Applikationscode
+=== Using Feature Flags in Application Code
 
 [source,javascript]
 ----
@@ -216,7 +216,7 @@ resource "aws_appconfig_hosted_configuration_version" "flags_v1" {
 const appConfig = require('./appconfig-client');
 
 async function processCheckout(user, cart) {
-  // Feature Flag abfragen (gecacht, < 10ms Latenz)
+  // Retrieve feature flag (cached, < 10ms latency)
   const flags = await appConfig.getConfiguration('payment-service', 'production', 'payment-features');
 
   const useNewFlow = flags.new_checkout_flow.enabled &&
@@ -235,12 +235,12 @@ async function processCheckout(user, cart) {
 }
 ----
 
-== Canary Rollback-Prozedur
+== Canary Rollback Procedure
 
 [source,bash]
 ----
 #!/bin/bash
-# canary-rollback.sh – Sofortiges Rollback für Canary-Deployment
+# canary-rollback.sh – Immediate rollback for a canary deployment
 
 DEPLOYMENT_ID="${1}"
 CLUSTER="${2:-payment-production}"
@@ -248,12 +248,12 @@ SERVICE="${3:-payment-service}"
 
 echo "Rolling back deployment: ${DEPLOYMENT_ID}"
 
-# Option 1: CodeDeploy Deployment stoppen mit Rollback
+# Option 1: Stop CodeDeploy deployment with rollback
 aws deploy stop-deployment \
   --deployment-id "${DEPLOYMENT_ID}" \
   --auto-rollback-enabled
 
-# Option 2: Direkt vorherige ECS Task Definition deployen
+# Option 2: Directly deploy previous ECS Task Definition
 PREV_TASK_DEF=$(aws ecs describe-services \
   --cluster "${CLUSTER}" \
   --services "${SERVICE}" \
@@ -262,7 +262,7 @@ PREV_TASK_DEF=$(aws ecs describe-services \
 
 echo "Current task definition: ${PREV_TASK_DEF}"
 
-# Task Definition Version -1 ermitteln
+# Determine Task Definition version -1
 TASK_DEF_FAMILY=$(echo "${PREV_TASK_DEF}" | cut -d: -f7)
 CURRENT_VERSION=$(echo "${PREV_TASK_DEF}" | cut -d: -f8)
 PREV_VERSION=$((CURRENT_VERSION - 1))
@@ -277,55 +277,55 @@ aws ecs update-service \
 echo "Rollback initiated. Monitor: aws ecs describe-services --cluster ${CLUSTER} --services ${SERVICE}"
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
 [cols="1,3"]
 |===
-|Fehlmuster |Problem
+|Anti-Pattern |Problem
 
-|AllAtOnce Deployment in Production
-|100% Blast Radius; keine Möglichkeit fehlerhafte Version zu isolieren
+|AllAtOnce deployment in production
+|100% blast radius; no way to isolate a faulty version
 
-|Canary ohne Health Check Alarms
-|Canary läuft durch auch wenn 50% Fehlerrate – kein Auto-Rollback
+|Canary without health check alarms
+|Canary completes even with 50% error rate – no auto-rollback
 
-|Feature Flags nie entfernt (Stale Flags)
-|Code-Komplexität steigt; "was passiert wenn ich dieses Flag entferne?" – niemand weiß es mehr
+|Feature flags never removed (stale flags)
+|Code complexity grows; "what happens if I remove this flag?" – nobody knows anymore
 
-|Rollback erfordert neues Deployment
-|Bei Incident: 10-20 Minuten Wartezeit für Deployment-Zyklus statt 30 Sekunden Flag-Toggle
+|Rollback requires a new deployment
+|During incident: 10–20 minute wait for a deployment cycle instead of 30-second flag toggle
 
-|Blue/Green ohne Traffic-Split-Monitoring
-|Beide Umgebungen laufen, aber kein Metriken-Vergleich zwischen Blue und Green
+|Blue/Green without traffic-split monitoring
+|Both environments running, but no metrics comparison between Blue and Green
 
 |===
 
-== Metriken
+== Metrics
 
-* *Change Failure Rate:* % der Deployments die Rollback erforderten (Ziel: < 5%)
-* *MTTR nach fehlerhaftem Deployment:* Zeit bis vollständige Erholung (Ziel: < 5 Minuten mit Rollback)
-* *Blast-Radius-Reduktion:* % der fehlerhaften Deployments mit < 10% Nutzerauswirkung (Ziel: > 80%)
-* *Feature-Flag-Lifecycle:* Durchschnittliche Lebensdauer von Feature Flags (Warnsignal: > 90 Tage)
+* *Change Failure Rate:* % of deployments that required rollback (target: < 5%)
+* *MTTR after a failed deployment:* Time to full recovery (target: < 5 minutes with rollback)
+* *Blast radius reduction:* % of failed deployments with < 10% user impact (target: > 80%)
+* *Feature flag lifecycle:* Average lifespan of feature flags (warning signal: > 90 days)
 
-== Reifegrad
+== Maturity Levels
 
 [cols="1,2"]
 |===
-|Stufe |Charakteristika
+|Level |Characteristics
 
 |*Level 1*
-|Big-Bang Deployments. Rollback = neues Deployment = 15+ Minuten.
+|Big-bang deployments. Rollback = new deployment = 15+ minutes.
 
 |*Level 2*
-|Rolling Updates oder manuelle Blue/Green. Kein Auto-Rollback.
+|Rolling updates or manual blue/green. No auto-rollback.
 
 |*Level 3*
-|Canary oder Blue/Green mit Health-Check-basiertem Auto-Rollback. Feature Flags für neue Features.
+|Canary or blue/green with health-check-based auto-rollback. Feature flags for new features.
 
 |*Level 4*
-|Automatische Canary-Analyse via Metriken-Vergleich. Change Failure Rate tracked.
+|Automated canary analysis via metrics comparison. Change Failure Rate tracked.
 
 |*Level 5*
-|DORA Elite: Change Failure Rate < 5%. Automatisches Deployment-Decision basierend auf Metriken.
+|DORA Elite: Change Failure Rate < 5%. Automated deployment decision based on metrics.
 
 |===

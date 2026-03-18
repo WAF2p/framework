@@ -1,108 +1,108 @@
-= Sovereign-Prinzipien
+= Sovereign Principles
 :page-toc: right
-:description: WAF++ – Die 7 Prinzipien der Sovereign Cloud.
+:description: WAF++ – The 7 principles of Sovereign Cloud.
 
-Die folgenden sieben Prinzipien bilden das Fundament der Sovereign-Säule im WAF++.
-Sie sind anbieter- und technologieunabhängig formuliert.
+The following seven principles form the foundation of the Sovereign pillar in WAF++.
+They are formulated in a provider- and technology-agnostic manner.
 
 == SP1 – Sovereignty is Evidence-Based
 
-Souveränität ohne Nachweis ist eine Behauptung.
+Sovereignty without proof is a claim.
 
-Jede Souveränitätsanforderung muss in *prüfbare Evidenz* übersetzbar sein:
-Konfigurationsdaten, Audit-Logs, Runbooks, Vertragsartefakte oder automatisierte IaC-Checks.
+Every sovereignty requirement must be translatable into *verifiable evidence*:
+configuration data, audit logs, runbooks, contractual artefacts or automated IaC checks.
 
-*Implikation:* „Wir glauben, unsere Daten liegen in Deutschland" ist keine Evidenz.
-Der Terraform-Provider mit Region-Validation und ein CloudTrail-Log, das zeigt, dass kein
-Deployment außerhalb der EU stattgefunden hat, ist Evidenz.
+*Implication:* "We believe our data is located in Germany" is not evidence.
+A Terraform provider with region validation and a CloudTrail log showing that no
+deployment outside the EU has occurred is evidence.
 
-*Zugehörige Controls:* WAF-SOV-010, WAF-SOV-020
+*Related Controls:* WAF-SOV-010, WAF-SOV-020
 
 ---
 
 == SP2 – Explicit Jurisdiction & Data Boundaries
 
-Erlaubte Regionen und Datenklassen müssen explizit definiert und technisch erzwungen sein.
+Permitted regions and data classes must be explicitly defined and technically enforced.
 
-Implizite Annahmen oder Konventionen ohne technische Enforcement-Mechanismen sind nicht
-souveränitätskonform. Jede Datenklasse braucht eine dokumentierte Jurisdiktionszuweisung.
+Implicit assumptions or conventions without technical enforcement mechanisms are not
+sovereignty-compliant. Every data class requires a documented jurisdiction assignment.
 
-*Implikation:* „Wir deployen normalerweise in eu-central-1" ist kein Region Pinning.
-Eine Terraform-Variable mit Validation-Block und ein OPA-Policy-Gate im CI ist Region Pinning.
+*Implication:* "We normally deploy to eu-central-1" is not region pinning.
+A Terraform variable with a validation block and an OPA policy gate in CI is region pinning.
 
-*Zugehörige Controls:* WAF-SOV-010, WAF-SOV-020, WAF-SOV-030, WAF-SOV-040
+*Related Controls:* WAF-SOV-010, WAF-SOV-020, WAF-SOV-030, WAF-SOV-040
 
 ---
 
 == SP3 – Own Your Keys
 
-Wer den Schlüssel nicht kontrolliert, kontrolliert die Daten nicht.
+Whoever does not control the key does not control the data.
 
-Für sensible Datenkategorien (PII, Gesundheitsdaten, Finanzdaten) müssen Schlüssel
-im Besitz der Organisation liegen – nicht beim Cloud-Anbieter. Schlüsselrotation und
--löschung müssen governed sein und auditierbar sein.
+For sensitive data categories (PII, health data, financial data), keys must
+be owned by the organization – not the cloud provider. Key rotation and
+deletion must be governed and auditable.
 
-*Implikation:* Encryption at Rest mit AES256 (SSE-S3) bedeutet, AWS verwaltet den Schlüssel.
-CMK (Customer Managed Key) bedeutet, die Organisation kontrolliert den Schlüssel.
-HYOK (Hold Your Own Key) mit externem HSM bedeutet: AWS hat niemals Zugriff auf das Schlüsselmaterial.
+*Implication:* Encryption at rest with AES256 (SSE-S3) means AWS manages the key.
+CMK (Customer Managed Key) means the organization controls the key.
+HYOK (Hold Your Own Key) with an external HSM means: AWS never has access to the key material.
 
-*Zugehörige Controls:* WAF-SOV-050
+*Related Controls:* WAF-SOV-050
 
 ---
 
 == SP4 – Control the Control Plane
 
-Privilegierte Zugriffe sind der Kern von Souveränität.
+Privileged accesses are the core of sovereignty.
 
-Break-Glass, Admin-Aktionen, Delegation, IAM-Konfigurationsänderungen – all diese Aktionen
-müssen protokolliert, attributiert und periodisch reviewed werden. Zero Standing Privilege
-ist das Zielbild; JIT-Zugriff ist der pragmatische Schritt dorthin.
+Break-glass, admin actions, delegation, IAM configuration changes – all these actions
+must be logged, attributed and periodically reviewed. Zero Standing Privilege
+is the target state; JIT access is the pragmatic step towards it.
 
-*Implikation:* Ein Entwickler mit AdministratorAccess kann alle Sovereign-Controls auf einmal
-deaktivieren. Separation of Duties verhindert das.
+*Implication:* A developer with AdministratorAccess can disable all Sovereign controls at once.
+Separation of Duties prevents that.
 
-*Zugehörige Controls:* WAF-SOV-060, WAF-SOV-070
+*Related Controls:* WAF-SOV-060, WAF-SOV-070
 
 ---
 
 == SP5 – Know and Control Your Supply Chain
 
-Alle Abhängigkeiten sind Teil des souveränen Systems – oder eine Lücke darin.
+All dependencies are part of the sovereign system – or a gap in it.
 
-Ein Monitoring-Agent, der Logs zu einem US-Anbieter schickt, eine CI/CD-Plattform, die
-Produktions-Secrets kennt, ein Terraform-Modul aus einer unbekannten Quelle –
-jede dieser Abhängigkeiten ist ein potenzieller Souveränitätsverstoss.
+A monitoring agent that sends logs to a US provider, a CI/CD platform that
+knows production secrets, a Terraform module from an unknown source –
+each of these dependencies is a potential sovereignty violation.
 
-*Implikation:* Ein Subprocessor-Inventar ist keine Formalität. Es ist der Angriffsflächen-Atlas
-der Souveränität.
+*Implication:* A subprocessor inventory is not a formality. It is the attack surface atlas
+of sovereignty.
 
-*Zugehörige Controls:* WAF-SOV-080
+*Related Controls:* WAF-SOV-080
 
 ---
 
 == SP6 – Egress is the Last Line of Sovereign Defense
 
-Wenn alle anderen Controls versagen, verhindert Egress-Kontrolle den Datenverlust.
+When all other controls fail, egress control prevents data loss.
 
-Selbst bei kompromittierten Zugangsdaten, fehlerhafter IAM-Policy oder einer 0-Day-Schwachstelle
-in einer Anwendung – ohne Egress können Daten nicht die Souveränitätsgrenze verlassen.
+Even with compromised credentials, a faulty IAM policy or a 0-day vulnerability
+in an application – without egress control, data cannot cross the sovereignty boundary.
 
-*Implikation:* Default-deny Egress mit VPC-Endpoints für cloud-interne Dienste ist nicht
-optional für sovereign Workloads. Es ist das Sicherheitsnetz.
+*Implication:* Default-deny egress with VPC endpoints for cloud-internal services is not
+optional for sovereign workloads. It is the safety net.
 
-*Zugehörige Controls:* WAF-SOV-090
+*Related Controls:* WAF-SOV-090
 
 ---
 
 == SP7 – Exit is a Sovereign Right, not a Project
 
-Portabilität und Exit-Fähigkeit sind keine Nice-to-Have-Features.
+Portability and exit capability are not nice-to-have features.
 
-Wer seinen Cloud-Anbieter nicht verlassen kann, hat keine Souveränität – unabhängig von
-allen technischen Kontrollen. Exit-Drills, dokumentierte Exit-Pläne und IaC-Portabilität
-sind reguläre Betriebsaufgaben.
+Whoever cannot leave their cloud provider has no sovereignty – regardless of
+all technical controls. Exit drills, documented exit plans and IaC portability
+are regular operational tasks.
 
-*Implikation:* Das Exit-Planungsdokument gehört ins Repository, nicht in eine Schublade.
-Der jährliche Exit-Drill ist so wichtig wie ein Desaster-Recovery-Test.
+*Implication:* The exit planning document belongs in the repository, not in a drawer.
+The annual exit drill is as important as a disaster recovery test.
 
-*Zugehörige Controls:* WAF-SOV-100
+*Related Controls:* WAF-SOV-100

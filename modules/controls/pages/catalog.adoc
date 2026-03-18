@@ -1,16 +1,16 @@
 = YAML Control Details
 :page-toc: right
-:description: WAF++ – Referenz-Übersicht aller maschinenlesbaren YAML-Controls (WAF-COST & WAF-SOV).
+:description: WAF++ – Reference overview of all machine-readable YAML controls (WAF-COST & WAF-SOV).
 
-Diese Seite ist die Referenz aller YAML-Kontrolldateien des WAF++ Frameworks.
-Die YAML-Dateien enthalten maschinenlesbare Checks, die vom WAF++ Checker Tool
-direkt gegen Terraform-Code ausgeführt werden können.
+This page is the reference for all YAML control files of the WAF++ Framework.
+The YAML files contain machine-readable checks that can be executed directly against
+Terraform code by the WAF++ Checker Tool.
 
-== Säule 2 · Cost Optimization – WAF-COST
+== Pillar 2 · Cost Optimization – WAF-COST
 
 [cols="1,3,1,1,1"]
 |===
-|Control ID |Titel |Severity |Provider |Kategorie
+|Control ID |Title |Severity |Provider |Category
 
 |xref:#WAF-COST-010[WAF-COST-010]
 |Cost Allocation Tagging Enforced
@@ -74,11 +74,11 @@ direkt gegen Terraform-Code ausgeführt werden können.
 
 |===
 
-== Säule 7 · Sovereign – WAF-SOV
+== Pillar 7 · Sovereign – WAF-SOV
 
 [cols="1,3,1,1,1"]
 |===
-|Control ID |Titel |Severity |Provider |Checks
+|Control ID |Title |Severity |Provider |Checks
 
 |xref:#WAF-SOV-010[WAF-SOV-010]
 |Data Residency Policy Defined
@@ -147,151 +147,151 @@ direkt gegen Terraform-Code ausgeführt werden können.
 [#WAF-COST-010]
 === WAF-COST-010 – Cost Allocation Tagging Enforced
 
-Datei: `controls/WAF-COST-010.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+File: `controls/WAF-COST-010.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
 
-Checks prüfen: Pflicht-Tags (`cost-center`, `owner`, `environment`, `workload`) auf Compute-, Storage-
-und Datenbankressourcen für AWS, Azure und GCP. CI-Gate blockiert Ressourcen ohne vollständiges Tagging.
+Checks verify: mandatory tags (`cost-center`, `owner`, `environment`, `workload`) on compute, storage,
+and database resources for AWS, Azure, and GCP. CI gate blocks resources without complete tagging.
 
 [#WAF-COST-020]
 === WAF-COST-020 – Cost Budgets & Alerting Configured
 
-Datei: `controls/WAF-COST-020.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+File: `controls/WAF-COST-020.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
 
-Checks prüfen: `aws_budgets_budget` mit Alert-Threshold (80 %, 100 %); `azurerm_consumption_budget_resource_group`;
-`google_billing_budget` pro Billing Account. Kein Environment ohne definiertes Budget.
+Checks verify: `aws_budgets_budget` with alert thresholds (80%, 100%); `azurerm_consumption_budget_resource_group`;
+`google_billing_budget` per billing account. No environment without a defined budget.
 
 [#WAF-COST-030]
 === WAF-COST-030 – Resource Rightsizing & Idle Detection
 
-Datei: `controls/WAF-COST-030.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
+File: `controls/WAF-COST-030.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
 
-Checks prüfen: Compute-Ressourcen tragen `rightsizing-reviewed`-Tag mit Datum; kein persistentes
-Deployment ohne Rightsizing-Dokumentation. Ergänzende Automatisierung via AWS Compute Optimizer / Azure Advisor.
+Checks verify: compute resources carry a `rightsizing-reviewed` tag with a date; no persistent
+deployment without rightsizing documentation. Complementary automation via AWS Compute Optimizer / Azure Advisor.
 
 [#WAF-COST-040]
 === WAF-COST-040 – Storage & Retention Lifecycle Defined
 
-Datei: `controls/WAF-COST-040.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+File: `controls/WAF-COST-040.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
 
-Checks prüfen: S3-Buckets müssen `lifecycle_rule` definiert haben; CloudWatch Log Groups
-`retention_in_days` muss gesetzt und > 0 sein; Azure Storage Lifecycle Policy; GCP Bucket Lifecycle Rules.
-Keine Infinite-Retention ohne explizite Compliance-Begründung.
+Checks verify: S3 buckets must have a `lifecycle_rule` defined; CloudWatch Log Groups
+`retention_in_days` must be set and > 0; Azure Storage Lifecycle Policy; GCP Bucket Lifecycle Rules.
+No infinite retention without an explicit compliance justification.
 
 [#WAF-COST-050]
 === WAF-COST-050 – Cost Impact Assessment in ADRs
 
-Datei: `controls/WAF-COST-050.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+File: `controls/WAF-COST-050.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
 
-Governance-Control (prozessual). Checks prüfen: ADR-Dateien im Repository enthalten eine
-`cost-impact`-Sektion mit TCO-Schätzung, Lock-in-Score (1–5), Datentransfer-Kosten, Ops-Aufwand
-und Exit-Kosten. Fehlende Cost-Sektion = Verletzung (Architektonische Kostenschuld).
+Governance control (procedural). Checks verify: ADR files in the repository contain a
+`cost-impact` section with a TCO estimate, lock-in score (1–5), data transfer costs, operational effort,
+and exit costs. Missing cost section = violation (Architectural Cost Debt).
 
 [#WAF-COST-060]
 === WAF-COST-060 – FinOps Review Cadence
 
-Datei: `controls/WAF-COST-060.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+File: `controls/WAF-COST-060.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
 
-Governance-Control. Checks prüfen: Monatlicher Engineering-Review und quartalsweiser Architecture-Board-Review
-sind dokumentiert (Meeting-Notes im Repository); Action Items mit Owner und Due Date nachverfolgt.
+Governance control. Checks verify: monthly engineering review and quarterly architecture board review
+are documented (meeting notes in the repository); action items tracked with owner and due date.
 
 [#WAF-COST-070]
 === WAF-COST-070 – Observability & Logging Cost Tiers
 
-Datei: `controls/WAF-COST-070.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+File: `controls/WAF-COST-070.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
 
-Checks prüfen: CloudWatch Log Groups `retention_in_days` ≤ 365 für operative Logs (kein Infinite);
-Tiering-Tag `log-tier` (hot/warm/cold/archive) vorhanden; kein DEBUG-Level in Production
-ohne explizite Sampling-Rate.
+Checks verify: CloudWatch Log Groups `retention_in_days` <= 365 for operational logs (no infinite);
+tiering tag `log-tier` (hot/warm/cold/archive) present; no DEBUG level in production
+without an explicit sampling rate.
 
 [#WAF-COST-080]
 === WAF-COST-080 – Commitment & Reserved Capacity Planning
 
-Datei: `controls/WAF-COST-080.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+File: `controls/WAF-COST-080.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
 
-Checks prüfen: Baseline-Compute-Instanzen (persistenter Workload) tragen Tag `capacity-commitment`
-mit Wert `reserved` oder `savings-plan`. On-Demand-Only-Deployments ohne Commitment-Tag werden als
-Optimierungskandidat markiert.
+Checks verify: baseline compute instances (persistent workload) carry a `capacity-commitment` tag
+with the value `reserved` or `savings-plan`. On-demand-only deployments without a commitment tag are flagged
+as optimization candidates.
 
 [#WAF-COST-090]
 === WAF-COST-090 – Data Transfer & Egress Cost Management
 
-Datei: `controls/WAF-COST-090.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+File: `controls/WAF-COST-090.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
 
-Checks prüfen: VPC Endpoint für S3 in AWS-VPCs vorhanden; keine direkten Internet-Gateway-Routen
-für interne Compute-Ressourcen; CDN-Ressource (`aws_cloudfront_distribution` / Azure CDN /
-`google_compute_backend_bucket`) für public-facing Storage konfiguriert.
+Checks verify: VPC Endpoint for S3 present in AWS VPCs; no direct internet gateway routes
+for internal compute resources; CDN resource (`aws_cloudfront_distribution` / Azure CDN /
+`google_compute_backend_bucket`) configured for public-facing storage.
 
 [#WAF-COST-100]
 === WAF-COST-100 – Architectural Cost Debt Register & Quarterly Review
 
-Datei: `controls/WAF-COST-100.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+File: `controls/WAF-COST-100.yml` | Narrative: xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
 
-Governance-Control. Checks prüfen: Datei `cost-debt-register.yml` im Repository vorhanden;
-jeder Eintrag enthält `owner`, `annual_impact_eur`, `status` und `resolution_date`;
-Quarterly-Review-Eintrag für das aktuelle Quartal mit Architecture-Board-Sign-off vorhanden.
+Governance control. Checks verify: file `cost-debt-register.yml` present in the repository;
+each entry contains `owner`, `annual_impact_eur`, `status`, and `resolution_date`;
+quarterly review entry for the current quarter with architecture board sign-off present.
 
 ---
 
 == WAF-SOV – Details
 
-== Check-Operator Referenz
+== Check Operator Reference
 
-Die YAML-Controls nutzen folgende `op`-Werte in Assertions:
+The YAML controls use the following `op` values in assertions:
 
 [cols="1,2"]
 |===
-|Operator |Bedeutung
+|Operator |Meaning
 
 |`attribute_exists`
-|Das Attribut existiert (nicht null/unset)
+|The attribute exists (not null/unset)
 
 |`not_empty`
-|Das Attribut ist nicht leer (kein leerer String)
+|The attribute is not empty (no empty string)
 
 |`equals`
-|Wert entspricht genau dem `expected`-Wert
+|Value exactly matches the `expected` value
 
 |`not_equals`
-|Wert entspricht nicht dem `expected`-Wert
+|Value does not match the `expected` value
 
 |`in`
-|Wert ist in der erlaubten Liste enthalten
+|Value is contained in the allowed list
 
 |`not_in`
-|Wert ist nicht in der verbotenen Liste enthalten
+|Value is not contained in the forbidden list
 
 |`is_true`
-|Boolescher Wert ist `true`
+|Boolean value is `true`
 
 |`is_false`
-|Boolescher Wert ist `false`
+|Boolean value is `false`
 
 |`greater_than`
-|Numerischer Wert ist größer als `expected`
+|Numeric value is greater than `expected`
 
 |`greater_than_or_equal`
-|Numerischer Wert ist größer oder gleich `expected`
+|Numeric value is greater than or equal to `expected`
 
 |`less_than_or_equal`
-|Numerischer Wert ist kleiner oder gleich `expected`
+|Numeric value is less than or equal to `expected`
 
 |`not_matches`
-|Wert entspricht nicht dem regulären Ausdruck in `pattern`
+|Value does not match the regular expression in `pattern`
 
 |`matches`
-|Wert entspricht dem regulären Ausdruck in `pattern`
+|Value matches the regular expression in `pattern`
 
 |`key_exists`
-|Dictionary/Map enthält den Schlüssel `key`
+|Dictionary/Map contains the key `key`
 
 |`block_exists`
-|Ein Block dieses Typs existiert
+|A block of this type exists
 
 |`has_associated_resource`
-|Es existiert eine andere Resource, die dieses Objekt referenziert
+|Another resource exists that references this object
 
 |`json_not_contains_pattern`
-|JSON-String enthält kein Pattern (Regex-basiert)
+|JSON string does not contain a pattern (regex-based)
 
 |===
 
@@ -300,80 +300,80 @@ Die YAML-Controls nutzen folgende `op`-Werte in Assertions:
 [#WAF-SOV-010]
 == WAF-SOV-010 – Data Residency Policy Defined
 
-Datei: `controls/WAF-SOV-010.yml`
+File: `controls/WAF-SOV-010.yml`
 
-Checks prüfen: Data-Residency-Tagging auf Ressourcen; explizite Region/Location-Attribute
-in Provider-Blöcken für AWS, Azure und GCP.
+Checks verify: data residency tagging on resources; explicit region/location attributes
+in provider blocks for AWS, Azure, and GCP.
 
 [#WAF-SOV-020]
 == WAF-SOV-020 – Region Pinning Enforced (IaC)
 
-Datei: `controls/WAF-SOV-020.yml`
+File: `controls/WAF-SOV-020.yml`
 
-Checks prüfen: Explizite Region in Provider-Blöcken; Validation-Blöcke in Region/Location-Variablen;
-keine hardkodierten non-sovereign Regionen.
+Checks verify: explicit region in provider blocks; validation blocks in region/location variables;
+no hardcoded non-sovereign regions.
 
 [#WAF-SOV-030]
 == WAF-SOV-030 – Backup Location & Retention Controlled
 
-Datei: `controls/WAF-SOV-030.yml`
+File: `controls/WAF-SOV-030.yml`
 
-Checks prüfen: RDS/Aurora backup_retention_period >= 7; DynamoDB PITR aktiviert;
-Backup Vault in genehmigter Region; S3 Versioning für Backup-Buckets.
+Checks verify: RDS/Aurora backup_retention_period >= 7; DynamoDB PITR enabled;
+backup vault in approved region; S3 versioning for backup buckets.
 
 [#WAF-SOV-040]
 == WAF-SOV-040 – Logging & Telemetry Residency Controlled
 
-Datei: `controls/WAF-SOV-040.yml`
+File: `controls/WAF-SOV-040.yml`
 
-Checks prüfen: CloudTrail multi-region mit Log-File-Validation; CloudWatch Log Group
-Retention nicht 0 und >= 30 Tage; VPC Flow Logs für alle VPCs; CloudWatch-Integration.
+Checks verify: CloudTrail multi-region with log file validation; CloudWatch Log Group
+retention not 0 and >= 30 days; VPC Flow Logs for all VPCs; CloudWatch integration.
 
 [#WAF-SOV-050]
 == WAF-SOV-050 – Key Ownership & Management Defined
 
-Datei: `controls/WAF-SOV-050.yml`
+File: `controls/WAF-SOV-050.yml`
 
-Checks prüfen: KMS Key Rotation aktiviert; Deletion Window >= 14 Tage; S3 nutzt
-aws:kms (nicht AES256); EBS und RDS Storage verschlüsselt; Azure Key Vault mit Purge Protection.
+Checks verify: KMS key rotation enabled; deletion window >= 14 days; S3 uses
+aws:kms (not AES256); EBS and RDS storage encrypted; Azure Key Vault with purge protection.
 
 [#WAF-SOV-060]
 == WAF-SOV-060 – Privileged Access Controlled (Separation of Duties)
 
-Datei: `controls/WAF-SOV-060.yml`
+File: `controls/WAF-SOV-060.yml`
 
-Checks prüfen: Keine IAM-Policy mit Action:* und Resource:* kombiniert; kein
-AdministratorAccess an normale Rollen; IAM Passwort-Policy konfiguriert; keine
-langlebigen Access Keys.
+Checks verify: no IAM policy combining Action:* and Resource:*; no
+AdministratorAccess on regular roles; IAM password policy configured; no
+long-lived access keys.
 
 [#WAF-SOV-070]
 == WAF-SOV-070 – Break-Glass Process & Logging
 
-Datei: `controls/WAF-SOV-070.yml`
+File: `controls/WAF-SOV-070.yml`
 
-Checks prüfen: CloudTrail multi-region, log-validation, global events; CloudTrail S3
-nicht öffentlich; CloudWatch Alarm für Root-Account-Aktivität; Alarm für IAM-Policy-Änderungen.
+Checks verify: CloudTrail multi-region, log validation, global events; CloudTrail S3
+not public; CloudWatch alarm for root account activity; alarm for IAM policy changes.
 
 [#WAF-SOV-080]
 == WAF-SOV-080 – Dependency & Subprocessor Inventory
 
-Datei: `controls/WAF-SOV-080.yml`
+File: `controls/WAF-SOV-080.yml`
 
-Checks prüfen: Alle required_providers mit Version Constraint; required_version gesetzt;
-Module-Versionen gepinnt; keine unapproved Git-Module.
+Checks verify: all required_providers with version constraint; required_version set;
+module versions pinned; no unapproved Git modules.
 
 [#WAF-SOV-090]
 == WAF-SOV-090 – Controlled Egress & Data Exfiltration Guardrails
 
-Datei: `controls/WAF-SOV-090.yml`
+File: `controls/WAF-SOV-090.yml`
 
-Checks prüfen: Security Groups ohne 0.0.0.0/0 Egress; VPC Endpoint für S3 vorhanden;
-VPC Flow Logs aktiviert; Network ACL keine offene Egress; Azure NSG kein offener Outbound.
+Checks verify: security groups without 0.0.0.0/0 egress; VPC Endpoint for S3 present;
+VPC Flow Logs enabled; network ACL no open egress; Azure NSG no open outbound.
 
 [#WAF-SOV-100]
 == WAF-SOV-100 – Exit Plan & Portability Tested
 
-Datei: `controls/WAF-SOV-100.yml`
+File: `controls/WAF-SOV-100.yml`
 
-Checks prüfen: S3 Buckets mit Lifecycle Policy; S3 Versioning aktiviert; Data-Resources
-mit portability-class Tag; High-Lock-In Services mit exit-strategy Tag; RDS Deletion Protection.
+Checks verify: S3 buckets with lifecycle policy; S3 versioning enabled; data resources
+with portability-class tag; high lock-in services with exit-strategy tag; RDS deletion protection.

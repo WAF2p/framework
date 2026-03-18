@@ -5,94 +5,94 @@
 :severity: high
 :category: high-availability
 :automated: high
-:description: WAF++ Reliability – Multi-AZ Deployment als Mindestanforderung für alle Produktions-Workloads.
+:description: WAF++ Reliability – Multi-AZ deployment as the minimum requirement for all production workloads.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* High Availability | *Automatisierbar:* Hoch
+*Pillar:* Reliability | *Severity:* High | *Category:* High Availability | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Produktions-Workloads MÜSSEN über mindestens 2 Availability Zones verteilt sein.
-Single-AZ-Deployments in Produktion sind ohne schriftliche Risk Acceptance nicht zulässig.
-Datenbanken MÜSSEN Multi-AZ mit automatischem Failover konfigurieren.
-Kubernetes MUSS Topology Spread Constraints zur AZ-Verteilung verwenden.
+All production workloads MUST be distributed across at least 2 Availability Zones.
+Single-AZ deployments in production are not permitted without written risk acceptance.
+Databases MUST configure Multi-AZ with automatic failover.
+Kubernetes MUST use Topology Spread Constraints for AZ distribution.
 
 == Rationale
 
-AZ-Ausfälle sind der häufigste cloud-infrastrukturelle Störungstyp. Ein System in einer
-einzigen AZ erleidet bei einem AZ-Ereignis 100% Ausfall. Der Kostenzuwachs für Multi-AZ
-ist im Vergleich zu einem einzelnen Produktionsausfall vernachlässigbar. Multi-AZ ist der
-absolute Mindeststandard für produktive High-Availability-Systeme.
+AZ failures are the most frequent cloud infrastructure disruption type. A system in a
+single AZ experiences 100% outage during an AZ event. The cost increase for Multi-AZ
+is negligible compared to a single production outage. Multi-AZ is the
+absolute minimum standard for productive high-availability systems.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*AZ-Ausfall = Totalausfall*
-|Single-AZ Deployment: Jede AZ-Störung führt zu vollständigem Service-Ausfall.
+|*AZ Failure = Total Outage*
+|Single-AZ deployment: every AZ disruption results in a complete service outage.
 
-|*Datenbank Single Point of Failure*
-|Single-AZ RDS: Bei AZ-Ausfall ist Datenbank stundenlang nicht erreichbar.
+|*Database Single Point of Failure*
+|Single-AZ RDS: database unreachable for hours during an AZ failure.
 
-|*Kubernetes Pod-Konzentration*
-|Ohne Topology Spread landen alle Pods in einer AZ: Single-Pod-Klasse als SPOF.
+|*Kubernetes Pod Concentration*
+|Without Topology Spread, all pods end up in one AZ: single-pod class as SPOF.
 
-|*Automatisches Failover fehlt*
-|Multi-AZ konfiguriert, aber Failover nicht automatisch → manuelle Intervention bei AZ-Ausfall.
+|*Automatic Failover Missing*
+|Multi-AZ configured, but failover not automatic → manual intervention required during AZ failure.
 
 |===
 
-== Anforderung
+== Requirement
 
-* Alle Produktions-Compute-Ressourcen: mindestens 2 AZs
-* Auto Scaling Groups: `min_size >= 2`, Subnets in min. 2 AZs
-* Alle Produktionsdatenbanken: Multi-AZ mit automatischem Failover
-* Kubernetes: `topologySpreadConstraints` mit Zone-Key konfiguriert
-* Load Balancer: Subnets in min. 2 AZs
+* All production compute resources: at least 2 AZs
+* Auto Scaling Groups: `min_size >= 2`, subnets in min. 2 AZs
+* All production databases: Multi-AZ with automatic failover
+* Kubernetes: `topologySpreadConstraints` with zone key configured
+* Load balancers: subnets in min. 2 AZs
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *ASG Subnets*: `vpc_zone_identifier` mit Subnets aus min. 2 AZs
-. *ASG Min Size*: `min_size = 2` – eine Instanz kann AZ-Ausfall nicht überstehen
-. *RDS Multi-AZ*: `multi_az = true` – synchrone Replikation, Auto Failover < 2 Minuten
-. *ElastiCache*: Multi-AZ Replication Group mit `automatic_failover_enabled = true`
+. *ASG Subnets*: `vpc_zone_identifier` with subnets from min. 2 AZs
+. *ASG Min Size*: `min_size = 2` – one instance cannot survive an AZ failure
+. *RDS Multi-AZ*: `multi_az = true` – synchronous replication, auto failover < 2 minutes
+. *ElastiCache*: Multi-AZ replication group with `automatic_failover_enabled = true`
 . *Kubernetes*: `topologySpreadConstraints.topologyKey = topology.kubernetes.io/zone`
-. *AZ-Failover testen*: Instanzen in einer AZ terminieren und Recovery beobachten
+. *Test AZ failover*: Terminate instances in one AZ and observe recovery
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
 |Single-AZ
-|Alle Ressourcen in einer AZ; keine Redundanz.
+|All resources in one AZ; no redundancy.
 
 |*2*
 |DB Multi-AZ
-|Datenbanken Multi-AZ; Compute noch Single-AZ.
+|Databases Multi-AZ; compute still Single-AZ.
 
 |*3*
-|Vollständig Multi-AZ
-|Alles in min. 2 AZs; LB und ASG multi-AZ konfiguriert; AZ-Test quartalsweise.
+|Fully Multi-AZ
+|Everything in min. 2 AZs; LB and ASG multi-AZ configured; AZ test quarterly.
 
 |*4*
-|Auto-Failover getestet
-|Automatischer Failover dokumentiert und gemessen; Kubernetes Topology Spread erzwungen.
+|Auto-Failover Tested
+|Automatic failover documented and measured; Kubernetes Topology Spread enforced.
 
 |*5*
 |Multi-Region
-|Kritische Workloads multi-regional; Global Load Balancing mit Auto-Region-Failover.
+|Critical workloads multi-regional; global load balancing with auto region failover.
 
 |===
 
 == Terraform Checks
 
 === waf-rel-030.tf.aws.rds-multi-az
-*Prüft:* RDS Instance hat `multi_az = true` und `deletion_protection = true`.
+*Checks:* RDS Instance has `multi_az = true` and `deletion_protection = true`.
 
 [cols="1,1"]
 |===
@@ -124,30 +124,30 @@ resource "aws_db_instance" "main" {
 ----
 |===
 
-*Remediation:* `multi_az = true` und `deletion_protection = true` auf der
-`aws_db_instance` Ressource setzen.
+*Remediation:* Set `multi_az = true` and `deletion_protection = true` on the
+`aws_db_instance` resource.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform mit Multi-AZ-Konfiguration für Compute, DB und Load Balancer.
+|✅ Required
+|Terraform with Multi-AZ configuration for compute, DB and load balancer.
 
 |*Config*
-|✅ Pflicht
-|Cloud Console oder IaC zeigt min. 2 AZs je Produktionsressource.
+|✅ Required
+|Cloud console or IaC shows min. 2 AZs per production resource.
 
 |*Process*
 |Optional
-|AZ-Failover-Testbericht mit gemessener Recovery-Zeit.
+|AZ failover test report with measured recovery time.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
 * xref:controls/WAF-REL-040.adoc[WAF-REL-040 – Backup & Recovery Validation]
@@ -155,4 +155,4 @@ resource "aws_db_instance" "main" {
 
 == Best Practice
 
-* xref:best-practices/bp-multi-az.adoc[Multi-AZ & High-Availability-Architektur →]
+* xref:best-practices/bp-multi-az.adoc[Multi-AZ & High Availability Architecture →]

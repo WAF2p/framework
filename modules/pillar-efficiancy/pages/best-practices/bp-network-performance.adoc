@@ -1,41 +1,41 @@
-= Best Practice: Netzwerk-Performance optimieren
+= Best Practice: Optimize Network Performance
 :page-toc: right
-:description: WAF++ Performance Efficiency – CDN-Konfiguration, VPC-Endpoints und Netzwerktopologie-Optimierung.
+:description: WAF++ Performance Efficiency – CDN configuration, VPC endpoints and network topology optimization.
 
-== Kontext
+== Context
 
-Netzwerklatenz ist kumulativ: In einer Microservices-Architektur mit 10 internen Service-Calls
-können Cross-AZ-Hops von je 1–2ms bereits 20ms unnötige Latenz akkumulieren.
-CDN-Fehlen bedeutet, dass statische Assets von Origin ausgeliefert werden – hundert Millisekunden
-zusätzliche Latenz für Nutzer außerhalb der Deployment-Region.
+Network latency is cumulative: in a microservices architecture with 10 internal service calls,
+cross-AZ hops of 1–2ms each can already accumulate 20ms of unnecessary latency.
+The absence of a CDN means that static assets are served from origin – hundreds of milliseconds
+of additional latency for users outside the deployment region.
 
-Typische Netzwerk-Performance-Probleme:
+Typical network performance problems:
 
-* Keine VPC Endpoints: S3, DynamoDB, SSM-Traffic routet über das Internet
-* Kein CDN: Alle JS/CSS/Images werden von Origin geladen (hohe Latenz + Egress-Kosten)
-* Cross-AZ-Traffic in kritischen Paths ohne Bewusstsein für Latenz-Overhead
-* DNS-Auflösung bei jedem Request ohne DNS-Caching (typisch: 10–50ms pro Resolution)
+* No VPC endpoints: S3, DynamoDB, SSM traffic routes over the internet
+* No CDN: all JS/CSS/images are loaded from origin (high latency + egress costs)
+* Cross-AZ traffic in critical paths without awareness of latency overhead
+* DNS resolution on every request without DNS caching (typically 10–50ms per resolution)
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:../controls.adoc#WAF-PERF-070[WAF-PERF-070] – Network Latency & Topology Optimization
 
-== Zielbild
+== Target State
 
-Latenzoptimiertes Netzwerk-Design:
+Latency-optimized network design:
 
-* *VPC Endpoints*: Alle Cloud-Service-APIs über privates Backbone erreichbar
-* *CDN aktiv*: >= 95% Cache-Hit-Rate für statische Assets
-* *AZ-bewusst*: Häufig kommunizierende Services in derselben AZ bevorzugt
-* *Gemessen*: Netzwerk-Latenz-Baseline pro Service-Pair dokumentiert
+* *VPC Endpoints*: All cloud service APIs reachable over the private backbone
+* *CDN active*: >= 95% cache hit rate for static assets
+* *AZ-aware*: Frequently communicating services preferred in the same AZ
+* *Measured*: Network latency baseline documented per service pair
 
-== Technische Umsetzung
+== Technical Implementation
 
-=== Schritt 1: VPC Endpoints für AWS Services
+=== Step 1: VPC Endpoints for AWS Services
 
 [source,hcl]
 ----
-# Gateway Endpoints (kostenlos; für S3 und DynamoDB)
+# Gateway Endpoints (free; for S3 and DynamoDB)
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.s3"
@@ -55,7 +55,7 @@ resource "aws_vpc_endpoint" "dynamodb" {
   route_table_ids   = [aws_route_table.private_a.id, aws_route_table.private_b.id]
 }
 
-# Interface Endpoints (kostenpflichtig; für andere Services)
+# Interface Endpoints (paid; for other services)
 locals {
   interface_endpoints = {
     "ecr.api"   = "com.amazonaws.${var.region}.ecr.api"
@@ -95,7 +95,7 @@ resource "aws_security_group" "vpc_endpoints" {
 }
 ----
 
-=== Schritt 2: CloudFront CDN konfigurieren
+=== Step 2: Configure CloudFront CDN
 
 [source,hcl]
 ----
@@ -112,14 +112,14 @@ resource "aws_cloudfront_distribution" "main" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100"  # USA + Europe
 
-  # S3-Origin für statische Assets
+  # S3 origin for static assets
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_id                = "s3-frontend"
     origin_access_control_id = aws_cloudfront_origin_access_control.s3.id
   }
 
-  # API-Origin für Backend-Requests
+  # API origin for backend requests
   origin {
     domain_name = aws_lb.api.dns_name
     origin_id   = "alb-api"
@@ -131,7 +131,7 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # Statische Assets: Langzeit-Caching
+  # Static assets: long-term caching
   ordered_cache_behavior {
     path_pattern           = "/static/*"
     target_origin_id       = "s3-frontend"
@@ -143,7 +143,7 @@ resource "aws_cloudfront_distribution" "main" {
     cache_policy_id = aws_cloudfront_cache_policy.static.id
   }
 
-  # API: Pass-through mit kurzem Cache für GET-Requests
+  # API: pass-through with short cache for GET requests
   ordered_cache_behavior {
     path_pattern           = "/api/*"
     target_origin_id       = "alb-api"
@@ -156,7 +156,7 @@ resource "aws_cloudfront_distribution" "main" {
     origin_request_policy_id = aws_cloudfront_origin_request_policy.api.id
   }
 
-  # Default: SPA-Routing
+  # Default: SPA routing
   default_cache_behavior {
     target_origin_id       = "s3-frontend"
     viewer_protocol_policy = "redirect-to-https"
@@ -194,7 +194,7 @@ resource "aws_cloudfront_cache_policy" "static" {
 resource "aws_cloudfront_cache_policy" "html" {
   name        = "cache-html"
   min_ttl     = 0
-  default_ttl = 60      # 1 Minute für HTML
+  default_ttl = 60      # 1 minute for HTML
   max_ttl     = 300
   parameters_in_cache_key_and_forwarded_to_origin {
     cookies_config  { cookie_behavior = "none" }
@@ -205,11 +205,11 @@ resource "aws_cloudfront_cache_policy" "html" {
 }
 ----
 
-=== Schritt 3: AZ-Affinität für Kubernetes
+=== Step 3: AZ Affinity for Kubernetes
 
 [source,yaml]
 ----
-# Bevorzuge gleiche AZ für Service-zu-Service-Kommunikation
+# Prefer same AZ for service-to-service communication
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -218,7 +218,7 @@ spec:
   template:
     spec:
       topologySpreadConstraints:
-        # Gleichmäßige Verteilung über AZs für HA
+        # Even distribution across AZs for HA
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
@@ -228,7 +228,7 @@ spec:
       affinity:
         podAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            # Bevorzuge Placement nahe dem payment-api (Consumer)
+            # Prefer placement near the payment-api (consumer)
             - weight: 80
               podAffinityTerm:
                 topologyKey: topology.kubernetes.io/zone
@@ -236,13 +236,13 @@ spec:
                   matchLabels:
                     app: payment-api
 ---
-# Service mit TopologyAwareRouting: bevorzuge lokale Endpoints
+# Service with TopologyAwareRouting: prefer local endpoints
 apiVersion: v1
 kind: Service
 metadata:
   name: payment-processor
   annotations:
-    service.kubernetes.io/topology-mode: "Auto"  # Preferiere lokale AZ
+    service.kubernetes.io/topology-mode: "Auto"  # Prefer local AZ
 spec:
   selector:
     app: payment-processor
@@ -250,13 +250,13 @@ spec:
     - port: 8080
 ----
 
-=== Schritt 4: Netzwerk-Latenz-Baseline messen
+=== Step 4: Measure Network Latency Baseline
 
 [source,bash]
 ----
 #!/bin/bash
 # scripts/network-baseline.sh
-# Misst RTT zwischen Services für Latenz-Baseline
+# Measures RTT between services for latency baseline
 
 SERVICES=(
   "payment-api:8080"
@@ -272,7 +272,7 @@ for SERVICE in "${SERVICES[@]}"; do
   HOST=$(echo $SERVICE | cut -d: -f1)
   PORT=$(echo $SERVICE | cut -d: -f2)
 
-  # 10 TCP-Verbindungen und mittlere RTT messen
+  # Measure 10 TCP connections and median RTT
   RTT=$(for i in {1..10}; do
     (time (echo "" | nc -w1 $HOST $PORT)) 2>&1 | grep real | awk '{print $2}'
   done | sort -n | awk 'NR==5{print}')  # P50
@@ -281,24 +281,24 @@ for SERVICE in "${SERVICES[@]}"; do
 done
 ----
 
-== Typische Fehlmuster
+== Common Anti-Patterns
 
-* *Kein VPC Endpoint für S3*: S3-Traffic verlässt das private Netzwerk und routet über das Internet → Latenz + Egress-Kosten.
-* *CDN nur für Staging nicht für Produktion*: "CDN ist zu komplex, wir machen das später" – und später kommt nie.
-* *Service-Mesh ohne AZ-Bewusstsein*: Alle Dienste über Round-Robin geroutet, unabhängig von AZ → unnötige Cross-AZ-Latenz.
-* *DNS-Lookups ohne Caching*: Jeder Kubernetes-Pod macht DNS-Lookups ohne ausreichendes Caching.
+* *No VPC Endpoint for S3*: S3 traffic leaves the private network and routes over the internet → latency + egress costs.
+* *CDN only for staging, not production*: "CDN is too complex, we'll do that later" – and later never comes.
+* *Service mesh without AZ awareness*: All services routed via round-robin, regardless of AZ → unnecessary cross-AZ latency.
+* *DNS lookups without caching*: Every Kubernetes pod makes DNS lookups without sufficient caching.
 
-== Metriken
+== Metrics
 
-* CDN-Cache-Hit-Rate (Ziel: >= 95% für statische Assets)
-* Cross-AZ-Traffic-Anteil für latenz-sensitive Paths (Ziel: minimieren)
-* VPC-Endpoint-Coverage (Anteil Cloud-Service-Traffic über Endpoints; Ziel: 100%)
-* Origin-Response-Time für CDN-Cache-Misses (Ziel: innerhalb SLO)
+* CDN cache hit rate (target: >= 95% for static assets)
+* Cross-AZ traffic share for latency-sensitive paths (target: minimize)
+* VPC endpoint coverage (proportion of cloud service traffic over endpoints; target: 100%)
+* Origin response time for CDN cache misses (target: within SLO)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Kein CDN; keine VPC Endpoints; keine Topologie-Überlegungen +
-Level 2 – CDN für statische Assets; VPC teilweise konfiguriert +
-Level 3 – Vollständige VPC-Endpoints; CDN optimiert; AZ-Affinität dokumentiert +
-Level 4 – Latenz-Baseline gemessen; Service-Mesh mit AZ-Routing +
-Level 5 – Anycast; Edge-Computing; intelligente Routing-Optimierung
+Level 1 – No CDN; no VPC endpoints; no topology considerations +
+Level 2 – CDN for static assets; VPC partially configured +
+Level 3 – Complete VPC endpoints; CDN optimized; AZ affinity documented +
+Level 4 – Latency baseline measured; service mesh with AZ routing +
+Level 5 – Anycast; edge computing; intelligent routing optimization

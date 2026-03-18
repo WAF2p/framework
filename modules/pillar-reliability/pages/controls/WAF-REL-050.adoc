@@ -5,96 +5,96 @@
 :severity: high
 :category: resilience-patterns
 :automated: high
-:description: WAF++ Reliability – Circuit Breaker, Timeouts und Retry-Logik gegen Cascading Failures.
+:description: WAF++ Reliability – Circuit breakers, timeouts and retry logic against cascading failures.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Resilience Patterns | *Automatisierbar:* Hoch
+*Pillar:* Reliability | *Severity:* High | *Category:* Resilience Patterns | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle ausgehenden HTTP/gRPC-Calls MÜSSEN explizite Timeout-Werte definieren.
-Kritische Service-Abhängigkeiten MÜSSEN Circuit Breaker implementieren.
-Retry-Logik MUSS Exponential Backoff mit Jitter verwenden.
-Connection Pools MÜSSEN maximale Größen definieren.
-Kein Service darf Default-Timeouts (undefined oder infinite) für externe Calls verwenden.
+All outgoing HTTP/gRPC calls MUST define explicit timeout values.
+Critical service dependencies MUST implement circuit breakers.
+Retry logic MUST use exponential backoff with jitter.
+Connection pools MUST define maximum sizes.
+No service may use default timeouts (undefined or infinite) for external calls.
 
 == Rationale
 
-Cascading Failures sind die primäre Ursache großer Cloud-Outages. Ohne Circuit Breaker
-erschöpft eine langsame Abhängigkeit schrittweise Thread Pools und Connection Pools,
-bis der abhängige Service selbst ausfällt und die Kaskade sich fortsetzt. Explizite
-Timeouts verhindern, dass Ressource-Threads ewig auf nicht-antwortende Services warten.
+Cascading failures are the primary cause of major cloud outages. Without circuit breakers,
+a slow dependency gradually exhausts thread pools and connection pools
+until the dependent service itself fails and the cascade continues. Explicit
+timeouts prevent resource threads from waiting forever on non-responding services.
 
-== Bedrohungskontext
+== Threat Context
 
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
 |*Thread Pool Exhaustion*
-|Langsame externe API lässt alle Handler-Threads warten → Service vollständig blockiert.
+|Slow external API leaves all handler threads waiting → service completely blocked.
 
 |*Connection Pool Depletion*
-|Geteilter DB-Connection-Pool erschöpft sich → alle abhängigen Services scheitern.
+|Shared DB connection pool is exhausted → all dependent services fail.
 
 |*Retry Storm*
-|1000 Clients retrien synchron ohne Jitter → 1000x Lastspitze auf degradiertem Service.
+|1000 clients retry synchronously without jitter → 1000x load spike on degraded service.
 
-|*Optionale Dep reißt Hauptservice mit*
-|Nicht-kritische Enrichment-API ohne Circuit Breaker → Totalausfall statt Feature-Verlust.
+|*Optional Dep Brings Down Main Service*
+|Non-critical enrichment API without circuit breaker → total failure instead of feature loss.
 
 |===
 
-== Anforderung
+== Requirement
 
-* Explizite Timeouts für alle ausgehenden Calls (connect + read getrennt)
-* Circuit Breaker für alle kritischen synchronen Abhängigkeiten
-* Retry: maximal 3 Versuche, Exponential Backoff (100ms → 200ms → 400ms), Jitter ±50%
-* Connection Pool: maximale Größe pro Abhängigkeitsklasse definiert
-* Bulkhead: separate Resource Pools für verschiedene Abhängigkeitsklassen
-* Load Balancer: expliziter `idle_timeout` – kein Provider-Default
+* Explicit timeouts for all outgoing calls (connect + read separately)
+* Circuit breaker for all critical synchronous dependencies
+* Retry: maximum 3 attempts, exponential backoff (100ms → 200ms → 400ms), jitter ±50%
+* Connection pool: maximum size per dependency class defined
+* Bulkhead: separate resource pools for different dependency classes
+* Load balancer: explicit `idle_timeout` – no provider default
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Timeout-Audit*: Alle ausgehenden HTTP-Clients auf explizite Timeout-Werte prüfen
-. *Circuit Breaker konfigurieren*: Resilience4j, pybreaker, oder Service Mesh `outlierDetection`
-. *Retry konfigurieren*: `maxAttempts=3`, `initialDelay=100ms`, `multiplier=2`, `jitter=0.5`
-. *Connection Pools*: Separate HTTP-Client-Instanzen pro Abhängigkeit
-. *ALB idle_timeout*: Explizit auf API-Latenz abstimmen (typisch 30s für REST APIs)
-. *Chaos Test*: Circuit Breaker durch Latenz-Injektion validieren
+. *Timeout audit*: Check all outgoing HTTP clients for explicit timeout values
+. *Configure circuit breaker*: Resilience4j, pybreaker, or service mesh `outlierDetection`
+. *Configure retry*: `maxAttempts=3`, `initialDelay=100ms`, `multiplier=2`, `jitter=0.5`
+. *Connection pools*: Separate HTTP client instances per dependency
+. *ALB idle_timeout*: Set explicitly to match API latency (typically 30s for REST APIs)
+. *Chaos test*: Validate circuit breaker through latency injection
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
 [cols="1,2,3"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
 |*1*
-|Keine Timeouts
-|Default/infinite Timeouts für externe Calls.
+|No Timeouts
+|Default/infinite timeouts for external calls.
 
 |*2*
-|Timeouts konfiguriert
-|Connect und Read Timeouts für externe HTTP-Calls definiert.
+|Timeouts Configured
+|Connect and read timeouts defined for external HTTP calls.
 
 |*3*
 |Circuit Breaker + Retry
-|CB für alle kritischen Deps; Retry mit Backoff und Jitter; Connection Pools.
+|CB for all critical deps; retry with backoff and jitter; connection pools.
 
 |*4*
 |Bulkheads + Service Mesh
-|Bulkhead-Isolation; Istio/Linkerd verwaltet CB deklarativ; Chaos Tests.
+|Bulkhead isolation; Istio/Linkerd manages CB declaratively; chaos tests.
 
 |*5*
 |Adaptive Thresholds
-|CB-Schwellenwerte auto-tuned; Request Hedging; vollständige Resilience Matrix.
+|CB thresholds auto-tuned; request hedging; complete resilience matrix.
 
 |===
 
 == Terraform Checks
 
 === waf-rel-050.tf.aws.alb-idle-timeout
-*Prüft:* ALB hat expliziten `idle_timeout` – kein Provider-Default.
+*Checks:* ALB has explicit `idle_timeout` – no provider default.
 
 [cols="1,1"]
 |===
@@ -108,7 +108,7 @@ resource "aws_lb" "api" {
   security_groups    =
     [aws_security_group.alb.id]
   subnets = var.public_subnet_ids
-  idle_timeout = 30  # Explizit gesetzt
+  idle_timeout = 30  # Explicitly set
   tags = var.mandatory_tags
 }
 ----
@@ -120,36 +120,36 @@ resource "aws_lb" "api" {
   security_groups    =
     [aws_security_group.alb.id]
   subnets = var.public_subnet_ids
-  # Kein idle_timeout –
-  # AWS Default 60s wird verwendet
+  # No idle_timeout –
+  # AWS default 60s is used
   # WAF-REL-050 Violation
 }
 ----
 |===
 
-*Remediation:* `idle_timeout` explizit setzen. REST APIs: 30s; File Uploads: 300s.
+*Remediation:* Set `idle_timeout` explicitly. REST APIs: 30s; file uploads: 300s.
 
-== Evidenz
+== Evidence
 
 [cols="1,1,2"]
 |===
-|Typ |Pflicht |Beschreibung
+|Type |Required |Description
 
 |*IaC*
-|✅ Pflicht
-|Terraform oder Service Mesh-Konfiguration mit Timeout und Circuit Breaker Settings.
+|✅ Required
+|Terraform or service mesh configuration with timeout and circuit breaker settings.
 
 |*Config*
-|✅ Pflicht
-|Application-Konfigurationsdateien mit expliziten Timeout-Werten für alle Abhängigkeiten.
+|✅ Required
+|Application configuration files with explicit timeout values for all dependencies.
 
 |*Process*
 |Optional
-|Latenz-Injektions-Testergebnisse mit Circuit Breaker Aktivierung dokumentiert.
+|Latency injection test results with circuit breaker activation documented.
 
 |===
 
-== Verwandte Controls
+== Related Controls
 
 * xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
 * xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]

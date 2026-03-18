@@ -1,40 +1,40 @@
-= Best Practice: Multi-AZ & High-Availability-Architektur
+= Best Practice: Multi-AZ & High Availability Architecture
 :page-toc: right
-:description: WAF++ Reliability – Multi-AZ Deployment für Compute, Datenbanken und Load Balancer.
+:description: WAF++ Reliability – Multi-AZ deployment for compute, databases and load balancers.
 
-== Kontext
+== Context
 
-Eine Availability Zone (AZ) ist ein physisch isoliertes Rechenzentrum innerhalb einer Region.
-AZ-Ausfälle sind die häufigsten cloud-infrastrukturellen Ereignisse und betreffen mehrmals
-jährlich Produktionssysteme. Ein Service, der in einer einzigen AZ deployed ist, erleidet
-während eines AZ-Ereignisses einen vollständigen Ausfall.
+An Availability Zone (AZ) is a physically isolated data center within a region.
+AZ failures are the most frequent cloud infrastructure events and affect production
+systems multiple times per year. A service deployed in a single AZ experiences
+a complete outage during an AZ event.
 
-Häufige Probleme ohne Multi-AZ-Konfiguration:
+Common problems without Multi-AZ configuration:
 
-* RDS Single-AZ: Bei AZ-Ausfall mehrere Minuten bis Stunden nicht erreichbar
-* Single-AZ Compute: Bei AZ-Ausfall alle Instanzen gleichzeitig ausgefallen
-* Kubernetes ohne Pod Topology Spread: Alle Pods enden in derselben AZ
+* RDS Single-AZ: During an AZ failure, unreachable for several minutes to hours
+* Single-AZ Compute: During an AZ failure, all instances go down simultaneously
+* Kubernetes without Pod Topology Spread: All pods end up in the same AZ
 
-== Zugehörige Controls
+== Related Controls
 
 * xref:controls.adoc#WAF-REL-030[WAF-REL-030] – Multi-AZ High Availability Deployment
 
-== Zielbild
+== Target State
 
-Jeder Produktions-Stack deployed über mindestens 2 AZs:
+Every production stack deployed across at least 2 AZs:
 
-* *Compute*: Auto Scaling Group oder Kubernetes mit AZ-Verteilung
-* *Datenbank*: Multi-AZ mit automatischem Failover
-* *Cache*: Multi-AZ Replication Group
+* *Compute*: Auto Scaling Group or Kubernetes with AZ distribution
+* *Database*: Multi-AZ with automatic failover
+* *Cache*: Multi-AZ replication group
 * *Load Balancer*: Subnets in min. 2 AZs
 
-== Technische Umsetzung
+== Technical Implementation
 
 === AWS: Multi-AZ RDS + Auto Scaling Group
 
 [source,hcl]
 ----
-# Subnet Group über 3 AZs
+# Subnet group across 3 AZs
 resource "aws_db_subnet_group" "main" {
   name       = "payment-db-subnet-group"
   subnet_ids = [
@@ -53,17 +53,17 @@ resource "aws_db_instance" "main" {
   instance_class         = "db.t3.medium"
   allocated_storage      = 100
   storage_type           = "gp3"
-  multi_az               = true        # Automatisches Failover in < 2 Minuten
+  multi_az               = true        # Automatic failover in < 2 minutes
   db_subnet_group_name   = aws_db_subnet_group.main.name
   backup_retention_period = 14
   deletion_protection    = true
   tags                   = var.mandatory_tags
 }
 
-# Auto Scaling Group über 2 AZs
+# Auto Scaling Group across 2 AZs
 resource "aws_autoscaling_group" "api" {
   name               = "payment-api-asg"
-  min_size           = 2    # Mindestens 1 pro AZ
+  min_size           = 2    # Minimum 1 per AZ
   max_size           = 10
   desired_capacity   = 2
   vpc_zone_identifier = [
@@ -72,7 +72,7 @@ resource "aws_autoscaling_group" "api" {
   ]
   target_group_arns = [aws_lb_target_group.api.arn]
 
-  # Gleichmäßige AZ-Verteilung erzwingen
+  # Enforce even AZ distribution
   capacity_rebalance = true
 
   tag {
@@ -82,7 +82,7 @@ resource "aws_autoscaling_group" "api" {
   }
 }
 
-# ALB über 2 AZs
+# ALB across 2 AZs
 resource "aws_lb" "main" {
   name               = "payment-api-alb"
   internal           = false
@@ -90,7 +90,7 @@ resource "aws_lb" "main" {
   security_groups    = [aws_security_group.alb.id]
   subnets = [
     aws_subnet.public_az1.id,
-    aws_subnet.public_az2.id,  # Mindestens 2 AZs
+    aws_subnet.public_az2.id,  # Minimum 2 AZs
   ]
   tags = var.mandatory_tags
 }
@@ -108,16 +108,16 @@ spec:
   replicas: 4
   template:
     spec:
-      # Pflicht: Pods gleichmäßig auf AZs verteilen
+      # Required: distribute pods evenly across AZs
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: DoNotSchedule   # Deployment scheitert statt Single-AZ
+          whenUnsatisfiable: DoNotSchedule   # Deployment fails rather than single-AZ
           labelSelector:
             matchLabels:
               app: payment-api
 
-        # Optional: Pods auf verschiedene Nodes innerhalb AZ
+        # Optional: pods on different nodes within an AZ
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: ScheduleAnyway  # Soft constraint
@@ -125,7 +125,7 @@ spec:
             matchLabels:
               app: payment-api
 
-      # Anti-Affinity als Fallback
+      # Anti-affinity as fallback
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -153,7 +153,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
   # Zone-Redundant High Availability
   high_availability {
     mode                      = "ZoneRedundant"
-    standby_availability_zone = "2"    # Separates physisches Rechenzentrum
+    standby_availability_zone = "2"    # Separate physical data center
   }
 
   backup_retention_days        = 14
@@ -173,16 +173,16 @@ resource "google_container_cluster" "main" {
 
   node_pool {
     name       = "default-pool"
-    node_count = 1  # Pro Zone
+    node_count = 1  # Per zone
 
     node_config {
       machine_type = "e2-standard-4"
     }
 
-    # Automatisch auf alle AZs der Region verteilt
+    # Automatically distributed across all AZs of the region
   }
 
-  # Pod Anti-Affinity Default aktivieren
+  # Enable pod anti-affinity default
   workload_metadata_config {
     mode = "GKE_METADATA"
   }
@@ -195,7 +195,7 @@ resource "google_sql_database_instance" "main" {
 
   settings {
     tier              = "db-custom-4-15360"
-    availability_type = "REGIONAL"   # Automatisches Zonen-Failover
+    availability_type = "REGIONAL"   # Automatic zone failover
 
     backup_configuration {
       enabled                        = true
@@ -206,23 +206,23 @@ resource "google_sql_database_instance" "main" {
 }
 ----
 
-== Typische Fehlmuster
+== Typical Anti-Patterns
 
-* *Multi-AZ nur für DB, Single-AZ für Compute*: Bei AZ-Ausfall hat die DB zwar Failover, aber der App-Server ist weg
-* *Auto Scaling Group ohne Min Size 2*: Bei AZ-Ausfall läuft min_size = 1 in nur einer AZ
-* *Kubernetes Pods ohne Topology Spread*: Scheduler platziert alle Pods in einer AZ (Standard-Verhalten)
-* *Staging Single-AZ, Produktion Multi-AZ*: Produktionsunterschiede führen zu ungetesteten Failover-Pfaden
+* *Multi-AZ only for DB, Single-AZ for Compute*: During an AZ failure, the DB has failover but the app server is gone
+* *Auto Scaling Group without Min Size 2*: During an AZ failure, min_size = 1 runs in only one AZ
+* *Kubernetes Pods without Topology Spread*: Scheduler places all pods in one AZ (default behavior)
+* *Staging Single-AZ, Production Multi-AZ*: Production differences lead to untested failover paths
 
-== Metriken
+== Metrics
 
-* AZ-Verteilung: % der Instanzen/Pods pro AZ (Ziel: gleichmäßig ±20%)
-* Single-AZ Resource Count: Anzahl Produktionsressourcen in nur einer AZ (Ziel: 0)
-* Failover Test Frequency: Anzahl getesteter AZ-Failover pro Quartal (Ziel: >= 1)
+* AZ Distribution: % of instances/pods per AZ (target: even ±20%)
+* Single-AZ Resource Count: Number of production resources in only one AZ (target: 0)
+* Failover Test Frequency: Number of tested AZ failovers per quarter (target: >= 1)
 
-== Reifegrad
+== Maturity Level
 
-Level 1 – Alle Ressourcen in einer AZ +
-Level 2 – Datenbanken Multi-AZ, Compute Single-AZ +
-Level 3 – Alles Multi-AZ, ASG min_size >= 2, Kubernetes Topology Spread +
-Level 4 – Automatisierter AZ-Failover-Test, AZ-Distribution-Metriken getrackt +
-Level 5 – Multi-Region Active-Active oder Active-Passive mit globalem Load Balancing
+Level 1 – All resources in one AZ +
+Level 2 – Databases Multi-AZ, Compute Single-AZ +
+Level 3 – Everything Multi-AZ, ASG min_size >= 2, Kubernetes Topology Spread +
+Level 4 – Automated AZ failover test, AZ distribution metrics tracked +
+Level 5 – Multi-region Active-Active or Active-Passive with global load balancing

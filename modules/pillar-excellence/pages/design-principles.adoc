@@ -1,23 +1,23 @@
-= Design-Prinzipien: Operational Excellence
+= Design Principles: Operational Excellence
 :page-toc: right
-:description: 8 technische Design-Prinzipien für operationale Architektur – strukturiertes Logging, Trace-IDs, Health Endpoints, Blue/Green und mehr.
+:description: 8 technical design principles for operational architecture – structured logging, trace IDs, health endpoints, blue/green, and more.
 
-Die Design-Prinzipien sind technische Anforderungen an die *Architektur* von Systemen,
-die exzellent betrieben werden sollen. Sie ergänzen die Prinzipien (OP1–OP7) um konkrete
-Designentscheidungen.
+The design principles are technical requirements for the *architecture* of systems
+that are to be operated excellently. They complement the principles (OP1–OP7) with concrete
+design decisions.
 
-== OD1 – Structured Logging mit konsistentem Schema
+== OD1 – Structured Logging with Consistent Schema
 
-Alle Services MÜSSEN strukturierte Logs in JSON ausgeben.
-Das Log-Schema MUSS mindestens folgende Felder enthalten:
+All services MUST output structured logs in JSON.
+The log schema MUST contain at minimum the following fields:
 
 [cols="1,1,2"]
 |===
-|Feld |Typ |Beschreibung
+|Field |Type |Description
 
 |`timestamp`
 |ISO 8601
-|Zeitstempel der Log-Zeile in UTC
+|Timestamp of the log line in UTC
 
 |`level`
 |String
@@ -25,196 +25,196 @@ Das Log-Schema MUSS mindestens folgende Felder enthalten:
 
 |`service`
 |String
-|Servicename (aus Umgebungsvariable oder Deployment-Konfiguration)
+|Service name (from environment variable or deployment configuration)
 
 |`trace_id`
 |String
-|OpenTelemetry Trace-ID oder AWS X-Ray Trace-ID
+|OpenTelemetry trace ID or AWS X-Ray trace ID
 
 |`span_id`
 |String
-|OpenTelemetry Span-ID
+|OpenTelemetry span ID
 
 |`request_id`
 |String
-|Anfrage-spezifische ID für Log-Korrelation
+|Request-specific ID for log correlation
 
 |`message`
 |String
-|Lesbare Beschreibung des Events
+|Human-readable description of the event
 
 |`error`
 |Object (optional)
-|Fehler-Details mit `type`, `message`, `stack`
+|Error details with `type`, `message`, `stack`
 
 |===
 
-=== Implikation
+=== Implication
 
-* Logging-Framework-Konfiguration ist Teil der Service-Vorlage
-* Log-Level ist via Umgebungsvariable konfigurierbar (kein Rebuild für Level-Änderung)
-* Sensitive Daten (Passwörter, PII) dürfen NIE in Logs erscheinen – Scrubbing im Logger
-
----
-
-== OD2 – Trace-ID-Propagation über Servicegrenzen
-
-Alle Services MÜSSEN Trace-IDs und Span-IDs aus eingehenden Requests extrahieren
-und in ausgehenden Requests propagieren.
-
-* W3C TraceContext Header (`traceparent`, `tracestate`) sind der Standard
-* Bei Fehlen eines Trace-Contexts MUSS ein neuer Trace erzeugt werden
-* Async-Kommunikation (SQS, Kafka) MUSS Trace-Kontext in Message-Headern transportieren
-
-=== Implikation
-
-* OpenTelemetry SDK ist in der Service-Vorlage konfiguriert
-* HTTP-Client und Server sind automatisch instrumentiert (Auto-Instrumentation)
-* Async-Messaging-Integration ist explizit instrumentiert
+* Logging framework configuration is part of the service template
+* Log level is configurable via environment variable (no rebuild for level changes)
+* Sensitive data (passwords, PII) MUST NEVER appear in logs – scrubbing in the logger
 
 ---
 
-== OD3 – Health Endpoints als Betriebsschnittstelle
+== OD2 – Trace ID Propagation Across Service Boundaries
 
-Jeder Service MUSS folgende Health Endpoints bereitstellen:
+All services MUST extract trace IDs and span IDs from incoming requests
+and propagate them in outgoing requests.
+
+* W3C TraceContext headers (`traceparent`, `tracestate`) are the standard
+* If a trace context is absent, a new trace MUST be created
+* Async communication (SQS, Kafka) MUST transport trace context in message headers
+
+=== Implication
+
+* OpenTelemetry SDK is configured in the service template
+* HTTP clients and servers are automatically instrumented (auto-instrumentation)
+* Async messaging integration is explicitly instrumented
+
+---
+
+== OD3 – Health Endpoints as Operational Interface
+
+Every service MUST provide the following health endpoints:
 
 [cols="1,1,2"]
 |===
-|Endpoint |HTTP-Methode |Beschreibung
+|Endpoint |HTTP Method |Description
 
 |`/health/live`
 |GET
-|Liveness-Probe: Service läuft (Antwort 200 = alive, 503 = restart erforderlich)
+|Liveness probe: service is running (200 = alive, 503 = restart required)
 
 |`/health/ready`
 |GET
-|Readiness-Probe: Service bereit für Traffic (prüft DB-Verbindung, Abhängigkeiten)
+|Readiness probe: service is ready for traffic (checks DB connection, dependencies)
 
 |`/health/startup`
 |GET
-|Startup-Probe: Service-Initialisierung abgeschlossen
+|Startup probe: service initialization completed
 
 |`/metrics`
 |GET
-|Prometheus-Metriken (Prometheus-Format oder OpenMetrics)
+|Prometheus metrics (Prometheus format or OpenMetrics)
 
 |===
 
-=== Implikation
+=== Implication
 
-* Kubernetes/ECS liveness und readiness probes referenzieren diese Endpoints
-* `/health/ready` darf erst 200 zurückgeben wenn alle Abhängigkeiten erreichbar sind
-* `/metrics` ist nicht öffentlich erreichbar (internal service mesh oder VPC-only)
-
----
-
-== OD4 – Immutable Artifacts & Versionierte Deployments
-
-Jedes Deployment-Artefakt (Container Image, Lambda ZIP, AMI) MUSS:
-
-* Unveränderlich sein – kein In-Place-Patching von deployter Artefakten
-* Versioniert sein – Git-SHA oder semantische Version als Tag
-* Signiert sein (Stufe 4+ Reife) – Container Image Signing via Cosign oder Notation
-
-=== Implikation
-
-* `latest`-Tags in Produktions-Deployments sind verboten
-* Container-Images werden nach Deployment nicht verändert
-* Rollback = Deployment der vorherigen Version (nicht Patch der laufenden)
+* Kubernetes/ECS liveness and readiness probes reference these endpoints
+* `/health/ready` may only return 200 when all dependencies are reachable
+* `/metrics` is not publicly accessible (internal service mesh or VPC-only)
 
 ---
 
-== OD5 – Blue/Green oder Canary als Standard-Deployment-Muster
+== OD4 – Immutable Artifacts & Versioned Deployments
 
-Produktions-Deployments MÜSSEN einen Mechanismus zur schrittweisen Traffic-Verschiebung haben.
+Every deployment artifact (container image, Lambda ZIP, AMI) MUST:
+
+* Be immutable – no in-place patching of deployed artifacts
+* Be versioned – Git SHA or semantic version as tag
+* Be signed (maturity level 4+) – container image signing via Cosign or Notation
+
+=== Implication
+
+* `latest` tags in production deployments are forbidden
+* Container images are not modified after deployment
+* Rollback = deployment of the previous version (not patching the running one)
+
+---
+
+== OD5 – Blue/Green or Canary as Default Deployment Pattern
+
+Production deployments MUST have a mechanism for gradual traffic shifting.
 
 [cols="1,3,2"]
 |===
-|Muster |Beschreibung |Empfohlener Einsatz
+|Pattern |Description |Recommended Use
 
 |*Blue/Green*
-|Zwei vollständige Umgebungen; Traffic-Switch via Load Balancer
-|Stateful Services, Datenbank-Migrations-Deployments
+|Two complete environments; traffic switch via load balancer
+|Stateful services, database migration deployments
 
 |*Canary*
-|Schrittweise Traffic-Erhöhung von 5% → 25% → 100%
-|Stateless Services, häufige Deployments
+|Gradual traffic increase of 5% → 25% → 100%
+|Stateless services, frequent deployments
 
 |*Feature Flags*
-|Code deployed dunkel; Feature per Flag aktiviert
-|Neue Features, A/B-Tests, risikoarme Rollouts
+|Code deployed dark; feature activated via flag
+|New features, A/B tests, low-risk rollouts
 
 |===
 
-=== Implikation
+=== Implication
 
-* Deployment-Konfiguration definiert Traffic-Split-Mechanismus
-* Health Checks bestimmen automatisch ob Promotion oder Rollback
-* Alle Deployments sind innerhalb von 5 Minuten rollback-bar
-
----
-
-== OD6 – Idempotente Operationen & Retry-Sicherheit
-
-Alle operativen Operationen (Deployments, Remediation-Scripts, Runbook-Automatisierungen)
-MÜSSEN idempotent sein: Mehrfaches Ausführen darf zu keinem anderen Ergebnis führen als einmaliges Ausführen.
-
-=== Implikation
-
-* Terraform ist per Definition idempotent (deklarativ)
-* Runbook-Automatisierungen prüfen Vorzustand vor Aktion
-* API-Calls in Automatisierungen verwenden `upsert`-Semantik, nicht `create`
-* Retry-Logik in Deployments und Automatisierungen ist konfiguriert
+* Deployment configuration defines the traffic split mechanism
+* Health checks automatically determine whether to promote or roll back
+* All deployments are rollback-able within 5 minutes
 
 ---
 
-== OD7 – Konfiguration extern und überprüfbar
+== OD6 – Idempotent Operations & Retry Safety
 
-Alle Konfiguration MUSS von Code getrennt sein (12-Factor App, Faktor III).
+All operational operations (deployments, remediation scripts, runbook automations)
+MUST be idempotent: executing them multiple times must not produce a different result than executing them once.
 
-* Umgebungsspezifische Konfiguration in Umgebungsvariablen oder Secrets-Manager
-* Konfiguration in IaC definiert (Terraform-Variable, Parameter Store, App Config)
-* Konfiguration ist versioniert – Änderungen sind nachvollziehbar
-* Sensitive Konfiguration (Credentials, Tokens) NIEMALS in Code oder IaC-Variablen
+=== Implication
 
-=== Implikation
-
-* AWS Parameter Store, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager integriert
-* Configuration-as-Code Ansatz: Änderungen an Konfiguration gehen durch Pull Request
-* Konfigurationsänderungen sind im Audit-Trail sichtbar
+* Terraform is idempotent by definition (declarative)
+* Runbook automations check pre-state before action
+* API calls in automations use `upsert` semantics, not `create`
+* Retry logic in deployments and automations is configured
 
 ---
 
-== OD8 – Operational Readiness als Deployment-Gate
+== OD7 – Configuration External and Auditable
 
-Bevor ein Service in Produktion geht, MUSS er "Operational Readiness" nachweisen:
+All configuration MUST be separated from code (12-Factor App, Factor III).
+
+* Environment-specific configuration in environment variables or Secrets Manager
+* Configuration defined in IaC (Terraform variable, Parameter Store, App Config)
+* Configuration is versioned – changes are traceable
+* Sensitive configuration (credentials, tokens) NEVER in code or IaC variables
+
+=== Implication
+
+* AWS Parameter Store, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager integrated
+* Configuration-as-Code approach: changes to configuration go through pull request
+* Configuration changes are visible in the audit trail
+
+---
+
+== OD8 – Operational Readiness as Deployment Gate
+
+Before a service goes to production, it MUST demonstrate "Operational Readiness":
 
 [cols="1,2"]
 |===
-|Kriterium |Nachweis
+|Criterion |Evidence
 
 |*Observability*
-|Structured Logs, Metriken, Tracing konfiguriert und verifiziert
+|Structured logs, metrics, tracing configured and verified
 
 |*Health Endpoints*
-|`/health/live` und `/health/ready` vorhanden und getestet
+|`/health/live` and `/health/ready` present and tested
 
 |*Alerting*
-|Mindestens ein symptombasierter Alert konfiguriert und verlinkt mit Runbook
+|At least one symptom-based alert configured and linked to a runbook
 
 |*Runbook*
-|Runbook für Deployment und bekannte Fehlerfälle vorhanden
+|Runbook for deployment and known failure scenarios present
 
 |*Rollback*
-|Rollback-Prozedur dokumentiert und getestet
+|Rollback procedure documented and tested
 
 |*Dependency Inventory*
-|Alle Abhängigkeiten (DBs, externe Services, Queues) dokumentiert
+|All dependencies (DBs, external services, queues) documented
 
 |===
 
-=== Implikation
+=== Implication
 
-* Operational Readiness Checklist ist Teil des Deployment-Pull-Requests
-* Peer Review beinhaltet Prüfung der Readiness-Kriterien
-* Services ohne Operational Readiness Nachweis dürfen nicht in Produktion
+* Operational Readiness Checklist is part of the deployment pull request
+* Peer review includes verification of readiness criteria
+* Services without Operational Readiness evidence may not go to production

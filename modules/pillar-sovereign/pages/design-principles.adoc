@@ -1,149 +1,149 @@
-= Design-Prinzipien
+= Design Principles
 :page-toc: right
-:description: WAF++ Sovereign – Technische Design-Prinzipien für sovereign-konforme Architekturen.
+:description: WAF++ Sovereign – Technical design principles for sovereignty-compliant architectures.
 
-Die folgenden Design-Prinzipien übersetzen die Sovereign-Prinzipien in
-*architektonische Entscheidungsleitlinien* für Cloud-Engineers und Architekten.
+The following design principles translate the Sovereign Principles into
+*architectural decision guidelines* for cloud engineers and architects.
 
 == DP1 – Sovereignty by Design, not by Retrofit
 
-Souveränität nachträglich einzubauen ist teuer und fehleranfällig.
+Retrofitting sovereignty is expensive and error-prone.
 
-Jede Architekturentscheidung muss die Frage beantworten:
-_„Wie bewahre ich die Kontrolle über Jurisdiktion, Schlüssel und Abhängigkeiten?"_
+Every architectural decision must answer the question:
+_"How do I preserve control over jurisdiction, keys and dependencies?"_
 
-*In der Praxis bedeutet das:*
+*In practice this means:*
 
-* Regionen und Datenklassen werden *vor* dem ersten Deployment definiert
-* IaC-Module enthalten Region-Validation von Beginn an
-* Encryption-Konfiguration ist Teil des Basis-Stacks, nicht ein Add-on
+* Regions and data classes are defined *before* the first deployment
+* IaC modules contain region validation from the start
+* Encryption configuration is part of the base stack, not an add-on
 
 ---
 
 == DP2 – Policy-as-Code beats PDF-Policy
 
-Policies, die nur als Dokument existieren, werden nicht kontinuierlich durchgesetzt.
+Policies that exist only as documents are not continuously enforced.
 
-Jede Sovereign-Anforderung, die technisch ausdrückbar ist, muss als Code vorliegen:
+Every sovereign requirement that can be technically expressed must exist as code:
 
-* Terraform Variable Validation für Region-Constraints
-* OPA/Sentinel Policies für Deployment-Guardrails
+* Terraform variable validation for region constraints
+* OPA/Sentinel policies for deployment guardrails
 * AWS Service Control Policies / Azure Policy / GCP Org Policy
 
-Dokumentenbasierte Policies gelten nur für Anforderungen, die *nicht* technisch ausdrückbar sind
-(z.B. Vertragsklauseln, DPA-Verpflichtungen).
+Document-based policies only apply to requirements that *cannot* be technically expressed
+(e.g. contractual clauses, DPA obligations).
 
 ---
 
 == DP3 – Least Privilege by Default, JIT for Exceptions
 
-Jede Identität – menschlich oder technisch – startet mit minimalen Berechtigungen.
+Every identity – human or technical – starts with minimal permissions.
 
-*Menschliche Identitäten:*
+*Human identities:*
 
-* Kein Standing Privilege für Production-Zugriff
-* JIT-Aktivierung mit Ticket-Bindung und Time-Limit
-* MFA zwingend für alle Production-Zugriffe
+* No standing privilege for production access
+* JIT activation with ticket binding and time limit
+* MFA mandatory for all production accesses
 
-*Technische Identitäten (Service Accounts, CI/CD):*
+*Technical identities (service accounts, CI/CD):*
 
-* Keine langlebigen Access Keys
-* Workload Identity / OIDC für CI/CD-Pipelines
-* Service Account-Berechtigungen auf den spezifischen Task limitiert
+* No long-lived access keys
+* Workload identity / OIDC for CI/CD pipelines
+* Service account permissions limited to the specific task
 
 ---
 
 == DP4 – Encrypt Everything, Own the Keys for Sensitive Data
 
-Verschlüsselung ist Standard. Schlüsselbesitz ist eine Entscheidung.
+Encryption is standard. Key ownership is a decision.
 
 [cols="1,2,2"]
 |===
-|Datenkategorie |Minimum |Empfohlen
+|Data Category |Minimum |Recommended
 
-|*Public / nicht-sensitiv*
+|*Public / non-sensitive*
 |Provider-Managed Key (PMK)
 |CMK
 
-|*Operativ / intern*
+|*Operational / internal*
 |Customer-Managed Key (CMK)
-|CMK mit Key-Policy-Einschränkungen
+|CMK with key policy restrictions
 
-|*PII / persönliche Daten*
+|*PII / personal data*
 |CMK
-|BYOK oder HYOK mit HSM
+|BYOK or HYOK with HSM
 
-|*Gesundheit / Finanzen / Geheimhaltung*
-|BYOK (Customer-Key, Cloud-managed HSM)
-|HYOK (Key nie im Cloud-Anbieter)
+|*Health / finance / classified*
+|BYOK (customer key, cloud-managed HSM)
+|HYOK (key never in cloud provider)
 
 |===
 
-Key Rotation und Key Deletion Policies sind für alle Kategorien mandatory.
+Key rotation and key deletion policies are mandatory for all categories.
 
 ---
 
 == DP5 – Default-Deny Egress, Explicit Allow-List
 
-Ausgehende Verbindungen müssen explizit genehmigt werden.
+Outgoing connections must be explicitly approved.
 
-*Netzwerkebene:*
+*Network level:*
 
-* Security Groups: kein `0.0.0.0/0` Egress ohne Dokumentation
-* Network Firewall / Azure Firewall mit Domain Allow-List
-* DNS-Egress über kontrollierten Resolver
+* Security Groups: no `0.0.0.0/0` egress without documentation
+* Network Firewall / Azure Firewall with domain allow-list
+* DNS egress via controlled resolver
 
-*Service-Ebene:*
+*Service level:*
 
-* VPC Endpoints für alle genutzten Cloud-Dienste (S3, KMS, ECR, ...)
-* Keine Datenflüsse zu nicht-inventarisierten Zielen
+* VPC endpoints for all used cloud services (S3, KMS, ECR, ...)
+* No data flows to non-inventoried destinations
 
-*Daten-Pipeline-Ebene:*
+*Data pipeline level:*
 
-* Alle externen Datenexporte explizit konfiguriert und genehmigt
-* Log-Shipper und Monitoring-Agents: nur zu DPA-gesicherten Zielen
+* All external data exports explicitly configured and approved
+* Log shippers and monitoring agents: only to DPA-secured destinations
 
 ---
 
 == DP6 – Open Standards reduce Lock-in Risk
 
-Proprietäre Dienste ohne Alternative sind Souveränitätsrisiken.
+Proprietary services without alternatives are sovereignty risks.
 
-*Bevorzuge:*
+*Prefer:*
 
-* PostgreSQL über proprietäre DB-Engines (Spanner, Cosmos DB)
-* OpenTelemetry über proprietäre Agents
-* Open Container Initiative (OCI) über proprietäre Container-Formate
-* Standard-IaC (Terraform) über proprietäre Deployment-Tools
+* PostgreSQL over proprietary DB engines (Spanner, Cosmos DB)
+* OpenTelemetry over proprietary agents
+* Open Container Initiative (OCI) over proprietary container formats
+* Standard IaC (Terraform) over proprietary deployment tools
 
-*Dokumentiere:*
+*Document:*
 
-* Jeder proprietäre Dienst benötigt eine Eintrag im Dependency-Register mit Replacement-Strategie
-* Proprietäre Dienste mit hohem Lock-in-Risiko müssen im Exit-Plan adressiert sein
+* Every proprietary service requires an entry in the dependency register with a replacement strategy
+* Proprietary services with high lock-in risk must be addressed in the exit plan
 
 ---
 
 == DP7 – Immutable Audit Trail
 
-Audit-Logs sind das Fundament von Souveränitätsnachweisen.
+Audit logs are the foundation of sovereignty evidence.
 
-*Anforderungen an sovereign Audit-Trails:*
+*Requirements for sovereign audit trails:*
 
-* Unveränderlich: Object Lock / Log File Validation / WORM-Storage
-* Vollständig: Alle privilegierten Aktionen, alle Schlüsselzugriffe, alle Region-Deployments
-* Verfügbar: Auch im Incident-Fall lesbar (separater Storage-Account, separate Region)
-* Retentionskonform: Aufbewahrungsfristen aus der Datenschutz-Policy eingehalten
-* Sovereign gespeichert: Log-Destination liegt in einer genehmigten Region
+* Immutable: Object Lock / Log File Validation / WORM storage
+* Complete: All privileged actions, all key accesses, all region deployments
+* Available: Readable even in incident scenarios (separate storage account, separate region)
+* Retention-compliant: Retention periods from the data protection policy observed
+* Sovereignly stored: Log destination is in an approved region
 
 ---
 
 == DP8 – Test What You Plan to Rely On
 
-Sovereign-Architektur wird durch Tests bewiesen, nicht durch Dokumentation.
+Sovereign architecture is proven through tests, not through documentation.
 
-* Restore-Tests für alle Backup-Kategorien (mindestens jährlich)
-* Exit-Drills: Datenexport und Neudeployment in Alternativumgebung
-* Break-Glass-Tests in nicht-produktiver Umgebung
-* Region-Enforcement-Tests: Deployment-Versuch außerhalb erlaubter Regionen
+* Restore tests for all backup categories (at least annually)
+* Exit drills: data export and redeployment in alternative environment
+* Break-glass tests in non-production environment
+* Region enforcement tests: deployment attempt outside allowed regions
 
-_„Tested once is more valuable than documented twice."_
+_"Tested once is more valuable than documented twice."_
