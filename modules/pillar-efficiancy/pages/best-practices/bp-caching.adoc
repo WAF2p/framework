@@ -1,0 +1,292 @@
+= Best Practice: Caching-Strategie implementieren
+:page-toc: right
+:description: WAF++ Performance Efficiency – Mehrschichtige Caching-Strategie mit Redis, CDN und Application Cache.
+
+== Kontext
+
+Caching ist eine der wirkungsvollsten Performance-Optimierungen. Ein gut konfigurierter Cache
+kann Datenbankauslastung um 60–90% reduzieren und P99-Latenz um eine Größenordnung verbessern.
+Ohne Caching-Strategie entstehen jedoch häufig neue Probleme: veraltete Daten, Stampede-Probleme
+und schwer diagnostizierbare Inkonsistenzen.
+
+Typische Probleme ohne Caching-Strategie:
+
+* Identische Datenbankabfragen werden hundertfach pro Sekunde ausgeführt
+* Cache-Entries verfallen synchron → Thundering Herd → Datenbankausfall
+* Caching von veränderlichen Daten ohne Invalidierungslogik → Stale Data
+* In-Process-Cache nicht shared zwischen Instanzen → kein konsistentes Caching beim Scale-out
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-030[WAF-PERF-030] – Caching Strategy Defined & Implemented
+
+== Zielbild
+
+Eine reife Caching-Strategie:
+
+* *Mehrschichtig*: L1 (In-Process), L2 (Distributed/Redis), L3 (CDN)
+* *Dokumentiert*: Welche Daten, welche TTL, welche Invalidierungslogik
+* *Gemessen*: Cache-Hit-Raten werden kontinuierlich überwacht
+* *Sicher*: Keine sicherheitsrelevanten Entscheidungen aus dem Cache
+
+== Technische Umsetzung
+
+=== Schritt 1: Caching-Strategie-Dokument
+
+[source,yaml]
+----
+# docs/caching-strategy.yml
+version: "1.0"
+service: "payment-api"
+
+cache_layers:
+  l1_application:
+    technology: "in-process (python dict + TTL)"
+    use_cases:
+      - "Static configuration values (TTL: 1h)"
+      - "Country-code to currency mappings (TTL: 24h)"
+    limitations: "Not shared between instances; cache per pod"
+
+  l2_distributed:
+    technology: "AWS ElastiCache Redis (STANDARD_HA)"
+    use_cases:
+      - "User session data (TTL: 30min)"
+      - "Payment method lookups (TTL: 15min)"
+      - "Rate limiting counters (TTL: 1min)"
+      - "Idempotency keys (TTL: 24h)"
+    hit_rate_target: ">= 80%"
+
+  l3_cdn:
+    technology: "AWS CloudFront"
+    use_cases:
+      - "Static assets: JS, CSS, images (TTL: 1 year, cache-busting via hash)"
+      - "API responses with Cache-Control header (TTL: per endpoint)"
+    hit_rate_target: ">= 95% for static assets"
+
+do_not_cache:
+  - "Real-time payment status (mutates frequently)"
+  - "Authentication/authorization decisions"
+  - "User-specific sensitive financial data"
+----
+
+=== Schritt 2: ElastiCache Redis in Terraform
+
+[source,hcl]
+----
+resource "aws_elasticache_subnet_group" "main" {
+  name       = "cache-subnet-group-${var.environment}"
+  subnet_ids = var.private_subnet_ids
+}
+
+resource "aws_elasticache_replication_group" "main" {
+  replication_group_id       = "payment-cache-${var.environment}"
+  description                = "Redis cache for payment API – see docs/caching-strategy.yml"
+  node_type                  = "cache.t3.medium"
+  num_cache_clusters         = 2        # Primary + 1 Replica
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  auth_token                 = var.redis_auth_token  # TLS + Auth
+
+  # Snapshot für Debugging und Warm-up
+  snapshot_retention_limit = 1
+  snapshot_window          = "03:00-04:00"
+
+  subnet_group_name  = aws_elasticache_subnet_group.main.name
+  security_group_ids = [aws_security_group.cache.id]
+
+  tags = {
+    workload    = "payment-api"
+    environment = var.environment
+  }
+}
+----
+
+=== Schritt 3: Cache-Aside Pattern in Python
+
+[source,python]
+----
+import redis
+import json
+import hashlib
+from functools import wraps
+from typing import Optional, Callable
+
+class CacheManager:
+    def __init__(self, redis_url: str, default_ttl: int = 300):
+        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self.default_ttl = default_ttl
+
+    def get(self, key: str) -> Optional[dict]:
+        value = self.redis.get(key)
+        return json.loads(value) if value else None
+
+    def set(self, key: str, value: dict, ttl: int = None) -> None:
+        self.redis.setex(
+            key,
+            ttl or self.default_ttl,
+            json.dumps(value)
+        )
+
+    def invalidate(self, pattern: str) -> int:
+        """Alle Keys löschen die dem Pattern entsprechen."""
+        keys = self.redis.keys(pattern)
+        if keys:
+            return self.redis.delete(*keys)
+        return 0
+
+    def get_or_compute(self, key: str, compute_fn: Callable,
+                       ttl: int = None) -> dict:
+        """Cache-Aside mit Stampede-Schutz via Lock."""
+        # Cache-Hit
+        cached = self.get(key)
+        if cached is not None:
+            return cached
+
+        # Lock gegen Stampede (nx=True: nur setzen wenn nicht existiert)
+        lock_key = f"lock:{key}"
+        lock_acquired = self.redis.set(lock_key, "1", nx=True, ex=10)
+
+        if lock_acquired:
+            try:
+                value = compute_fn()
+                self.set(key, value, ttl)
+                return value
+            finally:
+                self.redis.delete(lock_key)
+        else:
+            # Warten und nochmal lesen (anderer Thread füllt Cache)
+            import time
+            time.sleep(0.05)
+            return self.get(key) or compute_fn()
+
+# Verwendung
+cache = CacheManager(redis_url=REDIS_URL)
+
+def get_payment_method(user_id: str) -> dict:
+    cache_key = f"payment_method:user:{user_id}"
+    return cache.get_or_compute(
+        key=cache_key,
+        compute_fn=lambda: db.query_payment_method(user_id),
+        ttl=900  # 15 Minuten TTL
+    )
+
+# Cache-Invalidierung bei Datenmutation
+def update_payment_method(user_id: str, data: dict) -> dict:
+    result = db.update_payment_method(user_id, data)
+    cache.invalidate(f"payment_method:user:{user_id}")  # Sofort invalidieren
+    return result
+----
+
+=== Schritt 4: CDN-Cache-Rules in Terraform (CloudFront)
+
+[source,hcl]
+----
+resource "aws_cloudfront_distribution" "api" {
+  enabled             = true
+  default_root_object = "index.html"
+
+  # Statische Assets: Langzeit-Caching mit Cache-Busting
+  ordered_cache_behavior {
+    path_pattern     = "/static/*"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "s3-static"
+
+    forwarded_values {
+      query_string = false  # Keine Query-Strings für statische Assets
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 86400       # 1 Tag minimum
+    default_ttl = 31536000    # 1 Jahr default
+    max_ttl     = 31536000    # 1 Jahr maximum
+    compress    = true
+  }
+
+  # API-Responses: Kurzes Caching mit Cache-Control-Header
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "api-origin"
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Authorization", "Accept", "Origin"]  # Vary-Headers
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0       # Kein Default-Caching für APIs
+    max_ttl     = 60      # Max 1 Minute wenn Cache-Control: max-age=60
+  }
+}
+----
+
+== Cache-Monitoring mit CloudWatch
+
+[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "cache_hit_rate_low" {
+  alarm_name          = "payment-cache-hit-rate-low"
+  alarm_description   = "Cache hit rate < 70% – investigate access patterns. See docs/caching-strategy.yml"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 3
+  threshold           = 70
+
+  metric_query {
+    id    = "hit_rate"
+    label = "Cache Hit Rate %"
+    expression = "100 * hits / (hits + misses)"
+  }
+  metric_query {
+    id = "hits"
+    metric {
+      namespace   = "AWS/ElastiCache"
+      metric_name = "CacheHits"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        CacheClusterId = aws_elasticache_replication_group.main.id
+      }
+    }
+  }
+  metric_query {
+    id = "misses"
+    metric {
+      namespace   = "AWS/ElastiCache"
+      metric_name = "CacheMisses"
+      period      = 300
+      stat        = "Sum"
+      dimensions = {
+        CacheClusterId = aws_elasticache_replication_group.main.id
+      }
+    }
+  }
+
+  alarm_actions = [aws_sns_topic.ops.arn]
+}
+----
+
+== Typische Fehlmuster
+
+* *Caching von sicherheitsrelevanten Entscheidungen*: Berechtigungen dürfen nicht aus dem Cache kommen. Immer frisch prüfen.
+* *Zu lange TTLs für veränderliche Daten*: Preis-Daten mit 24h TTL – Nutzer sehen veraltete Preise.
+* *Kein Stampede-Schutz*: Cache-Expiry um 3 Uhr → alle Threads gleichzeitig → Datenbankausfall.
+* *Caching ohne Monitoring*: Hit-Rate nie gemessen → falsches Vertrauen in Cache-Effektivität.
+
+== Metriken
+
+* Cache Hit Rate (Ziel: >= 80% für Applikations-Cache, >= 95% für CDN-Static)
+* Cache Latency P99 (Ziel: < 1ms für Redis-Lookups im selben AZ)
+* Anzahl Evictions pro Stunde (hohe Eviction-Rate = Cache zu klein)
+* Memory Utilization (Ziel: < 80% für Headroom)
+
+== Reifegrad
+
+Level 1 – Kein Cache; alle Anfragen auf Origin +
+Level 2 – Ad-hoc Caching ohne Strategie; TTLs arbitrary +
+Level 3 – Dokumentierte Strategie; Hit-Rates >= 80%; CDN aktiv +
+Level 4 – Automatische Cache-Invalidierung; Stampede-Schutz +
+Level 5 – Adaptive TTLs; ML-gestützte Cache-Warming

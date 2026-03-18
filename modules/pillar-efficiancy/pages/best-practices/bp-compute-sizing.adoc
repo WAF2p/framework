@@ -1,0 +1,176 @@
+= Best Practice: Compute-Sizing & Instanzauswahl
+:page-toc: right
+:description: WAF++ Performance Efficiency – Instanztypen datenbasiert auswählen und Sizing-Entscheidungen dokumentieren.
+
+== Kontext
+
+Compute-Sizing ist eine der häufigsten Quellen sowohl für Ressourcenverschwendung
+als auch für Performance-Probleme. Überprovisionierte Instanzen verschwenden Geld;
+unterprovisionierte Instanzen verursachen Latenz-Spikes und Ausfälle unter Last.
+
+Häufige Probleme ohne strukturiertes Sizing:
+
+* Instanztypen werden nach Bauchgefühl oder "war schon immer so" gewählt
+* Vorgänger-Generationen (t2, m4, c4) laufen jahrelang weiter, ohne überprüft zu werden
+* CPU-Auslastung < 5% – klassisches Zeichen für unreflektiertes Over-Provisioning
+* Keine Sizing-Dokumentation: niemand weiß mehr, warum ein bestimmter Instanztyp gewählt wurde
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-010[WAF-PERF-010] – Compute Instance Type & Sizing Validated
+
+== Zielbild
+
+Eine reife Sizing-Strategie:
+
+* *Datenbasiert*: Sizing-Entscheidungen basieren auf gemessenen CPU/Memory/Network-Baselines
+* *Dokumentiert*: Jede Produktionsressource hat eine Sizing-Begründung in ADR oder Sizing-Sheet
+* *Aktuell*: Quartalsweise Review; Upgrade-Empfehlungen von Cloud Provider werden verfolgt
+* *Generationsaktuell*: Alle Ressourcen verwenden aktuelle Instanzgenerationen
+
+== Technische Umsetzung
+
+=== Schritt 1: Baseline-Daten sammeln
+
+Bevor eine Sizing-Entscheidung getroffen wird, müssen 2–4 Wochen Metriken vorliegen:
+
+[source,bash]
+----
+# AWS: CloudWatch CPU-Metriken für einen EC2 abfragen
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/EC2 \
+  --metric-name CPUUtilization \
+  --dimensions Name=InstanceId,Value=i-1234567890abcdef0 \
+  --start-time 2026-03-01T00:00:00Z \
+  --end-time 2026-03-18T00:00:00Z \
+  --period 3600 \
+  --statistics Average Maximum \
+  --query 'Datapoints[*].[Timestamp,Average,Maximum]' \
+  --output table
+
+# GCP: Machine type recommendation
+gcloud recommender recommendations list \
+  --project=my-project \
+  --location=europe-west3-a \
+  --recommender=google.compute.instance.MachineTypeRecommender
+----
+
+=== Schritt 2: Sizing-Dokument anlegen
+
+[source,yaml]
+----
+# docs/sizing/payment-api.yml
+service: "payment-api"
+last_reviewed: "2026-03-18"
+reviewed_by: "platform-team"
+
+current:
+  provider: "aws"
+  instance_type: "t3.medium"
+  vcpu: 2
+  memory_gb: 4
+
+measured_baseline:
+  period: "2026-02-15 to 2026-03-15"
+  cpu_average_pct: 18
+  cpu_p95_pct: 45
+  memory_average_gb: 2.1
+  memory_max_gb: 2.8
+  network_avg_mbps: 12
+
+assessment:
+  status: "appropriately_sized"
+  rationale: >
+    CPU headroom adequate for 2.5x spikes before auto-scaling triggers.
+    Memory utilization at 52% of available; sufficient headroom.
+    Next review: 2026-06-18
+
+auto_scaling:
+  min_instances: 2
+  max_instances: 10
+  scale_out_trigger: "ALBRequestCountPerTarget > 800"
+----
+
+=== Schritt 3: Current-Generation in Terraform verwenden
+
+[source,hcl]
+----
+# Compliant: Aktuelle Generation, explizite Sizing-Begründung als Kommentar
+locals {
+  # t3.medium gewählt basierend auf docs/sizing/payment-api.yml
+  # CPU avg 18%, P95 45% – 2 vCPU bietet ausreichend Headroom für 2.5x Spitzen
+  instance_type = "t3.medium"
+}
+
+resource "aws_launch_template" "app" {
+  name_prefix   = "lt-payment-api-"
+  image_id      = data.aws_ami.ubuntu.id
+  instance_type = local.instance_type
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      workload        = "payment-api"
+      sizing-reviewed = "2026-03-18"
+      owner           = "platform-team"
+    }
+  }
+}
+----
+
+=== Schritt 4: AWS Compute Optimizer nutzen
+
+[source,terraform]
+----
+# Compute Optimizer Enrollment aktivieren
+resource "aws_computeoptimizer_enrollment_status" "main" {
+  status = "Active"
+}
+
+# Recommendations per CLI abrufen und in Sizing-Review einbeziehen
+# aws compute-optimizer get-ec2-instance-recommendations \
+#   --filters name=Finding,values=UNDER_PROVISIONED,OVER_PROVISIONED
+----
+
+=== Schritt 5: Quartalsweise Review-Prozess
+
+[source,yaml]
+----
+# docs/processes/compute-sizing-review.yml
+frequency: "quarterly"
+next_review: "2026-06-18"
+
+checklist:
+  - Compute Optimizer Empfehlungen prüfen
+  - Instanzen mit CPU avg < 10% identifizieren → Rightsizing-Kandidaten
+  - Instanzen mit CPU p95 > 80% identifizieren → Upgrade-Kandidaten
+  - Previous-Generation-Instanzen (t2, m4, c4) identifizieren → Migration-Plan
+  - Sizing-Dokumente aktualisieren
+
+output:
+  - Sizing-Review-Report (welche Änderungen vorgenommen wurden)
+  - Jira-Tickets für Rightsizing-Maßnahmen
+  - Aktualisierte Sizing-Dokumente in docs/sizing/
+----
+
+== Typische Fehlmuster
+
+* *"Wir haben früher mehr gebraucht"*: Historische Peaks rechtfertigen keine permanente Überprovisionierung. Auto-Scaling löst Peak-Last.
+* *"t2.large war immer gut genug"*: t2 ist Previous-Generation; t3 bietet bessere Leistung zu niedrigerem Preis.
+* *"Wir erhöhen lieber vorsorglich"*: Vertikales Sizing-Hinzufügen ist kein Substitut für Auto-Scaling.
+* *Sizing nach AWS-Default*: Default-Empfehlungen sind nicht workload-spezifisch.
+
+== Metriken
+
+* Durchschnittliche CPU-Auslastung aller Compute-Ressourcen (Ziel: 20–70%)
+* Anteil der Ressourcen mit CPU avg < 10% (Ziel: < 5% der Ressourcen)
+* Anteil Previous-Generation-Instanzen (Ziel: 0%)
+* Anteil Ressourcen ohne Sizing-Dokumentation (Ziel: 0% für Produktion)
+
+== Reifegrad
+
+Level 1 – Kein Standard; Sizing nach Intuition oder historischen Werten +
+Level 2 – Experience-based Sizing; gelegentliche Reviews +
+Level 3 – Datenbasiertes Sizing mit dokumentierten Baselines; Quartals-Review +
+Level 4 – Compute-Optimizer-Integration; automatische Rightsizing-Tickets +
+Level 5 – ML-basiertes Predictive Sizing; Self-Optimizing Capacity

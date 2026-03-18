@@ -1,0 +1,273 @@
+= Best Practice: CI/CD-Pipeline aufbauen und absichern
+:page-toc: right
+:description: Wie man eine sichere, automatisierte CI/CD-Pipeline für Cloud-Workloads aufbaut – Pipeline-as-Code, Branch-Protection, Approval-Gates, Artefakt-Versionierung.
+
+== Kontext
+
+Eine CI/CD-Pipeline ist das Fundament jeder Operational-Excellence-Initiative.
+Ohne automatisierte Deployments sind alle anderen OpsEx-Maßnahmen aufwändiger,
+fehleranfälliger und schwerer zu skalieren.
+
+*Diese Best Practice beschreibt:* Den Aufbau einer produktionsreifen Pipeline von
+Pipeline-Definition bis Approval-Gate, Branch-Protection und Artefakt-Versionierung.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-010[WAF-OPS-010 – CI/CD Pipeline Defined & Automated]
+* xref:controls.adoc#WAF-OPS-050[WAF-OPS-050 – Change Management & Deployment Risk Assessment]
+
+== Zielbild
+
+Eine produktionsreife CI/CD-Pipeline:
+
+* Ist vollständig als Code definiert (YAML, HCL) und in Version-Control gespeichert
+* Wird ausgeführt bei jedem Pull Request (Tests, Linting, Security Scans)
+* Deployed automatisch in Staging nach Merge auf main
+* Erfordert manuelle Approval für Production-Deployments
+* Verwendet versionierte, unveränderliche Artefakte
+* Hat Deployment-Freeze-Mechanismus für kritische Perioden
+
+== Technische Umsetzung
+
+=== Schritt 1: Pipeline-Struktur definieren
+
+[source,yaml]
+----
+# .github/workflows/ci-cd.yml (GitHub Actions)
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: payment-service
+
+jobs:
+  # ===== STAGE 1: Lint & Test =====
+  test:
+    name: Lint, Test & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint
+        run: make lint
+
+      - name: Unit Tests
+        run: make test-unit
+
+      - name: Security Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          security-checks: 'vuln,secret'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+
+  # ===== STAGE 2: Build & Publish =====
+  build:
+    name: Build & Push Container Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker Meta (tag with Git SHA)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and Push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  # ===== STAGE 3: Deploy to Staging =====
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment: staging
+    steps:
+      - name: Deploy to ECS Staging
+        run: |
+          aws ecs update-service \
+            --cluster payment-staging \
+            --service payment-service \
+            --force-new-deployment
+
+      - name: Wait for Stable Deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster payment-staging \
+            --services payment-service
+
+      - name: Smoke Test
+        run: make smoke-test ENVIRONMENT=staging
+
+  # ===== STAGE 4: Deploy to Production (Manual Gate) =====
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production  # environment protection rules = approval gate
+    steps:
+      - name: Deploy to ECS Production (Canary)
+        run: |
+          aws deploy create-deployment \
+            --application-name payment-service \
+            --deployment-group-name production \
+            --container-name payment-service \
+            --container-port 8080 \
+            --image "${{ needs.build.outputs.image-tag }}"
+----
+
+=== Schritt 2: Branch-Protection konfigurieren
+
+[source,json]
+----
+// GitHub Branch Protection (via Terraform)
+resource "github_branch_protection" "main" {
+  repository_id = github_repository.app.node_id
+  pattern       = "main"
+
+  required_status_checks {
+    strict   = true
+    contexts = ["Lint, Test & Security Scan"]
+  }
+
+  required_pull_request_reviews {
+    required_approving_review_count = 1
+    require_code_owner_reviews      = true
+    dismiss_stale_reviews           = true
+  }
+
+  enforce_admins = true
+  allows_force_pushes = false
+  allows_deletions    = false
+}
+----
+
+=== Schritt 3: CODEOWNERS definieren
+
+[source,text]
+----
+# CODEOWNERS – jede Zeile: Pfad Owners
+# Änderungen an kritischen Pfaden erfordern Review der genannten Teams
+
+# Terraform Infrastructure
+/infrastructure/  @platform-team @security-team
+
+# CI/CD Pipelines
+/.github/workflows/ @platform-team
+
+# Application Code
+/src/ @payment-team
+
+# Security-sensitive Konfiguration
+/infrastructure/security/ @security-team
+----
+
+=== Schritt 4: Deployment-Freeze konfigurieren
+
+[source,yaml]
+----
+# GitHub Actions: Deployment-Freeze via Environment Protection
+# In GitHub Settings > Environments > production:
+# - Required reviewers: @tech-leads
+# - Deployment branches: main only
+# - Wait timer: 0 minutes (nur Reviewer-Pflicht)
+
+# Alternativ: programmatische Freeze-Prüfung im Pipeline
+- name: Check Deployment Freeze
+  run: |
+    FREEZE_START=$(date -d "2025-12-20" +%s)
+    FREEZE_END=$(date -d "2026-01-05" +%s)
+    NOW=$(date +%s)
+    if [ "$NOW" -ge "$FREEZE_START" ] && [ "$NOW" -le "$FREEZE_END" ]; then
+      echo "DEPLOYMENT FREEZE ACTIVE until 2026-01-05"
+      echo "Emergency deployments require CTO approval: ops-emergency@company.com"
+      exit 1
+    fi
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|`latest`-Tag in Production
+|Nicht reproduzierbar; jeder neue Build ändert das deployte Image ohne Deployment
+
+|Secrets in Pipeline-Code
+|GitHub Actions Logs sind sichtbar; Secrets in `env:` Block werden geloggt
+
+|Kein Branch-Protection für `main`
+|Engineers pushen direkt; kein Review; kein Test
+
+|Pipeline ohne Security Scan
+|Vulnerabilities werden erst in Production entdeckt
+
+|Manuelle Deployment-Schritte nach dem Build
+|"Halb-automatisch" ist nicht automatisch; erster manueller Schritt invertiert alle Automatisierungsgewinne
+
+|Pipeline-YAML nicht in Repository
+|"Deployment-Skripte" auf einem Server – kein Review, kein Versionsverlauf
+
+|===
+
+== Metriken
+
+Messe diese Metriken um den Pipeline-Reifegrad zu bewerten:
+
+* *Deployment Frequency:* Wie oft wird in Produktion deployt? (Ziel: täglich+)
+* *Lead Time for Changes:* Commit bis Production? (Ziel: < 1 Stunde für Hotfix, < 1 Tag für Feature)
+* *Pipeline-Durchlaufzeit:* Gesamtdauer der Pipeline (Ziel: < 15 Minuten)
+* *Pipeline-Erfolgsrate:* % der Pipelines die grün sind (Ziel: > 90%)
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Deployments per SSH/Konsole. Keine Pipeline-Definition. Keine Tests automatisiert.
+
+|*Level 2*
+|CI Pipeline vorhanden. Tests laufen automatisch. Deployment-Skripte existieren aber manuell ausgeführt.
+
+|*Level 3*
+|Vollständige CI/CD. Branch-Protection. Approval-Gate für Production. Artefakte versioniert.
+
+|*Level 4*
+|Deployment-Metriken gemessen. Canary/Blue-Green Deployments. Automatischer Rollback.
+
+|*Level 5*
+|DORA Elite: mehrfach täglich. Change Failure Rate < 5%. Continuous Deployment möglich.
+
+|===

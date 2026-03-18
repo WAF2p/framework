@@ -1,0 +1,159 @@
+= WAF-REL-080 – Dependency & Upstream Resilience Management
+:page-toc: right
+:control-id: WAF-REL-080
+:pillar: reliability
+:severity: medium
+:category: dependency-management
+:automated: medium
+:description: WAF++ Reliability – Inventar und Klassifizierung aller Produktionsabhängigkeiten mit Fallback-Verhalten.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* Medium | *Kategorie:* Dependency Management | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Produktions-Workloads MÜSSEN ein aktuelles Dependency-Inventar pflegen. Jede Abhängigkeit
+MUSS nach Kritikalität klassifiziert sein. Kritische Abhängigkeiten MÜSSEN Circuit Breaker haben.
+Für alle optionalen Abhängigkeiten MUSS ein Fallback-Verhalten definiert sein. Das Register
+MUSS quartalsweise reviewed werden.
+
+== Rationale
+
+Die Reliability eines Systems ist durch die schwächste kritische Abhängigkeit begrenzt.
+Ein Service mit 99.9% SLO, der von einer externen API mit 99% SLA abhängt, kann dieses
+SLO mathematisch nicht halten. Explizites Dependency Management macht dieses Risiko
+sichtbar und ermöglicht proaktive Maßnahmen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unbekannte kritische Abhängigkeit*
+|Third-Party API fällt aus; keiner weiß, welche Features davon abhängen.
+
+|*SLO mathematisch unmöglich*
+|Composite Availability < Workload-SLO wegen unzuverlässiger Pflicht-Abhängigkeit.
+
+|*Keine Fallback-Behavior*
+|Optionale Abhängigkeit fällt aus; Service fällt komplett aus statt graceful degraded.
+
+|*End-of-Life unbekannt*
+|Abhängigkeit wird depreciert; Team erfährt es zu spät für Migration.
+
+|===
+
+== Anforderung
+
+* Dependency Register: Service-Name, Typ (intern/extern), SLA, Kritikalität, Fallback
+* Kategorisierung: critical (Ausfall = Ausfall), degraded (Ausfall = Feature-Verlust), optional
+* Circuit Breaker: für alle kritischen synchronen Abhängigkeiten
+* Fallback: für alle optionalen Abhängigkeiten definiert
+* Status-Page-Subscriptions: für alle kritischen Third-Party Abhängigkeiten
+* VPC Endpoints / Private Endpoints: für kritische AWS/Azure/GCP Service-Abhängigkeiten
+* Quartalsweiser Review
+
+== Implementierungsanleitung
+
+. *Dependency-Inventar erstellen*: YAML-Datei im Repository mit allen Abhängigkeiten
+. *Kritikalität bewerten*: Wer fällt aus, wenn diese Abhängigkeit ausfällt?
+. *Composite Availability berechnen*: Produktiv wenn alle criticals verfügbar sind
+. *Circuit Breaker*: Für jede kritische Abhängigkeit konfigurieren
+. *Fallback-Verhalten*: Für optionale Deps: Feature Flag, Cached Response, Stub
+. *VPC Endpoints*: AWS VPC Endpoints für S3, DynamoDB, SQS als Isolation Layer
+. *Review-Cycle*: Dependency-Register in Quarterly-Architecture-Review einbeziehen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Inventar
+|Abhängigkeiten nicht dokumentiert; Ausfälle reaktiv entdeckt.
+
+|*2*
+|Basisinventar
+|Liste externer Abhängigkeiten vorhanden; keine SLA-Bewertung.
+
+|*3*
+|Klassifiziert + Circuit Breaker
+|Alle Deps klassifiziert; CB für kritische; Fallback für optionale; quarterly Review.
+
+|*4*
+|Auto-Discovery + Monitoring
+|Service Mesh generiert Dependency Map; SLA-Compliance in Echtzeit überwacht.
+
+|*5*
+|Proaktives Risk-Management
+|Dependency Reliability Budget getrackt; keine bekannten SPOF-Abhängigkeiten.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation
+*Prüft:* VPC Endpoints für kritische AWS API Abhängigkeiten konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name =
+    "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids =
+    [aws_route_table.private.id]
+  tags = merge(var.mandatory_tags, {
+    Name = "s3-vpc-endpoint"
+  })
+}
+----
+a|[source,hcl]
+----
+# Kein VPC Endpoint konfiguriert –
+# Alle AWS API Calls über
+# Internet NAT Gateway
+# Abhängigkeit von NAT-Gateway
+# WAF-REL-080 Violation
+----
+|===
+
+*Remediation:* VPC Endpoints für S3, DynamoDB, SQS und andere
+hochfrequentierte AWS APIs konfigurieren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Dependency Register mit Kritikalität, SLA und Fallback für alle Produktionsabhängigkeiten.
+
+|*Config*
+|✅ Pflicht
+|Circuit Breaker Konfiguration für alle kritischen externen API-Abhängigkeiten.
+
+|*Process*
+|Optional
+|Quarterly Dependency Review Protokoll mit Unterschrift.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-050.adoc[WAF-REL-050 – Circuit Breaker & Timeout]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response]
+* xref:controls/WAF-REL-100.adoc[WAF-REL-100 – Reliability Debt Register]
+
+== Best Practice
+
+* xref:best-practices/bp-circuit-breaker.adoc[Circuit Breaker, Timeouts & Bulkheads →]

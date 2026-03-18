@@ -1,0 +1,215 @@
+= Glossar: Operational Excellence
+:page-toc: right
+:description: Definitionen der wichtigsten Begriffe der Operational Excellence Säule – von CI/CD und IaC bis DORA-Metriken, Postmortem, Feature Flags und Toil.
+
+== A
+
+=== Alert Fatigue
+Zustand, in dem On-Call-Engineers so viele Alerts erhalten (viele davon nicht-actionable),
+dass sie beginnen, Alerts zu ignorieren oder zu snoozen. Führt zu verpassten echten Incidents.
+*Lösung:* Symptom-basiertes Alerting, regelmäßige Alert-Audits.
+
+=== Artifact Versioning
+Jedes Deployment-Artefakt (Container Image, Lambda ZIP) erhält eine unveränderliche Version
+(Git-SHA oder semantische Versionsnummer). Deployments referenzieren stets spezifische Versionen,
+nie `latest`.
+
+== B
+
+=== Blast Radius
+Das Ausmaß des Schadens, den ein fehlerhaftes Deployment oder eine Änderung verursacht.
+Reduziert durch Progressive Delivery (Canary, Blue/Green): Eine fehlerhafte Canary-Version
+trifft nur 5% der Nutzer, nicht 100%.
+
+=== Blameless Culture (Blameless Postmortem)
+Kulturelles Prinzip: Bei Incident Reviews wird nicht nach Schuldigen gesucht, sondern nach
+systemischen Ursachen. Psychologische Sicherheit ist Voraussetzung. Fördert offenes Teilen
+von Informationen und verhindert Verstecken von Incidents.
+
+=== Blue/Green Deployment
+Deployment-Muster mit zwei identischen Umgebungen (Blue = aktuell produktiv, Green = neue Version).
+Traffic-Switch erfolgt atomar über Load Balancer. Sofortiges Rollback durch Rückschalten auf Blue.
+
+=== Burn Rate Alert
+SRE-Konzept: Alert, der ausgelöst wird wenn das Error Budget einer SLO schneller verbraucht wird
+als erlaubt. Burn-Rate-Alerts unterscheiden zwischen Fast-Burn (sofort pagen) und Slow-Burn
+(ticket, kein sofortiger Page).
+
+== C
+
+=== Canary Release (Canary Deployment)
+Deployment-Muster: Neue Version erhält schrittweise mehr Traffic (5% → 25% → 100%).
+Metriken werden zwischen alter und neuer Version verglichen. Automatisches Rollback
+wenn Fehlerrate der neuen Version über Schwellenwert steigt.
+
+=== Change Failure Rate (CFR)
+DORA-Metrik: Prozentualer Anteil der Deployments, die einen Incident, Rollback oder
+Hotfix erfordern. Elite-Teams erreichen < 5%. Misst Deployment-Qualität.
+
+=== CI/CD (Continuous Integration / Continuous Delivery)
+*Continuous Integration:* Automatisches Bauen und Testen bei jedem Commit.
+*Continuous Delivery:* Automatisches Bereitstellen von getesteten Artefakten für Deployment.
+*Continuous Deployment:* Vollautomatisches Deployment bis in Produktion ohne manuelle Freigabe.
+
+=== Configuration Drift
+Unterschied zwischen dem deklarierten Zustand (IaC) und dem tatsächlichen Zustand
+der Infrastruktur. Entsteht durch manuelle Console-Änderungen, Tool-Fehler, oder
+Konfigurationsänderungen außerhalb von IaC.
+
+== D
+
+=== Deployment Frequency
+DORA-Metrik: Wie oft deployt ein Team in Produktion?
+Elite: Mehrfach täglich. High: Täglich bis wöchentlich. Medium: Wöchentlich bis monatlich.
+Low: Monatlich bis alle sechs Monate.
+
+=== Distributed Tracing
+Technologie zum Verfolgen von Anfragen über mehrere Services hinweg. Jede Anfrage erhält
+eine Trace-ID, die durch alle beteiligten Services propagiert wird. Ermöglicht Root-Cause-Analyse
+in Microservices. Implementierungen: Jaeger, Zipkin, AWS X-Ray, OpenTelemetry.
+
+=== DORA Metrics
+Vier Metriken aus dem DevOps Research and Assessment Programm:
+1. Deployment Frequency
+2. Lead Time for Changes
+3. Change Failure Rate
+4. Mean Time to Restore (MTTR)
+
+== F
+
+=== Feature Flag (Feature Toggle)
+Mechanismus zur Steuerung der Sichtbarkeit und Aktivierung von Features zur Laufzeit,
+ohne Deployment. Ermöglicht Dark Launch (deployed aber nicht aktiv), Canary (% der Nutzer),
+A/B-Testing. Dienste: LaunchDarkly, Unleash, AWS AppConfig Feature Flags, Flagsmith.
+
+== G
+
+=== GitOps
+Betriebsparadigma: Der Git-Repository-Zustand ist die einzige Quelle der Wahrheit für
+Infrastruktur und Konfiguration. Änderungen durch Git-Commits; automatische Synchronisierung
+in die Zielumgebung. Tools: Flux CD, ArgoCD (für Kubernetes), Atlantis (für Terraform).
+
+== H
+
+=== Health Check (Health Endpoint)
+HTTP-Endpoint, der den Betriebsstatus eines Services meldet:
+*Liveness:* Service läuft (503 = neu starten).
+*Readiness:* Service bereit für Traffic (503 = kein Traffic senden).
+*Startup:* Service-Initialisierung abgeschlossen.
+
+== I
+
+=== IaC (Infrastructure as Code)
+Praxis, Cloud-Infrastruktur deklarativ in Code zu beschreiben. Terraform, Pulumi, AWS CDK,
+Azure Bicep sind verbreitete IaC-Tools. IaC ist versioniert, reviewed und durch CI/CD deployt.
+
+=== Idempotenz
+Eigenschaft einer Operation: Mehrfaches Ausführen liefert dasselbe Ergebnis wie einmaliges
+Ausführen. Terraform-Ressourcen sind idempotent (deklarativ). Kritisch für sichere
+Automatisierungen und Retry-Logik.
+
+=== Immutable Infrastructure
+Infrastruktur-Paradigma: Komponenten werden nie in-place verändert, sondern ersetzt.
+Statt SSH+Patch: neues AMI oder Container-Image bauen und deployen. Verhindert
+Konfigurationsdrift durch partielle Updates.
+
+== L
+
+=== Lead Time for Changes
+DORA-Metrik: Zeit vom Code-Commit bis zum produktiven Deployment. Misst die Geschwindigkeit
+der Delivery-Pipeline. Elite: < 1 Stunde. Low: > 6 Monate.
+
+=== Liveness Probe
+Kubernetes/ECS-Mechanismus: Prüft ob eine Container-Instanz noch funktioniert.
+Schlägt die Probe fehl, startet der Orchestrator den Container neu.
+Referenziert typischerweise `/health/live`.
+
+== M
+
+=== Mean Time to Restore (MTTR)
+DORA-Metrik: Durchschnittliche Zeit vom Beginn eines Incidents bis zur vollständigen
+Wiederherstellung des Services. Elite: < 1 Stunde. Low: > 1 Woche.
+
+=== Metrics (Metriken)
+Numerische Zeitreihendaten über den Systemzustand. Typen: Counter (monoton steigend),
+Gauge (aktueller Wert), Histogram (Verteilung), Summary. RED und USE sind wichtige
+Metriken-Frameworks.
+
+== O
+
+=== Observability
+Fähigkeit, den internen Zustand eines Systems aus seinen Ausgaben (Logs, Metriken, Traces)
+zu verstehen. Drei Säulen: *Logs* (strukturierte Events), *Metriken* (Zeitreihen),
+*Traces* (verteilte Anfrageverfolgung).
+
+=== Operational Debt (Betriebsschuld)
+Akkumulierter Rückstand an manuellen Prozessen, Workarounds, fehlendem Toil-Abbau und
+undokumentiertem Wissen, der den Betriebsaufwand erhöht. Analog zu technischer Schuld,
+aber im Betriebskontext.
+
+=== OpenTelemetry (OTel)
+Cloud Native Computing Foundation (CNCF) Standard für Observability-Instrumentierung.
+Vendor-agnostisch. Bietet SDKs für alle gängigen Programmiersprachen, Auto-Instrumentation
+für Frameworks, und einen Collector für Daten-Routing.
+
+== P
+
+=== Postmortem (Post-Incident Review)
+Strukturierter Rückblick nach einem Incident. Blameless, faktenbasiert, auf systemische
+Ursachen fokussiert. Beinhaltet: Incident-Timeline, Root Cause, Contributing Factors,
+Action Items. Ziel: Wiederholung verhindern.
+
+== R
+
+=== RED Metrics
+Metriken-Framework für Services (von Tom Wilkie):
+**R**ate – Anfragen pro Sekunde.
+**E**rrors – Fehlerrate (HTTP 5xx, Exceptions).
+**D**uration – Latenz (p50, p95, p99).
+
+=== Readiness Probe
+Kubernetes/ECS-Mechanismus: Prüft ob eine Container-Instanz bereit ist, Traffic zu empfangen.
+Schlägt die Probe fehl, wird die Instanz aus dem Load Balancer entfernt.
+Referenziert typischerweise `/health/ready`.
+
+=== Runbook
+Betriebsdokumentation für spezifische Szenarien: Incident-Reaktion, Routine-Aufgaben,
+Eskalationspfade. Beinhaltet: Trigger-Bedingung, Auswirkung, Diagnose-Schritte,
+Remediation-Schritte, Eskalation. Muss mit Alerts verknüpft sein.
+
+== S
+
+=== SLO (Service Level Objective)
+Internes Ziel für die Dienstgüte: z.B. 99.9% Availability, p99 Latenz < 500ms,
+Fehlerrate < 0.1%. Grundlage für SLO-basiertes Alerting und Error-Budget-Management.
+
+=== Structured Logging
+Logging-Praxis: Logs werden als strukturierte Objekte (typischerweise JSON) ausgegeben
+statt als Freitext. Ermöglicht maschinelle Verarbeitung, Suche und Aggregation.
+Pflichtfelder: timestamp, level, service, trace_id, message.
+
+=== Symptom-based Alerting
+Alerting-Philosophie: Alerts werden ausgelöst wenn Nutzer betroffen sind (Fehlerrate hoch,
+Latenz überschritten), nicht wenn interne Ressourcen ausgelastet sind (CPU > 80%).
+Führt zu weniger, aber actionableren Alerts.
+
+== T
+
+=== Toil
+SRE-Begriff (Google): Manuelle, wiederholbare, automatisierbare Arbeit, die bei
+Traffic-Wachstum proportional zunimmt und keinen dauerhaften Wert schafft.
+Beispiele: Manuelle Deployments, manuelle Skalierung, Passwort-Resets per Ticket.
+Google SRE-Ziel: < 20% der Ingenieurzeit für Toil.
+
+=== Trace ID
+Eindeutiger Identifier für eine einzelne Anfrage durch ein verteiltes System.
+Wird durch alle beteiligten Services propagiert und in alle Log-Zeilen eingebettet.
+Ermöglicht Korrelation aller Logs, Metriken und Traces einer Anfrage.
+
+== U
+
+=== USE Metrics
+Metriken-Framework für Infrastruktur-Ressourcen (von Brendan Gregg):
+**U**tilization – Ressourcenauslastung (% der Kapazität genutzt).
+**S**aturation – Wie viel Arbeit wartet (Queue-Länge).
+**E**rrors – Fehlerrate der Ressource.

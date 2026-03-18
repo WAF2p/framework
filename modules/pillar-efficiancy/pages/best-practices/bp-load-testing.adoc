@@ -1,0 +1,286 @@
+= Best Practice: Lasttests & Stresstests
+:page-toc: right
+:description: WAF++ Performance Efficiency – Lasttests mit k6 in die CI/CD-Pipeline integrieren und Akzeptanzkriterien definieren.
+
+== Kontext
+
+Performance-Regressions werden ohne Lasttests erst in Produktion entdeckt – oft durch Nutzerbeschweren
+oder Alerts. Ein Service ohne Lasttest-Validation ist ein ungetestetes Sicherheitsnetz:
+es klingt beruhigend, aber niemand weiß, ob es hält.
+
+Typische Probleme ohne Lasttest-Prozess:
+
+* Auto-Scaling-Konfiguration nie unter Last validiert – Trigger greift zu spät
+* Datenbankabfrage-Plan ändert sich mit Datenmenge und wird erst bei 10M Einträgen langsam
+* Memory-Leak nur unter Extended Load sichtbar – in Unit-Tests nicht detektiert
+* Neues Feature verursacht 30% P99-Regression – geht unbemerkt in Produktion
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-060[WAF-PERF-060] – Load & Stress Testing in CI/CD Pipeline
+
+== Zielbild
+
+Vollständig integrierter Lasttest-Prozess:
+
+* *Automatisiert*: Lasttests laufen automatisch bei jedem Deployment
+* *Akzeptanzkriterien*: Klar definiert und technisch enforced
+* *Regression-Detection*: Baseline-Vergleich erkennt > 10% P99-Verschlechterung
+* *Stresstest-Kadenz*: Quartalsweise Kapazitätsgrenzen ermitteln
+
+== Technische Umsetzung
+
+=== Schritt 1: k6 Lasttest-Skript erstellen
+
+[source,javascript]
+----
+// tests/performance/payment-api.js
+import http from 'k6/http';
+import { check, group, sleep } from 'k6';
+import { Counter, Rate, Trend } from 'k6/metrics';
+
+// Custom Metrics
+const paymentErrors = new Counter('payment_errors');
+const paymentDuration = new Trend('payment_duration', true);
+
+// Akzeptanzkriterien als Thresholds
+export const options = {
+  stages: [
+    { duration: '2m', target: 10 },   // Warm-up
+    { duration: '5m', target: 50 },   // Normallast
+    { duration: '10m', target: 100 }, // Peak-Last
+    { duration: '3m', target: 0 },    // Ramp-down
+  ],
+  thresholds: {
+    // SLO-Anforderungen als Gate
+    'http_req_duration{type:payment}': [
+      'p(95)<200',   // P95 < 200ms
+      'p(99)<500',   // P99 < 500ms
+    ],
+    'http_req_failed': ['rate<0.001'],  // < 0.1% Fehler
+    'payment_errors': ['count<10'],     // Absolut max 10 Errors
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'https://api-staging.payment.example.com';
+const API_KEY = __ENV.API_KEY;
+
+export function setup() {
+  // Testdaten vorbereiten
+  return { userId: '550e8400-e29b-41d4-a716-446655440000' };
+}
+
+export default function (data) {
+  group('Payment API', () => {
+    // Scenario 1: Payment erstellen
+    group('create_payment', () => {
+      const payload = JSON.stringify({
+        amount: 100,
+        currency: 'EUR',
+        user_id: data.userId,
+        idempotency_key: `k6-${__VU}-${__ITER}`,
+      });
+
+      const start = Date.now();
+      const res = http.post(
+        `${BASE_URL}/api/v1/payments`,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY,
+          },
+          tags: { type: 'payment' },
+        }
+      );
+      paymentDuration.add(Date.now() - start);
+
+      const success = check(res, {
+        'status is 201': (r) => r.status === 201,
+        'has payment_id': (r) => r.json('id') !== undefined,
+        'response time < 200ms': (r) => r.timings.duration < 200,
+      });
+
+      if (!success) {
+        paymentErrors.add(1);
+      }
+    });
+
+    sleep(0.5);
+
+    // Scenario 2: Zahlungsstatus abfragen
+    group('get_payment_status', () => {
+      const res = http.get(
+        `${BASE_URL}/api/v1/payments?user_id=${data.userId}&status=pending`,
+        {
+          headers: { 'X-API-Key': API_KEY },
+          tags: { type: 'payment' },
+        }
+      );
+
+      check(res, {
+        'status is 200': (r) => r.status === 200,
+        'response time < 100ms': (r) => r.timings.duration < 100,
+      });
+    });
+  });
+
+  sleep(0.1);
+}
+----
+
+=== Schritt 2: CI/CD-Integration (GitHub Actions)
+
+[source,yaml]
+----
+# .github/workflows/performance.yml
+name: Performance Tests
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    needs: [build, integration-tests]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Staging
+        run: |
+          # Staging-Deployment (Terraform oder kubectl apply)
+          terraform -chdir=environments/staging apply -auto-approve
+
+      - name: Wait for Staging Readiness
+        run: |
+          for i in {1..30}; do
+            if curl -sf "${STAGING_URL}/health"; then break; fi
+            sleep 10
+          done
+
+      - name: Run k6 Load Test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/performance/payment-api.js
+          flags: |
+            --env BASE_URL=${{ env.STAGING_URL }}
+            --env API_KEY=${{ secrets.STAGING_API_KEY }}
+            --out json=results/k6-results.json
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-results-${{ github.sha }}
+          path: results/k6-results.json
+          retention-days: 90
+
+      - name: Check Regression vs Baseline
+        run: |
+          python scripts/compare-baseline.py \
+            --current results/k6-results.json \
+            --baseline results/baseline.json \
+            --regression-threshold 0.10  # 10% P99-Verschlechterung = Fail
+
+      - name: Update Baseline on Success
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          cp results/k6-results.json results/baseline.json
+          git add results/baseline.json
+          git commit -m "chore: update performance baseline after successful load test"
+          git push
+----
+
+=== Schritt 3: Baseline-Vergleichs-Skript
+
+[source,python]
+----
+#!/usr/bin/env python3
+# scripts/compare-baseline.py
+
+import json
+import sys
+import argparse
+
+def load_k6_results(filename: str) -> dict:
+    with open(filename) as f:
+        data = json.load(f)
+    metrics = data.get('metrics', {})
+    return {
+        'p95': metrics.get('http_req_duration', {}).get('values', {}).get('p(95)', 0),
+        'p99': metrics.get('http_req_duration', {}).get('values', {}).get('p(99)', 0),
+        'error_rate': metrics.get('http_req_failed', {}).get('values', {}).get('rate', 0),
+    }
+
+def compare(current: dict, baseline: dict, threshold: float) -> bool:
+    """Returns True if regression detected."""
+    p99_change = (current['p99'] - baseline['p99']) / max(baseline['p99'], 1)
+    p95_change = (current['p95'] - baseline['p95']) / max(baseline['p95'], 1)
+
+    print(f"P95: {current['p95']:.0f}ms (baseline: {baseline['p95']:.0f}ms, change: {p95_change:+.1%})")
+    print(f"P99: {current['p99']:.0f}ms (baseline: {baseline['p99']:.0f}ms, change: {p99_change:+.1%})")
+
+    if p99_change > threshold:
+        print(f"❌ REGRESSION: P99 increased by {p99_change:.1%} (threshold: {threshold:.1%})")
+        return True
+
+    print(f"✅ No regression detected (P99 change: {p99_change:+.1%})")
+    return False
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--current', required=True)
+    parser.add_argument('--baseline', required=True)
+    parser.add_argument('--regression-threshold', type=float, default=0.10)
+    args = parser.parse_args()
+
+    current = load_k6_results(args.current)
+    baseline = load_k6_results(args.baseline)
+    regression = compare(current, baseline, args.regression_threshold)
+    sys.exit(1 if regression else 0)
+----
+
+=== Schritt 4: Stresstest-Kadenz
+
+Quartalsweise Stresstests ermitteln Kapazitätsgrenzen:
+
+[source,javascript]
+----
+// tests/performance/stress-test.js
+export const options = {
+  stages: [
+    { duration: '5m',  target: 100  },  // Normallast
+    { duration: '5m',  target: 200  },  // 2x Peak
+    { duration: '5m',  target: 400  },  // 4x Peak
+    { duration: '10m', target: 600  },  // Bis zum Brechen
+    { duration: '5m',  target: 0    },  // Recovery
+  ],
+  // Kein Threshold – wir wollen sehen wo es bricht, nicht Pass/Fail
+};
+----
+
+== Typische Fehlmuster
+
+* *Lasttest nur vor Go-Live*: Performance-Regressions entstehen bei jeder Änderung, nicht nur beim Launch.
+* *Zu wenige VUs*: 5 VUs testen keine Concurrency-Probleme; realistische VU-Zahlen aus Produktionsanalyse ableiten.
+* *Test gegen Produktion*: Stresstest in Produktion ohne vorherige Staging-Validierung ist riskant.
+* *Thresholds zu locker*: P99 < 5000ms ist kein sinnvolles Akzeptanzkriterium.
+
+== Metriken
+
+* Anteil der CI/CD-Runs mit Lasttest als Gate (Ziel: 100% für Produktions-Deployments)
+* Performance-Regression-Rate (Anteil Deployments die Lasttest-Gate scheitern)
+* Zeit zwischen Deployment und Lasttest-Ergebnis (Ziel: < 20 Minuten)
+* Stresstest-Kapazitätsreserve (aktueller Max-Load / erwarteter Peak: Ziel >= 2x)
+
+== Reifegrad
+
+Level 1 – Keine Lasttests; Performance unter Last unbekannt +
+Level 2 – Manuelle Lasttests vor Releases; keine CI-Integration +
+Level 3 – Automatisch im CI/CD-Gate; Akzeptanzkriterien enforced +
+Level 4 – Regression-Detection; quartalsweise Stresstests +
+Level 5 – Kontinuierliche Performance-Tests; Chaos Engineering integriert

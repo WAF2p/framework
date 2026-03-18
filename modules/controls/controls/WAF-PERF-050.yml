@@ -1,0 +1,273 @@
+id: WAF-PERF-050
+title: "Performance Monitoring & SLO Definition"
+pillar: "performance"
+status: "active"
+severity: "high"
+category: "observability"
+type: ['governance', 'configuration', 'automation']
+tags: ['slo', 'sli', 'observability', 'monitoring', 'latency', 'p99', 'error-rate', 'performance-baseline']
+
+description: >
+  All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant
+  metrics: latency (P95 and P99), error rate, and availability. Service Level Indicators (SLIs)
+  MUST be instrumented and measured continuously. Performance dashboards MUST be available for all
+  production services showing current SLO compliance and historical trends. Alerting MUST be
+  configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds.
+  SLOs MUST be reviewed and updated quarterly or after major architectural changes.
+
+rationale: >
+  Without defined SLOs, there is no objective definition of "good enough" performance.
+  Teams make subjective judgments about whether performance is acceptable, leading to either
+  over-investment in performance (pursuing perfection) or tolerance of gradual degradation.
+  SLOs with error budgets provide a quantitative framework: within budget = deploy freely;
+  budget exhausted = focus on reliability and performance before new features.
+  Performance monitoring without SLOs produces data without actionable meaning.
+
+threat:
+  - "Gradual performance degradation going undetected until users notice or SLA breaches occur"
+  - "Over-investment in performance optimization without objective success criteria"
+  - "SLA violations and customer churn due to absent performance baselines and alerting"
+  - "Inability to make deployment decisions without objective performance data"
+  - "P99 latency spikes masked by P50 averages; tail latency undetected"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Capacity"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "OPS 7 – How do you know that your workload and changes are successful?"
+      - "REL 9 – How do you test reliability?"
+  - framework: "Google SRE Book"
+    controls:
+      - "Service Level Objectives"
+      - "Error Budgets"
+  - framework: "ITIL 4"
+    controls:
+      - "Service Level Management"
+
+implementation_guidance:
+  - "Define SLIs for each service: latency (P95, P99 at load balancer), availability (success rate), and throughput."
+  - "Set SLOs as targets: P95 latency < 200ms, P99 < 500ms, error rate < 0.1%, availability > 99.9%."
+  - "Calculate error budgets: 99.9% availability = 8.7 hours/year of allowed downtime."
+  - "Instrument SLIs using APM tools (AWS X-Ray, Azure Application Insights, GCP Cloud Trace) or Prometheus."
+  - "Create SLO dashboards showing current compliance, error budget burn rate, and historical trends."
+  - "Configure multi-window, multi-burn-rate alerts (1h/6h/72h windows) per Google SRE approach."
+  - "Review SLOs quarterly with product and engineering; adjust based on customer feedback and usage patterns."
+
+maturity_levels:
+  level_1:
+    description: "No SLOs defined; availability monitoring only"
+    criteria:
+      - "Services are monitored only for availability (up/down)"
+      - "No latency or error rate baselines exist"
+      - "Performance incidents discovered by users or post-incident analysis"
+  level_2:
+    description: "Basic metrics collected; informal performance targets"
+    criteria:
+      - "Latency and error rates collected but no formal SLOs"
+      - "Alerts on average latency (not percentiles)"
+      - "No error budget concept; performance is binary pass/fail"
+  level_3:
+    description: "Formal SLOs defined with SLI instrumentation"
+    criteria:
+      - "SLOs defined for all production services (latency P95/P99, error rate, availability)"
+      - "SLIs instrumented and measured continuously"
+      - "Performance dashboards available for all production services"
+      - "SLO burn rate alerts configured"
+  level_4:
+    description: "Error budget management with deployment gates"
+    criteria:
+      - "Error budgets tracked and reported weekly"
+      - "Deployments blocked or require sign-off when error budget is exhausted"
+      - "SLO compliance part of quarterly engineering reviews"
+      - "SLO violations linked to post-mortem process"
+  level_5:
+    description: "Autonomous SLO management with predictive alerting"
+    criteria:
+      - "SLO burn rate prediction detects budget exhaustion before it occurs"
+      - "Automated capacity adjustments triggered by SLO burn rate thresholds"
+      - "User journey SLOs (end-to-end latency across service chains) tracked"
+      - "SLOs inform architectural decisions (ADRs reference SLO requirements)"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "SLO document for all production services defining SLIs, SLO targets, and error budgets."
+    - kind: "config"
+      description: "Monitoring/APM configuration showing SLI instrumentation and SLO alerting rules."
+  optional:
+    - kind: "config"
+      description: "SLO compliance dashboard showing historical trends and current error budget status."
+    - kind: "process"
+      description: "Quarterly SLO review meeting notes with SLO adjustments."
+
+checks:
+  - id: "waf-perf-050.tf.aws.cloudwatch-latency-alarm"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS CloudWatch alarms must monitor P99 latency for load balancers"
+    description: >
+      Load balancers must have CloudWatch alarms configured for P99 target response time
+      to detect latency degradation before it becomes visible to users.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_metric_alarm"
+    assertions:
+      - attribute: "alarm_actions"
+        op: "not_empty"
+        message: "CloudWatch alarm must have at least one action (SNS topic) configured."
+      - attribute: "evaluation_periods"
+        op: "greater_than_or_equal"
+        value: 2
+        message: "Alarm must evaluate over at least 2 periods to avoid spurious alerts."
+      - attribute: "alarm_description"
+        op: "not_empty"
+        message: "Alarm must have a description explaining what it monitors and what to do."
+    on_fail: "violation"
+    remediation: >
+      Ensure CloudWatch alarms have alarm_actions pointing to SNS topics for notification.
+      Set evaluation_periods >= 2 to reduce false positives.
+      Add alarm_description with runbook link.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_metric_alarm" "p99_latency" {
+          alarm_name          = "payment-api-p99-latency"
+          alarm_description   = "P99 latency > 500ms for payment API. Runbook: https://wiki/perf-runbook"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 3
+          metric_name         = "TargetResponseTime"
+          namespace           = "AWS/ApplicationELB"
+          period              = 60
+          statistic           = "p99"
+          threshold           = 0.5
+          alarm_actions       = [aws_sns_topic.alerts.arn]
+          dimensions = {
+            LoadBalancer = aws_lb.app.arn_suffix
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "latency" {
+          alarm_name          = "latency-alarm"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 1
+          metric_name         = "TargetResponseTime"
+          namespace           = "AWS/ApplicationELB"
+          period              = 60
+          statistic           = "Average"  # Average hides P99 spikes – WAF-PERF-050 violation
+          threshold           = 1.0
+          # No alarm_actions – alert fires but nobody is notified
+        }
+
+  - id: "waf-perf-050.tf.azurerm.app-insights-availability"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Application Insights must be configured for SLO monitoring"
+    description: >
+      Azure Application Insights must be deployed and configured for all production services
+      to enable performance monitoring, distributed tracing, and SLO tracking.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_application_insights"
+    assertions:
+      - attribute: "application_type"
+        op: "not_empty"
+        message: "Application Insights application_type must be set (web or other)."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 30
+        message: "Application Insights retention must be at least 30 days for trend analysis."
+    on_fail: "violation"
+    remediation: >
+      Set application_type to "web" for HTTP services. Set retention_in_days >= 90 for adequate
+      trend analysis. Configure availability tests and custom metric alerts for SLOs.
+    example:
+      compliant: |
+        resource "azurerm_application_insights" "app" {
+          name                = "appi-payment-api"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          application_type    = "web"
+          retention_in_days   = 90
+          tags = {
+            workload    = "payment-api"
+            environment = "production"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_application_insights" "app" {
+          name             = "appi-payment-api"
+          application_type = "other"  # Wrong type for web service
+          retention_in_days = 7       # Too short – WAF-PERF-050 violation
+        }
+
+  - id: "waf-perf-050.tf.google.monitoring-uptime-check"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP services must have uptime checks and alert policies configured"
+    description: >
+      GCP production services must have Cloud Monitoring uptime checks and alerting policies
+      for latency and availability SLO monitoring.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_monitoring_alert_policy"
+    assertions:
+      - attribute: "notification_channels"
+        op: "not_empty"
+        message: "Alert policy must have at least one notification channel."
+      - attribute: "display_name"
+        op: "not_empty"
+        message: "Alert policy must have a descriptive display name."
+      - attribute: "enabled"
+        op: "is_true"
+        message: "Alert policy must be enabled."
+    on_fail: "violation"
+    remediation: >
+      Ensure alert policies have notification_channels configured, are enabled, and have
+      descriptive display names. Create SLO-based alerts using google_monitoring_slo resource.
+    example:
+      compliant: |
+        resource "google_monitoring_alert_policy" "latency" {
+          display_name = "payment-api-p99-latency"
+          enabled      = true
+          conditions {
+            display_name = "P99 latency > 500ms"
+            condition_threshold {
+              filter          = "metric.type=\"loadbalancing.googleapis.com/https/backend_latencies\" resource.type=\"https_lb_rule\""
+              comparison      = "COMPARISON_GT"
+              threshold_value = 500
+              duration        = "60s"
+              aggregations {
+                alignment_period   = "60s"
+                per_series_aligner = "ALIGN_PERCENTILE_99"
+              }
+            }
+          }
+          notification_channels = [google_monitoring_notification_channel.slack.id]
+        }
+      non_compliant: |
+        resource "google_monitoring_alert_policy" "latency" {
+          display_name = "latency"
+          enabled      = false  # Alert disabled – WAF-PERF-050 violation
+          conditions { }
+          # No notification_channels
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-050"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-observability.adoc"
+  related_controls:
+    - "WAF-PERF-010"
+    - "WAF-PERF-020"
+    - "WAF-PERF-060"
+    - "WAF-PERF-100"

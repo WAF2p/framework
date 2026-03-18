@@ -1,0 +1,173 @@
+= WAF-OPS-060 – Runbook & Operational Documentation Coverage
+:page-toc: right
+:control-id: WAF-OPS-060
+:pillar: operations
+:severity: medium
+:category: documentation
+:automated: low
+:description: WAF++ Operational Excellence – Runbooks für alle bekannten Fehlerfälle sind pflicht; alle paging Alerts müssen Runbook-URLs enthalten.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Dokumentation | *Automatisierbar:* Niedrig
+
+== Beschreibung
+
+Jeder Produktions-Workload MUSS Runbooks haben, die alle bekannten Fehlerfälle und Routine-Aufgaben
+abdecken. Runbooks MÜSSEN versioniert, regelmäßig reviewed (mindestens quartalsweise) und ohne
+Authentifizierungsbarriere zugänglich sein. Jeder paging Alert MUSS eine Runbook-URL enthalten.
+
+== Rationale
+
+Undokumentiertes Betriebswissen schafft Single Points of Failure in Menschen.
+Wenn der Ingenieur, der "weiß wie man den Payment Processor neu startet", nicht erreichbar ist,
+ist das gesamte Team blockiert. Runbooks kodifizieren dieses Wissen, reduzieren MTTR
+und ermöglichen Junior-Engineers, Incidents selbstständig zu behandeln.
+Runbook-Qualität korreliert direkt mit MTTR: Teams mit umfassenden Runbooks lösen
+Incidents 40–60% schneller.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Wissenssilo*
+|Kritisches Betriebswissen in einzelnen Köpfen: Urlaub oder Kündigung → Betrieb gefährdet.
+
+|*Verlängerte MTTR*
+|Ohne Runbook: Diagnose und Behebung auf Intuition – Stunden statt Minuten.
+
+|*Veraltete Informationen*
+|Runbooks die nicht aktualisiert werden: falsche Schritte können Incident verschlimmern.
+
+|*On-Call-Unfähigkeit*
+|Junior-Engineers können ohne Runbooks keine selbstständigen On-Call-Shifts übernehmen.
+
+|===
+
+== Anforderung
+
+* Alle paging Alerts MÜSSEN eine Runbook-URL in der Beschreibung enthalten
+* Runbooks MÜSSEN in Version-Control gespeichert sein (Wiki mit Versionshistorie)
+* Quarterly Review MUSS Aktualität und Vollständigkeit sicherstellen
+* Runbook-Coverage MUSS gemessen werden (Ziel: >= 90% für kritische Services)
+* Alle On-Call-Engineers MÜSSEN Zugang zu Runbooks ohne Authentifizierungsbarriere haben
+
+== Implementierungsanleitung
+
+. *Runbook-Template erstellen:* Übersicht, Trigger, Auswirkung, Diagnose, Remediation, Eskalation, Author
+. *Runbooks im Repository speichern:* `docs/runbooks/<service>/` mit Revisions-History
+. *Alerts mit Runbooks verknüpfen:* `alarm_description` (CloudWatch), `runbook_url` (Prometheus), `description` (Azure)
+. *Coverage-Metrik tracken:* (Services mit Runbooks / Gesamt Services) × 100; Ziel >= 90%
+. *After-Incident-Updates:* Runbooks innerhalb 48h nach Incident aktualisieren
+. *Quarterly Review:* Veraltete Runbooks für dekkommissionierte Komponenten entfernen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Runbooks
+|Kein dokumentiertes Betriebswissen. On-Call hängt an spezifischen Personen.
+
+|*2*
+|Basis-Runbooks
+|Runbooks für schlimmste Szenarien. Nicht mit Alerts verknüpft. Kein formaler Review.
+
+|*3*
+|Alle Alerts verlinkt
+|Alle paging Alerts haben Runbook-URLs. Runbooks in Version-Control. Quarterly Review.
+
+|*4*
+|Metriken & Living Docs
+|Coverage-Metrik >= 90%. Runbooks binnen 48h nach Incident aktualisiert.
+
+|*5*
+|Self-Service-Automation
+|Kritische Runbook-Schritte automatisiert. Coverage 100%. Toil-Trend positiv.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation
+*Prüft:* CloudWatch Alarm `alarm_description` enthält eine HTTP(S)-URL (Runbook).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "errors" {
+  alarm_name    = "payment-5xx-rate"
+  alarm_description = "5xx Rate hoch. " +
+    "Runbook: https://wiki/payment/5xx-errors"
+  alarm_actions = [aws_sns_topic.oncall.arn]
+  /* ... */
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "errors" {
+  alarm_name    = "payment-5xx-rate"
+  alarm_description = "High error rate"
+  # Kein Runbook-URL
+  # WAF-OPS-060 Violation
+  alarm_actions = [aws_sns_topic.oncall.arn]
+}
+----
+
+|===
+
+=== waf-ops-060.tf.aws.prometheus-alert-runbook-label
+*Prüft:* Prometheus Alert Rules haben `runbook_url` Annotation.
+
+[source,yaml]
+----
+# Compliant
+- alert: HighErrorRate
+  expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
+  annotations:
+    runbook_url: "https://wiki/runbooks/payment-errors"
+    # WAF-OPS-060 compliant
+----
+
+*Remediation:* `alarm_description` mit Runbook-URL versehen. Prometheus-Alerts
+mit `runbook_url: "https://..."` Annotation erweitern.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Process*
+|✅ Pflicht
+|Runbook-Repository mit Versionsverlauf und Letzte-Überprüfung-Datum.
+
+|*Governance*
+|✅ Pflicht
+|Runbook-Coverage-Report: Anzahl Services mit Runbooks vs. Gesamt.
+
+|*Config*
+|Optional
+|Alert-Konfiguration mit Runbook-URL-Annotation.
+
+|*Process*
+|Optional
+|Quarterly-Review-Protokoll oder JIRA-Tickets für Runbook-Review-Aufgaben.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
+* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+* xref:controls/WAF-OPS-100.adoc[WAF-OPS-100 – Operational Debt Register]
+
+== Best Practice
+
+* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen →]

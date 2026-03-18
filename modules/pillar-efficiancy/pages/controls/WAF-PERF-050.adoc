@@ -1,0 +1,164 @@
+= WAF-PERF-050 – Performance Monitoring & SLO Definition
+:page-toc: right
+:control-id: WAF-PERF-050
+:pillar: performance
+:severity: high
+:category: observability
+:automated: medium-high
+:description: WAF++ Performance Efficiency – SLOs definieren, SLIs instrumentieren und Error-Budget-Management etablieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Mittel–Hoch
+
+== Beschreibung
+
+Alle Produktions-Services MÜSSEN Service Level Objectives (SLOs) für Latenz (P95, P99),
+Fehlerrate und Verfügbarkeit definiert haben. Service Level Indicators (SLIs) MÜSSEN
+kontinuierlich instrumentiert und gemessen werden. Alerting MUSS auf SLO-Burn-Rate basieren,
+nicht auf absoluten Durchschnittswerten. SLOs MÜSSEN quartalsweise reviewed werden.
+
+Durchschnittswerte lügen. P99 zeigt, was echte Nutzer erleben.
+
+== Rationale
+
+Ohne SLOs gibt es kein objektives Kriterium für "gute Performance". Teams diskutieren subjektiv.
+Error Budgets geben der Diskussion eine quantitative Basis: Solange das Budget vorhanden ist,
+kann das Team neue Features deployen. Bei Budgeterschöpfung: Stabilisierungsarbeit hat Priorität.
+Alerting auf Durchschnittswerte maskiert Tail-Latenz-Probleme, die 1% der Nutzer stark beeinträchtigen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Graduelle Degradation unbemerkt*
+|Ohne P99-Monitoring können Services über Wochen langsamer werden ohne dass es auffällt.
+
+|*SLA-Verletzungen*
+|Externe SLAs können nicht nachgewiesen oder überwacht werden ohne interne SLOs.
+
+|*Tail-Latenz maskiert*
+|P50 avg = 50ms, P99 = 5000ms: Durchschnitt sieht gut aus, 1% der Nutzer leiden.
+
+|*Fehlende Deployment-Entscheidungsgrundlage*
+|Ohne Error-Budget kein objektives Kriterium für "wann pausieren wir Features".
+
+|===
+
+== Anforderung
+
+* SLOs MÜSSEN für alle Produktions-Services definiert sein (P95, P99-Latenz, Fehlerrate, Verfügbarkeit)
+* SLIs MÜSSEN kontinuierlich instrumentiert und gemessen werden (nicht nur Stichproben)
+* SLO-Burn-Rate-Alerting MUSS konfiguriert sein (nicht nur statische Schwellenwerte)
+* SLOs MÜSSEN quartalsweise reviewed und bei Bedarf angepasst werden
+
+== Implementierungsanleitung
+
+. *SLO-Dokument erstellen*: `docs/slos/<service>.yml` mit SLI-Definition, SLO-Ziel, Error-Budget-Policy
+. *SLIs instrumentieren*: APM-Tool einrichten (X-Ray, Application Insights, Cloud Trace, Prometheus)
+. *Percentile-Alerts konfigurieren*: CloudWatch p99, Application Insights percentile-Queries
+. *Error-Budget berechnen*: 99.9% SLO = 0.1% Fehlerrate = 43.2 min Ausfallzeit/Monat
+. *Multi-Window Burn Rate Alerts*: 1h/6h/24h-Windows nach Google SRE-Methodik
+. *Dashboard erstellen*: SLO-Compliance, Error-Budget-Status, Burn-Rate-Trend
+. *Quarterly Review einplanen*: SLOs anpassen wenn Targets nicht mehr repräsentativ sind
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein SLO
+|Nur Availability-Monitoring (up/down); keine Latenz-Baselines; Incidents durch Nutzer entdeckt.
+
+|*2*
+|Informelle Targets
+|Latenz gesammelt aber keine formalen SLOs; Durchschnittswert-Alerting; keine Error Budgets.
+
+|*3*
+|Formale SLOs
+|SLOs dokumentiert; P99-Alerting; SLIs instrumentiert; Error Budgets berechnet.
+
+|*4*
+|Error Budget Management
+|Deployment-Gates bei Budget-Erschöpfung; SLO in Quarterly Engineering Reviews.
+
+|*5*
+|Prädiktives SLO-Management
+|Burn-Rate-Prediction; automatische Kapazitätsanpassung bei drohendem Budget-Breach.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-050.tf.aws.cloudwatch-latency-alarm
+*Prüft:* CloudWatch-Alarms müssen Alarm-Actions, mehrere Evaluation-Periods und Beschreibung haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "p99" {
+  alarm_name         = "payment-api-p99"
+  alarm_description  = "P99 > 500ms. Runbook: https://wiki/perf"
+  metric_name        = "TargetResponseTime"
+  statistic          = "p99"
+  threshold          = 0.5
+  evaluation_periods = 3
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "latency" {
+  alarm_name = "latency"
+  statistic  = "Average"  # Avg statt p99
+  threshold  = 1.0
+  evaluation_periods = 1
+  # Keine alarm_actions
+  # WAF-PERF-050 Violation
+}
+----
+|===
+
+*Remediation:* Auf `p99`-Statistik wechseln; `alarm_actions` mit SNS-Topic setzen;
+`evaluation_periods >= 2`; `alarm_description` mit Runbook-Link hinzufügen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|SLO-Dokument für alle Produktions-Services (SLI, SLO-Ziel, Error-Budget-Policy).
+
+|*Config*
+|✅ Pflicht
+|Monitoring-/APM-Konfiguration mit SLI-Instrumentierung und SLO-Alerting.
+
+|*Config*
+|Optional
+|SLO-Compliance-Dashboard mit historischen Trends.
+
+|*Process*
+|Optional
+|Quarterly-SLO-Review-Meeting-Protokoll.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
+* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
+* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
+* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
+
+== Best Practice
+
+* xref:../best-practices/bp-observability.adoc[Performance-Observability & SLOs →]

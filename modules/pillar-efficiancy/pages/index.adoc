@@ -1,25 +1,156 @@
-= Säule 3 - Performance Efficiency
+= Performance Efficiency (Säule: Performance)
+:page-navtitle: Performance Efficiency
+:page-toc: right
+:description: WAF++ Säule Performance Efficiency – Messbare, architektonisch verankerte Leistungssteuerung von Cloud-Workloads mit SLOs, Auto-Scaling und Lasttest-Integration.
 
-== Worum geht es?
+Die Säule *Performance Efficiency* des WAF++ definiert Anforderungen, Prinzipien und messbare Controls,
+um Cloud-Workloads mit nachweislich guter und stabiler Leistung zu betreiben.
 
-Performance Efficiency im WAF++ bedeutet, Systeme so zu gestalten, dass sie unter wechselnden Lasten effizient arbeiten und gleichzeitig skalierbar bleiben. Es geht darum, die richtige Balance zwischen Geschwindigkeit, Skalierbarkeit und Ressourcennutzung zu finden.
+Performance ist kein Zufall.
+Sie ist ein *Architekturergebnis*, das gemessen, gesteuert und kontinuierlich verbessert werden muss –
+nicht reaktiv nach dem ersten Incident optimiert.
 
-== Was wird gemacht?
+== Was bedeutet Performance Efficiency im WAF++?
 
-* *Architektur-Optimierung:* Einsatz von skalierbaren Services und Load Balancing.
-* *Monitoring:* Permanente Messung von Latenz, Durchsatz und Ressourcenauslastung.
-* *Automatisierung:* Dynamische Skalierung basierend auf Nachfrage.
-* *Caching & CDN:* Nutzung von Content Delivery Networks und Caching-Mechanismen.
-* *Optimierung von Code & Datenbanken:* Performance-Tuning für kritische Komponenten.
+Performance Efficiency bedeutet, dass eine Organisation *nachweisbare Kontrolle* über folgende Dimensionen hat:
 
-== Was ist zu beachten?
+[cols="1,3,2"]
+|===
+|Dimension |Was wird kontrolliert? |WAF-PERF Control
 
-* *Trade-offs:* Höhere Performance darf nicht zu Lasten von Kosten oder Sicherheit gehen.
-* *Testen unter Last:* Regelmäßige Last- und Stresstests.
-* *Technologieauswahl:* Nutzung moderner, effizienter Technologien und Frameworks.
+|*Compute-Sizing*
+|Sind Ressourcentypen und -größen auf Basis gemessener Auslastungsdaten gewählt?
+|WAF-PERF-010
 
-== Wo soll es hingehen?
+|*Auto-Scaling*
+|Sind zustandslose Workloads mit getesteten Auto-Scaling-Konfigurationen ausgestattet?
+|WAF-PERF-020
 
-* *Adaptive Systeme:* Automatische Anpassung an Lastspitzen.
-* *Self-Optimizing Architectures:* KI-gestützte Performance-Optimierung.
-* *Globale Skalierung:* Nahtlose Performance unabhängig vom Standort.
+|*Caching*
+|Gibt es eine dokumentierte Caching-Strategie mit gemessenen Hit-Raten?
+|WAF-PERF-030
+
+|*Datenbank-Performance*
+|Sind Slow-Query-Logs aktiv? Existiert eine Index-Strategie für hochfrequente Abfragen?
+|WAF-PERF-040
+
+|*SLOs & Monitoring*
+|Sind Performance-SLOs definiert und instrumentiert? Gibt es SLO-Burn-Rate-Alerting?
+|WAF-PERF-050
+
+|*Lasttests*
+|Werden Lasttests als Deployment-Gate ausgeführt? Regressions automatisch erkannt?
+|WAF-PERF-060
+
+|*Netzwerk-Performance*
+|Ist die Netzwerktopologie latenzoptimiert? CDN und VPC Endpoints genutzt?
+|WAF-PERF-070
+
+|*Serverless & Managed Services*
+|Werden serverlose Architekturen für variable Last eingesetzt und optimiert?
+|WAF-PERF-080
+
+|*Storage-I/O*
+|Sind Storage-Volumes mit korrektem Typ und optimierten IOPS/Throughput konfiguriert?
+|WAF-PERF-090
+
+|*Performance-Schuld*
+|Sind bekannte Performance-Einschränkungen im Register dokumentiert und reviewt?
+|WAF-PERF-100
+
+|===
+
+== Warum ist Performance Efficiency eine eigene Säule?
+
+Performance ist *cross-cutting*: Sie betrifft Compute, Datenbanken, Netzwerk, Storage und Caching.
+Dennoch ist Performance Efficiency eine eigenständige Disziplin, weil:
+
+* Sie eine eigene *Messbarkeits-Dimension* hat: SLOs, SLIs, Latenz-Percentile, Error Budgets
+* Sie *spezifische technische Controls* erfordert, die keine andere Säule abdeckt
+* Sie *Performance-Schuld* als strukturelles Risiko adressiert – analog zu technischer und kostenbezogener Schuld
+* Performance als *Qualitätsmerkmal* in Architekturprozessen und ADRs verankert sein muss
+* Brownfield- und Greenfield-Szenarien *fundamental unterschiedliche* Ausgangssituationen haben
+
+WARNING: Performance Efficiency ohne Messung ist Raten. SLOs ohne Lasttest-Validation sind Wunschdenken. Auto-Scaling ohne Test ist ein ungetestetes Sicherheitsnetz.
+
+== Abgrenzung zu anderen Säulen
+
+* *Reliability* adressiert: Fehlertoleranz, Backup, Recovery, Chaos Engineering.
+* *Operations* adressiert: Monitoring, Incident Response, Change Management.
+* *Cost Optimization* adressiert: Kostensteuerung, Rightsizing aus Kostenperspektive, FinOps.
+* *Architecture* adressiert: Designprinzipien, Patterns, strukturelle Entscheidungen.
+* *Performance Efficiency* adressiert: Latenz, Throughput, Kapazitätsplanung, SLOs, Lasttestpflichten.
+
+Performance Efficiency setzt voraus, dass Ressourcen überwacht, Metriken gesammelt und Workloads
+verstanden sind, und erweitert dies um Optimierungszyklen, SLO-Management und Lasttestpflichten.
+
+== Controls-Überblick
+
+Die Säule Performance wird durch 10 messbare Controls operationalisiert (`WAF-PERF-010` bis `WAF-PERF-100`).
+
+[cols="1,3,1,1"]
+|===
+|Control ID |Titel |Severity |Automatisierbar
+
+|xref:controls.adoc#WAF-PERF-010[WAF-PERF-010]
+|Compute Instance Type & Sizing Validated
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-PERF-020[WAF-PERF-020]
+|Auto-Scaling Configured & Tested
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-PERF-030[WAF-PERF-030]
+|Caching Strategy Defined & Implemented
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-PERF-040[WAF-PERF-040]
+|Database Performance Baseline & Index Strategy
+|High
+|Hoch
+
+|xref:controls.adoc#WAF-PERF-050[WAF-PERF-050]
+|Performance Monitoring & SLO Definition
+|High
+|Mittel–Hoch
+
+|xref:controls.adoc#WAF-PERF-060[WAF-PERF-060]
+|Load & Stress Testing in CI/CD Pipeline
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-PERF-070[WAF-PERF-070]
+|Network Latency & Topology Optimization
+|Medium
+|Mittel
+
+|xref:controls.adoc#WAF-PERF-080[WAF-PERF-080]
+|Serverless & Managed Services for Variable Load
+|Low
+|Mittel
+
+|xref:controls.adoc#WAF-PERF-090[WAF-PERF-090]
+|Storage I/O Performance & Throughput Optimization
+|Medium
+|Hoch
+
+|xref:controls.adoc#WAF-PERF-100[WAF-PERF-100]
+|Performance Debt Register & Quarterly Review
+|Medium
+|Niedrig
+
+|===
+
+== Schnelleinstieg
+
+Neu in der Performance-Säule? Empfohlene Lesereihenfolge:
+
+. xref:definition.adoc[Definition] – Was ist Performance Efficiency als Disziplin?
+. xref:scope.adoc[Geltungsbereich] – Brownfield vs. Greenfield, was ist im Scope?
+. xref:principles.adoc[Performance-Prinzipien] – 7 Grundprinzipien inkl. Performance-Schuld
+. xref:controls.adoc[Controls] – Die 10 messbaren Controls
+. xref:maturity.adoc[Reifegrad-Modell] – Wo steht meine Organisation?
+. xref:best-practices/index.adoc[Best Practices] – Wie setzt man es konkret um?

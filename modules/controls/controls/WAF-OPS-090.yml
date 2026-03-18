@@ -1,0 +1,240 @@
+id: WAF-OPS-090
+title: "Configuration Drift Detection & Remediation"
+pillar: "operations"
+status: "active"
+severity: "high"
+category: "configuration-management"
+type: ['governance', 'configuration', 'automation']
+tags: ['drift-detection', 'configuration', 'compliance', 'iac', 'remediation', 'config-management']
+
+description: >
+  All production infrastructure MUST be continuously compared against its IaC definition.
+  Configuration drift – any difference between the actual infrastructure state and the
+  declared IaC state – MUST be detected automatically, reported to the owning team,
+  and remediated within defined SLAs based on severity. Emergency manual changes MUST
+  be codified in IaC within 24 hours.
+
+rationale: >
+  In any environment where infrastructure changes are possible through multiple channels
+  (console, CLI, API, IaC), drift is inevitable unless actively detected and remediated.
+  Drift creates invisible risk: a security group rule manually added for debugging but
+  never removed, a parameter changed via console that overrides IaC intent, a certificate
+  replaced manually while IaC thinks the old one is active. Drift is the gap between
+  what you think you have and what you actually have.
+
+threat:
+  - "Security controls silently disabled through console changes outside IaC workflow"
+  - "Debugging or incident changes becoming permanent unreviewed infrastructure modifications"
+  - "Environment inconsistency causing production-only failures that cannot be reproduced in staging"
+  - "Disaster recovery failures because actual infrastructure differs from documented IaC state"
+  - "Audit failures: infrastructure cannot be proven to match approved design"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Configuration management"
+  - framework: "ITIL 4"
+    controls:
+      - "Service configuration management"
+  - framework: "SOC 2 Type II"
+    controls:
+      - "CC8.1 – Change Management – Authorized Changes"
+  - framework: "PCI DSS v4.0"
+    controls:
+      - "Requirement 12.3.2: Perform targeted risk analyses"
+  - framework: "BSI C5:2020"
+    controls:
+      - "BCM-04 Configuration Management"
+
+implementation_guidance:
+  - "Schedule automated terraform plan runs at minimum daily in all environments; alert on non-empty plan output."
+  - "Configure AWS Config Rules, Azure Policy, or GCP Organization Policy to detect non-compliant resource configurations."
+  - "Implement drift detection in CI/CD: run terraform plan as part of pull request checks; review drift before merging."
+  - "Define drift SLAs: Critical drift (security-related) remediated within 4 hours; major drift within 24 hours; minor drift within 1 sprint."
+  - "Create a drift log: every detected drift event recorded with timestamp, resource, change, and resolution."
+  - "Protect production accounts: use SCPs or IAM permission boundaries to prevent direct console changes to sensitive resources."
+  - "For emergency manual changes: require a ticket, document the change, and create an IaC PR within 24 hours."
+
+maturity_levels:
+  level_1:
+    description: "No drift detection"
+    criteria:
+      - "No mechanism to detect differences between IaC and actual state"
+      - "Console changes are routine and undocumented"
+      - "Infrastructure state diverges significantly from IaC"
+  level_2:
+    description: "Ad-hoc drift identification"
+    criteria:
+      - "Terraform plan run manually to check for drift occasionally"
+      - "Console changes sometimes documented but not systematically"
+      - "No automated drift alerting"
+  level_3:
+    description: "Automated drift detection with alerting"
+    criteria:
+      - "Automated terraform plan runs scheduled daily"
+      - "Drift alerts notify owning team within 1 hour of detection"
+      - "Emergency change process requires IaC codification within 24 hours"
+      - "AWS Config / Azure Policy continuously evaluating resource compliance"
+  level_4:
+    description: "Drift detection with SLA enforcement"
+    criteria:
+      - "Drift SLAs defined and tracked (critical / major / minor)"
+      - "Drift log maintained with all events and resolution times"
+      - "Console change prevention for sensitive resources (SCP / IAM boundary)"
+      - "Drift rate metric < 5% of resources with any active drift"
+  level_5:
+    description: "Automated drift remediation"
+    criteria:
+      - "Automated remediation for known-safe drift patterns (tagging, minor config)"
+      - "Zero unresolved drift in production environments older than 48 hours"
+      - "Drift metrics in operations dashboard with team-level breakdown"
+      - "Proactive drift prevention via console-change blocking for all resources"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Automated drift detection schedule configuration (e.g., EventBridge rule for terraform plan, AWS Config rules)."
+    - kind: "process"
+      description: "Drift SLA policy defining detection, notification, and remediation time requirements by severity."
+  optional:
+    - kind: "governance"
+      description: "Drift log from last 90 days showing detected drifts, severities, and resolution times."
+    - kind: "iac"
+      description: "SCP or IAM permission boundary configuration preventing direct console changes to production."
+
+checks:
+  - id: "waf-ops-090.tf.aws.config-rule-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Config must be enabled with compliance rules for drift detection"
+    description: >
+      AWS Config MUST be enabled in production accounts and MUST have compliance rules
+      configured to detect configuration changes and non-compliant resource states.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_config_configuration_recorder"
+    assertions:
+      - attribute: "recording_group"
+        op: "attribute_exists"
+        message: "AWS Config recorder must define recording_group."
+    on_fail: "violation"
+    remediation: >
+      Enable AWS Config with a configuration recorder and delivery channel.
+      Add aws_config_config_rule resources for key compliance checks.
+    example:
+      compliant: |
+        resource "aws_config_configuration_recorder" "main" {
+          name     = "default"
+          role_arn = aws_iam_role.config_role.arn
+
+          recording_group {
+            all_supported = true
+            include_global_resource_types = true
+          }
+        }
+
+        resource "aws_config_delivery_channel" "main" {
+          name           = "default"
+          s3_bucket_name = aws_s3_bucket.config.bucket
+        }
+
+        resource "aws_config_config_rule" "s3_public_read_prohibited" {
+          name = "s3-bucket-public-read-prohibited"
+          source {
+            owner             = "AWS"
+            source_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+          }
+        }
+      non_compliant: |
+        # No AWS Config recorder or rules defined
+        # WAF-OPS-090 Violation: no configuration drift detection
+
+  - id: "waf-ops-090.tf.aws.cloudtrail-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS CloudTrail must be enabled for all regions to detect console changes"
+    description: >
+      AWS CloudTrail MUST be enabled across all regions to audit all API calls,
+      including console changes that may indicate configuration drift from IaC.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudtrail"
+    assertions:
+      - attribute: "is_multi_region_trail"
+        op: "is_true"
+        message: "CloudTrail must be a multi-region trail to capture all console changes."
+      - attribute: "enable_log_file_validation"
+        op: "is_true"
+        message: "CloudTrail must have log file validation enabled."
+    on_fail: "violation"
+    remediation: >
+      Set is_multi_region_trail = true and enable_log_file_validation = true
+      on your aws_cloudtrail resource.
+    example:
+      compliant: |
+        resource "aws_cloudtrail" "main" {
+          name                          = "production-trail"
+          s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+          is_multi_region_trail         = true
+          enable_log_file_validation    = true
+          include_global_service_events = true
+        }
+      non_compliant: |
+        resource "aws_cloudtrail" "main" {
+          name                       = "production-trail"
+          s3_bucket_name             = aws_s3_bucket.cloudtrail.id
+          is_multi_region_trail      = false
+          enable_log_file_validation = false
+          # Single-region trail without validation – WAF-OPS-090 Violation
+        }
+
+  - id: "waf-ops-090.tf.azurerm.policy-assignment-drift"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Policy must be assigned for configuration compliance monitoring"
+    description: >
+      Azure Policy initiatives MUST be assigned to production subscriptions or resource
+      groups to continuously evaluate configuration compliance and detect drift.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_subscription_policy_assignment"
+    assertions:
+      - attribute: "policy_definition_id"
+        op: "not_empty"
+        message: "Policy assignment must reference a policy or initiative definition."
+    on_fail: "violation"
+    remediation: >
+      Assign Azure Policy or built-in initiative (e.g., Azure Security Benchmark) to
+      the production subscription using azurerm_subscription_policy_assignment.
+    example:
+      compliant: |
+        data "azurerm_policy_set_definition" "security_benchmark" {
+          display_name = "Azure Security Benchmark"
+        }
+
+        resource "azurerm_subscription_policy_assignment" "security" {
+          name                 = "security-benchmark"
+          subscription_id      = data.azurerm_subscription.current.id
+          policy_definition_id = data.azurerm_policy_set_definition.security_benchmark.id
+          description          = "Azure Security Benchmark for configuration drift detection"
+          display_name         = "Security Benchmark – Production"
+        }
+      non_compliant: |
+        # No Azure Policy assigned to subscription
+        # Configuration drift undetectable – WAF-OPS-090 Violation
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-090"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-iac.adoc"
+  related_controls:
+    - "WAF-OPS-020"
+    - "WAF-OPS-050"

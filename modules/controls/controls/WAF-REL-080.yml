@@ -1,0 +1,245 @@
+id: WAF-REL-080
+title: "Dependency & Upstream Resilience Management"
+pillar: "reliability"
+status: "active"
+severity: "medium"
+category: "dependency-management"
+type: ['governance', 'configuration', 'automation']
+tags: ['dependency', 'upstream', 'third-party', 'api', 'resilience', 'sbom', 'vendor-management']
+
+description: >
+  All production workloads MUST maintain an up-to-date inventory of external and
+  internal service dependencies. Each dependency MUST be assessed for reliability
+  risk: SLA provided, failure history, substitutability. Critical dependencies MUST
+  have defined fallback behaviors. Third-party API dependencies MUST implement
+  graceful degradation when the upstream is unavailable. Dependency inventory MUST
+  be reviewed quarterly and updated after each significant architecture change.
+
+rationale: >
+  Service reliability is bounded by the reliability of its weakest dependency.
+  A service with a 99.9% SLO depending on a third-party API with a 99% SLA
+  mathematically cannot achieve its SLO without isolation. Most cascading failures
+  originate at dependency boundaries. An explicit dependency inventory enables
+  proactive risk management, informs circuit breaker configuration, and identifies
+  single points of failure in the dependency graph before they cause production incidents.
+
+threat:
+  - "Untracked critical dependency failing and causing unexpected production outage"
+  - "Third-party API degradation causing service failure without graceful degradation"
+  - "Reliability SLO mathematically impossible due to unreliable critical dependencies"
+  - "No awareness of dependency end-of-life or deprecation schedule"
+  - "Cascading failure through undocumented internal service dependencies"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.15.1 – Information security in supplier relationships"
+      - "A.17.1 – Information security continuity"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 4 – Manage dependencies"
+  - framework: "ITIL 4"
+    controls:
+      - "Supplier Management"
+      - "Service Configuration Management"
+  - framework: "NIST SP 800-161"
+    controls:
+      - "Supply Chain Risk Management"
+
+implementation_guidance:
+  - "Create a dependency register: service name, type (internal/external), SLA, criticality, fallback."
+  - "Categorize dependencies: critical (failure = outage), degraded (failure = feature loss), optional."
+  - "Implement fallback behavior for optional dependencies (feature flags, cached responses)."
+  - "Subscribe to status pages of all critical third-party dependencies."
+  - "Set circuit breakers for all external API dependencies."
+  - "Review dependency inventory quarterly; update after every architecture review."
+  - "Track SLA of critical dependencies; flag when composite availability < workload SLO."
+
+maturity_levels:
+  level_1:
+    description: "No dependency inventory, ad-hoc awareness"
+    criteria:
+      - "No documented list of service dependencies"
+      - "Dependency failures discovered reactively during incidents"
+  level_2:
+    description: "Dependency inventory exists, not reviewed"
+    criteria:
+      - "Basic list of external dependencies documented"
+      - "No SLA or criticality classification"
+  level_3:
+    description: "Classified dependency inventory with circuit breakers"
+    criteria:
+      - "All dependencies classified by criticality"
+      - "SLA for each dependency documented"
+      - "Circuit breakers configured for critical dependencies"
+      - "Quarterly dependency review performed"
+  level_4:
+    description: "Automated dependency discovery and monitoring"
+    criteria:
+      - "Dependency map auto-generated from service mesh telemetry"
+      - "Dependency SLA compliance monitored in real time"
+      - "Fallback behavior tested quarterly"
+  level_5:
+    description: "Proactive dependency risk management"
+    criteria:
+      - "Dependency reliability budget tracked alongside workload error budget"
+      - "Vendor reliability score tracked and reviewed in architecture decisions"
+      - "Zero critical single-point-of-failure dependencies without compensating control"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Dependency register with criticality, SLA, and fallback behavior for all production dependencies."
+    - kind: "config"
+      description: "Circuit breaker configuration for all critical external API dependencies."
+  optional:
+    - kind: "process"
+      description: "Quarterly dependency review meeting notes with sign-off."
+    - kind: "config"
+      description: "Service mesh dependency graph showing all inter-service connections."
+
+checks:
+  - id: "waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS services should use VPC endpoints to isolate AWS API dependencies"
+    description: >
+      Critical AWS API dependencies (S3, DynamoDB, SQS, etc.) should be accessed
+      through VPC endpoints to reduce dependency on internet routing and improve
+      reliability and security.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc_endpoint"
+    assertions:
+      - attribute: "vpc_id"
+        op: "not_empty"
+        message: "VPC endpoint must be associated with a VPC."
+      - attribute: "service_name"
+        op: "not_empty"
+        message: "VPC endpoint must specify the AWS service name."
+    on_fail: "violation"
+    remediation: >
+      Create aws_vpc_endpoint resources for S3, DynamoDB, and other heavily used
+      AWS services. Interface endpoints are recommended for SQS, SNS, and SSM.
+    example:
+      compliant: |
+        resource "aws_vpc_endpoint" "s3" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.aws_region}.s3"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+          tags = merge(var.mandatory_tags, { Name = "s3-vpc-endpoint" })
+        }
+
+        resource "aws_vpc_endpoint" "dynamodb" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+          tags = merge(var.mandatory_tags, { Name = "dynamodb-vpc-endpoint" })
+        }
+      non_compliant: |
+        # No VPC endpoints configured – all AWS API calls traverse internet NAT gateway
+        # Dependency on NAT gateway availability and internet routing
+        # WAF-REL-080 violation for high-traffic AWS API dependencies
+
+  - id: "waf-rel-080.tf.azurerm.private-endpoint-dependency"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure private endpoints should be used for critical managed service dependencies"
+    description: >
+      Azure managed services (Storage, Key Vault, Service Bus) accessed by production
+      workloads should use private endpoints to reduce dependency on public routing.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_private_endpoint"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Private endpoint must have a name."
+      - attribute: "private_service_connection"
+        op: "attribute_exists"
+        message: "Private endpoint must define private_service_connection."
+    on_fail: "violation"
+    remediation: >
+      Create azurerm_private_endpoint resources for each critical Azure managed service.
+      Configure private_service_connection with the target resource ID and subresource names.
+    example:
+      compliant: |
+        resource "azurerm_private_endpoint" "storage" {
+          name                = "storage-private-endpoint"
+          location            = azurerm_resource_group.main.location
+          resource_group_name = azurerm_resource_group.main.name
+          subnet_id           = azurerm_subnet.private.id
+
+          private_service_connection {
+            name                           = "storage-connection"
+            private_connection_resource_id = azurerm_storage_account.main.id
+            is_manual_connection           = false
+            subresource_names              = ["blob"]
+          }
+        }
+      non_compliant: |
+        # azurerm_storage_account accessed directly from public endpoint
+        # No private endpoint configured – WAF-REL-080 violation
+        resource "azurerm_storage_account" "main" {
+          name                     = "paymentdataprod"
+          resource_group_name      = azurerm_resource_group.main.name
+          location                 = azurerm_resource_group.main.location
+          account_tier             = "Standard"
+          account_replication_type = "GRS"
+          # public_network_access_enabled = true (default)
+        }
+
+  - id: "waf-rel-080.tf.google.vpc-sc-dependency-isolation"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP services should use Private Service Connect for dependency isolation"
+    description: >
+      GCP workloads should access Google APIs through Private Service Connect or
+      private Google access to improve reliability by avoiding public internet routing.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_subnetwork"
+    assertions:
+      - attribute: "private_ip_google_access"
+        op: "is_true"
+        message: "Subnetwork must enable private_ip_google_access for reliable Google API access."
+    on_fail: "violation"
+    remediation: >
+      Set private_ip_google_access = true on google_compute_subnetwork resources
+      to allow VMs without public IPs to access Google APIs reliably.
+    example:
+      compliant: |
+        resource "google_compute_subnetwork" "private" {
+          name                     = "payment-private-subnet"
+          ip_cidr_range            = "10.0.0.0/24"
+          region                   = var.region
+          network                  = google_compute_network.main.id
+          private_ip_google_access = true
+        }
+      non_compliant: |
+        resource "google_compute_subnetwork" "private" {
+          name                     = "payment-private-subnet"
+          ip_cidr_range            = "10.0.0.0/24"
+          region                   = var.region
+          network                  = google_compute_network.main.id
+          private_ip_google_access = false  # WAF-REL-080 violation
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-080"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-circuit-breaker.adoc"
+  related_controls:
+    - "WAF-REL-050"
+    - "WAF-REL-060"
+    - "WAF-REL-100"

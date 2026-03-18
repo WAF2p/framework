@@ -1,0 +1,166 @@
+= WAF-REL-060 – Incident Response & Runbook Readiness
+:page-toc: right
+:control-id: WAF-REL-060
+:pillar: reliability
+:severity: high
+:category: incident-response
+:automated: medium
+:description: WAF++ Reliability – Incident Response Plan, Runbooks, On-Call Rotation und Post-Incident Reviews.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* High | *Kategorie:* Incident Response | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Produktions-Workloads MÜSSEN einen dokumentierten Incident Response (IR) Plan mit
+Severity-Definitionen, Eskalationspfaden und On-Call-Rotation haben. Runbooks MÜSSEN
+für alle kritischen Alerts existieren und direkt aus Alert-Notifications verlinkt sein.
+Post-Incident Reviews MÜSSEN für SEV1/SEV2 innerhalb von 5 Werktagen durchgeführt werden.
+
+== Rationale
+
+Ohne definierten IR-Prozess steigt MTTR dramatisch, weil On-Call-Engineers unter Druck
+Schritte rekonstruieren, die bereits dokumentiert wurden. Runbooks kodieren institutionelles
+Wissen und ermöglichen konsistente Incident-Lösung unabhängig vom Dienst habenden Engineer.
+Post-Mortems verhindern Wiederholungen durch strukturierte Root Cause Analysis.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Verlängertes MTTR*
+|Ohne Runbooks verbringen Engineers wertvolle Minuten mit Diagnose statt Behebung.
+
+|*Wissensverlust*
+|Schlüssel-Engineer im Urlaub; kein Backup hat Kontextwissen für kritischen Service.
+
+|*Inkonsistente Severity*
+|Ohne klare Kriterien wird SEV1 als SEV3 behandelt; keine angemessene Eskalation.
+
+|*Incident-Wiederholung*
+|Derselbe Root Cause verursacht dritten Incident; keine Post-Mortem Action Items verfolgt.
+
+|===
+
+== Anforderung
+
+* 4 Severity-Stufen (SEV1–SEV4) mit objektiven, messbaren Kriterien
+* On-Call-Rotation mit primärem und sekundärem Kontakt konfiguriert
+* Runbooks für alle kritischen Alerts; direkt aus Alert-Body verlinkt
+* MTTR, MTTD und Incident-Frequenz als Metriken getrackt
+* Post-Incident Reviews für SEV1/SEV2 innerhalb 5 Werktage
+* Action Items aus Post-Mortems bis Zieldatum nachverfolgt
+
+== Implementierungsanleitung
+
+. *Severity-Definitionen*: YAML-Dokument mit messbaren Kriterien (error rate %, user impact %)
+. *On-Call einrichten*: PagerDuty/OpsGenie mit primärer und sekundärer Rotation
+. *Top-5-Runbooks*: Für die häufigsten 5 Alerts je Service Runbook schreiben
+. *Alert-Beschreibung*: `alarm_description` enthält Runbook-URL und Severity
+. *MTTR-Dashboard*: Incident-Metriken in Grafana oder native Tool sichtbar machen
+. *Post-Mortem-Kultur*: Blameless Post-Mortem Template einführen; Pflicht für SEV1/SEV2
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Ad-hoc
+|Kein definierter Prozess; Incidents von verfügbaren Personen behandelt.
+
+|*2*
+|Prozess dokumentiert
+|Severity und Eskalation definiert; On-Call konfiguriert; Basis-Runbooks vorhanden.
+
+|*3*
+|Runbooks verlinkt, MTTR getrackt
+|Alle Critical Alerts mit Runbook-Link; MTTR monthly reviewed; Post-Mortems für SEV1/SEV2.
+
+|*4*
+|Automatisierte Triage
+|Automatische Diagnose-Daten bei Alert; Runbook-Schritte teilweise automatisiert.
+
+|*5*
+|Self-Healing
+|AIOps-Incident-Correlation; MTTR < 5 Minuten für bekannte Fehlerklassen.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-060.tf.aws.sns-topic-alarm-action
+*Prüft:* CloudWatch Alarms haben `alarm_actions` und `ok_actions` für On-Call-Benachrichtigung.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm"
+    "api_errors" {
+  alarm_name = "payment-api-errors"
+  # ... metric config ...
+  alarm_actions =
+    [aws_sns_topic.oncall.arn]
+  ok_actions =
+    [aws_sns_topic.oncall.arn]
+  alarm_description = jsonencode({
+    runbook = "https://wiki/rb/payment"
+    severity = "SEV2"
+  })
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm"
+    "api_errors" {
+  alarm_name = "payment-api-errors"
+  # ... metric config ...
+  # Kein alarm_actions –
+  # Alert feuert lautlos
+  # WAF-REL-060 Violation
+}
+----
+|===
+
+*Remediation:* `alarm_actions` und `ok_actions` auf SNS-Topic zeigen lassen.
+`alarm_description` mit Runbook-URL und Severity-Klassifizierung befüllen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Incident Response Plan mit Severity, Eskalationspfaden und On-Call-Struktur.
+
+|*Process*
+|✅ Pflicht
+|Post-Incident Review Protokolle für alle SEV1/SEV2 Incidents letzter 12 Monate.
+
+|*Config*
+|Optional
+|On-Call-Schedule in PagerDuty/OpsGenie mit aktueller Rotation.
+
+|*Governance*
+|Optional
+|Runbook-Katalog mit Links zu allen Critical-Alert-Runbooks.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
+* xref:controls/WAF-REL-040.adoc[WAF-REL-040 – Backup & Recovery]
+* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+
+== Best Practice
+
+* xref:best-practices/bp-incident-response.adoc[Incident Response & Runbooks →]

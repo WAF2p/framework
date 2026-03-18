@@ -1,0 +1,266 @@
+= Best Practice: Runbooks und Betriebsdokumentation pflegen
+:page-toc: right
+:description: Runbook-Template, Versionierung, Review-Cadence, Alert-Verlinkung und Operational Debt Register – wie man Betriebswissen systematisch kodifiziert.
+
+== Kontext
+
+Runbooks sind das institutionelle Gedächtnis Ihrer Operations-Organisation.
+Ohne Runbooks hängt die On-Call-Fähigkeit an einzelnen Personen.
+Mit guten Runbooks kann ein Junior-Engineer einen Incident lösen,
+ohne den Senior-Engineer um 3 Uhr morgens anzurufen.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-060[WAF-OPS-060 – Runbook & Operational Documentation Coverage]
+* xref:controls.adoc#WAF-OPS-100[WAF-OPS-100 – Operational Debt Register & Review]
+
+== Zielbild
+
+Eine vollständige Betriebsdokumentation:
+
+* Runbooks für alle bekannten Fehlerfälle und Routineaufgaben
+* Jedes paging Alert hat eine Runbook-URL
+* Runbooks sind versioniert, reviewed und auffindbar
+* Operational Debt Register katalogisiert alle bekannten Toil-Quellen
+* Quarterly Review stellt Aktualität sicher
+
+== Technische Umsetzung
+
+=== Schritt 1: Runbook-Template verwenden
+
+[source,markdown]
+----
+# Runbook: Payment Service – High 5xx Error Rate
+
+**Erstellt:** 2025-03-18
+**Letzte Überprüfung:** 2025-03-18
+**Autor:** payment-team
+**Gilt für Alert:** `payment-service-5xx-error-rate`
+
+## Übersicht
+
+Dieser Runbook beschreibt die Reaktion auf einen Anstieg der 5xx-Fehlerrate
+im Payment Service über den SLO-Schwellenwert.
+
+**Auswirkung:** Nutzer erhalten Fehlermeldungen beim Bezahlvorgang.
+**SLO:** < 0.1% Fehlerrate über 5 Minuten.
+
+## Diagnose-Schritte
+
+### 1. Ausmaß bestimmen
+```bash
+# Error Rate der letzten 5 Minuten
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ApplicationELB \
+  --metric-name HTTPCode_Target_5XX_Count \
+  --dimensions Name=LoadBalancer,Value=<lb-arn-suffix> \
+  --start-time $(date -u -d "5 minutes ago" +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 60 --statistics Sum
+```
+
+### 2. Fehler-Logs analysieren
+```bash
+# CloudWatch Log Insights Query
+aws logs start-query \
+  --log-group-name "/aws/ecs/payment-service" \
+  --start-time $(date -d "15 minutes ago" +%s) \
+  --end-time $(date +%s) \
+  --query-string 'fields @timestamp, message, error.type, error.message, trace_id
+    | filter level = "ERROR"
+    | sort @timestamp desc
+    | limit 50'
+```
+
+### 3. Kürzliche Deployments prüfen
+```bash
+# ECS Service Events
+aws ecs describe-services \
+  --cluster payment-production \
+  --services payment-service \
+  --query 'services[0].events[:5]'
+```
+
+## Remediation-Schritte
+
+### Szenario A: Datenbankverbindungsfehler
+**Erkennung:** Logs zeigen `Connection refused` oder `Connection pool exhausted`
+1. RDS-Instanz-Status prüfen: AWS Console → RDS → payment-service-db
+2. Connection Pool Limits prüfen: CloudWatch Metric `DatabaseConnections`
+3. Wenn Limit erreicht: Emergency Scale-Up via Runbook [Database Emergency]
+4. Wenn RDS instabil: Failover zu Read Replica
+
+### Szenario B: Fehlerhaftes Deployment
+**Erkennung:** Fehler begannen kurz nach Deployment-Zeitstempel
+1. Canary rollback auslösen:
+   ```bash
+   aws deploy stop-deployment --deployment-id <id> --auto-rollback-enabled
+   ```
+2. Wenn kein Canary-Deployment: Vorherige Task-Definition deployen:
+   ```bash
+   aws ecs update-service \
+     --cluster payment-production \
+     --service payment-service \
+     --task-definition payment-service:<previous-version>
+   ```
+
+## Eskalation
+
+| Zeitpunkt | Aktion | Kontakt |
+|-----------|--------|---------|
+| +5 Minuten | Kein Fortschritt | Senior Engineer: @senior-payment |
+| +15 Minuten | Keine Lösung | Tech Lead: @payment-lead |
+| +30 Minuten | Produktionsausfall | CTO: @cto-oncall |
+
+## Verwandte Runbooks
+
+- [Database Emergency Runbook](database-emergency.md)
+- [Canary Rollback Runbook](canary-rollback.md)
+- [Postmortem Template](../postmortem-template.md)
+----
+
+=== Schritt 2: Runbooks in Version-Control organisieren
+
+[source,text]
+----
+docs/
+├── runbooks/
+│   ├── README.md               # Runbook-Index mit Links und Coverage-Status
+│   ├── payment-service/
+│   │   ├── 5xx-errors.md       # Verknüpft mit: payment-service-5xx-error-rate Alert
+│   │   ├── high-latency.md     # Verknüpft mit: payment-service-p99-latency Alert
+│   │   ├── database-full.md
+│   │   └── deployment.md       # Deployment und Rollback Prozedur
+│   ├── infrastructure/
+│   │   ├── terraform-drift.md
+│   │   └── certificate-renewal.md
+│   └── incident-templates/
+│       └── postmortem-template.md
+└── ops-debt-register.yml       # Operational Debt Register
+----
+
+=== Schritt 3: Alert-Runbook-Verlinkung sicherstellen
+
+[source,yaml]
+----
+# prometheus-alerts.yaml – Runbook URL als Pflichtfeld
+- alert: PaymentHighErrorRate
+  expr: rate(http_requests_total{service="payment",code=~"5.."}[5m]) > 0.01
+  annotations:
+    runbook_url: "https://wiki.company.com/runbooks/payment-service/5xx-errors"
+    # ODER: relativer Link wenn Wiki intern:
+    # runbook_url: "https://github.com/myorg/docs/blob/main/runbooks/payment-service/5xx-errors.md"
+----
+
+=== Schritt 4: Operational Debt Register anlegen
+
+[source,yaml]
+----
+# ops-debt-register.yml
+# Operational Debt Register – letzte Überprüfung: 2025-03-18
+# Review-Cadence: Quartalsweise (Jan, Apr, Jul, Okt)
+
+entries:
+  - id: OPS-DEBT-001
+    title: "Datenbank-Passwort-Rotation noch manuell"
+    category: manual-process
+    severity: high
+    toil_hours_per_week: 2.0
+    owner: "@platform-team"
+    created_date: "2025-01-15"
+    target_resolution_date: "2025-06-30"
+    status: in_progress
+    description: >
+      Datenbankpasswörter werden monatlich manuell rotiert via AWS Secrets Manager Console.
+      Kein automatischer Rotations-Lambda konfiguriert.
+    remediation_plan: >
+      AWS Secrets Manager Automatic Rotation konfigurieren mit Lambda-Funktion.
+      Terraform-Code existiert bereits in feature branch.
+    links:
+      - "https://jira.company.com/PLAT-234"
+
+  - id: OPS-DEBT-002
+    title: "Monitoring-Dashboard nicht per IaC definiert"
+    category: missing-automation
+    severity: medium
+    toil_hours_per_week: 0.5
+    owner: "@payment-team"
+    created_date: "2025-02-01"
+    target_resolution_date: "2025-05-30"
+    status: open
+    description: >
+      CloudWatch Dashboards für Payment Service wurden manuell in der Konsole erstellt.
+      Bei Stack-Destroy/Create müssen sie manuell neu erstellt werden.
+    remediation_plan: >
+      Dashboards als aws_cloudwatch_dashboard Terraform-Ressource definieren.
+
+  - id: OPS-DEBT-003
+    title: "Runbooks für Background-Jobs fehlen"
+    category: missing-runbook
+    severity: medium
+    toil_hours_per_week: 1.5
+    owner: "@payment-team"
+    created_date: "2025-03-01"
+    target_resolution_date: "2025-04-30"
+    status: open
+    description: >
+      SQS-basierte Background-Job-Verarbeitung hat keine Runbooks.
+      Bei Queue-Overflow oder Dead Letter Queue werden Ingenieure
+      ohne Dokumentation in Produktion tätig.
+    remediation_plan: >
+      Runbooks für die 3 häufigsten Job-Fehlerfälle erstellen.
+      Alerts für DLQ-Überläufe mit Runbook-URLs konfigurieren.
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|Runbooks in Confluence ohne Review-Prozess
+|Veralten schnell; werden selten aktualisiert; falsche Information kann Incident verschlimmern
+
+|Runbooks nicht mit Alerts verknüpft
+|On-Call-Engineer muss Runbook erst suchen während Incident aktiv ist
+
+|Runbooks nur für Katastrophenfälle
+|Routineaufgaben (Certificate Renewal, Scaling) fehlen; Wissen bleibt in Köpfen
+
+|Operational Debt Register in Meetings besprochen aber nicht dokumentiert
+|Visibility geht verloren; gleiche Debt-Posten werden immer wieder neu diskutiert
+
+|Kein Sprint-Budget für Debt-Abbau
+|Register wächst; nichts wird abgebaut; Team resigniert
+
+|===
+
+== Metriken
+
+* *Runbook Coverage:* % der kritischen Services mit Runbooks (Ziel: >= 90%)
+* *Runbook Freshness:* % der Runbooks mit Review < 90 Tage (Ziel: >= 80%)
+* *Alert-Runbook-Linkage:* % der paging Alerts mit Runbook-URL (Ziel: 100%)
+* *Operational Debt:* Anzahl offener Einträge im Register, Toil-Stunden/Woche gesamt
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Keine Runbooks. Wissen in Ingenieur-Köpfen. Kein Debt Register.
+
+|*Level 2*
+|Runbooks für Top-3 Incidents. Nicht verlinkt. Kein formales Debt Register.
+
+|*Level 3*
+|Alle Alerts mit Runbooks verlinkt. Quarterly Review. Debt Register version-controlled.
+
+|*Level 4*
+|Coverage-Metriken tracked. Runbooks reviewed nach Incidents. Sprint-Budget für Debt.
+
+|*Level 5*
+|Self-Service-Automation für kritische Runbook-Schritte. Debt-Trend positiv (Abbau > Zuwachs).
+
+|===

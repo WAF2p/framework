@@ -1,0 +1,203 @@
+id: WAF-OPS-100
+title: "Operational Debt Register & Review"
+pillar: "operations"
+status: "active"
+severity: "medium"
+category: "operational-governance"
+type: ['governance', 'configuration', 'automation']
+tags: ['operational-debt', 'toil', 'technical-debt', 'governance', 'register', 'continuous-improvement']
+
+description: >
+  All known operational debt – manual processes, undocumented workarounds, toil-generating
+  tasks, outdated runbooks, siloed knowledge – MUST be tracked in a version-controlled
+  Operational Debt Register. The register MUST be reviewed quarterly with explicit
+  prioritization and paydown allocation. Operational debt items MUST have severity
+  classification, estimated toil hours, owner, and target resolution date.
+
+rationale: >
+  Operational debt is the accumulation of shortcuts, manual processes, and technical
+  workarounds that increase the operational burden over time. Unlike technical debt,
+  which manifests as slow development, operational debt manifests as increased incident
+  rate, on-call burnout, and gradually degrading reliability. An untracked operational
+  debt list means teams are reactively fighting fires instead of proactively reducing
+  the operational burden. Measuring toil is the first step to eliminating it.
+
+threat:
+  - "On-call engineer burnout from continuously growing toil burden"
+  - "Manual processes becoming single points of failure as the team grows"
+  - "Operational debt accumulating silently until it causes a major incident"
+  - "Teams spending more time on operational work than on product development"
+  - "New team members unable to contribute because operational knowledge is undocumented"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Continual improvement"
+      - "Risk management"
+  - framework: "ITIL 4"
+    controls:
+      - "Continual improvement"
+      - "Problem management"
+  - framework: "Google SRE Book"
+    controls:
+      - "Chapter 5: Eliminating Toil"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 10: How do you use findings to take action?"
+
+implementation_guidance:
+  - "Create a Operational Debt Register in a version-controlled file (ops-debt-register.yml or ops-debt-register.csv) in the team repository."
+  - "Each entry must include: id, title, category (toil/manual-process/missing-runbook/missing-automation/tech-debt), severity, toil_hours_per_week, owner, created_date, target_resolution_date, status."
+  - "Classify entries by severity: Critical (blocks on-call rotation or causes weekly incidents), High (> 4 hours toil/week), Medium (1–4 hours/week), Low (< 1 hour/week)."
+  - "Allocate sprint capacity for debt paydown: teams with high operational debt should allocate 20-30% of sprint to debt reduction."
+  - "Review the register quarterly: close resolved items, re-prioritize open items, identify new debt."
+  - "Track toil reduction as a team OKR: target < 20% of engineering time spent on toil."
+  - "Use postmortem action items as input to the Operational Debt Register when systemic issues are identified."
+
+maturity_levels:
+  level_1:
+    description: "No operational debt tracking"
+    criteria:
+      - "Operational debt exists but is not acknowledged or tracked"
+      - "Toil is accepted as a normal part of operations"
+      - "No visibility into how much time is spent on manual processes"
+  level_2:
+    description: "Informal debt awareness"
+    criteria:
+      - "Teams discuss operational burden in retrospectives"
+      - "Some manual processes identified but not formally tracked"
+      - "Ad-hoc improvements made when engineers have spare time"
+  level_3:
+    description: "Operational Debt Register maintained"
+    criteria:
+      - "Version-controlled Operational Debt Register with all known items"
+      - "Quarterly review cadence established"
+      - "Toil hours estimated for all entries"
+      - "Debt paydown allocated in sprint planning (minimum 10%)"
+  level_4:
+    description: "Debt-driven improvement program"
+    criteria:
+      - "Toil reduction as explicit OKR or KPI"
+      - "Toil hours tracked week-over-week and trending downward"
+      - "Debt paydown allocation >= 20% of sprint capacity for high-debt teams"
+      - "Postmortem action items systematically feed into register"
+  level_5:
+    description: "Continuous operational improvement"
+    criteria:
+      - "Toil < 20% of total engineering time (Google SRE target)"
+      - "Automation coverage report: % of routine tasks automated"
+      - "Operational debt trend: positive (debt paydown > debt creation)"
+      - "Organizational learning: debt patterns inform architectural decisions"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Operational Debt Register file (version-controlled) with entries, severity, toil estimates, owners, and status."
+    - kind: "process"
+      description: "Quarterly debt review meeting record showing prioritization decisions and paydown allocation."
+  optional:
+    - kind: "process"
+      description: "Sprint capacity allocation report showing percentage of sprint dedicated to operational debt paydown."
+    - kind: "governance"
+      description: "Toil metrics report showing weekly toil hours per engineer and trend over last 6 months."
+
+checks:
+  - id: "waf-ops-100.tf.aws.eventbridge-ops-review-schedule"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "EventBridge scheduled rule must exist for automated operational review reminders"
+    description: >
+      An AWS EventBridge (CloudWatch Events) scheduled rule MUST be configured to send
+      quarterly operational debt review reminders to the team's notification channel.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_event_rule"
+    assertions:
+      - attribute: "schedule_expression"
+        op: "attribute_exists"
+        message: "CloudWatch Event rule must define a schedule_expression for periodic review."
+    on_fail: "violation"
+    remediation: >
+      Create an aws_cloudwatch_event_rule with a cron schedule_expression for quarterly
+      reviews and target it to an SNS topic or Lambda for notifications.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_event_rule" "ops_review_reminder" {
+          name                = "quarterly-ops-debt-review"
+          description         = "Quarterly reminder to review and update Operational Debt Register"
+          schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
+          is_enabled          = true
+        }
+
+        resource "aws_cloudwatch_event_target" "ops_review_sns" {
+          rule      = aws_cloudwatch_event_rule.ops_review_reminder.name
+          target_id = "OpsReviewNotification"
+          arn       = aws_sns_topic.team_notifications.arn
+          input = jsonencode({
+            message = "Quarterly Operational Debt Register review due. Runbook: https://wiki/ops-debt-review"
+          })
+        }
+      non_compliant: |
+        # No scheduled operational review reminder configured
+        # WAF-OPS-100 Violation: no automated review cadence enforcement
+
+  - id: "waf-ops-100.tf.aws.ssm-automation-runbook"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS SSM automation documents must exist for repetitive operational tasks"
+    description: >
+      Repetitive operational tasks (AMI patching, instance rotation, configuration updates)
+      MUST be automated using AWS Systems Manager automation documents to reduce toil.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_ssm_document"
+    assertions:
+      - attribute: "document_type"
+        op: "not_empty"
+        message: "SSM document must define a document_type."
+      - attribute: "content"
+        op: "not_empty"
+        message: "SSM document must have content defining automation steps."
+    on_fail: "violation"
+    remediation: >
+      Create aws_ssm_document resources with Automation document type to automate
+      repetitive operational procedures that currently require manual intervention.
+    example:
+      compliant: |
+        resource "aws_ssm_document" "rotate_instances" {
+          name            = "RotateASGInstances"
+          document_type   = "Automation"
+          document_format = "YAML"
+
+          content = <<-DOC
+            description: Rotate all instances in an Auto Scaling Group
+            schemaVersion: "0.3"
+            parameters:
+              AutoScalingGroupName:
+                type: String
+                description: Name of the Auto Scaling Group to rotate
+            mainSteps:
+              - name: TerminateInstances
+                action: aws:executeScript
+                inputs:
+                  Runtime: python3.11
+                  Handler: rotate_instances
+          DOC
+        }
+      non_compliant: |
+        # No SSM automation documents defined
+        # Instance rotation performed manually via console
+        # WAF-OPS-100 Violation: manual process not automated
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-100"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-runbooks.adoc"
+  related_controls:
+    - "WAF-OPS-060"
+    - "WAF-OPS-070"

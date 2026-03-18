@@ -1,0 +1,237 @@
+= Best Practice: Performance-Observability & SLOs
+:page-toc: right
+:description: WAF++ Performance Efficiency – SLOs definieren, SLIs instrumentieren und Error-Budgets verwalten.
+
+== Kontext
+
+Ohne definierte SLOs gibt es kein objektives Kriterium für "unsere Performance ist gut genug".
+Teams diskutieren subjektiv, ob Latenz "akzeptabel" ist. Ohne Error Budgets gibt es keine
+objektive Grundlage für die Entscheidung "wir müssen Reliability-Arbeit priorisieren" vs.
+"wir können weiter Features bauen".
+
+Typische Probleme ohne SLO-basiertes Performance-Monitoring:
+
+* Durchschnittswerte maskieren P99-Spitzen: Avg = 50ms, P99 = 5000ms – User leiden, Dashboard sieht gut aus
+* Performance-Degradation als "Baseline" akzeptiert, weil kein historischer Vergleich existiert
+* On-Call-Team wird bei falschen Schwellwerten alarmiert (zu sensitiv oder zu tolerant)
+* Deployments erfolgen, ohne zu wissen ob die Performance schlechter wurde
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-050[WAF-PERF-050] – Performance Monitoring & SLO Definition
+* xref:../controls.adoc#WAF-PERF-100[WAF-PERF-100] – Performance Debt Register & Quarterly Review
+
+== Zielbild
+
+SLO-basiertes Performance-Management:
+
+* *Definiert*: SLOs für alle Produktions-Services mit P95/P99, Fehlerrate, Verfügbarkeit
+* *Instrumentiert*: SLIs werden kontinuierlich gemessen (nicht nur Stichproben)
+* *Alerting*: Burn-Rate-Alerts statt statischer Schwellenwerte
+* *Error Budget*: Deployment-Entscheidungen basieren auf Budget-Status
+
+== Technische Umsetzung
+
+=== Schritt 1: SLO-Dokument erstellen
+
+[source,yaml]
+----
+# docs/slos/payment-api.yml
+version: "1.0"
+service: "payment-api"
+owner: "payments-team"
+last_reviewed: "2026-03-18"
+
+slos:
+  - name: availability
+    description: "Percentage of requests that succeed (status 2xx or 4xx)"
+    sli:
+      numerator: "count of HTTP requests with status not in [5xx]"
+      denominator: "count of all HTTP requests"
+    target: 99.9    # 99.9% = 8.77h error budget per year
+    window: "30d"
+
+  - name: latency_p95
+    description: "95th percentile request latency at load balancer"
+    sli: "p95 of request duration measured at ALB"
+    target: 200   # ms
+    window: "30d"
+
+  - name: latency_p99
+    description: "99th percentile request latency"
+    sli: "p99 of request duration measured at ALB"
+    target: 500   # ms
+    window: "30d"
+
+error_budgets:
+  availability_30d:
+    slo: 99.9
+    window: "30d"
+    total_minutes: 43200
+    allowed_downtime_minutes: 43.2  # 0.1% of 30 days
+
+deployment_policy:
+  - condition: "error_budget_remaining > 50%"
+    action: "deploy freely"
+  - condition: "error_budget_remaining 10-50%"
+    action: "deploy with extra caution; require load test"
+  - condition: "error_budget_remaining < 10%"
+    action: "freeze new features; focus on reliability"
+
+review_cadence: "quarterly"
+----
+
+=== Schritt 2: CloudWatch SLO-Dashboard (AWS)
+
+[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "p99_slo_burn" {
+  alarm_name          = "payment-api-p99-slo-burn-rate"
+  alarm_description   = "P99 latency SLO burn rate high – investigate immediately. SLO: < 500ms P99. Runbook: https://wiki/slo-runbook"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  threshold           = 500
+
+  metric_query {
+    id          = "p99_latency"
+    return_data = true
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "TargetResponseTime"
+      period      = 60
+      stat        = "p99"
+      dimensions = {
+        LoadBalancer = aws_lb.api.arn_suffix
+        TargetGroup  = aws_lb_target_group.api.arn_suffix
+      }
+    }
+  }
+
+  alarm_actions             = [aws_sns_topic.slo_alerts.arn]
+  ok_actions                = [aws_sns_topic.slo_alerts.arn]
+  insufficient_data_actions = [aws_sns_topic.slo_alerts.arn]
+
+  treat_missing_data = "breaching"  # Missing data = SLO verletzt (fail safe)
+}
+
+# Composite Alarm: Beide Bedingungen für "SLO breached"
+resource "aws_cloudwatch_composite_alarm" "slo_breach" {
+  alarm_name        = "payment-api-slo-breach"
+  alarm_description = "Payment API SLO breached – P99 > 500ms AND error rate > 0.1%"
+  alarm_rule        = "ALARM(${aws_cloudwatch_metric_alarm.p99_slo_burn.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.error_rate.alarm_name})"
+  alarm_actions     = [aws_sns_topic.critical_alerts.arn]
+}
+----
+
+=== Schritt 3: Multi-Window Burn Rate Alerts (Google SRE Methode)
+
+[source,python]
+----
+# scripts/slo-burn-rate-check.py
+# Implementiert das Google SRE multi-window burn rate alert pattern
+
+SLO_TARGET = 0.999  # 99.9% availability
+ERROR_BUDGET_RATIO = 1 - SLO_TARGET  # 0.001 = 0.1%
+
+# Burn Rate Windows (Google SRE Empfehlung)
+ALERT_WINDOWS = [
+    # (short_window_hours, long_window_hours, burn_rate_threshold, severity)
+    (1, 6, 14.4, "page"),    # 1h window, 6h window, 14.4x burn rate
+    (6, 24, 6.0, "page"),    # 6h window, 24h window, 6x burn rate
+    (24, 72, 3.0, "ticket"), # 24h window, 72h window, 3x burn rate
+]
+
+def calculate_burn_rate(error_rate: float, window_hours: float) -> float:
+    """Burn Rate = aktuelle Fehlerrate / Fehlerrate, die Budget genau aufbraucht."""
+    slo_error_rate = 1 - SLO_TARGET
+    return error_rate / slo_error_rate
+
+def check_burn_rates(short_error_rate: float, long_error_rate: float,
+                     short_hours: float, long_hours: float,
+                     threshold: float, severity: str) -> bool:
+    short_burn = calculate_burn_rate(short_error_rate, short_hours)
+    long_burn = calculate_burn_rate(long_error_rate, long_hours)
+
+    if short_burn > threshold and long_burn > threshold:
+        print(f"🔴 ALERT [{severity.upper()}]: Burn rate {short_burn:.1f}x "
+              f"(threshold: {threshold}x) – SLO exhaustion predicted")
+        return True
+    return False
+----
+
+=== Schritt 4: Error-Budget-Dashboard
+
+[source,json]
+----
+{
+  "slo_dashboard": {
+    "service": "payment-api",
+    "period": "last_30_days",
+    "widgets": [
+      {
+        "title": "Error Budget Remaining",
+        "type": "gauge",
+        "value_expression": "100 * (1 - error_rate / 0.001)",
+        "thresholds": {
+          "red": 10,
+          "yellow": 25,
+          "green": 100
+        }
+      },
+      {
+        "title": "P99 Latency vs SLO",
+        "type": "timeseries",
+        "metrics": ["p99_latency"],
+        "threshold_line": 500
+      },
+      {
+        "title": "SLO Burn Rate (1h window)",
+        "type": "timeseries",
+        "reference_lines": [
+          {"value": 14.4, "label": "Page threshold"},
+          {"value": 6.0, "label": "Ticket threshold"}
+        ]
+      }
+    ]
+  }
+}
+----
+
+== Performance Debt Register Template
+
+[source,markdown]
+----
+## Performance Debt Register – Payment Service
+
+| ID | Beschreibung | Impact | Betroffene Services | Owner | Priorität | Zieldatum |
+|----|--------------|--------|---------------------|-------|-----------|-----------|
+| PERF-001 | CDN nicht konfiguriert – statische Assets direkt von Origin | +50ms für static-assets | payment-frontend | @platform-team | Medium | Q2 2026 |
+| PERF-002 | gp2 EBS Volume auf db-payment-staging | Burst-Depletion Risiko | payment-db | @dba-team | High | 2026-04-01 |
+| PERF-003 | Kein Connection Pooling vor RDS | Pool-Erschöpfung bei > 200 concurrent users | payment-api | @payments-team | High | 2026-03-31 |
+
+### Review History
+- 2026-03-18: Quarterly Review – PERF-003 hinzugefügt, PERF-001 repriorisiert
+- 2025-12-15: PERF-002 identifiziert nach Storage I/O Incident
+----
+
+== Typische Fehlmuster
+
+* *Alerting auf Durchschnittswerte*: Average-Latenz-Alerts verpassen P99-Spitzen; immer auf Percentile alerten.
+* *Zu viele Alerts*: Alert Fatigue führt zu ignorierten Alerts; Prioritäten nach Severity und Burn Rate.
+* *SLOs ohne Review*: SLOs die nie angepasst werden werden irrelevant – quartalsweise reviewen.
+* *Error Budget nur beobachten, nicht nutzen*: Budget ohne Policy ("bei < 10%: Feature-Freeze") hat keinen Wert.
+
+== Metriken
+
+* SLO-Compliance-Rate (Anteil Tage in der letzten 30 Tage mit erfülltem SLO)
+* Error-Budget-Burn-Rate (aktuell; Alarm bei > 6x)
+* Alert-Precision (Anteil Alerts, die tatsächlich actionable sind; Ziel: > 80%)
+* Time-to-Detect Performance Degradation (von Beginn bis Alert; Ziel: < 5 Minuten)
+
+== Reifegrad
+
+Level 1 – Kein SLO; Performance-Degradation durch Users entdeckt +
+Level 2 – Informelle Ziele; Durchschnittswert-Alerting +
+Level 3 – Formale SLOs; P99-Alerting; instrumentierte SLIs +
+Level 4 – Error-Budget-Management; Deployment-Gates +
+Level 5 – Prädiktive Burn-Rate-Alerts; automatische Kapazitätsanpassung

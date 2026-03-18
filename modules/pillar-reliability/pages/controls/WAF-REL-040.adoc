@@ -1,0 +1,163 @@
+= WAF-REL-040 – Backup & Recovery Validation
+:page-toc: right
+:control-id: WAF-REL-040
+:pillar: reliability
+:severity: critical
+:category: backup-recovery
+:automated: high
+:description: WAF++ Reliability – Automatisierte Backups, PITR und nachweislich getestete Recovery-Verfahren.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* Critical | *Kategorie:* Backup Recovery | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Produktionsdatenbanken MÜSSEN automatisierte Backups mit Retention >= 7 Tage und
+Point-in-Time Recovery (PITR) konfigurieren. Backups MÜSSEN in einem separaten Account
+oder einer separaten Region gespeichert werden. Recovery-Verfahren MÜSSEN mindestens
+quartalsweise getestet und dokumentiert sein. Ungetestete Backups gelten als nicht vorhanden.
+
+== Rationale
+
+Datenverlust durch Accidental Deletion, Ransomware oder Korruption ist ohne validierte
+Recovery-Verfahren katastrophal. Der häufigste Fehler ist nicht das Fehlen von Backups,
+sondern ein nie getestetes Recovery-Verfahren, das im Ernstfall aufgrund veralteter
+Anleitungen, fehlender Schlüssel oder nicht existierender Zielinfrastruktur scheitert.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Ransomware*
+|Backup im selben Account wie Produktionsdaten wird gleichzeitig verschlüsselt.
+
+|*Accidental Deletion*
+|Ohne ausreichende Retention sind Daten, die erst nach Tagen fehlen, nicht wiederherstellbar.
+
+|*Ungetesteter Restore*
+|Recovery-Prozedur scheitert im Ernstfall an manuellen Schritten, die nie dokumentiert wurden.
+
+|*RPO-Verletzung*
+|Backup-Interval zu groß: Daten, die zwischen zwei Backups erstellt wurden, gehen verloren.
+
+|===
+
+== Anforderung
+
+* Automatisierte Backups: Retention >= 7 Tage für alle Produktionsdatenbanken
+* PITR: Für alle relationalen Produktionsdatenbanken aktiviert
+* Backup-Speicherung: Separates AWS Account / Azure Subscription / GCP Project
+* Deletion Protection: Aktiviert auf allen Produktionsdatenbanken
+* Restore-Test: Quartalsweise mit Ergebnisdokumentation (RTO, Datenintegrität)
+* Backup-Alerts: Benachrichtigung bei Job-Fehler oder überaltertem Backup
+
+== Implementierungsanleitung
+
+. *Retention erhöhen*: `backup_retention_period = 14` – mindestens 7, besser 14 Tage
+. *PITR aktivieren*: `point_in_time_recovery_enabled = true` (GCP), Standard bei RDS/Azure
+. *Cross-Account Backup*: AWS Backup Plan mit `copy_action` auf Backup-Account-Vault
+. *Deletion Protection*: `deletion_protection = true` – verhindert versehentliches Löschen
+. *Restore-Test automatisieren*: Skript für quartalsweisen automatisierten Restore-Test
+. *Monitoring*: CloudWatch Event Rule für fehlgeschlagene Backup-Jobs
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Backups
+|Keine automatisierten Backups konfiguriert.
+
+|*2*
+|Backups da, ungetestet
+|Automatische Backups aktiv; Restore nie getestet; kein Cross-Account.
+
+|*3*
+|PITR + Cross-Account + getestet
+|PITR aktiviert; Backup in separatem Account; Restore quartalsweise getestet.
+
+|*4*
+|Automatisierter monatlicher Test
+|Automatisierter Restore-Test in Pipeline; Backup-Integrity-Checks.
+
+|*5*
+|WORM + CDP
+|Immutable Backup Storage; Continuous Data Protection; schemagetriggerte Tests.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-040.tf.aws.rds-backup-retention
+*Prüft:* RDS hat `backup_retention_period >= 7` und `deletion_protection = true`.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier    = "payment-db-prod"
+  engine        = "postgres"
+  instance_class = "db.t3.medium"
+  backup_retention_period = 14
+  backup_window = "02:00-03:00"
+  deletion_protection = true
+  copy_tags_to_snapshot = true
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier    = "payment-db-prod"
+  engine        = "postgres"
+  instance_class = "db.t3.medium"
+  backup_retention_period = 1
+  # WAF-REL-040 Violation
+  deletion_protection = false
+  # WAF-REL-040 Violation
+}
+----
+|===
+
+*Remediation:* `backup_retention_period >= 7` und `deletion_protection = true`
+auf `aws_db_instance` setzen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform mit Backup-Konfiguration: Retention, PITR, Cross-Account-Storage.
+
+|*Process*
+|✅ Pflicht
+|Quartalsweiser Restore-Test-Bericht: RTO erreicht, Datenintegrität validiert, Unterschrift.
+
+|*Governance*
+|Optional
+|RTO/RPO Dokument pro Workload, jährlich reviewed.
+
+|*Config*
+|Optional
+|Backup-Monitoring Alerts für Job-Fehler und überalterte Backups.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbooks]
+* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+
+== Best Practice
+
+* xref:best-practices/bp-backup-recovery.adoc[Backup, Recovery & Wiederherstellungstests →]

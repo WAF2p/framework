@@ -1,0 +1,260 @@
+id: WAF-PERF-030
+title: "Caching Strategy Defined & Implemented"
+pillar: "performance"
+status: "active"
+severity: "medium"
+category: "caching"
+type: ['configuration', 'governance', 'automation']
+tags: ['caching', 'elasticache', 'redis', 'cdn', 'cache-control', 'latency', 'performance']
+
+description: >
+  All workloads with repeated read patterns or high-latency data sources MUST have a caching
+  strategy defined and implemented. The caching strategy MUST specify cache layers (application,
+  distributed cache, CDN), TTL policies, cache invalidation mechanisms, and cache hit rate targets.
+  CDN caching MUST be configured for all public-facing static and dynamic content.
+  Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data
+  and frequently-accessed read-heavy datasets.
+
+rationale: >
+  Cache misses on repeated identical queries cause unnecessary latency and backend load.
+  Without caching, every request hits the origin – database, API, or compute – even when
+  the response is identical to a previous request seconds earlier. A well-configured caching
+  strategy can reduce database load by 60–90%, improve P99 latency by orders of magnitude,
+  and significantly reduce infrastructure costs. Poor caching (wrong TTLs, missing invalidation,
+  caching mutable data) causes stale data problems that are harder to debug than missing caches.
+
+threat:
+  - "Excessive database load causing query saturation and cascading performance degradation"
+  - "High latency for end users due to uncached static assets and repeated API calls"
+  - "Thundering herd problem: cache expiry causing simultaneous backend requests"
+  - "Stale data served to users due to missing cache invalidation on updates"
+  - "Cost overrun from over-fetching backends that should be cached at CDN or application layer"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Resource Utilization"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 3 – How do you select your storage solution?"
+      - "PERF 4 – How do you select your database solution?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Use caching"
+  - framework: "TOGAF"
+    controls:
+      - "Architecture Building Blocks – Caching Services"
+
+implementation_guidance:
+  - "Map all external data sources and identify read-heavy access patterns before designing the cache strategy."
+  - "Define cache layers: L1 in-process (application cache), L2 distributed (Redis/Memcached), L3 CDN."
+  - "Set appropriate TTLs per data type: session data (15–60 min), reference data (1–24 h), static assets (365 days with cache-busting)."
+  - "Implement cache-aside pattern for database queries; use write-through for critical data requiring cache consistency."
+  - "Configure CDN cache rules for static assets, API responses, and HTML pages with appropriate Vary headers."
+  - "Monitor cache hit rates: target >= 80% for application caches, >= 95% for CDN static content."
+  - "Implement cache stampede protection via locking or probabilistic early expiration."
+
+maturity_levels:
+  level_1:
+    description: "No explicit caching strategy; ad-hoc or no caching"
+    criteria:
+      - "No distributed cache deployed; each request hits origin directly"
+      - "No CDN configured for public-facing content"
+      - "No cache hit rate monitoring"
+  level_2:
+    description: "Basic caching implemented without strategy document"
+    criteria:
+      - "Some caching in place (e.g., Redis for sessions, CDN for static assets)"
+      - "TTLs set arbitrarily without measurement or data classification"
+      - "No cache invalidation strategy"
+  level_3:
+    description: "Documented caching strategy with monitored hit rates"
+    criteria:
+      - "Caching strategy document exists covering all data types and TTL policies"
+      - "Distributed cache deployed for all read-heavy workloads"
+      - "CDN configured for all public-facing content"
+      - "Cache hit rate monitored; alerts on hit rate drops"
+  level_4:
+    description: "Optimized caching with automated invalidation"
+    criteria:
+      - "Cache hit rates >= 80% for application caches, >= 95% for CDN"
+      - "Automated cache invalidation on data mutations"
+      - "Cache stampede protection implemented"
+      - "Cache warm-up strategies implemented for deployments"
+  level_5:
+    description: "Intelligent adaptive caching"
+    criteria:
+      - "ML-driven cache pre-warming based on predicted access patterns"
+      - "Adaptive TTLs based on content change frequency"
+      - "Edge caching with personalization (Cache-Control with Vary)"
+      - "Zero-downtime cache migrations with dual-write strategies"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Caching strategy document defining cache layers, TTL policies, and invalidation mechanisms."
+    - kind: "iac"
+      description: "Terraform configuration for distributed cache (ElastiCache/Azure Cache/Memorystore) and CDN with cache rules."
+  optional:
+    - kind: "config"
+      description: "Cache hit rate monitoring dashboard showing target metrics."
+    - kind: "process"
+      description: "Cache invalidation runbook for data mutation events."
+
+checks:
+  - id: "waf-perf-030.tf.aws.elasticache-cluster-configured"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS ElastiCache clusters must be in cluster mode with automatic failover"
+    description: >
+      ElastiCache Redis clusters must have cluster mode or multi-AZ with automatic failover
+      enabled to ensure high availability of the caching layer.
+      Single-node ElastiCache deployments in production are a violation.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_elasticache_replication_group"
+        - "aws_elasticache_cluster"
+    assertions:
+      - attribute: "automatic_failover_enabled"
+        op: "is_true"
+        message: "ElastiCache replication group must have automatic_failover_enabled = true for production use."
+      - attribute: "num_cache_clusters"
+        op: "greater_than_or_equal"
+        value: 2
+        message: "ElastiCache must have at least 2 cache nodes for redundancy."
+      - attribute: "at_rest_encryption_enabled"
+        op: "is_true"
+        message: "ElastiCache must have at-rest encryption enabled."
+    on_fail: "violation"
+    remediation: >
+      Set automatic_failover_enabled = true, num_cache_clusters >= 2, and at_rest_encryption_enabled = true.
+      For Redis, use replication_group resource with at least one replica.
+    example:
+      compliant: |
+        resource "aws_elasticache_replication_group" "app" {
+          replication_group_id       = "payment-cache"
+          description                = "Cache for payment service sessions and lookups"
+          node_type                  = "cache.t3.medium"
+          num_cache_clusters         = 2
+          automatic_failover_enabled = true
+          at_rest_encryption_enabled = true
+          transit_encryption_enabled = true
+          subnet_group_name          = aws_elasticache_subnet_group.main.name
+          security_group_ids         = [aws_security_group.cache.id]
+        }
+      non_compliant: |
+        resource "aws_elasticache_cluster" "app" {
+          cluster_id        = "payment-cache"
+          engine            = "redis"
+          node_type         = "cache.t3.micro"
+          num_cache_nodes   = 1  # Single node, no failover – WAF-PERF-030 violation
+          # No encryption configured
+        }
+
+  - id: "waf-perf-030.tf.azurerm.redis-cache-premium"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Cache for Redis must be Premium or Standard tier with persistence"
+    description: >
+      Azure Cache for Redis for production use must be Standard or Premium tier with
+      clustering enabled for large datasets and geo-replication where required.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_redis_cache"
+    assertions:
+      - attribute: "sku_name"
+        op: "in"
+        values: ["Standard", "Premium"]
+        message: "Azure Redis Cache must use Standard or Premium SKU for production (not Basic)."
+      - attribute: "enable_non_ssl_port"
+        op: "is_false"
+        message: "Non-SSL port must be disabled on Azure Redis Cache."
+      - attribute: "minimum_tls_version"
+        op: "equals"
+        value: "1.2"
+        message: "Azure Redis Cache must enforce TLS 1.2 minimum."
+    on_fail: "violation"
+    remediation: >
+      Upgrade Redis SKU to Standard or Premium. Disable non-SSL port.
+      Set minimum_tls_version = "1.2". For large datasets enable cluster mode (Premium only).
+    example:
+      compliant: |
+        resource "azurerm_redis_cache" "app" {
+          name                = "cache-payment-api"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          capacity            = 1
+          family              = "C"
+          sku_name            = "Standard"
+          enable_non_ssl_port = false
+          minimum_tls_version = "1.2"
+        }
+      non_compliant: |
+        resource "azurerm_redis_cache" "app" {
+          name                = "cache-payment-api"
+          capacity            = 0
+          family              = "C"
+          sku_name            = "Basic"  # Basic tier – no replication – WAF-PERF-030 violation
+          enable_non_ssl_port = true     # SSL disabled – security violation
+        }
+
+  - id: "waf-perf-030.tf.google.memorystore-redis-ha"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Memorystore for Redis must use STANDARD_HA tier"
+    description: >
+      GCP Memorystore for Redis instances used for production caching must use
+      STANDARD_HA tier to ensure failover and high availability.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_redis_instance"
+    assertions:
+      - attribute: "tier"
+        op: "equals"
+        value: "STANDARD_HA"
+        message: "Memorystore Redis must use STANDARD_HA tier for production use."
+      - attribute: "transit_encryption_mode"
+        op: "equals"
+        value: "SERVER_AUTHENTICATION"
+        message: "Memorystore Redis must have transit encryption enabled."
+    on_fail: "violation"
+    remediation: >
+      Set tier = "STANDARD_HA" for production Redis instances.
+      Set transit_encryption_mode = "SERVER_AUTHENTICATION" for encryption in transit.
+    example:
+      compliant: |
+        resource "google_redis_instance" "app" {
+          name                    = "cache-payment-api"
+          tier                    = "STANDARD_HA"
+          memory_size_gb          = 4
+          region                  = "europe-west3"
+          transit_encryption_mode = "SERVER_AUTHENTICATION"
+          redis_version           = "REDIS_7_0"
+          labels = {
+            workload = "payment-api"
+          }
+        }
+      non_compliant: |
+        resource "google_redis_instance" "app" {
+          name           = "cache-payment-api"
+          tier           = "BASIC"  # No failover – WAF-PERF-030 violation
+          memory_size_gb = 1
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-030"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-caching.adoc"
+  related_controls:
+    - "WAF-PERF-040"
+    - "WAF-PERF-050"
+    - "WAF-PERF-070"

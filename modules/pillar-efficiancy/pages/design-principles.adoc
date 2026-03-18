@@ -1,0 +1,260 @@
+= Design-Prinzipien – Performance Efficiency
+:page-toc: right
+:description: WAF++ Performance Efficiency – Technische Design-Prinzipien für performante Cloud-Architekturen.
+
+Design-Prinzipien beschreiben konkrete technische Leitlinien für Architektur- und Implementierungsentscheidungen.
+Sie ergänzen die xref:principles.adoc[7 Performance-Prinzipien] um technische Spezifität.
+
+== DP1 – Trenne Workloads nach Lastprofil
+
+Unterschiedliche Lastprofile erfordern unterschiedliche Skalierungsstrategien.
+Synchrone APIs, asynchrone Background-Jobs, Batch-Processing und Event-Driven-Workloads
+SOLLTEN architektonisch getrennt werden, um optimale Skalierungskonfigurationen
+pro Komponente zu ermöglichen.
+
+*Implikationen:*
+
+* API-Server: Stateless, horizontal skalierbar, Auto-Scaling auf Request-Rate
+* Background-Jobs: Queue-basiert, skaliert auf Queue-Depth (SQS, Azure Service Bus, Pub/Sub)
+* Batch-Processing: Spot/Preemptible Instances, zeitgeplante Skalierung
+* Echtzeit-Pipelines: Streaming-Services (Kinesis, Event Hubs, Dataflow)
+
+[source,hcl]
+----
+# Anti-Pattern: Alles auf einem EC2
+resource "aws_instance" "monolith" {
+  instance_type = "m5.8xlarge"  # Groß genug für alle Workloads?
+}
+
+# Besser: Getrennte Skalierungsdomänen
+resource "aws_autoscaling_group" "api" { min_size = 2; max_size = 20 }
+resource "aws_autoscaling_group" "workers" { min_size = 0; max_size = 50 }
+# Workers skalieren auf SQS-Queue-Depth
+----
+
+---
+
+== DP2 – Externalise State Before Scaling
+
+Vor der Implementierung von Auto-Scaling muss jeder in-process State externalisiert werden.
+Sessions, Caches, temporäre Dateien und Locks dürfen nicht lokal auf dem Instance gespeichert werden,
+da sie beim Scale-In verloren gehen und beim Scale-Out nicht verfügbar sind.
+
+*State-Externalisierung:*
+
+[cols="1,2,2"]
+|===
+|State-Typ |Anti-Pattern |Korrekte Lösung
+
+|*HTTP-Session*
+|In-Memory Session Store (Standard in vielen Frameworks)
+|Redis/ElastiCache (aws_elasticache_replication_group)
+
+|*Datei-Uploads*
+|Lokaler Dateisystem-Pfad `/tmp/uploads`
+|S3/Azure Blob/GCS direkt vom Client oder Pre-Signed URLs
+
+|*Distributed Locks*
+|File-Lock oder In-Memory Mutex
+|Redis SETNX, DynamoDB Conditional Writes
+
+|*Temporäre Berechnungsdaten*
+|Lokale Datei für Multi-Step-Prozesse
+|S3 für Stage-Output, Queue für Stage-Koordination
+
+|===
+
+---
+
+== DP3 – Verwende latenzoptimiertes Routing
+
+Netzwerklatenz addiert sich bei jedem Service-Hop. In einer Microservices-Architektur
+kann eine Anfrage 10+ interne Service-Calls auslösen. Jeder Hop muss latenzoptimiert sein.
+
+*Routing-Entscheidungen:*
+
+* *AZ-Affinity*: Service-A auf AZ-a kommuniziert bevorzugt mit Service-B auf AZ-a
+* *VPC Endpoints*: Alle Cloud-Service-APIs (S3, DynamoDB, SSM, ECR) über Gateway/Interface-Endpoints
+* *Service-Mesh*: Für hochfrequente Service-zu-Service-Kommunikation (Istio, AWS App Mesh)
+* *gRPC statt REST*: Für interne APIs mit hohem Call-Volumen (binäres Protokoll, HTTP/2)
+
+[source,hcl]
+----
+# VPC Endpoints für alle major AWS Services
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.private_subnet_ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+----
+
+---
+
+== DP4 – Konfiguriere Connection Pools explizit
+
+Connection-Pool-Erschöpfung ist eine der häufigsten Ursachen für Performance-Degradation
+unter Last. Jeder Service, der eine Datenbank oder ein externes API aufruft, MUSS explizit
+konfigurierte Connection-Pool-Größen haben.
+
+*Pool-Sizing-Formel (Datenbankserver):*
+
+----
+Optimale Pool-Größe = (CPU-Kerne * 2) + Anzahl aktiver Disks
+Beispiel: 4-Core RDS + 2 Disks = 10 Connections pro Application-Instanz
+Bei 10 App-Instanzen: max_connections_RDS = 100 (10 * 10)
+----
+
+[source,python]
+----
+# SQLAlchemy – explizite Pool-Konfiguration
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,           # Immer offene Connections
+    max_overflow=5,         # Temporäre Zusatz-Connections
+    pool_timeout=30,        # Sekunden warten auf freie Connection
+    pool_recycle=3600,      # Connection nach 1h erneuern
+    pool_pre_ping=True,     # Verbindung testen vor Reuse
+)
+----
+
+---
+
+== DP5 – Definiere SLOs vor dem ersten Deployment
+
+SLOs MÜSSEN definiert werden, bevor ein Service produktiv geht – nicht danach.
+Ein Service ohne SLO hat kein objektives Kriterium für "gut genug Performance".
+
+*SLO-Template:*
+
+[source,yaml]
+----
+# docs/slos/payment-api.yml
+service: "payment-api"
+slos:
+  - name: "availability"
+    sli: "success_rate"
+    target: 99.9      # 99.9% of requests succeed
+    window: "30d"
+  - name: "latency_p95"
+    sli: "request_latency_p95"
+    target: 200       # P95 < 200ms
+    unit: "ms"
+    window: "30d"
+  - name: "latency_p99"
+    sli: "request_latency_p99"
+    target: 500       # P99 < 500ms
+    unit: "ms"
+    window: "30d"
+error_budget:
+  period: "30d"
+  policy: "feature_freeze_on_exhaustion"
+----
+
+---
+
+== DP6 – Isoliere I/O-intensive Workloads
+
+I/O-intensive Workloads (Datenbankzugriffe, Datei-I/O, externe API-Calls) MÜSSEN
+von CPU-intensiven Workloads isoliert werden. Async-I/O und non-blocking Patterns
+sind für I/O-bound Services wichtiger als horizontales Scaling allein.
+
+*I/O-Isolation-Patterns:*
+
+* *Async/Non-Blocking*: asyncio (Python), async/await (Node.js, .NET), Reactive (Java)
+* *Bulkhead Pattern*: Separate Thread-Pools für interne und externe Calls
+* *Circuit Breaker*: Verhindern von Cascading Failures bei langsamen Downstream-Services
+* *Timeout-Pyramid*: Outer-Timeout > Inner-Timeout > DB-Timeout
+
+[source,python]
+----
+# Bulkhead: Separate Executor für externe API-Calls
+internal_executor = ThreadPoolExecutor(max_workers=50)
+external_executor = ThreadPoolExecutor(max_workers=10)  # Begrenzt externe Calls
+
+async def get_payment(payment_id: str):
+    # Interne DB-Abfrage
+    db_result = await loop.run_in_executor(internal_executor, db_query, payment_id)
+    # Externe API-Call (begrenzt)
+    ext_result = await loop.run_in_executor(external_executor, external_api, payment_id)
+    return merge(db_result, ext_result)
+----
+
+---
+
+== DP7 – Performance-Validierung im CI/CD
+
+Performance-Validierung ist ein First-Class-Citizen im Deployment-Prozess.
+Performance-Regressions sind genauso ernst zu nehmen wie Funktions-Bugs.
+
+*CI/CD-Performance-Gate-Aufbau:*
+
+[source,yaml]
+----
+# .github/workflows/deploy.yml
+jobs:
+  performance-validation:
+    needs: [build, unit-test, integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run k6 Load Test
+        run: |
+          k6 run \
+            --vus 50 --duration 5m \
+            --env BASE_URL=${{ env.STAGING_URL }} \
+            --out json=results.json \
+            tests/performance/payment-api.js
+
+      - name: Check Acceptance Criteria
+        run: |
+          # P95 < 200ms, P99 < 500ms, Error Rate < 0.1%
+          python scripts/validate-perf-results.py results.json \
+            --p95-threshold 200 \
+            --p99-threshold 500 \
+            --error-rate-threshold 0.001
+
+      - name: Compare to Baseline
+        run: |
+          # Fail wenn P99 > 110% der letzten erfolgreichen Baseline
+          python scripts/compare-to-baseline.py results.json \
+            --regression-threshold 0.10
+----
+
+---
+
+== DP8 – Dokumentiere Performance-Entscheidungen in ADRs
+
+Jede Architekturentscheidung mit Performance-Implikationen MUSS eine Performance-Sektion
+im zugehörigen Architecture Decision Record (ADR) enthalten.
+
+*ADR-Performance-Sektion-Template:*
+
+[source,markdown]
+----
+## Performance Impact
+
+### Expected Throughput
+- Design target: 1000 req/s at P95 < 200ms
+- Load test result: 1200 req/s at P95 = 145ms ✅
+
+### Scaling Strategy
+- Auto-scaling: Target tracking on ALBRequestCountPerTarget
+- Min instances: 2 (no cold start), Max instances: 20
+
+### Performance Debt Created
+- None identified at this time
+
+### Performance Debt Accepted
+- CDN not configured in Phase 1 (estimated +50ms for static assets)
+  - Registered in Performance Debt Register as PERF-DEBT-2026-003
+  - Target resolution: Q3 2026
+----

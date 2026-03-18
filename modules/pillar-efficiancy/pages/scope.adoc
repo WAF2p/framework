@@ -1,0 +1,180 @@
+= Geltungsbereich – Performance Efficiency
+:page-toc: right
+:description: WAF++ Performance Efficiency – Geltungsbereich, Abgrenzung und Brownfield/Greenfield-Unterschiede.
+
+== Was ist im Scope?
+
+Die Performance-Efficiency-Säule des WAF++ adressiert alle technischen und prozessualen Dimensionen,
+die die Leistung von Cloud-Workloads direkt beeinflussen.
+
+=== Compute & Skalierung
+
+* Auswahl und Validierung von Instanztypen und -größen
+* Auto-Scaling-Konfiguration und -Tests für zustandslose Workloads
+* Serverlose Architekturen und Managed Services für variable Last
+* Container-Ressourcen (CPU/Memory-Limits, Requests in Kubernetes)
+
+=== Datenbanken & Persistenz
+
+* Datenbank-Performance-Baseline und Slow-Query-Analyse
+* Index-Strategie für hochfrequente Lese- und Schreiboperationen
+* Verbindungspool-Konfiguration und Connection-Pool-Sizing
+* Storage-I/O-Performance (Disk-Typ, IOPS, Throughput)
+
+=== Netzwerk & Delivery
+
+* CDN-Konfiguration für statische und cachefähige Inhalte
+* VPC Endpoints und Private Endpoints für interne Service-Kommunikation
+* Netzwerktopologie-Design und AZ-Affinität für latenz-sensitive Pfade
+* DNS-Latenz und Connection-Reuse-Strategien
+
+=== Caching
+
+* Distributed-Caching-Strategie (Redis, Memcached, Managed Cache Services)
+* CDN-Caching für Web-Content
+* Application-Layer-Caching und In-Process-Caching
+* Cache-Invalidierungs-Mechanismen und TTL-Policies
+
+=== Observability & Governance
+
+* SLO-Definition und SLI-Instrumentierung
+* Performance-Monitoring (P95/P99-Latenz, Throughput, Fehlerrate)
+* Lasttest- und Stresstest-Governance im CI/CD-Prozess
+* Performance-Schuld-Register und Quarterly-Review-Prozess
+
+== Was ist nicht im Scope?
+
+[cols="2,3"]
+|===
+|Außerhalb Scope |Warum
+
+|*Algorithmus-Optimierungen im Code*
+|Code-level-Performance ist Softwareentwicklung; WAF++ adressiert Infrastruktur- und Architektur-Performance.
+
+|*Vollständige Ausfallsicherheit & Recovery*
+|RTO/RPO, Backups, Failover-Mechanismen → Reliability-Säule.
+
+|*Provider-Vertragsverhandlungen*
+|Enterprise Agreements und Pricing-Verhandlungen → Beschaffung/Cost-Säule.
+
+|*Sicherheits-Design-Entscheidungen*
+|TLS-Konfiguration, Authentifizierungslatenz als Sicherheitsanforderung → Security-Säule.
+
+|*End-User-Device-Performance*
+|Browser-Rendering, App-Performance auf Endgeräten liegt außerhalb der Cloud-Infrastruktur.
+
+|===
+
+== Brownfield vs. Greenfield
+
+Performance-Optimierung in bestehenden und neuen Systemen erfordert fundamental unterschiedliche Ansätze.
+
+=== Brownfield (bestehende Systeme)
+
+[cols="1,3,2"]
+|===
+|Dimension |Herausforderung |Empfohlener Ansatz
+
+|*Compute-Sizing*
+|Instanztypen wurden nie auf Basis von Metriken gewählt; Auslastungsdaten fehlen.
+|Baseline-Periode 2–4 Wochen; danach Rightsizing-Analyse.
+
+|*Auto-Scaling*
+|Statische Kapazität; Skalierung war nie notwendig oder wurde nie implementiert.
+|Schrittweise: zunächst Monitoring-Phase, dann ASG ohne aggressive Skalierungsschwellen.
+
+|*Datenbank*
+|Performance Insights nie eingeschaltet; Slow-Query-Backlog unbekannt.
+|Enable Insights → Slow-Query-Analyse → Top-20-Queries optimieren.
+
+|*Caching*
+|Kein Cache oder ad-hoc implementierter Cache ohne Strategie.
+|Access-Pattern-Analyse → Cache-Layer einführen → Hit-Rate messen.
+
+|*Schulden-Register*
+|Viele bekannte Performance-Probleme, aber nirgendwo dokumentiert.
+|Kickoff-Workshop: bekannte Probleme erfassen → Register anlegen → priorisieren.
+
+|===
+
+=== Greenfield (neue Systeme)
+
+[cols="1,3,2"]
+|===
+|Dimension |Chance |Empfohlener Ansatz
+
+|*Compute-Sizing*
+|Sizing-Entscheidung kann von Anfang an datenbasiert geplant werden.
+|Benchmark-Profile der Anwendung → konservatives Sizing → nach 2 Wochen adjustieren.
+
+|*Auto-Scaling*
+|Auto-Scaling kann von Beginn an eingeplant und sofort validiert werden.
+|Zustandslose Architektur first; Auto-Scaling in Lasttest-Phase validieren.
+
+|*SLOs*
+|SLOs können vor dem ersten Deployment definiert werden.
+|SLOs als Teil der Definition-of-Done; Monitoring vor Go-Live instrumentieren.
+
+|*Lasttests*
+|CI/CD-Integration kann von Tag 1 eingerichtet werden.
+|Lasttestskripte in der ersten Sprint schreiben; Akzeptanzkriterien vor ersten Usern setzen.
+
+|===
+
+== Performance-Treiber Überblick
+
+[cols="1,2,2,1"]
+|===
+|Treiber |Typisches Symptom |Ursache |WAF-PERF Control
+
+|*Compute-Bottleneck*
+|Hohe CPU/Memory-Auslastung, erhöhte P99-Latenz
+|Instanz zu klein oder falsche Generation
+|WAF-PERF-010
+
+|*Fehlende Elastizität*
+|Service reagiert langsam bei Lastspitzen
+|Kein oder falsch konfiguriertes Auto-Scaling
+|WAF-PERF-020
+
+|*Cache-Miss-Flut*
+|Hohe Datenbankauslastung, hohe API-Latenz
+|Kein Cache oder niedrige Hit-Rate
+|WAF-PERF-030
+
+|*Slow Queries*
+|Datenbank-CPU-Spike, Connection-Pool erschöpft
+|Fehlende Indizes, Full-Table-Scans
+|WAF-PERF-040
+
+|*Unbekannte P99-Latenz*
+|SLA-Verletzungen unbemerkt
+|Kein SLO-Monitoring, nur Durchschnittswerte
+|WAF-PERF-050
+
+|*Performance-Regression*
+|Neue Version schlechter als vorherige
+|Kein automatisierter Lasttest im CI/CD
+|WAF-PERF-060
+
+|*Hohe Netzwerklatenz*
+|Unerwartete Latenzen in Microservice-Calls
+|Cross-AZ-Traffic, kein CDN, kein VPC Endpoint
+|WAF-PERF-070
+
+|*Cold-Start-Latenz*
+|Erste Requests nach Idle langsam
+|Lambda/Function ohne Warmup-Konfiguration
+|WAF-PERF-080
+
+|*Storage-I/O-Sättigung*
+|Datenbanklatenz-Spikes trotz normaler CPU
+|gp2 Burst-Depletion, falscher Disk-Typ
+|WAF-PERF-090
+
+|*Bekannte Probleme ignoriert*
+|Gleiche Performance-Incidents wiederholen sich
+|Kein Performance-Schuld-Register
+|WAF-PERF-100
+
+|===

@@ -1,0 +1,256 @@
+id: WAF-PERF-070
+title: "Network Latency & Topology Optimization"
+pillar: "performance"
+status: "active"
+severity: "medium"
+category: "network-performance"
+type: ['configuration', 'governance']
+tags: ['network', 'latency', 'cdn', 'vpc-endpoints', 'topology', 'routing', 'proximity']
+
+description: >
+  All production workloads MUST be deployed with network topology optimized for latency.
+  Services that communicate frequently MUST be co-located in the same availability zone
+  or use VPC peering to avoid cross-region traversal. Content Delivery Networks (CDN) MUST
+  be used for all public-facing static and cacheable content. VPC Endpoints MUST be used
+  for internal AWS service traffic to avoid internet routing. Cross-AZ data transfer costs
+  and latency MUST be evaluated and minimized in service topology design.
+
+rationale: >
+  Network latency adds directly to user-facing response times and contributes to tail latency.
+  A microservice architecture without topology awareness can accumulate tens or hundreds of
+  milliseconds in cross-AZ and cross-region hops. CDN usage reduces both latency and egress
+  costs. VPC Endpoints eliminate internet round-trips for internal service traffic. Without
+  explicit topology design, traffic routing is determined by default, often suboptimally.
+
+threat:
+  - "High latency from cross-region or cross-AZ service calls in latency-sensitive request paths"
+  - "Excessive egress costs from cloud provider-to-internet traffic without CDN"
+  - "Internet routing of internal service-to-service traffic without VPC endpoints"
+  - "DNS resolution delays and cold connection establishment in serverless architectures"
+  - "Chatty microservice communication patterns amplifying network latency"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 3 – How do you select your networking solution?"
+      - "COST 9 – How do you manage demand and supply resources?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Optimize network performance"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Network design – Optimize for latency"
+
+implementation_guidance:
+  - "Map service-to-service call patterns and identify high-frequency, latency-sensitive paths."
+  - "Deploy tightly coupled services in the same AZ; use AZ affinity for stateful services."
+  - "Use CDN (CloudFront, Azure CDN, GCP Cloud CDN) for all static assets and cacheable API responses."
+  - "Create VPC Endpoints (Interface or Gateway) for all AWS services accessed from private subnets."
+  - "Enable connection reuse and HTTP/2 for all service-to-service communication."
+  - "Use regional load balancers and anycast for global deployments."
+  - "Benchmark cross-AZ vs. same-AZ latency for critical service pairs."
+
+maturity_levels:
+  level_1:
+    description: "No explicit network topology design"
+    criteria:
+      - "Services deployed without topology consideration"
+      - "No CDN deployed; all content served from origin"
+      - "Internal traffic routing undocumented"
+  level_2:
+    description: "Basic network topology with CDN for static content"
+    criteria:
+      - "CDN deployed for static assets"
+      - "Services deployed in VPC but without explicit AZ affinity"
+      - "No VPC Endpoints; internal traffic routes via internet"
+  level_3:
+    description: "Optimized topology with VPC Endpoints and CDN"
+    criteria:
+      - "CDN configured for static and dynamic cacheable content"
+      - "VPC Endpoints used for all major cloud service APIs"
+      - "Cross-AZ traffic minimized for latency-sensitive paths"
+      - "Service topology documented in architecture diagrams"
+  level_4:
+    description: "Performance-driven topology with continuous measurement"
+    criteria:
+      - "Network latency baseline measured and tracked per service pair"
+      - "AZ affinity for stateful services; cross-AZ fallback documented"
+      - "CDN cache hit rates optimized; Vary headers and cache rules tuned"
+      - "Connection pooling and HTTP/2 used throughout"
+  level_5:
+    description: "Intelligent network optimization with global routing"
+    criteria:
+      - "Anycast routing for global deployments minimizes RTT for all regions"
+      - "Network performance is part of ADR evaluation criteria"
+      - "Automated topology recommendations based on measured latency graphs"
+      - "Edge computing (Lambda@Edge, Cloudflare Workers) for ultra-low latency"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing CDN deployment and VPC Endpoints for cloud service access."
+    - kind: "governance"
+      description: "Network topology diagram showing service placement, AZ distribution, and traffic routing."
+  optional:
+    - kind: "config"
+      description: "Network latency baseline measurements (service-to-service RTT by AZ pair)."
+    - kind: "process"
+      description: "CDN cache hit rate report showing optimization progress."
+
+checks:
+  - id: "waf-perf-070.tf.aws.vpc-endpoint-s3"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS VPCs with private subnets must have S3 Gateway VPC Endpoints"
+    description: >
+      VPCs containing private subnets that access S3 must use Gateway VPC Endpoints
+      to avoid internet routing and reduce latency and data transfer costs.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_vpc_endpoint"
+    assertions:
+      - attribute: "service_name"
+        op: "matches"
+        pattern: ".*\\.s3$"
+        message: "VPC Endpoint should be configured for S3 service."
+      - attribute: "vpc_endpoint_type"
+        op: "equals"
+        value: "Gateway"
+        message: "S3 VPC Endpoint must be Gateway type."
+    on_fail: "advisory"
+    remediation: >
+      Create an aws_vpc_endpoint resource for S3 with vpc_endpoint_type = "Gateway" and
+      associate it with private route tables. This routes S3 traffic via AWS backbone.
+    example:
+      compliant: |
+        resource "aws_vpc_endpoint" "s3" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.region}.s3"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+          tags = { Name = "vpce-s3-${var.environment}" }
+        }
+        resource "aws_vpc_endpoint" "dynamodb" {
+          vpc_id            = aws_vpc.main.id
+          service_name      = "com.amazonaws.${var.region}.dynamodb"
+          vpc_endpoint_type = "Gateway"
+          route_table_ids   = [aws_route_table.private.id]
+        }
+      non_compliant: |
+        # No VPC Endpoints defined
+        # S3 and DynamoDB traffic routes via internet gateway
+        resource "aws_vpc" "main" {
+          cidr_block = "10.0.0.0/16"
+          # All service traffic exits to internet – WAF-PERF-070 violation
+        }
+
+  - id: "waf-perf-070.tf.azurerm.cdn-profile-configured"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure applications with public endpoints should use CDN or Front Door"
+    description: >
+      Public-facing Azure applications should use Azure CDN or Azure Front Door to cache
+      static content and reduce origin load and end-user latency.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_cdn_profile"
+        - "azurerm_frontdoor"
+        - "azurerm_cdn_frontdoor_profile"
+    assertions:
+      - attribute: "sku"
+        op: "not_empty"
+        message: "CDN profile must have SKU defined."
+    on_fail: "advisory"
+    remediation: >
+      Deploy azurerm_cdn_profile with endpoints for static content delivery.
+      For global applications, use Azure Front Door for routing and caching.
+    example:
+      compliant: |
+        resource "azurerm_cdn_profile" "main" {
+          name                = "cdn-payment-frontend"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = "global"
+          sku                 = "Standard_Microsoft"
+        }
+        resource "azurerm_cdn_endpoint" "static" {
+          name                = "static-assets"
+          profile_name        = azurerm_cdn_profile.main.name
+          resource_group_name = azurerm_resource_group.main.name
+          location            = "global"
+          origin {
+            name      = "storage-origin"
+            host_name = azurerm_storage_account.static.primary_blob_host
+          }
+        }
+      non_compliant: |
+        # No CDN or Front Door configured
+        # All static content served directly from Storage Account or App Service
+        # – WAF-PERF-070 violation
+
+  - id: "waf-perf-070.tf.google.cloud-cdn-enabled"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP backends with public traffic should have Cloud CDN enabled"
+    description: >
+      GCP HTTP(S) Load Balancer backend services serving public content should have
+      Cloud CDN enabled to reduce origin latency and improve user experience.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_backend_service"
+      filter:
+        attribute: "load_balancing_scheme"
+        op: "equals"
+        value: "EXTERNAL"
+    assertions:
+      - attribute: "enable_cdn"
+        op: "is_true"
+        message: "External backend service should have Cloud CDN enabled."
+    on_fail: "advisory"
+    remediation: >
+      Set enable_cdn = true on google_compute_backend_service for external load balancers.
+      Configure cdn_policy with appropriate cache mode and TTL settings.
+    example:
+      compliant: |
+        resource "google_compute_backend_service" "frontend" {
+          name                  = "backend-payment-frontend"
+          protocol              = "HTTP"
+          load_balancing_scheme = "EXTERNAL"
+          enable_cdn            = true
+          cdn_policy {
+            cache_mode                   = "CACHE_ALL_STATIC"
+            default_ttl                  = 3600
+            client_ttl                   = 3600
+            negative_caching             = true
+            serve_while_stale            = 86400
+          }
+          backend {
+            group = google_compute_instance_group.frontend.id
+          }
+        }
+      non_compliant: |
+        resource "google_compute_backend_service" "frontend" {
+          name                  = "backend-payment-frontend"
+          protocol              = "HTTP"
+          load_balancing_scheme = "EXTERNAL"
+          enable_cdn            = false  # CDN disabled – WAF-PERF-070 violation
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-070"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-network-performance.adoc"
+  related_controls:
+    - "WAF-PERF-030"
+    - "WAF-PERF-050"
+    - "WAF-PERF-080"

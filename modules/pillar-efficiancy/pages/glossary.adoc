@@ -1,0 +1,187 @@
+= Glossar – Performance Efficiency
+:page-toc: right
+:description: WAF++ Performance Efficiency – Definitionen zentraler Begriffe.
+
+== A
+
+*Auto-Scaling* (dt. Automatische Skalierung)::
+Mechanismus, der die Anzahl der Compute-Ressourcen automatisch basierend auf definierten Metriken
+(CPU, Request-Rate, Queue-Depth) erhöht oder verringert.
+
+*Availability Zone (AZ)* (dt. Verfügbarkeitszone)::
+Physisch isolierte Rechenzentren innerhalb einer Cloud-Region.
+Für Latenz-Optimierung sollten häufig kommunizierende Services in derselben AZ deployed werden.
+
+== B
+
+*Baseline* (dt. Ausgangsmessung)::
+Gemessene Performance-Referenz eines Systems unter definierten Lastbedingungen.
+Grundlage für Regressionstests und Kapazitätsplanung.
+
+*Bulkhead Pattern* (dt. Schott-Muster)::
+Isolierung von Ressourcenpools (Thread-Pools, Connection-Pools) für verschiedene Service-Kategorien,
+um Cascading Failures zu verhindern.
+
+*Burst Balance* (dt. Burst-Guthaben)::
+AWS-spezifisches Konzept für gp2-EBS-Volumes: Guthaben, das bei geringer I/O-Last akkumuliert
+und bei Lastspitzen verbraucht wird. Bei Erschöpfung sinkt IOPS auf Baseline.
+
+== C
+
+*Cache Hit Rate* (dt. Cache-Trefferquote)::
+Prozentualer Anteil der Anfragen, der aus dem Cache beantwortet werden kann,
+ohne die Ursprungsquelle (Datenbank, API) abzufragen. Ziel: >= 80% für Applikations-Caches.
+
+*Cache Stampede / Thundering Herd* (dt. Cache-Ansturm)::
+Phänomen, bei dem viele parallele Anfragen gleichzeitig einen abgelaufenen Cache-Eintrag
+regenerieren wollen, was zu massiver Last auf der Ursprungsquelle führt.
+
+*Circuit Breaker* (dt. Schutzschalter)::
+Software-Muster, das weitere Anfragen an ein langsames oder ausgefallenes Downstream-System
+vorübergehend unterbindet, um Cascading Failures zu verhindern.
+
+*Cold Start* (dt. Kaltstart)::
+Initialisierungsverzögerung bei Serverless-Funktionen oder Containern, die längere Zeit inaktiv waren.
+Erste Anfrage nach längerer Idle-Phase ist deutlich langsamer als Folge-Anfragen.
+
+*Connection Pool* (dt. Verbindungspool)::
+Vorgehaltener Satz von Datenbankverbindungen, der von mehreren Threads/Requests wiederverwendet wird,
+um den Verbindungsaufbau-Overhead zu vermeiden.
+
+== D
+
+*Distributed Cache* (dt. Verteilter Cache)::
+Cache-Layer außerhalb des Anwendungsprozesses, typischerweise Redis oder Memcached,
+der von mehreren Instanzen gemeinsam genutzt werden kann.
+
+== E
+
+*Error Budget* (dt. Fehlerbudget)::
+SRE-Konzept: Der tolerierbare Anteil von SLO-Verletzungen in einem definierten Zeitfenster.
+Ein Service mit 99.9% Verfügbarkeits-SLO hat 8.7 Stunden/Jahr Error Budget.
+
+*EBS gp3* (dt. allgemeines SSD-Volume Typ 3)::
+Aktuelle Generation der AWS General Purpose SSD-Volumes.
+Bietet 3.000 IOPS und 125 MB/s Baseline ohne Burst-Mechanik, bei 20% niedrigerem Preis als gp2.
+
+== F
+
+*Full Table Scan* (dt. Vollständiger Tabellenscan)::
+Datenbankoperation, bei der alle Zeilen einer Tabelle gelesen werden müssen, weil kein Index
+für die Abfragebedingung existiert. Führt zu hohem I/O und CPU-Last.
+
+== H
+
+*Horizontal Scaling* (dt. Horizontale Skalierung)::
+Erhöhung der Kapazität durch Hinzufügen weiterer gleichartiger Instanzen hinter einem Load Balancer.
+Kontrastiert mit Vertical Scaling (größere Instanz).
+
+*HPA (Horizontal Pod Autoscaler)*::
+Kubernetes-Mechanismus, der die Anzahl der Pods eines Deployments basierend auf CPU-Auslastung
+oder benutzerdefinierten Metriken automatisch anpasst.
+
+== I
+
+*IOPS (Input/Output Operations Per Second)* (dt. Ein-/Ausgabe-Operationen pro Sekunde)::
+Messgröße für die Geschwindigkeit von Speichersystemen. Relevant für Datenbankleistung
+und datenintensive Workloads.
+
+*Index Strategy* (dt. Indexstrategie)::
+Dokumentierter Plan, welche Datenbankspalten/-felder mit Indizes versehen werden,
+um häufige Abfragen zu beschleunigen, ohne unnötigen Schreib-Overhead zu erzeugen.
+
+== L
+
+*Latenz* (engl. Latency)::
+Zeit, die eine einzelne Anfrage vom Eingang bis zur vollständigen Antwort benötigt.
+Wird typischerweise in Perzentilen gemessen: P50 (Median), P95, P99, P99.9.
+
+*Load Balancer* (dt. Lastverteiler)::
+Komponente, die eingehende Anfragen auf mehrere Backend-Instanzen verteilt,
+um Last gleichmäßig zu verteilen und Einzelpunkt-Versagen zu vermeiden.
+
+*Load Testing* (dt. Lasttest)::
+Systematische Überprüfung des Systemverhaltens unter definierter, realistischer Last.
+Dient zur Validierung von SLOs und Auto-Scaling-Konfigurationen.
+
+== P
+
+*P50/P95/P99/P99.9* (Latenz-Perzentile)::
+Statistische Maßzahlen für Latenzverteilungen:
+P95 = 95% aller Anfragen sind schneller als dieser Wert.
+P99 = 99% aller Anfragen sind schneller.
+Tail-Latenz (P99, P99.9) ist entscheidend für Nutzererfahrung.
+
+*Performance Debt* (dt. Performance-Schuld)::
+Bewusst akzeptierte oder unbewusst entstandene Performance-Einschränkungen in Architektur
+und Implementierung, die dokumentiert, priorisiert und abgebaut werden müssen.
+
+*Provisioned Concurrency* (dt. Bereitgestellte Parallelität)::
+AWS-Lambda-Feature, das Funktionsinstanzen im Voraus initialisiert und warm hält,
+um Cold-Start-Latenz zu eliminieren. Kostenpflichtig auch bei Inaktivität.
+
+== R
+
+*Read Replica* (dt. Lesereplikat)::
+Schreibgeschützte Kopie einer Datenbank, die Leseanfragen übernehmen kann,
+um den primären Datenbankserver zu entlasten.
+
+*Reserved Concurrency* (dt. Reservierte Parallelität)::
+AWS-Lambda-Feature, das einen festen Anteil des Account-Concurrency-Limits für eine Funktion reserviert,
+um sowohl eine Mindest-Kapazität zu garantieren als auch eine Überlastung des Accounts zu verhindern.
+
+== S
+
+*Service Level Agreement (SLA)* (dt. Dienstgütevereinbarung)::
+Vertraglich vereinbarte Leistungsgarantie zwischen Dienstleister und Kunde.
+Basis: SLOs + Eskalations-/Kompensationsregeln.
+
+*Service Level Indicator (SLI)* (dt. Dienstgüte-Indikator)::
+Messbare Größe, die die tatsächlich erfahrene Dienstgüte quantifiziert.
+Beispiele: P99-Latenz, Erfolgsrate, Verfügbarkeit.
+
+*Service Level Objective (SLO)* (dt. Dienstgüte-Ziel)::
+Internes Ziel für ein SLI. Beispiel: P99-Latenz < 500ms, gemessen über 30 Tage.
+SLOs sind die Grundlage für Error-Budget-Management.
+
+*Slow Query Log* (dt. Protokoll langsamer Abfragen)::
+Datenbankfunktion, die SQL-Abfragen protokolliert, die eine definierte Ausführungszeit überschreiten.
+Grundlegendes Werkzeug für Datenbankperformance-Analyse.
+
+*SLO Burn Rate* (dt. Fehlerbudget-Verbrauchsrate)::
+Rate, mit der das Error Budget verbraucht wird. Eine Burn Rate > 1 bedeutet,
+dass das Budget schneller verbraucht wird als erlaubt.
+
+*Stress Testing* (dt. Stresstest)::
+Lasttest mit Lasten deutlich über dem erwarteten Maximum (typisch 2x–5x),
+um Kapazitätsgrenzen, Fehlermodi und Systemverhalten am Limit zu identifizieren.
+
+== T
+
+*Throughput* (dt. Durchsatz)::
+Anzahl der verarbeiteten Anfragen oder Datenmenge pro Zeiteinheit.
+Typische Einheit: Requests per Second (RPS/TPS) oder MB/s.
+
+*TTL (Time-to-Live)*::
+Lebensdauer eines Cache-Eintrags. Nach Ablauf wird der Eintrag aus dem Cache entfernt
+und bei der nächsten Anfrage neu geladen.
+
+== V
+
+*Vertical Scaling* (dt. Vertikale Skalierung)::
+Erhöhung der Kapazität durch Upgrade auf eine größere Instanz.
+Hat eine harte Obergrenze; erfordert typischerweise Ausfallzeit.
+
+*VPC Endpoint* (dt. VPC-Endpunkt)::
+AWS-Feature, das erlaubt, Cloud-Service-APIs (S3, DynamoDB, SSM etc.) über private
+AWS-Backbone-Verbindungen zu erreichen, ohne das Internet zu passieren.
+
+*VPC Peering*::
+Direkte Netzwerkverbindung zwischen zwei VPCs, die Traffic über das AWS-interne Netzwerk
+statt über das Internet routet.
+
+== W
+
+*Write-Through Cache* (dt. Durchschreibender Cache)::
+Caching-Strategie, bei der Schreiboperationen synchron sowohl in den Cache als auch in die
+Datenquelle schreiben, um Cache-Konsistenz sicherzustellen.

@@ -1,0 +1,171 @@
+= WAF-OPS-030 – Observability Stack Configured
+:page-toc: right
+:control-id: WAF-OPS-030
+:pillar: operations
+:severity: high
+:category: observability
+:automated: high
+:description: WAF++ Operational Excellence – Alle Produktions-Services müssen strukturierte Logs, Metriken und Distributed Tracing emittieren.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Jeder Produktions-Workload MUSS strukturierte Logs emittieren, Metriken exponieren und
+Distributed Tracing unterstützen. Ein zentralisierter Observability-Stack MUSS konfiguriert sein.
+Logs MÜSSEN in JSON strukturiert sein, Trace-IDs enthalten und eine definierte Retention-Policy haben.
+
+== Rationale
+
+Nicht beobachtbare Systeme können nicht zuverlässig betrieben werden. Im Incident-Fall
+müssen Engineers in Minuten bestimmen können was passiert ist, warum und wann.
+Structured Logging ermöglicht automatisiertes Parsing. Metriken ermöglichen Trend-Analyse.
+Distributed Tracing ermöglicht Root-Cause-Isolation in Microservices.
+Ohne alle drei Säulen ist MTTR hoch und Post-Incident-Learning eingeschränkt.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Blinde Incidents*
+|Ohne strukturierte Logs dauert die Fehlerdiagnose Stunden statt Minuten.
+
+|*Stille Fehler*
+|Ohne Metriken werden Fehler erst durch Nutzerberichte entdeckt, nicht durch Alerting.
+
+|*Root-Cause-Unmöglichkeit*
+|Ohne Distributed Tracing in Microservices ist die Ursache eines Fehlers nicht isolierbar.
+
+|*Security-Blind-Spots*
+|Ohne zentrale Log-Aggregation sind Security-Incidents nicht erkennbar.
+
+|===
+
+== Anforderung
+
+* Alle Services MÜSSEN strukturierte JSON-Logs mit `trace_id`, `request_id`, `service` emittieren
+* Distributed Tracing MUSS konfiguriert und instrumentiert sein
+* RED-Metriken MÜSSEN für jeden Service exportiert sein (Rate, Errors, Duration)
+* Log-Retention MUSS mindestens 30 Tage (empfohlen: 90 Tage Applikation, 365 Tage Audit)
+* Sensitive Daten (PII, Credentials) DÜRFEN NICHT in Logs erscheinen
+
+== Implementierungsanleitung
+
+. *Structured Logging einrichten:* JSON-Logging-Framework; `trace_id`, `service`, `level`, `timestamp` als Pflichtfelder
+. *OpenTelemetry SDK integrieren:* Auto-Instrumentation für HTTP-Clients und -Server; Trace-ID-Propagation
+. *Log-Groups mit Retention konfigurieren:* CloudWatch Log Groups in Terraform mit `retention_in_days`
+. *RED-Metriken exportieren:* Request Rate, Error Rate, Duration (p50/p95/p99) als Custom Metrics
+. *Dashboards erstellen:* Service-Health-Dashboard mit allen RED-Metriken
+. *X-Ray/Jaeger aktivieren:* Tracing Backend konfigurieren; Sampling-Rate optimieren (5-10% unter Last)
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Unstrukturiertes Logging
+|Text-Logs zu stdout; kein zentrales Aggregation; kein Tracing; kein Monitoring.
+
+|*2*
+|Zentralisierte Logs
+|Logs zentral aggregiert; Basis-Dashboards; kein Distributed Tracing.
+
+|*3*
+|Alle 3 Säulen konfiguriert
+|Structured Logs mit Trace-ID; Distributed Tracing; RED-Metriken; Log-Retention-Policy.
+
+|*4*
+|SLO-basiertes Alerting
+|Burn-Rate-Alerts; Sampling optimiert; automatische Anomalie-Erkennung.
+
+|*5*
+|OpenTelemetry Plattform
+|Vendor-agnostisch; volle Korrelation Logs/Traces/Metriken; Observability-as-Product.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-030.tf.aws.cloudwatch-log-group-retention
+*Prüft:* CloudWatch Log Groups haben eine Retention-Policy (mindestens 30 Tage).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/aws/ecs/payment-service"
+  retention_in_days = 90
+  tags = {
+    environment = "production"
+  }
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name = "/aws/ecs/payment-service"
+  # Kein retention_in_days
+  # Logs akkumulieren unbegrenzt
+  # WAF-OPS-030 Violation
+}
+----
+
+|===
+
+=== waf-ops-030.tf.aws.xray-tracing-enabled
+*Prüft:* Lambda Functions haben X-Ray Tracing auf "Active" gesetzt.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_lambda_function" "processor" {
+  function_name = "payment-processor"
+  tracing_config {
+    mode = "Active"  # Nicht PassThrough
+  }
+}
+----
+
+*Remediation:* Alle `aws_cloudwatch_log_group` Ressourcen mit `retention_in_days >= 30` versehen.
+Lambda Functions `tracing_config { mode = "Active" }` hinzufügen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|Log-Group-Konfiguration mit definierten Retention-Policies in Terraform.
+
+|*IaC*
+|✅ Pflicht
+|Tracing-Konfiguration (X-Ray, OTel Collector) als IaC-Ressource.
+
+|*Process*
+|Optional
+|Dashboard-Screenshot mit RED-Metriken für kritische Services.
+
+|*Config*
+|Optional
+|OpenTelemetry SDK-Konfiguration im Applikationscode (Sampling-Konfiguration).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
+* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+
+== Best Practice
+
+* xref:best-practices/bp-observability.adoc[Observability-Stack aufbauen →]

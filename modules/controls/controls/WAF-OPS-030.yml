@@ -1,0 +1,239 @@
+id: WAF-OPS-030
+title: "Observability Stack Configured"
+pillar: "operations"
+status: "active"
+severity: "high"
+category: "observability"
+type: ['governance', 'configuration', 'automation']
+tags: ['observability', 'logging', 'metrics', 'tracing', 'dashboards', 'monitoring']
+
+description: >
+  Every production workload MUST emit structured logs, expose metrics, and support
+  distributed tracing. An observability stack MUST be configured with centralized log
+  aggregation, a metrics collection system, and distributed tracing. Logs MUST be
+  structured (JSON), include trace IDs and request IDs, and be routed to a centralized
+  platform with defined retention periods.
+
+rationale: >
+  Unobservable systems cannot be operated reliably. When an incident occurs, engineers
+  must be able to determine what happened, why, and when – within minutes, not hours.
+  Structured logging enables automated parsing and querying. Metrics enable trend analysis
+  and capacity planning. Distributed tracing enables root cause isolation in microservices.
+  Without all three pillars of observability, mean time to resolution (MTTR) is high and
+  post-incident learning is limited.
+
+threat:
+  - "Incidents taking hours to diagnose due to unstructured or missing logs"
+  - "Silent failures not detected because no metrics or health signals are emitted"
+  - "Root cause analysis impossible in microservices without distributed tracing"
+  - "Security incidents undetectable without centralized log aggregation"
+  - "Capacity planning failures due to missing baseline metrics"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 20000-1"
+    controls:
+      - "Monitoring, measurement, analysis, and evaluation"
+      - "Service availability management"
+  - framework: "ITIL 4"
+    controls:
+      - "Monitoring and event management"
+      - "Service configuration management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "Operational Excellence Pillar – OPS 7: How do you understand the health of your workload?"
+  - framework: "SOC 2 Type II"
+    controls:
+      - "CC7.1 – Detect and Monitor – Vulnerability and Threat Detection"
+  - framework: "BSI C5:2020"
+    controls:
+      - "OIS-10 Protokollierung und Monitoring"
+
+implementation_guidance:
+  - "Implement structured JSON logging in all application components; include trace_id, request_id, service, level, timestamp fields."
+  - "Deploy a centralized log aggregation platform: AWS CloudWatch Logs, Azure Monitor, GCP Cloud Logging, or ELK/OpenSearch."
+  - "Instrument applications with OpenTelemetry SDK for traces and metrics; use vendor-agnostic instrumentation."
+  - "Configure distributed tracing: AWS X-Ray, Jaeger, Zipkin, or OpenTelemetry Collector + backend (Tempo, Datadog)."
+  - "Define and export RED metrics (Rate, Errors, Duration) for every service and USE metrics (Utilization, Saturation, Errors) for infrastructure."
+  - "Create service-level dashboards: request rate, error rate, latency percentiles (p50, p95, p99), saturation."
+  - "Set log retention periods: production application logs minimum 90 days; security/audit logs minimum 1 year."
+
+maturity_levels:
+  level_1:
+    description: "Ad-hoc unstructured logging"
+    criteria:
+      - "Applications write unstructured text logs to stdout or files"
+      - "No centralized log aggregation"
+      - "Monitoring limited to infrastructure-level CPU/memory from cloud console"
+  level_2:
+    description: "Centralized logging configured"
+    criteria:
+      - "Logs aggregated to central platform (CloudWatch, Azure Monitor, etc.)"
+      - "Basic dashboards show key infrastructure metrics"
+      - "Some structured logging but no consistent schema"
+  level_3:
+    description: "Structured observability with all three pillars"
+    criteria:
+      - "All services emit structured JSON logs with trace_id and request_id"
+      - "Distributed tracing configured and instrumented in all services"
+      - "RED metrics exported and visible in dashboards"
+      - "Log retention policies defined and enforced"
+  level_4:
+    description: "SLO-based observability with alerting"
+    criteria:
+      - "SLO-based alerting configured for all critical services"
+      - "Trace sampling rate and retention optimized for cost/coverage balance"
+      - "Automated anomaly detection on key metrics"
+      - "Runbooks linked to all alert rules"
+  level_5:
+    description: "Continuous observability with learning loops"
+    criteria:
+      - "Observability data feeds directly into capacity planning and architectural decisions"
+      - "Full-stack correlation: logs, traces, metrics correlated by trace_id"
+      - "Observability as a product: internal platform with SLAs for log availability"
+      - "OpenTelemetry-based vendor-agnostic instrumentation across all services"
+
+evidence:
+  required:
+    - kind: "config"
+      description: "Log group or log workspace configuration showing centralized aggregation and retention settings."
+    - kind: "iac"
+      description: "CloudWatch, Azure Monitor, or equivalent observability stack defined as IaC with log groups and metrics."
+  optional:
+    - kind: "process"
+      description: "Dashboard screenshot or export showing RED metrics for critical services."
+    - kind: "config"
+      description: "OpenTelemetry or tracing SDK configuration in application code."
+
+checks:
+  - id: "waf-ops-030.tf.aws.cloudwatch-log-group-retention"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "CloudWatch log groups must define retention period"
+    description: >
+      All AWS CloudWatch log groups MUST define a retention_in_days value.
+      Log groups without retention will accumulate indefinitely, increasing costs
+      and violating data governance requirements.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_log_group"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "attribute_exists"
+        message: "CloudWatch log group must define retention_in_days."
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 30
+        message: "Log group retention must be at least 30 days."
+    on_fail: "violation"
+    remediation: >
+      Add retention_in_days to all aws_cloudwatch_log_group resources.
+      Recommended: 90 days for application logs, 365 days for security/audit logs.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "app_logs" {
+          name              = "/aws/ecs/payment-service"
+          retention_in_days = 90
+          tags = {
+            environment = "production"
+            workload    = "payment-service"
+          }
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_log_group" "app_logs" {
+          name = "/aws/ecs/payment-service"
+          # No retention_in_days – logs stored indefinitely
+          # WAF-OPS-030 Violation
+        }
+
+  - id: "waf-ops-030.tf.aws.xray-tracing-enabled"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Lambda functions must have X-Ray tracing enabled"
+    description: >
+      AWS Lambda functions in production MUST have X-Ray tracing enabled to support
+      distributed request tracing and latency analysis.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lambda_function"
+    assertions:
+      - attribute: "tracing_config.mode"
+        op: "not_in"
+        value: ["PassThrough"]
+        message: "Lambda tracing mode must be Active, not PassThrough."
+    on_fail: "violation"
+    remediation: >
+      Add tracing_config { mode = "Active" } to all aws_lambda_function resources.
+    example:
+      compliant: |
+        resource "aws_lambda_function" "processor" {
+          function_name = "payment-processor"
+          role          = aws_iam_role.lambda_exec.arn
+          handler       = "index.handler"
+          runtime       = "nodejs20.x"
+
+          tracing_config {
+            mode = "Active"
+          }
+        }
+      non_compliant: |
+        resource "aws_lambda_function" "processor" {
+          function_name = "payment-processor"
+          role          = aws_iam_role.lambda_exec.arn
+          handler       = "index.handler"
+          runtime       = "nodejs20.x"
+          # No tracing_config – WAF-OPS-030 Violation
+        }
+
+  - id: "waf-ops-030.tf.azurerm.log-analytics-workspace"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Log Analytics workspace must be configured with retention"
+    description: >
+      Azure deployments MUST configure a Log Analytics workspace with an appropriate
+      retention period for centralized log aggregation.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_log_analytics_workspace"
+    assertions:
+      - attribute: "retention_in_days"
+        op: "greater_than_or_equal"
+        value: 30
+        message: "Log Analytics workspace retention must be at least 30 days."
+    on_fail: "violation"
+    remediation: >
+      Set retention_in_days to at least 90 for application logs in the
+      azurerm_log_analytics_workspace resource.
+    example:
+      compliant: |
+        resource "azurerm_log_analytics_workspace" "main" {
+          name                = "law-payment-service-prod"
+          location            = var.location
+          resource_group_name = azurerm_resource_group.main.name
+          sku                 = "PerGB2018"
+          retention_in_days   = 90
+        }
+      non_compliant: |
+        resource "azurerm_log_analytics_workspace" "main" {
+          name                = "law-payment-service-prod"
+          location            = var.location
+          resource_group_name = azurerm_resource_group.main.name
+          sku                 = "PerGB2018"
+          retention_in_days   = 7
+          # 7 days is insufficient – WAF-OPS-030 Violation
+        }
+
+references:
+  narrative: "modules/pillar-excellence/pages/controls.adoc#WAF-OPS-030"
+  best_practice: "modules/pillar-excellence/pages/best-practices/bp-observability.adoc"
+  related_controls:
+    - "WAF-OPS-040"
+    - "WAF-OPS-070"

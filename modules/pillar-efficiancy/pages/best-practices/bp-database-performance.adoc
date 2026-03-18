@@ -1,0 +1,231 @@
+= Best Practice: Datenbankperformance optimieren
+:page-toc: right
+:description: WAF++ Performance Efficiency – Slow-Query-Analyse, Indexstrategien und Performance-Insights für Produktionsdatenbanken.
+
+== Kontext
+
+Datenbankperformance-Probleme sind die häufigste Ursache für Anwendungslatenz-Degradation.
+Ein einziger fehlender Index auf einer hochfrequentierten Tabelle kann I/O sättigen,
+Connection-Pools erschöpfen und Cascading-Timeouts durch die gesamte Anwendung auslösen.
+
+Typische Probleme ohne strukturiertes Datenbankperformance-Management:
+
+* Full Table Scans auf Millionen-Zeilen-Tabellen in der kritischen Query-Path
+* Connection-Pool-Erschöpfung durch langläufige Queries, die Verbindungen blockieren
+* Query-Performance-Regression nach Schema-Änderungen unbemerkt in Produktion gelangt
+* Performance Insights nicht aktiv – Diagnose nur über Incident-getriebene Analyse möglich
+
+== Zugehörige Controls
+
+* xref:../controls.adoc#WAF-PERF-040[WAF-PERF-040] – Database Performance Baseline & Index Strategy
+* xref:../controls.adoc#WAF-PERF-090[WAF-PERF-090] – Storage I/O Performance & Throughput Optimization
+
+== Zielbild
+
+Performance-reife Datenbankumgebung:
+
+* *Baseline bekannt*: P50/P95/P99 Ausführungszeiten der Top-20-Queries dokumentiert
+* *Indizes strategisch*: Alle hochfrequenten Abfragen nutzen Indizes; keine Full-Table-Scans
+* *Monitoring aktiv*: Performance Insights und Slow-Query-Log laufen kontinuierlich
+* *Connection Pools*: Explizit dimensioniert und mit PgBouncer/ProxySQL abgesichert
+
+== Technische Umsetzung
+
+=== Schritt 1: Performance Insights aktivieren (AWS RDS)
+
+[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier              = "db-payment-${var.environment}"
+  engine                  = "postgres"
+  engine_version          = "15.4"
+  instance_class          = "db.t3.medium"
+  allocated_storage       = 100
+  storage_type            = "gp3"
+  iops                    = 3000
+
+  # Performance Insights
+  performance_insights_enabled          = true
+  performance_insights_retention_period = 7   # 7 Tage kostenlos; 731 Tage kostenpflichtig
+
+  # Enhanced Monitoring
+  monitoring_interval = 60  # Sekunden
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+
+  # Slow Query Logs
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  parameter_group_name            = aws_db_parameter_group.main.name
+
+  # Sicherheit
+  deletion_protection    = true
+  skip_final_snapshot    = false
+  multi_az               = true
+
+  tags = {
+    workload    = "payment-api"
+    environment = var.environment
+  }
+}
+
+resource "aws_db_parameter_group" "main" {
+  name   = "pg-payment-${var.environment}"
+  family = "postgres15"
+
+  # Slow Query Logging
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "1000"  # Log queries slower than 1000ms
+  }
+  parameter {
+    name  = "log_lock_waits"
+    value = "1"     # Log lock waits
+  }
+  parameter {
+    name  = "auto_explain.log_min_duration"
+    value = "5000"  # EXPLAIN ANALYZE für Queries > 5s
+  }
+}
+----
+
+=== Schritt 2: Slow Queries analysieren
+
+[source,sql]
+----
+-- PostgreSQL: Top-20 Queries nach Gesamtausführungszeit
+SELECT
+    left(query, 100) as query_snippet,
+    calls,
+    round(total_exec_time::numeric, 2) as total_ms,
+    round(mean_exec_time::numeric, 2) as avg_ms,
+    round(stddev_exec_time::numeric, 2) as stddev_ms,
+    rows,
+    round(100.0 * total_exec_time / sum(total_exec_time) over(), 2) as pct_total
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 20;
+
+-- Fehlende Indizes identifizieren (sequentielle Scans auf großen Tabellen)
+SELECT
+    schemaname,
+    tablename,
+    seq_scan,
+    seq_tup_read,
+    idx_scan,
+    idx_tup_fetch,
+    round(seq_tup_read::numeric / NULLIF(seq_scan, 0), 0) as avg_rows_per_seq_scan
+FROM pg_stat_user_tables
+WHERE seq_scan > 0
+  AND seq_tup_read > 10000  -- Nur Tabellen mit signifikanten Scans
+ORDER BY seq_tup_read DESC;
+
+-- Beste Index-Kandidaten (häufige WHERE-Spalten ohne Index)
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM payments WHERE user_id = $1 AND status = 'pending';
+-- → Wenn "Seq Scan" erscheint: Index auf (user_id, status) fehlt!
+----
+
+=== Schritt 3: Index-Strategie dokumentieren
+
+[source,yaml]
+----
+# docs/database/index-strategy.yml
+database: "payment-db"
+last_reviewed: "2026-03-18"
+
+tables:
+  payments:
+    row_count: "~50M"
+    indexes:
+      - columns: ["id"]
+        type: "primary_key"
+        rationale: "Primary key lookups"
+
+      - columns: ["user_id"]
+        type: "btree"
+        rationale: "All payment queries filter by user_id"
+        query_volume: "~5000 req/s"
+
+      - columns: ["user_id", "status"]
+        type: "btree"
+        rationale: "Pending payments list – most common user query"
+        query_volume: "~2000 req/s"
+        created: "2025-08-15"
+        notes: "Without this index: full table scan on 50M rows"
+
+      - columns: ["created_at"]
+        type: "btree"
+        rationale: "Date range queries for reporting"
+        used_by: "reporting-service"
+
+    do_not_add:
+      - columns: ["amount"]
+        reason: "Never used as filter; would add write overhead"
+
+review_schedule: "quarterly"
+next_review: "2026-06-18"
+----
+
+=== Schritt 4: Index in Migration erstellen
+
+[source,sql]
+----
+-- Concurrent Index Creation (kein Table-Lock in PostgreSQL)
+CREATE INDEX CONCURRENTLY idx_payments_user_status
+ON payments (user_id, status)
+WHERE status IN ('pending', 'processing');  -- Partial Index für aktive Zahlungen
+
+-- Index-Größe und Effizienz prüfen
+SELECT
+    indexname,
+    pg_size_pretty(pg_relation_size(indexname::regclass)) as index_size,
+    idx_scan as scans,
+    idx_tup_read as rows_read,
+    idx_tup_fetch as rows_fetched
+FROM pg_stat_user_indexes
+WHERE tablename = 'payments'
+ORDER BY idx_scan DESC;
+----
+
+=== Schritt 5: Connection Pooling mit PgBouncer
+
+[source,ini]
+----
+# pgbouncer.ini
+[databases]
+payment_db = host=db-payment.cluster.local port=5432 dbname=payment_prod
+
+[pgbouncer]
+pool_mode = transaction     # Transaction-Pooling für stateless APIs
+listen_port = 5432
+listen_addr = 0.0.0.0
+max_client_conn = 1000      # Maximale Client-Verbindungen
+default_pool_size = 20      # Verbindungen zur Datenbank pro Pool
+min_pool_size = 5           # Mindest-Verbindungen warm halten
+reserve_pool_size = 5       # Reserve für Peaks
+server_idle_timeout = 600
+client_idle_timeout = 600
+log_connections = 1
+log_disconnections = 1
+----
+
+== Typische Fehlmuster
+
+* *Index auf falsche Spalten*: Index auf `created_at` allein, aber Queries filtern immer auf `user_id AND created_at`.
+* *Zu viele Indizes*: Jede zusätzliche Write-Operation muss alle Indizes aktualisieren → Write-Overhead.
+* *Performance Insights nur bei Incidents aktiviert*: Zu spät; historische Daten fehlen.
+* *max_connections = 100 bei 50 App-Instanzen*: 2 Verbindungen pro Instanz – Connection-Pool-Erschöpfung vorprogrammiert.
+
+== Metriken
+
+* P50/P95/P99 Query-Ausführungszeit für Top-20-Queries (monatlich dokumentieren)
+* Connection-Pool-Utilization (Ziel: < 80% sustained)
+* DB CPU-Auslastung (Ziel: < 70% sustained)
+* Anzahl Slow Queries > 1s pro Stunde (Ziel: sinkende Tendenz)
+
+== Reifegrad
+
+Level 1 – Keine Analyse; Datenbankperformance unbekannt +
+Level 2 – Slow-Query-Log aktiv; ad-hoc Reviews +
+Level 3 – Performance Insights aktiv; Index-Strategie dokumentiert; monatlicher Review +
+Level 4 – Automatische Regression-Detection; Query-Performance-Tests in CI +
+Level 5 – Query-SLOs; automatisches Tuning; Capacity-Forecasting

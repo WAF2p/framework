@@ -1,0 +1,297 @@
+id: WAF-REL-010
+title: "SLA & SLO Definition Documented"
+pillar: "reliability"
+status: "active"
+severity: "critical"
+category: "reliability-governance"
+type: ['governance', 'configuration', 'automation']
+tags: ['slo', 'sla', 'reliability', 'governance', 'observability', 'sre']
+
+description: >
+  Every production workload MUST have documented Service Level Objectives (SLOs) and
+  Service Level Agreements (SLAs). SLOs must define availability, latency, error rate,
+  and throughput targets with explicit measurement windows. SLAs must reference SLOs
+  and define consequences of non-compliance. Both documents must be version-controlled,
+  reviewed quarterly, and linked to monitoring dashboards with automated alerting when
+  error budgets are consumed.
+
+rationale: >
+  Without explicit SLOs, reliability cannot be measured or improved. Teams that lack
+  defined targets cannot distinguish degraded service from normal operation. SLOs are
+  the prerequisite for all other reliability controls: health checks, HA design,
+  incident response, and chaos engineering only make sense in the context of a
+  measurable reliability target. Error budgets derived from SLOs provide the operational
+  framework for balancing velocity and stability.
+
+threat:
+  - "No measurable reliability targets enabling undetected degradation"
+  - "Incident response without defined severity criteria leads to inconsistent escalation"
+  - "Customer expectations misaligned with actual service behavior"
+  - "Absence of error budgets prevents data-driven release velocity decisions"
+  - "Compliance gaps: regulated workloads require demonstrable availability commitments"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1 – Information security continuity"
+      - "A.17.2 – Redundancies"
+  - framework: "ITIL 4"
+    controls:
+      - "Service Level Management"
+      - "Service Continuity Management"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 1 – Manage service quotas and constraints"
+      - "REL 10 – Use fault isolation to protect your workload"
+  - framework: "SRE Book (Google)"
+    controls:
+      - "Chapter 4 – Service Level Objectives"
+      - "Chapter 5 – Eliminating Toil"
+
+implementation_guidance:
+  - "Define availability SLO per workload (e.g., 99.9% over rolling 30 days)."
+  - "Define latency SLO (e.g., p99 < 500ms for 99% of requests)."
+  - "Define error rate SLO (e.g., error ratio < 0.1%)."
+  - "Calculate error budget: (1 - SLO) * measurement_window."
+  - "Instrument dashboards to display error budget burn rate in real time."
+  - "Set multi-window alerts: fast burn (1h) and slow burn (6h) error budget alerts."
+  - "Link SLO documents to Runbooks and Incident Response procedures."
+  - "Review SLOs quarterly and after every major incident."
+
+maturity_levels:
+  level_1:
+    description: "No documented SLOs, ad-hoc availability awareness"
+    criteria:
+      - "No formal availability or latency targets defined"
+      - "Incidents handled reactively without severity criteria"
+  level_2:
+    description: "SLOs documented but not monitored continuously"
+    criteria:
+      - "Availability and latency SLOs documented in a shared document"
+      - "Basic uptime monitoring in place"
+      - "No error budget tracking"
+  level_3:
+    description: "SLOs monitored with automated alerting"
+    criteria:
+      - "SLOs instrumented in monitoring dashboards (Prometheus, CloudWatch, Datadog)"
+      - "Error budget burn rate alerts configured"
+      - "SLOs reviewed quarterly"
+      - "Incident severity tied to SLO impact"
+  level_4:
+    description: "Error budget drives release decisions"
+    criteria:
+      - "Error budget policy published and followed"
+      - "Deployments paused when error budget exhausted"
+      - "Multi-window burn rate alerts operational"
+      - "SLOs linked to on-call rotations and escalation policies"
+  level_5:
+    description: "Self-adjusting SLOs with predictive alerting"
+    criteria:
+      - "SLOs automatically adjusted based on business impact analysis"
+      - "Predictive alerting triggered before error budget exhaustion"
+      - "Customer-facing SLA dashboards published"
+      - "SLO compliance is a board-level metric"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "SLO document per workload: availability %, latency targets, error rate, measurement window, version-controlled."
+    - kind: "config"
+      description: "Monitoring dashboard showing SLO compliance and error budget burn rate in real time."
+  optional:
+    - kind: "governance"
+      description: "SLA contract referencing SLO definitions with escalation and compensation clauses."
+    - kind: "process"
+      description: "Quarterly SLO review minutes showing adjustments based on incident history."
+
+checks:
+  - id: "waf-rel-010.tf.aws.cloudwatch-slo-alarm"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS CloudWatch alarm must be configured for SLO availability monitoring"
+    description: >
+      An Amazon CloudWatch alarm must be defined to track availability and trigger
+      when the error rate exceeds the SLO threshold. This acts as the automated
+      enforcement of the SLO monitoring requirement.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_cloudwatch_metric_alarm"
+    assertions:
+      - attribute: "alarm_name"
+        op: "not_empty"
+        message: "CloudWatch alarm must have a descriptive name."
+      - attribute: "metric_name"
+        op: "not_empty"
+        message: "CloudWatch alarm must specify the metric to monitor."
+      - attribute: "alarm_actions"
+        op: "not_empty"
+        message: "CloudWatch alarm must have at least one action configured."
+      - attribute: "threshold"
+        op: "attribute_exists"
+        message: "CloudWatch alarm must define a threshold value."
+    on_fail: "violation"
+    remediation: >
+      Define a CloudWatch alarm that monitors the primary SLO metric (e.g., error rate,
+      latency). Configure alarm_actions to notify SNS topics used by on-call rotation.
+    example:
+      compliant: |
+        resource "aws_cloudwatch_metric_alarm" "slo_error_rate" {
+          alarm_name          = "slo-payment-service-error-rate"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 5
+          metric_name         = "5XXError"
+          namespace           = "AWS/ApiGateway"
+          period              = 60
+          statistic           = "Sum"
+          threshold           = 10
+          alarm_description   = "SLO: error rate > 0.1% over 5 minutes"
+          alarm_actions       = [aws_sns_topic.oncall.arn]
+          ok_actions          = [aws_sns_topic.oncall.arn]
+          treat_missing_data  = "notBreaching"
+        }
+      non_compliant: |
+        resource "aws_cloudwatch_metric_alarm" "error_alarm" {
+          alarm_name          = "errors"
+          comparison_operator = "GreaterThanThreshold"
+          evaluation_periods  = 1
+          metric_name         = "Errors"
+          namespace           = "AWS/Lambda"
+          period              = 300
+          statistic           = "Sum"
+          threshold           = 100
+          # Missing: alarm_actions – no one is notified
+        }
+
+  - id: "waf-rel-010.tf.azurerm.monitor-metric-alert-slo"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "critical"
+    title: "Azure Monitor metric alert must be configured for SLO monitoring"
+    description: >
+      An Azure Monitor metric alert must be configured for each production workload
+      to track availability and latency against SLO targets.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_monitor_metric_alert"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Monitor alert must have a descriptive name."
+      - attribute: "criteria"
+        op: "attribute_exists"
+        message: "Monitor alert must define alert criteria."
+      - attribute: "action"
+        op: "attribute_exists"
+        message: "Monitor alert must have at least one action group configured."
+    on_fail: "violation"
+    remediation: >
+      Configure an azurerm_monitor_metric_alert with criteria referencing the SLO metric
+      and an action block pointing to an azurerm_monitor_action_group that notifies on-call.
+    example:
+      compliant: |
+        resource "azurerm_monitor_metric_alert" "slo_availability" {
+          name                = "slo-api-availability"
+          resource_group_name = azurerm_resource_group.main.name
+          scopes              = [azurerm_application_insights.main.id]
+          description         = "SLO: availability < 99.9%"
+          severity            = 1
+          criteria {
+            metric_namespace = "microsoft.insights/components"
+            metric_name      = "availabilityResults/availabilityPercentage"
+            aggregation      = "Average"
+            operator         = "LessThan"
+            threshold        = 99.9
+          }
+          action {
+            action_group_id = azurerm_monitor_action_group.oncall.id
+          }
+        }
+      non_compliant: |
+        resource "azurerm_monitor_metric_alert" "alert" {
+          name                = "alert"
+          resource_group_name = azurerm_resource_group.main.name
+          scopes              = [azurerm_application_insights.main.id]
+          criteria {
+            metric_namespace = "microsoft.insights/components"
+            metric_name      = "requests/failed"
+            aggregation      = "Count"
+            operator         = "GreaterThan"
+            threshold        = 100
+          }
+          # Missing: action – no notification configured
+        }
+
+  - id: "waf-rel-010.tf.google.monitoring-alert-policy-slo"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "critical"
+    title: "GCP Monitoring alert policy must be configured for SLO tracking"
+    description: >
+      A Google Cloud Monitoring alert policy must be configured to track SLO compliance
+      and notify on-call when error budget burn rate exceeds thresholds.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_monitoring_alert_policy"
+    assertions:
+      - attribute: "display_name"
+        op: "not_empty"
+        message: "Alert policy must have a descriptive display name."
+      - attribute: "conditions"
+        op: "not_empty"
+        message: "Alert policy must define monitoring conditions."
+      - attribute: "notification_channels"
+        op: "not_empty"
+        message: "Alert policy must have notification channels configured."
+    on_fail: "violation"
+    remediation: >
+      Define a google_monitoring_alert_policy with conditions referencing the SLO metric
+      and notification_channels pointing to configured channels (PagerDuty, email, etc.).
+    example:
+      compliant: |
+        resource "google_monitoring_alert_policy" "slo_burn_rate" {
+          display_name = "SLO Error Budget Burn Rate – Payment API"
+          combiner     = "OR"
+          conditions {
+            display_name = "Fast burn: >14x for 1h"
+            condition_threshold {
+              filter          = "select_slo_burn_rate(\"projects/${var.project}/services/payment-api/serviceLevelObjectives/availability\", 3600)"
+              comparison      = "COMPARISON_GT"
+              threshold_value = 14.4
+              duration        = "0s"
+            }
+          }
+          notification_channels = [google_monitoring_notification_channel.oncall.name]
+          alert_strategy {
+            notification_rate_limit { period = "300s" }
+          }
+        }
+      non_compliant: |
+        resource "google_monitoring_alert_policy" "errors" {
+          display_name = "Errors"
+          combiner     = "OR"
+          conditions {
+            display_name = "Error count"
+            condition_threshold {
+              filter          = "metric.type=\"logging.googleapis.com/user/errors\""
+              comparison      = "COMPARISON_GT"
+              threshold_value = 100
+              duration        = "60s"
+            }
+          }
+          # Missing: notification_channels – alert fires silently
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-010"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-slo-definition.adoc"
+  related_controls:
+    - "WAF-REL-020"
+    - "WAF-REL-060"
+    - "WAF-REL-100"

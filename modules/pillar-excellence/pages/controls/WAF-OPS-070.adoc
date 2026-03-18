@@ -1,0 +1,180 @@
+= WAF-OPS-070 – Post-Incident Review Process
+:page-toc: right
+:control-id: WAF-OPS-070
+:pillar: operations
+:severity: medium
+:category: incident-learning
+:automated: low
+:description: WAF++ Operational Excellence – Blameless Postmortems für alle qualifying Incidents mit Action-Item-Tracking innerhalb von 5 Arbeitstagen.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Incident-Learning | *Automatisierbar:* Niedrig
+
+== Beschreibung
+
+Jeder Produktions-Incident mit Nutzerauswirkung oder SLO-Verletzung MUSS innerhalb von
+5 Arbeitstagen ein blameless Postmortem auslösen. Postmortems MÜSSEN dokumentierte Action Items
+mit Owner und Due Date produzieren, die bis zum Abschluss verfolgt werden.
+Postmortem-Erkenntnisse MÜSSEN teamübergreifend geteilt werden.
+
+== Rationale
+
+Ohne systematisches Post-Incident-Learning wiederholen Organisationen dieselben Incident-Klassen.
+Postmortems konvertieren Betriebsfehler in organisationales Wissen. Blameless Culture ist
+kritisch: Blame unterdrückt Informationen und verhindert Lernen. Teams mit reifen
+Postmortem-Prozessen reduzieren Repeat Incidents um 30–50% innerhalb von 12 Monaten.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Repeat Incidents*
+|Ohne Postmortems werden Root Causes nicht behoben; derselbe Incident wiederholt sich.
+
+|*Blame-Kultur*
+|Schuld-fokussierte Reviews unterdrücken Information; zukünftige Incidents werden versteckt.
+
+|*Unverfolgtes Action-Item*
+|Action Items ohne Owner und Tracking werden niemals abgeschlossen.
+
+|*Isoliertes Lernen*
+|Team A lernt aus Incident; Team B erlebt denselben Incident 3 Monate später.
+
+|===
+
+== Anforderung
+
+* Alle SEV-1/P1 Incidents und SLO-Verletzungen MÜSSEN ein Postmortem auslösen
+* Postmortem-Dokument MUSS innerhalb von 5 Arbeitstagen fertiggestellt sein
+* Postmortems MÜSSEN blameless sein: Fokus auf Systeme, nicht Personen
+* Alle Action Items MÜSSEN Owner, Due Date und Tracking in JIRA/GitHub Issues haben
+* Postmortems MÜSSEN teamübergreifend geteilt werden (Slack-Channel, Wiki)
+
+== Implementierungsanleitung
+
+. *Trigger-Kriterien definieren:* SEV-1/P1 Incidents, alle SLO-Verletzungen, Datenverlust-Events, Deployment-Rollbacks
+. *Postmortem-Template erstellen:* Title, Date, Severity, Impact, Timeline, Root Cause, Contributing Factors, Action Items
+. *Blameless-Kultur einführen:* Schulung, Führungskräfte als Vorbilder, psychologische Sicherheit als Voraussetzung
+. *Meeting innerhalb 48h:* Timeline-Rekonstruktion gemeinsam; Action Items im Meeting zuweisen
+. *Sharing-Prozess:* Postmortem in Slack #postmortems und Wiki innerhalb 1 Woche
+. *Monatliche Trend-Analyse:* Häufigste Incident-Kategorien; Action-Item-Completion-Rate tracken
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Postmortem-Prozess
+|Incidents gelöst und vergessen. Keine Timeline-Dokumentation. Blame-Kultur oder keine Kultur.
+
+|*2*
+|Informelle Reviews
+|Große Incidents informell diskutiert. Kein Template. Action Items nicht verfolgt.
+
+|*3*
+|Strukturiert & Blameless
+|Template für alle qualifying Incidents. Blameless. Action Items in JIRA. Innerhalb 5 Tage.
+
+|*4*
+|Systemische Analyse
+|Monatliche Trend-Analyse. Action-Item-Completion >= 80%. Teamübergreifendes Sharing.
+
+|*5*
+|Organisationales Lernen
+|Postmortem-Datenbank durchsuchbar. Repeat-Incident-Rate sinkend YoY. In Onboarding integriert.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-070.tf.aws.incident-management-sns-topic
+*Prüft:* SNS-Topic für Incident-Benachrichtigungen existiert und ist konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_sns_topic" "incidents" {
+  name = "production-incident-notifications"
+}
+resource "aws_sns_topic_subscription" "pagerduty" {
+  topic_arn = aws_sns_topic.incidents.arn
+  protocol  = "https"
+  endpoint  = var.pagerduty_endpoint
+}
+resource "aws_cloudwatch_metric_alarm" "critical" {
+  alarm_actions = [aws_sns_topic.incidents.arn]
+  /* ... */
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "critical" {
+  alarm_name = "payment-critical"
+  # Keine alarm_actions
+  # Incidents werden nicht gemeldet
+  # WAF-OPS-070 Violation
+}
+----
+
+|===
+
+=== waf-ops-070.tf.azurerm.action-group-incident
+*Prüft:* Azure Monitor Action Group mit konfiguriertem Empfänger für Incident-Routing.
+
+[source,hcl]
+----
+# Compliant
+resource "azurerm_monitor_action_group" "oncall" {
+  name                = "production-oncall"
+  resource_group_name = azurerm_resource_group.main.name
+  short_name          = "oncall"
+  email_receiver {
+    name          = "oncall-engineer"
+    email_address = var.oncall_email
+  }
+}
+----
+
+*Remediation:* SNS-Topic mit PagerDuty/OpsGenie-Subscription erstellen.
+CloudWatch Alarms müssen `alarm_actions` mit diesem SNS-Topic referenzieren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Process*
+|✅ Pflicht
+|Post-Incident-Review-Policy (Trigger, Timeline, Template, Publikationsanforderungen).
+
+|*Governance*
+|✅ Pflicht
+|Postmortem-Archiv der letzten 3 Monate mit Action Items und Completion-Status.
+
+|*Process*
+|Optional
+|Monatlicher Incident-Trend-Report (Kategorien, Frequenz, Action-Item-Completion-Rate).
+
+|*Governance*
+|Optional
+|Team-OKR oder KPI für Repeat-Incident-Reduktion.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
+* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
+* xref:controls/WAF-OPS-100.adoc[WAF-OPS-100 – Operational Debt Register]
+
+== Best Practice
+
+* xref:best-practices/bp-postmortem.adoc[Blameless Postmortems und kontinuierliches Lernen →]

@@ -1,0 +1,222 @@
+= Best Practice: Health Checks & Readiness/Liveness Probes
+:page-toc: right
+:description: WAF++ Reliability – Health Check Endpoints, Kubernetes Probes und Load Balancer-Konfiguration.
+
+== Kontext
+
+Health Checks sind der operative Rückkopplungsmechanismus zwischen Infrastruktur und Anwendung.
+Ohne korrekte Health Checks leitet ein Load Balancer Traffic an fehlerhafte Instanzen weiter,
+und Kubernetes startet keinen neuen Pod, wenn der alte in einem fehlerhaften Zustand hängt.
+
+Häufige Probleme ohne strukturierte Health Check-Praxis:
+
+* Instanzen mit einem Fehler im Startup-Prozess erhalten sofort Traffic
+* Deadlocked Prozesse laufen wochenlang weiter, ohne neu gestartet zu werden
+* Load Balancer routet auf instabile Backends ohne Rückmeldung an Operations
+* Zero-Downtime Deployments schlagen fehl, weil Readiness nicht richtig konfiguriert ist
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-REL-020[WAF-REL-020] – Health Checks & Readiness Probes Configured
+
+== Zielbild
+
+Jeder Service exponiert drei Health-Endpunkte mit definierten Semantiken:
+
+* `/health/live` – Liveness: Lebt der Prozess noch? Fehler → Kubernetes startet neu
+* `/health/ready` – Readiness: Kann er Traffic annehmen? Fehler → kein Traffic
+* `/health/startup` – Startup: Ist er fertig gestartet? (für langsame Services)
+
+== Technische Umsetzung
+
+=== Schritt 1: Health Check Endpoints in der Anwendung
+
+[source,python]
+----
+# Python/FastAPI Beispiel
+from fastapi import FastAPI, Response
+import asyncpg
+import redis.asyncio as redis
+
+app = FastAPI()
+
+@app.get("/health/live")
+async def liveness():
+    """Liveness: Prozess läuft. Nur externe Abhängigkeiten wenn deadlock-relevant."""
+    return {"status": "alive"}
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness: Service kann Traffic annehmen. Kritische Deps prüfen."""
+    checks = {}
+    errors = []
+
+    # Datenbankverbindung prüfen
+    try:
+        conn = await asyncpg.connect(dsn=DATABASE_URL)
+        await conn.fetchval("SELECT 1")
+        await conn.close()
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = "error"
+        errors.append(f"database: {e}")
+
+    # Redis-Verbindung prüfen (kritisch)
+    try:
+        r = redis.from_url(REDIS_URL)
+        await r.ping()
+        checks["cache"] = "ok"
+    except Exception as e:
+        checks["cache"] = "error"
+        errors.append(f"cache: {e}")
+
+    if errors:
+        return Response(
+            content={"status": "not_ready", "checks": checks, "errors": errors},
+            status_code=503
+        )
+
+    return {"status": "ready", "checks": checks}
+----
+
+=== Schritt 2: Kubernetes Probe-Konfiguration
+
+[source,yaml]
+----
+# kubernetes/deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: payment-api
+          image: payment-api:1.5.0
+          ports:
+            - containerPort: 8080
+
+          # Liveness: Erkennt Deadlocks und Infinite Loops
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15    # Gemessen: Startup ~10s; Puffer: 5s
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3        # 3 Fehlschläge = 30s Fenster vor Restart
+
+          # Readiness: Steuert Traffic-Routing
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3        # 3 Fehlschläge = 15s ohne Traffic
+
+          # Startup: Für langsame Startup-Prozesse (DB-Migration etc.)
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            failureThreshold: 30       # Max 30 * 10s = 5 Minuten Startup
+            periodSeconds: 10
+----
+
+=== Schritt 3: AWS ALB Target Group Health Check (Terraform)
+
+[source,hcl]
+----
+resource "aws_lb_target_group" "api" {
+  name             = "payment-api-tg"
+  port             = 8080
+  protocol         = "HTTP"
+  vpc_id           = var.vpc_id
+  target_type      = "ip"  # Für ECS/EKS
+
+  health_check {
+    enabled             = true
+    path                = "/health/ready"     # Nicht "/": prüft echte Readiness
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    interval            = 15                  # Häufiger als Standard 30s
+    timeout             = 5
+    healthy_threshold   = 2                   # 2 Erfolge → healthy
+    unhealthy_threshold = 3                   # 3 Fehlschläge → unhealthy
+    matcher             = "200"               # Nur exakt 200 OK
+  }
+
+  deregistration_delay = 30  # Graceful Shutdown
+
+  tags = var.mandatory_tags
+}
+----
+
+=== Schritt 4: GCP Cloud Run Health Check
+
+[source,hcl]
+----
+resource "google_cloud_run_v2_service" "api" {
+  name     = "payment-api"
+  location = var.region
+
+  template {
+    containers {
+      image = var.container_image
+      ports {
+        container_port = 8080
+      }
+
+      startup_probe {
+        http_get {
+          path = "/health/live"
+          port = 8080
+        }
+        initial_delay_seconds = 5
+        period_seconds        = 10
+        failure_threshold     = 6  # 60s max startup
+        timeout_seconds       = 3
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/health/live"
+          port = 8080
+        }
+        initial_delay_seconds = 15
+        period_seconds        = 15
+        failure_threshold     = 3
+        timeout_seconds       = 5
+      }
+    }
+  }
+}
+----
+
+== Typische Fehlmuster
+
+* *Liveness prüft Abhängigkeiten*: Wenn DB kurz nicht erreichbar ist, werden alle Pods neu gestartet – Massenausfall
+* *initialDelaySeconds = 0*: Probe scheitert während Startup, Pod wird endlos neu gestartet
+* *Health Check auf Port 80 statt App-Port*: Prüft nur ob HTTP-Port offen, nicht ob App antwortet
+* *TCP Health Check für HTTP-Service*: Prüft TCP-Verbindung, aber nicht Anwendungsstatus
+* *Health Endpoint immer 200*: Endpoint gibt immer OK zurück, auch wenn DB-Verbindung fehlschlägt
+
+== Metriken
+
+* Health Check Pass Rate: % der Health Checks, die erfolgreich sind (Ziel: > 99.5%)
+* Probe Failure Rate: Anzahl Liveness-Probe-Fehlschläge pro Stunde (Ziel: < 1)
+* Readiness Recovery Time: Zeit vom Pod-Start bis erster erfolgreicher Readiness-Probe
+* Unhealthy Target Duration: Durchschnittliche Zeit eines Backends im Unhealthy-State
+
+== Reifegrad
+
+Level 1 – Keine Health Checks, kein Probe konfiguriert +
+Level 2 – Basis-LB Health Check auf "/" konfiguriert +
+Level 3 – ReadinessProbe und LivenessProbe mit gemessenen Delays; LB prüft /health/ready +
+Level 4 – StartupProbe für langsame Services; Deep Health Checks mit Dependency-Status +
+Level 5 – Synthetisches Monitoring validiert Health Check Endpoints von extern

@@ -1,0 +1,255 @@
+id: WAF-REL-100
+title: "Reliability Debt Register & Quarterly Review"
+pillar: "reliability"
+status: "active"
+severity: "medium"
+category: "reliability-governance"
+type: ['governance', 'automation']
+tags: ['reliability-debt', 'tech-debt', 'governance', 'review', 'toil', 'remediation', 'risk-register']
+
+description: >
+  All known reliability risks, deferred reliability improvements, and technical
+  decisions that reduce system resilience MUST be tracked in a version-controlled
+  Reliability Debt Register. Each entry MUST include: description, workload affected,
+  severity (P1–P4), estimated remediation effort, business risk if deferred, owner,
+  and target remediation date. The register MUST be reviewed quarterly by engineering
+  leadership. Reliability debt created by deliberate architecture decisions MUST be
+  accepted in writing with a remediation plan.
+
+rationale: >
+  Reliability issues left untracked accumulate silently until they cause major incidents.
+  The Reliability Debt Register makes invisible risk visible and manageable. By
+  explicitly acknowledging and tracking reliability debt, organizations can prioritize
+  remediation based on actual risk rather than recency bias. Quarterly reviews ensure
+  the register remains current and that deferred items do not permanently accumulate.
+  The register also serves as evidence for compliance audits demonstrating structured
+  risk management.
+
+threat:
+  - "Known reliability risks left unaddressed due to lack of visibility"
+  - "Reliability improvements deprioritized repeatedly without formal tracking"
+  - "Single points of failure known but undocumented accumulate as silent risk"
+  - "Engineering time consumed by recurring toil from unremediated reliability debt"
+  - "Audit finding: no evidence of structured reliability risk management"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1 – Information security continuity"
+      - "6.1.2 – Information security risk assessment"
+  - framework: "ITIL 4"
+    controls:
+      - "Problem Management"
+      - "Continual Improvement"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 1 – Manage service quotas and constraints"
+  - framework: "SRE Book (Google)"
+    controls:
+      - "Chapter 5 – Eliminating Toil"
+      - "Chapter 6 – Monitoring Distributed Systems"
+
+implementation_guidance:
+  - "Create a reliability-debt register as a YAML or Markdown file in the service repository."
+  - "Add a reliability debt entry for every known single point of failure, toil >2h/week, or deferred improvement."
+  - "Classify each entry by priority: P1 (critical, remediate in sprint), P2 (high, remediate this quarter), P3 (medium, roadmap), P4 (low, accepted)."
+  - "Assign an owner for each entry; default owner is the team lead."
+  - "Review the register in quarterly architecture reviews."
+  - "Close entries when remediated; do not delete – mark as resolved with resolution date."
+  - "Track reliability debt ratio: P1+P2 open items / total items."
+  - "Link reliability debt entries to corresponding architecture decision records."
+
+maturity_levels:
+  level_1:
+    description: "No reliability debt tracking"
+    criteria:
+      - "Known reliability issues not documented"
+      - "Incidents repeat due to untracked root causes"
+  level_2:
+    description: "Ad-hoc reliability debt notes"
+    criteria:
+      - "Some reliability issues tracked in issue trackers"
+      - "No formal prioritization or quarterly review"
+  level_3:
+    description: "Formal register with quarterly review"
+    criteria:
+      - "Version-controlled reliability debt register"
+      - "All entries with owner, severity, and target date"
+      - "Quarterly review conducted and minutes documented"
+      - "Remediation rate tracked (P1/P2 items closed per quarter)"
+  level_4:
+    description: "Debt register integrated with architecture governance"
+    criteria:
+      - "Reliability debt entries linked to ADRs"
+      - "New architecture decisions checked against debt register"
+      - "Toil reduction metrics tracked quarterly"
+      - "Engineering capacity for reliability debt remediation budgeted"
+  level_5:
+    description: "Automated debt detection with proactive management"
+    criteria:
+      - "Automated reliability risk detection feeds the register"
+      - "Reliability debt ratio below 10% of P1+P2 items"
+      - "Zero known P1 items open > 30 days"
+      - "Reliability engineering capacity allocated as % of total engineering"
+
+evidence:
+  required:
+    - kind: "governance"
+      description: "Version-controlled reliability debt register with all entries having owner, severity, and target date."
+    - kind: "process"
+      description: "Quarterly review meeting minutes showing register review, closures, and new entries."
+  optional:
+    - kind: "governance"
+      description: "Reliability debt trend chart showing P1/P2 backlog evolution over 4 quarters."
+    - kind: "process"
+      description: "Engineering roadmap showing reliability debt remediation items in upcoming sprints."
+
+checks:
+  - id: "waf-rel-100.tf.aws.config-conformance-pack"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "medium"
+    title: "AWS Config conformance packs must be deployed for reliability compliance tracking"
+    description: >
+      AWS Config conformance packs for reliability controls should be deployed to
+      automatically track compliance status of reliability requirements across accounts.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_config_conformance_pack"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Config conformance pack must have a name."
+      - attribute: "template_body"
+        op: "attribute_exists"
+        message: "Config conformance pack must define template_body or template_s3_uri."
+    on_fail: "violation"
+    remediation: >
+      Deploy aws_config_conformance_pack with a template covering reliability rules:
+      rds-multi-az-support, elasticache-replication-group-multi-az-enabled,
+      backup-plan-min-frequency-and-min-retention-check.
+    example:
+      compliant: |
+        resource "aws_config_conformance_pack" "reliability" {
+          name = "reliability-conformance-pack"
+
+          template_body = <<-EOT
+            Parameters: {}
+            Resources:
+              RDSMultiAZ:
+                Type: AWS::Config::ConfigRule
+                Properties:
+                  ConfigRuleName: rds-multi-az-support
+                  Source:
+                    Owner: AWS
+                    SourceIdentifier: RDS_MULTI_AZ_SUPPORT
+              BackupRecoveryPoint:
+                Type: AWS::Config::ConfigRule
+                Properties:
+                  ConfigRuleName: backup-recovery-point-minimum-retention-check
+                  Source:
+                    Owner: AWS
+                    SourceIdentifier: BACKUP_RECOVERY_POINT_MINIMUM_RETENTION_CHECK
+          EOT
+        }
+      non_compliant: |
+        # No AWS Config conformance pack configured
+        # Reliability compliance status not tracked automatically
+        # WAF-REL-100 violation
+
+  - id: "waf-rel-100.tf.azurerm.policy-assignment-reliability"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "medium"
+    title: "Azure Policy assignments must cover reliability compliance requirements"
+    description: >
+      Azure Policy assignments should enforce reliability controls at the subscription
+      or management group level to automate compliance tracking.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_subscription_policy_assignment"
+        - "azurerm_management_group_policy_assignment"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Policy assignment must have a name."
+      - attribute: "policy_definition_id"
+        op: "not_empty"
+        message: "Policy assignment must reference a policy definition ID."
+      - attribute: "display_name"
+        op: "not_empty"
+        message: "Policy assignment must have a descriptive display name."
+    on_fail: "violation"
+    remediation: >
+      Create azurerm_subscription_policy_assignment referencing built-in reliability
+      policies (zone-redundant databases, geo-redundant backup, etc.)
+    example:
+      compliant: |
+        resource "azurerm_subscription_policy_assignment" "reliability_zone_redundant" {
+          name                 = "require-zone-redundant-databases"
+          subscription_id      = var.subscription_id
+          policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/00000000-0000-0000-0000-000000000001"
+          display_name         = "Reliability: Require zone-redundant databases in production"
+          description          = "Enforces WAF-REL-030: Multi-AZ/zone-redundant deployment for databases."
+          enforce              = true
+          location             = "westeurope"
+          identity { type = "SystemAssigned" }
+        }
+      non_compliant: |
+        # No Azure Policy assignments for reliability
+        # Reliability compliance manually tracked or not tracked at all
+        # WAF-REL-100 violation
+
+  - id: "waf-rel-100.tf.google.org-policy-reliability"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "medium"
+    title: "GCP Organization policies should enforce reliability constraints"
+    description: >
+      GCP organization policies should enforce constraints relevant to reliability
+      such as requiring deletion protection on production databases.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_org_policy_policy"
+        - "google_project_organization_policy"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Organization policy must have a name."
+      - attribute: "spec"
+        op: "attribute_exists"
+        message: "Organization policy must define spec."
+    on_fail: "violation"
+    remediation: >
+      Define google_org_policy_policy resources enforcing reliability constraints
+      at the project or organization level.
+    example:
+      compliant: |
+        resource "google_project_organization_policy" "sql_deletion_protection" {
+          project    = var.project_id
+          constraint = "constraints/sql.restrictAuthorizedNetworks"
+
+          list_policy {
+            deny {
+              all = true
+            }
+          }
+        }
+      non_compliant: |
+        # No GCP organization policies for reliability enforcement
+        # Reliability controls rely on team convention only
+        # WAF-REL-100 violation
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-100"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-slo-definition.adoc"
+  related_controls:
+    - "WAF-REL-010"
+    - "WAF-REL-060"
+    - "WAF-REL-080"

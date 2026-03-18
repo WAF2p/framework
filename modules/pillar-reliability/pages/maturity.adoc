@@ -1,0 +1,195 @@
+= Reifegrad-Modell: Reliability
+:page-toc: right
+:description: WAF++ Reliability – 5-stufiges Reifegrad-Modell mit Self-Assessment-Checklisten und Einstiegspfad.
+
+Das Reliability-Reifegrad-Modell beschreibt fünf Stufen vom chaotischen Initialzustand
+bis zur selbstheilenden, adaptiven Infrastruktur. Es dient als Selbstbewertungswerkzeug
+und Roadmap für strukturierte Verbesserung.
+
+== Übersicht der 5 Stufen
+
+[cols="1,2,4"]
+|===
+|Stufe |Bezeichnung |Charakteristika
+
+|*1*
+|*Chaotisch*
+|Keine SLOs, keine Health Checks, Single-AZ, keine Backups getestet.
+Incidents werden reaktiv behandelt. Reliability wird nicht gemessen.
+
+|*2*
+|*Dokumentiert*
+|SLOs dokumentiert, grundlegendes Monitoring, Backups konfiguriert,
+On-Call vorhanden – aber wenig davon getestet oder automatisiert.
+
+|*3*
+|*Durchgesetzt*
+|IaC-erzwungene Controls: Multi-AZ, Health Checks, Circuit Breaker.
+Backups getestet, DR-Plan vorhanden, Runbooks für kritische Alerts verlinkt.
+
+|*4*
+|*Gemessen*
+|SLOs mit Error Budget, MTTR getrackt, Chaos Tests quartalsweise,
+automatisierte DR-Runbooks, Reliability Debt Register aktiv gemanaged.
+
+|*5*
+|*Selbstheilend*
+|Automatische Remediation, adaptive SLOs, kontinuierliche Chaos-Validierung,
+GameDay-Kultur, Reliability als Board-Level-Metrik.
+
+|===
+
+== Per-Control Reifegrad-Übersicht
+
+[cols="2,1,1,1,1,1"]
+|===
+|Control |L1 |L2 |L3 |L4 |L5
+
+|xref:controls/WAF-REL-010.adoc[REL-010 – SLO & SLA]
+|Keine SLOs
+|Dokumentiert
+|Überwacht + Alerts
+|Error Budget aktiv
+|Adaptiv + Predictive
+
+|xref:controls/WAF-REL-020.adoc[REL-020 – Health Checks]
+|Keine
+|LB-Checks
+|ReadinessProbe + LivenessProbe
+|StartupProbe + Deep Checks
+|Synthetisches Monitoring
+
+|xref:controls/WAF-REL-030.adoc[REL-030 – Multi-AZ]
+|Single-AZ
+|DB Multi-AZ
+|Alles Multi-AZ
+|Auto-Failover getestet
+|Multi-Region
+
+|xref:controls/WAF-REL-040.adoc[REL-040 – Backup & Recovery]
+|Keine Backups
+|Backups da, ungetestet
+|PITR + Restore-Test
+|Automatisiert monatlich
+|WORM + CDP
+
+|xref:controls/WAF-REL-050.adoc[REL-050 – Circuit Breaker]
+|Keine Timeouts
+|Timeouts konfiguriert
+|Circuit Breaker + Retry
+|Bulkheads + Service Mesh
+|Adaptive Thresholds
+
+|xref:controls/WAF-REL-060.adoc[REL-060 – Incident Response]
+|Ad-hoc
+|Prozess dokumentiert
+|Runbooks verlinkt, MTTR getrackt
+|Automatisierte Triage
+|Self-Healing + AIOps
+
+|xref:controls/WAF-REL-070.adoc[REL-070 – DR Testing]
+|Kein DR-Plan
+|Jährlicher Test
+|Halbjährlich dokumentiert
+|Quartalsweise automatisiert
+|GameDay + kontinuierlich
+
+|xref:controls/WAF-REL-080.adoc[REL-080 – Dependency Resilience]
+|Kein Inventar
+|Basisinventar
+|Klassifiziert + CB
+|Auto-Discovery + Monitoring
+|Proaktives Risk-Management
+
+|xref:controls/WAF-REL-090.adoc[REL-090 – Chaos Engineering]
+|Kein Chaos
+|Ad-hoc Tests
+|Strukturiert + dokumentiert
+|Produktions-Chaos kontrolliert
+|Kontinuierlich + ML
+
+|xref:controls/WAF-REL-100.adoc[REL-100 – Reliability Debt]
+|Kein Tracking
+|Ad-hoc Notizen
+|Formales Register + Quarterly Review
+|Integriert in ADRs
+|Automatisierte Erkennung
+
+|===
+
+== Self-Assessment Checklist: Level 2
+
+Erreichung von Stufe 2 voraussetzt:
+
+* [ ] Availability-SLO für alle Produktions-Workloads dokumentiert (WAF-REL-010)
+* [ ] Latenz-SLO (p99) für alle HTTP-Services dokumentiert
+* [ ] Mindestens ein Monitoring-Dashboard pro Service
+* [ ] ALB/NLB Health Checks konfiguriert (WAF-REL-020)
+* [ ] RDS oder äquivalente Datenbank in Multi-AZ Mode (WAF-REL-030)
+* [ ] Automatisierte Backups für alle Produktionsdatenbanken aktiviert (WAF-REL-040)
+* [ ] Backup-Retentionsperiode >= 7 Tage
+* [ ] On-Call-Rotation konfiguriert (WAF-REL-060)
+* [ ] Severity-Definitionen (SEV1–SEV4) dokumentiert
+* [ ] Grundlegendes Dependency-Inventar vorhanden (WAF-REL-080)
+
+== Self-Assessment Checklist: Level 3
+
+Erreichung von Stufe 3 voraussetzt (additiv zu Level 2):
+
+* [ ] SLO-Monitoring mit automatischem Alerting konfiguriert (WAF-REL-010)
+* [ ] Error Budget Burn Rate Alerts konfiguriert
+* [ ] readinessProbe und livenessProbe für alle Kubernetes-Workloads (WAF-REL-020)
+* [ ] Alle Compute-Ressourcen über mindestens 2 AZs verteilt (WAF-REL-030)
+* [ ] PITR für alle Produktionsdatenbanken aktiviert (WAF-REL-040)
+* [ ] Backup-Restore mindestens einmal getestet und dokumentiert
+* [ ] Explizite Timeouts für alle ausgehenden HTTP-Calls (WAF-REL-050)
+* [ ] Circuit Breaker für alle kritischen Abhängigkeiten konfiguriert
+* [ ] Alle kritischen Alerts haben verlinkte Runbooks (WAF-REL-060)
+* [ ] Post-Incident Reviews für alle SEV1/SEV2 Incidents dokumentiert
+* [ ] DR-Plan dokumentiert mit RTO/RPO-Zielen (WAF-REL-070)
+* [ ] DR-Test mindestens einmal durchgeführt und ergebnisdokumentiert
+* [ ] Dependency-Inventar mit Kritikalitätsbewertung (WAF-REL-080)
+* [ ] Reliability Debt Register eingeführt (WAF-REL-100)
+
+== Self-Assessment Checklist: Level 4
+
+Erreichung von Stufe 4 voraussetzt (additiv zu Level 3):
+
+* [ ] Error Budget Policy dokumentiert und befolgt (WAF-REL-010)
+* [ ] Synthestisches Monitoring für alle Produktions-Endpoints (WAF-REL-020)
+* [ ] AZ-Failover-Tests halbjährlich durchgeführt (WAF-REL-030)
+* [ ] Automatisierter monatlicher Backup-Restore-Test (WAF-REL-040)
+* [ ] Bulkhead-Isolation für verschiedene Abhängigkeitsklassen (WAF-REL-050)
+* [ ] Automatisierte Incident-Diagnose-Datensammlung bei Alert (WAF-REL-060)
+* [ ] DR-Prozeduren via IaC automatisiert; quartalsweiser Test (WAF-REL-070)
+* [ ] Dependency SLA-Compliance in Echtzeit überwacht (WAF-REL-080)
+* [ ] Strukturierte Chaos-Experimente mit Dokumentation quartalsweise (WAF-REL-090)
+* [ ] Reliability Debt Register in Architecture-Governance integriert (WAF-REL-100)
+
+== Empfohlener Einstiegspfad
+
+[cols="1,2,3"]
+|===
+|Von Stufe |Nach Stufe |Empfohlene Maßnahmen (3–6 Monate)
+
+|1 → 2
+|Dokumentieren
+|SLO-Workshop, Health Checks nachrüsten, On-Call konfigurieren, Backups aktivieren
+
+|2 → 3
+|Durchsetzen
+|IaC-Refactoring (Multi-AZ, Circuit Breaker), Backup-Restore testen, Runbooks schreiben
+
+|3 → 4
+|Messen
+|Error Budget aktivieren, MTTR-Dashboard, DR automatisieren, Chaos-Programm starten
+
+|4 → 5
+|Selbstheilen
+|AIOps-Integration, kontinuierliche Chaos-Validierung, adaptive SLOs, GameDay-Kultur
+
+|===
+
+TIP: Der größte Hebel liegt typischerweise beim Sprung von Stufe 2 zu Stufe 3:
+IaC-erzwungene Controls sind die effektivste Investition in Reliability, da sie
+Regressions dauerhaft verhindern.

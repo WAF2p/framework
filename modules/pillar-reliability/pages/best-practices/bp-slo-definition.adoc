@@ -1,0 +1,213 @@
+= Best Practice: SLO & SLA definieren und messen
+:page-toc: right
+:description: WAF++ Reliability – Service Level Objectives strukturiert definieren, messen und mit Error Budgets verbinden.
+
+== Kontext
+
+Service Level Objectives (SLOs) sind die messbare Grundlage jeder Reliability-Strategie.
+Ohne klare SLOs kann ein Team nicht entscheiden, ob genug oder zu viel in Reliability investiert wird.
+Ohne Error Budgets fehlt der operative Rahmen für Velocity-vs-Stability-Entscheidungen.
+
+Typische Probleme ohne strukturierte SLO-Praxis:
+
+* Incidents werden als "normal" abgetan, weil kein gemeinsames Verständnis von "unakzeptabler Degradation" existiert
+* Reliability-Investitionen werden nach politischem Druck priorisiert, nicht nach Daten
+* SLAs gegenüber Kunden werden durch Schätzungen, nicht Messungen gestützt
+* On-Call-Teams kennen keine Severity-Schwellenwerte für Eskalation
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-REL-010[WAF-REL-010] – SLA & SLO Definition Documented
+* xref:controls.adoc#WAF-REL-100[WAF-REL-100] – Reliability Debt Register & Quarterly Review
+
+== Zielbild
+
+Ein reifes SLO-Programm ist:
+
+* *Service-spezifisch*: Jeder Produktions-Service hat ein SLO-Dokument
+* *Messbar*: SLIs werden kontinuierlich aus echten Request-Daten berechnet
+* *Operativ verankert*: Error Budget Burn Rate Alerts steuern Release-Entscheidungen
+* *Stakeholder-kommuniziert*: SLOs und Error Budget Status regelmäßig sichtbar
+
+== Technische Umsetzung
+
+=== Schritt 1: SLO-Dokument strukturieren
+
+[source,yaml]
+----
+# docs/slos/payment-api-slo.yml
+service: "payment-api"
+version: "1.2"
+effective_date: "2026-01-01"
+owner: "payments-team"
+reviewed_by: "architecture-board"
+
+slos:
+  availability:
+    description: "Percentage of requests returning 2xx or 3xx responses"
+    sli: "sum(rate(http_requests_total{status=~'2..|3..'}[5m])) / sum(rate(http_requests_total[5m]))"
+    target: 0.999       # 99.9%
+    window: "30d"
+    error_budget_minutes: 43.2
+
+  latency_p99:
+    description: "99th percentile request latency"
+    sli: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"
+    target_seconds: 0.5  # < 500ms
+    coverage: 0.99       # 99% of requests must meet this
+
+  error_rate:
+    description: "Fraction of requests resulting in 5xx errors"
+    sli: "sum(rate(http_requests_total{status=~'5..'}[5m])) / sum(rate(http_requests_total[5m]))"
+    target: 0.001        # < 0.1% error rate
+    window: "30d"
+
+alert_policy:
+  burn_rate_fast:
+    window: "1h"
+    burn_rate: 14.4    # Will exhaust monthly budget in 2 days
+    severity: "SEV2"
+  burn_rate_slow:
+    window: "6h"
+    burn_rate: 6       # Will exhaust monthly budget in 5 days
+    severity: "SEV3"
+----
+
+=== Schritt 2: SLO-Monitoring mit Prometheus
+
+[source,yaml]
+----
+# prometheus/rules/slo-payment-api.yml
+groups:
+  - name: slo.payment-api
+    interval: 30s
+    rules:
+      # SLI: Availability ratio
+      - record: job:slo_availability:ratio_rate5m
+        expr: >
+          sum(rate(http_requests_total{job="payment-api",status=~"2..|3.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="payment-api"}[5m]))
+
+      # Error budget burn rate (fast window)
+      - alert: SloBurnRateFast
+        expr: >
+          (
+            (1 - job:slo_availability:ratio_rate5m) / (1 - 0.999)
+          ) > 14.4
+        for: 5m
+        labels:
+          severity: critical
+          service: payment-api
+        annotations:
+          summary: "Payment API: Fast error budget burn rate (>14.4x)"
+          description: "Current burn rate {{ $value | humanize }}x. Monthly budget exhausted in {{ printf '%.1f' (30 / $value) }} days."
+          runbook: "https://wiki.example.com/runbooks/payment-api-slo-burn"
+
+      # Error budget burn rate (slow window)
+      - alert: SloBurnRateSlow
+        expr: >
+          (
+            avg_over_time((1 - job:slo_availability:ratio_rate5m)[6h:5m])
+            / (1 - 0.999)
+          ) > 6
+        for: 15m
+        labels:
+          severity: warning
+          service: payment-api
+        annotations:
+          summary: "Payment API: Slow error budget burn rate (>6x)"
+          runbook: "https://wiki.example.com/runbooks/payment-api-slo-burn"
+----
+
+=== Schritt 3: CloudWatch SLO Monitoring (AWS)
+
+[source,hcl]
+----
+# terraform/monitoring/slo-alarms.tf
+
+resource "aws_cloudwatch_metric_alarm" "slo_error_rate_fast_burn" {
+  alarm_name          = "slo-payment-api-fast-burn"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 5
+  datapoints_to_alarm = 4
+
+  metric_query {
+    id          = "error_rate"
+    return_data = true
+    metric {
+      metric_name = "5XXError"
+      namespace   = "AWS/ApiGateway"
+      period      = 60
+      stat        = "Sum"
+      dimensions = {
+        ApiName = "payment-api"
+        Stage   = "production"
+      }
+    }
+  }
+
+  threshold          = 10
+  alarm_description  = "SLO: Fast burn rate – Payment API 5XX errors. Runbook: https://wiki/runbooks/payment-api-slo"
+  alarm_actions      = [aws_sns_topic.oncall_critical.arn]
+  ok_actions         = [aws_sns_topic.oncall_critical.arn]
+  treat_missing_data = "notBreaching"
+
+  tags = var.mandatory_tags
+}
+----
+
+=== Schritt 4: Grafana SLO Dashboard
+
+[source,json]
+----
+{
+  "dashboard": {
+    "title": "Payment API – SLO Dashboard",
+    "panels": [
+      {
+        "title": "Availability (30d Rolling)",
+        "type": "stat",
+        "targets": [{
+          "expr": "avg_over_time(job:slo_availability:ratio_rate5m[30d]) * 100",
+          "legendFormat": "Availability %"
+        }],
+        "thresholds": {"mode": "absolute", "steps": [
+          {"color": "red", "value": 0},
+          {"color": "yellow", "value": 99.5},
+          {"color": "green", "value": 99.9}
+        ]}
+      },
+      {
+        "title": "Error Budget Remaining",
+        "type": "gauge",
+        "targets": [{
+          "expr": "(1 - (1 - avg_over_time(job:slo_availability:ratio_rate5m[30d])) / (1 - 0.999)) * 100"
+        }]
+      }
+    ]
+  }
+}
+----
+
+== Typische Fehlmuster
+
+* *SLO zu ambitioniert gesetzt*: 99.99% SLO ohne entsprechende Infrastruktur führt zu permanent leerem Error Budget
+* *SLI misst falsche Metrik*: Load Balancer Healthcheck als SLI statt echter User-Journey
+* *Kein Error Budget Policy*: SLO definiert aber keine operativen Konsequenzen bei Budget-Erschöpfung
+* *SLO nie reviewed*: SLOs, die nach einem Jahr unverändert sind, spiegeln meist nicht die aktuelle Realität wider
+
+== Metriken
+
+* Error Budget Remaining: % des monatlichen Budgets noch verfügbar (Ziel: > 50% zur Monatsmitte)
+* Burn Rate: Aktueller Verbrauch des Error Budgets relativ zur Baseline
+* MTTD: Zeit von erstem Fehler bis Alarm ausgelöst (Ziel: < 5 Minuten)
+* SLO Compliance Rate: % der 30-Tage-Fenster, in denen SLO eingehalten wurde
+
+== Reifegrad
+
+Level 1 – Keine SLOs, reaktive Incident Response +
+Level 2 – SLOs dokumentiert, kein Monitoring +
+Level 3 – SLOs überwacht mit Error Budget Alerts +
+Level 4 – Error Budget Policy, Release-Freeze bei Budget-Erschöpfung +
+Level 5 – Adaptive SLOs, Customer-Dashboards, prädiktives Alerting

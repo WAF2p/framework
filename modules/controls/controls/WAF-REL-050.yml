@@ -1,0 +1,269 @@
+id: WAF-REL-050
+title: "Circuit Breaker & Timeout Configuration"
+pillar: "reliability"
+status: "active"
+severity: "high"
+category: "resilience-patterns"
+type: ['configuration', 'automation']
+tags: ['circuit-breaker', 'timeout', 'retry', 'bulkhead', 'resilience', 'cascading-failure', 'rate-limiting']
+
+description: >
+  All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values.
+  Critical service dependencies MUST implement circuit breaker patterns. Retry logic
+  MUST use exponential backoff with jitter. Connection pools MUST have defined maximum
+  sizes. Services MUST implement bulkhead isolation for different dependency classes.
+  No service may rely on default (infinite or undefined) timeouts for external calls.
+
+rationale: >
+  Cascading failures are the primary cause of large-scale service outages. A slow or
+  unresponsive dependency without a circuit breaker causes thread pool exhaustion,
+  connection pool depletion, and request queue buildup that propagates to unrelated
+  services. Circuit breakers limit blast radius by fast-failing when a dependency
+  exceeds error thresholds. Timeouts prevent resource threads from waiting indefinitely.
+  Bulkheads ensure one dependency failure cannot consume all available resources.
+
+threat:
+  - "Cascading failure caused by slow downstream dependency exhausting thread pools"
+  - "Database connection pool exhaustion propagating to all services sharing the pool"
+  - "Retry storms amplifying load on already degraded services"
+  - "Memory exhaustion from unlimited request queues during dependency slowdowns"
+  - "Complete service unavailability caused by a non-critical optional dependency"
+
+regulatory_mapping:
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 7 – Deploy using immutable infrastructure"
+      - "REL 10 – Use fault isolation to protect your workload"
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.17.1 – Information security continuity"
+  - framework: "ITIL 4"
+    controls:
+      - "Service Continuity Management"
+      - "Problem Management"
+  - framework: "SRE Book (Google)"
+    controls:
+      - "Chapter 22 – Addressing Cascading Failures"
+
+implementation_guidance:
+  - "Define explicit timeout for every outbound HTTP call (connect_timeout + read_timeout)."
+  - "Implement circuit breaker (half-open state) for all synchronous service dependencies."
+  - "Configure retry with exponential backoff: initial=100ms, factor=2, max=10s, max_attempts=3."
+  - "Add jitter to retries to prevent synchronized retry storms."
+  - "Use separate connection pools per dependency class (critical vs. optional)."
+  - "Configure request queue limits to prevent unbounded memory growth."
+  - "For Kubernetes Istio: configure DestinationRule with outlierDetection and connectionPool."
+  - "Test circuit breaker behavior by injecting latency faults in staging."
+
+maturity_levels:
+  level_1:
+    description: "No timeout or circuit breaker configuration"
+    criteria:
+      - "Inter-service calls use default (undefined or infinite) timeouts"
+      - "No circuit breaker pattern implemented"
+      - "Cascading failures observed in production incidents"
+  level_2:
+    description: "Basic timeouts configured"
+    criteria:
+      - "Connect and read timeouts defined for external HTTP calls"
+      - "No circuit breaker or retry with backoff"
+  level_3:
+    description: "Circuit breakers and retry with backoff"
+    criteria:
+      - "Circuit breakers implemented for all synchronous dependencies"
+      - "Retry with exponential backoff and jitter"
+      - "Connection pool limits defined"
+      - "Circuit breaker state changes logged and alerted"
+  level_4:
+    description: "Bulkhead isolation and service mesh"
+    criteria:
+      - "Bulkhead pattern isolates different dependency classes"
+      - "Service mesh (Istio/Linkerd) manages circuit breaking declaratively"
+      - "Chaos tests validate circuit breaker behavior"
+  level_5:
+    description: "Adaptive circuit breakers with ML-driven thresholds"
+    criteria:
+      - "Circuit breaker thresholds auto-tuned from historical error patterns"
+      - "Request hedging for latency-critical paths"
+      - "Full dependency resilience matrix maintained"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform or service mesh configuration showing timeout and circuit breaker settings."
+    - kind: "config"
+      description: "Application configuration files showing explicit timeout values for all external dependencies."
+  optional:
+    - kind: "process"
+      description: "Latency injection test results showing circuit breaker activation and fast-fail behavior."
+    - kind: "config"
+      description: "Service mesh DestinationRule or equivalent showing outlierDetection configuration."
+
+checks:
+  - id: "waf-rel-050.tf.aws.alb-idle-timeout"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS ALB idle timeout must be explicitly configured"
+    description: >
+      ALB idle_timeout must be set to a value appropriate for the workload, not
+      relying on the default 60 seconds which may be too long or too short.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_lb"
+    assertions:
+      - attribute: "idle_timeout"
+        op: "attribute_exists"
+        message: "ALB idle_timeout must be explicitly configured, not using default."
+      - attribute: "load_balancer_type"
+        op: "equals"
+        value: "application"
+        message: "This check applies to Application Load Balancers."
+    on_fail: "violation"
+    remediation: >
+      Set idle_timeout on the aws_lb resource. Typical values: 30s for APIs,
+      300s for file uploads. Align with client-side timeout configuration.
+    example:
+      compliant: |
+        resource "aws_lb" "api" {
+          name               = "payment-api-alb"
+          internal           = false
+          load_balancer_type = "application"
+          security_groups    = [aws_security_group.alb.id]
+          subnets            = var.public_subnet_ids
+          idle_timeout       = 30
+
+          tags = var.mandatory_tags
+        }
+      non_compliant: |
+        resource "aws_lb" "api" {
+          name               = "payment-api-alb"
+          internal           = false
+          load_balancer_type = "application"
+          security_groups    = [aws_security_group.alb.id]
+          subnets            = var.public_subnet_ids
+          # Missing: idle_timeout – using AWS default of 60s
+          # WAF-REL-050 violation
+        }
+
+  - id: "waf-rel-050.tf.azurerm.app-gateway-timeout"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure Application Gateway backend settings must define explicit timeouts"
+    description: >
+      Azure Application Gateway backend HTTP settings must define request_timeout_in_seconds
+      rather than relying on defaults.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_application_gateway"
+    assertions:
+      - attribute: "backend_http_settings"
+        op: "attribute_exists"
+        message: "Application Gateway must define backend_http_settings."
+      - attribute: "backend_http_settings.request_timeout_in_seconds"
+        op: "attribute_exists"
+        message: "Backend HTTP settings must define explicit request_timeout_in_seconds."
+    on_fail: "violation"
+    remediation: >
+      Set request_timeout_in_seconds in the backend_http_settings block.
+      Recommended values: 30 for APIs, 120 for batch operations.
+    example:
+      compliant: |
+        resource "azurerm_application_gateway" "main" {
+          name                = "payment-appgw"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+
+          backend_http_settings {
+            name                  = "api-backend-settings"
+            cookie_based_affinity = "Disabled"
+            port                  = 8080
+            protocol              = "Http"
+            request_timeout_in_seconds = 30
+          }
+          # ... other required blocks
+        }
+      non_compliant: |
+        resource "azurerm_application_gateway" "main" {
+          name                = "payment-appgw"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+
+          backend_http_settings {
+            name                  = "api-backend-settings"
+            cookie_based_affinity = "Disabled"
+            port                  = 8080
+            protocol              = "Http"
+            # Missing: request_timeout_in_seconds
+            # WAF-REL-050 violation
+          }
+        }
+
+  - id: "waf-rel-050.tf.google.cloud-run-timeout"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Cloud Run services must define explicit request timeout"
+    description: >
+      GCP Cloud Run service templates must define timeout_seconds to prevent
+      runaway requests from consuming resources indefinitely.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloud_run_service"
+        - "google_cloud_run_v2_service"
+    assertions:
+      - attribute: "template.spec.timeout_seconds"
+        op: "attribute_exists"
+        message: "Cloud Run service must define timeout_seconds in the template spec."
+    on_fail: "violation"
+    remediation: >
+      Set timeout_seconds in the template.spec block of google_cloud_run_service.
+      Default is 300s; set to the appropriate value for your workload latency SLO.
+    example:
+      compliant: |
+        resource "google_cloud_run_service" "api" {
+          name     = "payment-api"
+          location = var.region
+
+          template {
+            spec {
+              timeout_seconds = 30
+              containers {
+                image = var.container_image
+                resources {
+                  limits = { cpu = "1000m", memory = "512Mi" }
+                }
+              }
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_cloud_run_service" "api" {
+          name     = "payment-api"
+          location = var.region
+
+          template {
+            spec {
+              # Missing: timeout_seconds – using default 300s
+              # WAF-REL-050 violation
+              containers {
+                image = var.container_image
+              }
+            }
+          }
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-050"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-circuit-breaker.adoc"
+  related_controls:
+    - "WAF-REL-020"
+    - "WAF-REL-080"
+    - "WAF-REL-090"

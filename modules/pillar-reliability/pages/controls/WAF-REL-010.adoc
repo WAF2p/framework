@@ -1,0 +1,181 @@
+= WAF-REL-010 – SLA & SLO Definition Documented
+:page-toc: right
+:control-id: WAF-REL-010
+:pillar: reliability
+:severity: critical
+:category: reliability-governance
+:automated: medium
+:description: WAF++ Reliability – Dokumentierte und überwachte Service Level Objectives als Fundament aller Reliability-Maßnahmen.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* Critical | *Kategorie:* Reliability Governance | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Jeder Produktions-Workload MUSS dokumentierte Service Level Objectives (SLOs) für Availability,
+Latenz und Fehlerrate haben. SLOs MÜSSEN in Monitoring-Dashboards mit Alerting auf Error Budget
+Burn Rate überwacht werden. Service Level Agreements (SLAs) MÜSSEN SLOs referenzieren.
+
+Ohne SLOs ist Reliability nicht messbar. Alle anderen WAF-REL Controls setzen voraus,
+dass Ziele definiert wurden, gegen die gemessen werden kann.
+
+== Rationale
+
+SLOs transformieren Reliability von einer subjektiven Wahrnehmung in eine messbare,
+steuerbare Disziplin. Error Budgets leiten ab, wie viel Risiko noch tolerierbar ist
+und ermöglichen datengetriebene Entscheidungen über Release-Velocity vs. Stabilität.
+Ohne SLOs treffen Teams Reliability-Entscheidungen auf Basis von Bauchgefühl und
+politischem Druck – kein nachhaltiger Ansatz.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unmessbare Degradation*
+|Ohne SLO ist unklar, ab wann ein System als degradiert gilt; Incidents werden zu spät erkannt.
+
+|*Fehlendes Error Budget*
+|Ohne Error Budget fehlt der operative Rahmen für Velocity-vs-Stability-Entscheidungen.
+
+|*SLA ohne Fundament*
+|Externe SLAs, die nicht auf gemessenen SLOs basieren, sind Versprechen ohne Evidenz.
+
+|*Keine Eskalationsschwellen*
+|On-Call-Teams können Severity ohne definierte Schwellenwerte nicht konsistent einordnen.
+
+|===
+
+== Anforderung
+
+Jeder Produktions-Workload MUSS:
+
+* Availability-SLO (%), Latenz-SLO (p99 ms) und Fehlerrate-SLO (%) dokumentieren
+* Messfenster (typisch 30 Tage rolling) definieren
+* Error Budget berechnen und automatisch tracken
+* Multi-Window Burn Rate Alerts konfigurieren (fast burn: 1h, slow burn: 6h)
+* SLO-Dokument versioniert in einem Code-Repository halten
+* Quarterly SLO-Review durchführen und dokumentieren
+
+== Implementierungsanleitung
+
+. *SLO-Dokument erstellen*: YAML oder Markdown, version-controlled, mit Availability, Latenz, Fehlerrate
+. *SLIs instrumentieren*: Prometheus-Metriken oder CloudWatch-Alarms für alle SLIs
+. *Error Budget berechnen*: `(1 - SLO_target) * measurement_window_seconds`
+. *Multi-Window Alerts*: Fast Burn (1h, 14.4x) + Slow Burn (6h, 6x)
+. *Dashboard erstellen*: Grafana oder native CloudWatch Dashboard mit SLO Compliance + Error Budget
+. *SLA referenzieren*: Externe SLAs auf SLO-Dokument verlinken
+. *Review-Kalender*: Quarterly Review im Team-Kalender als festes Meeting eintragen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine SLOs
+|Keine Ziele definiert; Incidents reaktiv behandelt.
+
+|*2*
+|SLOs dokumentiert
+|SLO-Dokument vorhanden; kein automatisches Monitoring.
+
+|*3*
+|SLOs überwacht
+|SLIs instrumentiert; Error Budget Burn Rate Alerts konfiguriert; quarterly Review.
+
+|*4*
+|Error Budget Policy aktiv
+|Deployments werden bei Budget-Erschöpfung pausiert; Multi-Window-Alerts.
+
+|*5*
+|Adaptive SLOs
+|Automatisch angepasste SLOs; Customer-Dashboards; prädiktive Alerts.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-010.tf.aws.cloudwatch-slo-alarm
+*Prüft:* CloudWatch-Alarm für SLO-Monitoring konfiguriert mit alarm_actions und threshold.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm"
+    "slo_error_rate" {
+  alarm_name          = "slo-payment-svc"
+  comparison_operator =
+    "GreaterThanThreshold"
+  evaluation_periods  = 5
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApiGateway"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_actions =
+    [aws_sns_topic.oncall.arn]
+  ok_actions =
+    [aws_sns_topic.oncall.arn]
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm"
+    "errors" {
+  alarm_name          = "errors"
+  comparison_operator =
+    "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 100
+  # Kein alarm_actions –
+  # Alert feuert lautlos
+}
+----
+|===
+
+*Remediation:* `alarm_actions` und `ok_actions` auf SNS-Topic setzen, das mit
+On-Call-System (PagerDuty/OpsGenie) verbunden ist.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|SLO-Dokument pro Workload (versioniert): Availability, Latenz, Fehlerrate, Messfenster.
+
+|*Config*
+|✅ Pflicht
+|Monitoring-Dashboard mit SLO-Compliance und Error Budget Burn Rate in Echtzeit.
+
+|*Governance*
+|Optional
+|SLA-Vertrag mit Verweis auf SLO-Dokument und Eskalationsklauseln.
+
+|*Process*
+|Optional
+|Quarterly SLO-Review Protokolle mit Anpassungshistorie.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbook Readiness]
+* xref:controls/WAF-REL-100.adoc[WAF-REL-100 – Reliability Debt Register]
+
+== Best Practice
+
+* xref:best-practices/bp-slo-definition.adoc[SLO & SLA definieren und messen →]

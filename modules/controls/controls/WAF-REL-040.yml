@@ -1,0 +1,302 @@
+id: WAF-REL-040
+title: "Backup & Recovery Validation"
+pillar: "reliability"
+status: "active"
+severity: "critical"
+category: "backup-recovery"
+type: ['governance', 'configuration', 'automation']
+tags: ['backup', 'recovery', 'rto', 'rpo', 'disaster-recovery', 'data-protection', 'restore-test']
+
+description: >
+  All production databases, object stores, and stateful services MUST have automated
+  backup configurations with defined retention periods. Backup configurations MUST
+  specify RPO-aligned retention. Recovery procedures MUST be tested at minimum quarterly
+  through documented restore exercises. Backups MUST be stored in a separate account,
+  region, or vault from the primary data source. Point-in-time recovery (PITR) MUST
+  be enabled for all production databases. Untested backups are not backups.
+
+rationale: >
+  Backup configuration without validated recovery is a false security measure. Data
+  loss events (accidental deletion, ransomware, corruption, provider failure) require
+  not just backup existence but proven recovery procedures within acceptable RTO/RPO.
+  Cross-account or cross-region backup storage prevents the most common backup failure
+  pattern: the backup and primary data are deleted or encrypted simultaneously.
+  Quarterly restore tests are the minimum viable evidence of recovery capability.
+
+threat:
+  - "Data loss due to accidental deletion without verified recovery capability"
+  - "Ransomware encrypting backups stored in the same account as primary data"
+  - "RPO violation due to insufficient backup frequency"
+  - "RTO violation because restore procedure has never been tested"
+  - "Backup retention misconfiguration causing data to expire before it is needed"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 27001:2022"
+    controls:
+      - "A.8.13 – Information backup"
+      - "A.17.1 – Information security continuity"
+  - framework: "GDPR"
+    controls:
+      - "Article 32 – Security of processing (data availability)"
+      - "Article 5(1)(f) – Integrity and confidentiality"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "REL 9 – Back up data"
+      - "REL 14 – Plan for disaster recovery"
+  - framework: "BSI C5:2022"
+    controls:
+      - "RB-01 – Availability and Redundancy"
+      - "RB-04 – Data Backup and Recovery"
+
+implementation_guidance:
+  - "Enable automated backups with retention period aligned to RPO (minimum 7 days for production)."
+  - "Enable Point-in-Time Recovery (PITR) for all production relational databases."
+  - "Store backups in a separate AWS account, Azure subscription, or GCP project."
+  - "Enable cross-region replication for backups of critical data."
+  - "Define Recovery Time Objective (RTO) and Recovery Point Objective (RPO) per workload."
+  - "Run quarterly restore tests; document results including actual RTO achieved."
+  - "Automate restore validation using infrastructure-as-code scripts."
+  - "Alert if backup job fails or backup age exceeds expected frequency."
+
+maturity_levels:
+  level_1:
+    description: "Backups ad-hoc or not configured"
+    criteria:
+      - "No automated backup configuration"
+      - "No defined RTO or RPO targets"
+  level_2:
+    description: "Automated backups configured, not tested"
+    criteria:
+      - "Automated backups enabled with basic retention"
+      - "RTO and RPO documented"
+      - "No restore testing performed"
+  level_3:
+    description: "Backups tested with cross-account storage"
+    criteria:
+      - "PITR enabled for all production databases"
+      - "Backups stored in isolated account or vault"
+      - "Restore tested quarterly with documented results"
+      - "Backup failure alerts configured"
+  level_4:
+    description: "Automated restore validation in CI/CD"
+    criteria:
+      - "Automated restore tests run monthly via pipeline"
+      - "Restore success metrics tracked"
+      - "Backup integrity validation automated"
+      - "Cross-region backup replication operational"
+  level_5:
+    description: "Continuous backup validation with immutable storage"
+    criteria:
+      - "Immutable backup storage (WORM) for critical data"
+      - "Continuous data protection (CDP) for critical databases"
+      - "Restore tests triggered by every significant schema change"
+      - "Recovery runbooks auto-generated from IaC"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform showing automated backup configuration with retention, PITR, and cross-account storage."
+    - kind: "process"
+      description: "Quarterly restore test report showing RTO achieved, data integrity validated, and sign-off."
+  optional:
+    - kind: "governance"
+      description: "RTO/RPO document per workload, reviewed annually."
+    - kind: "config"
+      description: "Backup monitoring alerts showing job success/failure notifications."
+
+checks:
+  - id: "waf-rel-040.tf.aws.rds-backup-retention"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "critical"
+    title: "AWS RDS must have backup retention >= 7 days with PITR enabled"
+    description: >
+      Production RDS instances must have backup_retention_period of at least 7 days
+      to enable point-in-time recovery across a full week of transactions.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_db_instance"
+        - "aws_rds_cluster"
+    assertions:
+      - attribute: "backup_retention_period"
+        op: "greater_than_or_equal"
+        value: 7
+        message: "RDS backup retention must be at least 7 days for production."
+      - attribute: "deletion_protection"
+        op: "is_true"
+        message: "RDS deletion protection must be enabled to prevent accidental deletion."
+    on_fail: "violation"
+    remediation: >
+      Set backup_retention_period >= 7 on the aws_db_instance resource.
+      Enable deletion_protection = true to prevent accidental deletion.
+      Configure backup_window to a low-traffic maintenance window.
+    example:
+      compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "payment-db-prod"
+          engine                 = "postgres"
+          instance_class         = "db.t3.medium"
+          allocated_storage      = 100
+          backup_retention_period = 14
+          backup_window          = "02:00-03:00"
+          deletion_protection    = true
+          copy_tags_to_snapshot  = true
+        }
+      non_compliant: |
+        resource "aws_db_instance" "main" {
+          identifier             = "payment-db-prod"
+          engine                 = "postgres"
+          instance_class         = "db.t3.medium"
+          allocated_storage      = 100
+          backup_retention_period = 1   # WAF-REL-040 violation
+          deletion_protection    = false # WAF-REL-040 violation
+        }
+
+  - id: "waf-rel-040.tf.aws.s3-versioning"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS S3 buckets with production data must have versioning enabled"
+    description: >
+      S3 buckets storing production data must have versioning enabled to allow
+      recovery from accidental deletion or overwrite.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_s3_bucket_versioning"
+    assertions:
+      - attribute: "versioning_configuration.status"
+        op: "equals"
+        value: "Enabled"
+        message: "S3 bucket versioning must be Enabled for production data buckets."
+    on_fail: "violation"
+    remediation: >
+      Add an aws_s3_bucket_versioning resource referencing the bucket with
+      versioning_configuration { status = "Enabled" }.
+    example:
+      compliant: |
+        resource "aws_s3_bucket_versioning" "data" {
+          bucket = aws_s3_bucket.production_data.id
+          versioning_configuration {
+            status = "Enabled"
+          }
+        }
+      non_compliant: |
+        resource "aws_s3_bucket_versioning" "data" {
+          bucket = aws_s3_bucket.production_data.id
+          versioning_configuration {
+            status = "Suspended"  # WAF-REL-040 violation
+          }
+        }
+
+  - id: "waf-rel-040.tf.azurerm.postgresql-backup"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "critical"
+    title: "Azure PostgreSQL Flexible Server must have backup retention >= 7 days"
+    description: >
+      Azure PostgreSQL Flexible Server must configure backup_retention_days of at
+      least 7 for production workloads.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_postgresql_flexible_server"
+        - "azurerm_mysql_flexible_server"
+    assertions:
+      - attribute: "backup_retention_days"
+        op: "greater_than_or_equal"
+        value: 7
+        message: "Database backup retention must be at least 7 days."
+      - attribute: "geo_redundant_backup_enabled"
+        op: "is_true"
+        message: "Geo-redundant backup must be enabled for cross-region recovery."
+    on_fail: "violation"
+    remediation: >
+      Set backup_retention_days >= 7 and geo_redundant_backup_enabled = true on
+      the azurerm_postgresql_flexible_server resource.
+    example:
+      compliant: |
+        resource "azurerm_postgresql_flexible_server" "main" {
+          name                         = "payment-db-prod"
+          resource_group_name          = azurerm_resource_group.main.name
+          location                     = "westeurope"
+          version                      = "15"
+          backup_retention_days        = 14
+          geo_redundant_backup_enabled = true
+          sku_name                     = "GP_Standard_D2s_v3"
+        }
+      non_compliant: |
+        resource "azurerm_postgresql_flexible_server" "main" {
+          name                         = "payment-db-prod"
+          resource_group_name          = azurerm_resource_group.main.name
+          location                     = "westeurope"
+          version                      = "15"
+          backup_retention_days        = 1   # WAF-REL-040 violation
+          geo_redundant_backup_enabled = false # WAF-REL-040 violation
+          sku_name                     = "GP_Standard_D2s_v3"
+        }
+
+  - id: "waf-rel-040.tf.google.sql-backup-config"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "critical"
+    title: "GCP Cloud SQL must have automated backups and PITR enabled"
+    description: >
+      GCP Cloud SQL instances must have automated backups enabled with
+      point-in-time recovery enabled for production databases.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_sql_database_instance"
+    assertions:
+      - attribute: "settings.backup_configuration.enabled"
+        op: "is_true"
+        message: "Cloud SQL automated backups must be enabled."
+      - attribute: "settings.backup_configuration.point_in_time_recovery_enabled"
+        op: "is_true"
+        message: "Cloud SQL point-in-time recovery must be enabled."
+    on_fail: "violation"
+    remediation: >
+      Set enabled = true and point_in_time_recovery_enabled = true in the
+      backup_configuration block of the google_sql_database_instance settings.
+    example:
+      compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "payment-db-prod"
+          database_version = "POSTGRES_15"
+          settings {
+            tier = "db-custom-2-7680"
+            backup_configuration {
+              enabled                        = true
+              start_time                     = "02:00"
+              point_in_time_recovery_enabled = true
+              transaction_log_retention_days = 7
+              retained_backups               = 14
+              retention_unit                 = "COUNT"
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "payment-db-prod"
+          database_version = "POSTGRES_15"
+          settings {
+            tier = "db-custom-2-7680"
+            backup_configuration {
+              enabled = false  # WAF-REL-040 violation
+            }
+          }
+        }
+
+references:
+  narrative: "modules/pillar-reliability/pages/controls.adoc#WAF-REL-040"
+  best_practice: "modules/pillar-reliability/pages/best-practices/bp-backup-recovery.adoc"
+  related_controls:
+    - "WAF-REL-030"
+    - "WAF-REL-060"
+    - "WAF-REL-070"

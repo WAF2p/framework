@@ -1,0 +1,331 @@
+= Best Practice: Sichere Deployments (Feature Flags, Canary, Blue/Green)
+:page-toc: right
+:description: Progressive Delivery – Canary Releases, Blue/Green Deployments und Feature Flags in AWS, Azure und GCP implementieren. Automatischer Rollback, Blast-Radius-Reduktion.
+
+== Kontext
+
+Big-Bang-Deployments – alle Änderungen auf alle Nutzer gleichzeitig – sind das Risikoprofil
+der 1990er Jahre. Progressive Delivery ist die Antwort: Neue Versionen erhalten schrittweise
+mehr Traffic, Metriken werden verglichen, Rollback ist automatisch.
+
+Das Ziel: Jedes Deployment ist sicher, messbar und reversibel.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-080[WAF-OPS-080 – Feature Flag & Safe Deployment Patterns]
+
+== Zielbild
+
+* Jedes Deployment beginnt bei 5-10% Traffic (Canary) oder in einer isolierten Umgebung (Blue/Green)
+* Metriken-Vergleich: Fehlerrate und Latenz der neuen Version vs. alter Version
+* Automatischer Rollback wenn Fehlerrate um X% steigt
+* Feature Flags ermöglichen Rollback ohne Deployment (< 30 Sekunden)
+
+== Technische Umsetzung
+
+=== Canary-Deployment mit AWS CodeDeploy (ECS)
+
+[source,hcl]
+----
+# Terraform: CodeDeploy Canary für ECS Service
+resource "aws_codedeploy_app" "payment_service" {
+  name             = "payment-service"
+  compute_platform = "ECS"
+}
+
+resource "aws_codedeploy_deployment_group" "production" {
+  app_name               = aws_codedeploy_app.payment_service.name
+  deployment_group_name  = "payment-service-production"
+  service_role_arn       = aws_iam_role.codedeploy_role.arn
+  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+  # Bedeutung: 10% Traffic auf neue Version, 5 Minuten beobachten, dann 100%
+
+  auto_rollback_configuration {
+    enabled = true
+    events  = [
+      "DEPLOYMENT_FAILURE",
+      "DEPLOYMENT_STOP_ON_ALARM"
+    ]
+  }
+
+  alarm_configuration {
+    alarms  = [aws_cloudwatch_metric_alarm.canary_error_rate.name]
+    enabled = true
+  }
+
+  blue_green_deployment_config {
+    deployment_ready_option {
+      action_on_timeout    = "CONTINUE_DEPLOYMENT"
+      wait_time_in_minutes = 0
+    }
+    terminate_blue_instances_on_deployment_success {
+      action                           = "TERMINATE"
+      termination_wait_time_in_minutes = 5
+    }
+  }
+
+  deployment_style {
+    deployment_option = "WITH_TRAFFIC_CONTROL"
+    deployment_type   = "BLUE_GREEN"
+  }
+
+  ecs_service {
+    cluster_name = aws_ecs_cluster.production.name
+    service_name = aws_ecs_service.payment_service.name
+  }
+
+  load_balancer_info {
+    target_group_pair_info {
+      prod_traffic_route {
+        listener_arns = [aws_lb_listener.https.arn]
+      }
+      target_group {
+        name = aws_lb_target_group.blue.name
+      }
+      target_group {
+        name = aws_lb_target_group.green.name
+      }
+    }
+  }
+}
+
+# CloudWatch Alarm der den automatischen Rollback auslöst
+resource "aws_cloudwatch_metric_alarm" "canary_error_rate" {
+  alarm_name          = "canary-error-rate-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  threshold           = 20  # Rollback wenn 5xx > 20 in Canary-Periode
+
+  metric_query {
+    id          = "error_count"
+    expression  = "SELECT SUM(HTTPCode_Target_5XX_Count) FROM SCHEMA(\"AWS/ApplicationELB\", LoadBalancer, TargetGroup)"
+    return_data = true
+    period      = 60
+  }
+
+  alarm_actions = []  # CodeDeploy überwacht diesen Alarm direkt
+}
+----
+
+=== Blue/Green-Deployment mit AWS ALB (Lambda)
+
+[source,hcl]
+----
+# Lambda Blue/Green mit Alias und Gewichtung
+resource "aws_lambda_alias" "live" {
+  name             = "live"
+  function_name    = aws_lambda_function.payment_processor.function_name
+  function_version = aws_lambda_function.payment_processor.version
+
+  routing_config {
+    additional_version_weights = {
+      # 10% Traffic auf neue Version (Canary)
+      (aws_lambda_function.payment_processor_v2.version) = 0.1
+    }
+  }
+}
+
+resource "aws_lambda_function" "payment_processor" {
+  function_name = "payment-processor-stable"
+  # ... stabile Version
+}
+
+resource "aws_lambda_function" "payment_processor_v2" {
+  function_name = "payment-processor-v2"
+  # ... neue Version
+}
+----
+
+=== Feature Flags mit AWS AppConfig
+
+[source,hcl]
+----
+resource "aws_appconfig_application" "payment_service" {
+  name        = "payment-service"
+  description = "Feature flags for payment service"
+}
+
+resource "aws_appconfig_environment" "production" {
+  name           = "production"
+  application_id = aws_appconfig_application.payment_service.id
+
+  # Kein Deployment ohne Monitoring
+  monitors {
+    alarm_arn      = aws_cloudwatch_metric_alarm.payment_error_rate.arn
+    alarm_role_arn = aws_iam_role.appconfig_monitor_role.arn
+  }
+}
+
+resource "aws_appconfig_configuration_profile" "feature_flags" {
+  name           = "payment-features"
+  application_id = aws_appconfig_application.payment_service.id
+  location_uri   = "hosted"
+  type           = "AWS.AppConfig.FeatureFlags"
+
+  validator {
+    type    = "JSON_SCHEMA"
+    content = jsonencode({
+      "$schema" = "http://json-schema.org/draft-07/schema#"
+      type      = "object"
+      properties = {
+        new_checkout_flow = {
+          type = "object"
+          properties = {
+            enabled    = { type = "boolean" }
+            percentage = { type = "number", minimum = 0, maximum = 100 }
+          }
+        }
+      }
+    })
+  }
+}
+
+# Feature Flag Values (Hosted Configuration)
+resource "aws_appconfig_hosted_configuration_version" "flags_v1" {
+  application_id           = aws_appconfig_application.payment_service.id
+  configuration_profile_id = aws_appconfig_configuration_profile.feature_flags.configuration_profile_id
+  description              = "Initial feature flags"
+  content_type             = "application/json"
+  content = jsonencode({
+    flags = {
+      new_checkout_flow = {
+        name        = "New Checkout Flow"
+        description = "Gradual rollout of redesigned checkout"
+        enabled     = false
+        attributes = {
+          percentage = { constraints = { type = "number" } }
+        }
+      }
+    }
+    values = {
+      new_checkout_flow = {
+        enabled    = false
+        percentage = 0
+      }
+    }
+    version = "1"
+  })
+}
+----
+
+=== Feature-Flag-Nutzung im Applikationscode
+
+[source,javascript]
+----
+// payment-service/src/checkout.js
+const appConfig = require('./appconfig-client');
+
+async function processCheckout(user, cart) {
+  // Feature Flag abfragen (gecacht, < 10ms Latenz)
+  const flags = await appConfig.getConfiguration('payment-service', 'production', 'payment-features');
+
+  const useNewFlow = flags.new_checkout_flow.enabled &&
+    (Math.random() * 100 < flags.new_checkout_flow.percentage);
+
+  if (useNewFlow) {
+    logger.info('Using new checkout flow', {
+      trace_id: getCurrentTraceId(),
+      user_id: user.id,
+      feature_flag: 'new_checkout_flow'
+    });
+    return processNewCheckout(user, cart);
+  }
+
+  return processLegacyCheckout(user, cart);
+}
+----
+
+== Canary Rollback-Prozedur
+
+[source,bash]
+----
+#!/bin/bash
+# canary-rollback.sh – Sofortiges Rollback für Canary-Deployment
+
+DEPLOYMENT_ID="${1}"
+CLUSTER="${2:-payment-production}"
+SERVICE="${3:-payment-service}"
+
+echo "Rolling back deployment: ${DEPLOYMENT_ID}"
+
+# Option 1: CodeDeploy Deployment stoppen mit Rollback
+aws deploy stop-deployment \
+  --deployment-id "${DEPLOYMENT_ID}" \
+  --auto-rollback-enabled
+
+# Option 2: Direkt vorherige ECS Task Definition deployen
+PREV_TASK_DEF=$(aws ecs describe-services \
+  --cluster "${CLUSTER}" \
+  --services "${SERVICE}" \
+  --query 'services[0].taskDefinition' \
+  --output text)
+
+echo "Current task definition: ${PREV_TASK_DEF}"
+
+# Task Definition Version -1 ermitteln
+TASK_DEF_FAMILY=$(echo "${PREV_TASK_DEF}" | cut -d: -f7)
+CURRENT_VERSION=$(echo "${PREV_TASK_DEF}" | cut -d: -f8)
+PREV_VERSION=$((CURRENT_VERSION - 1))
+
+echo "Rolling back to version: ${PREV_VERSION}"
+
+aws ecs update-service \
+  --cluster "${CLUSTER}" \
+  --service "${SERVICE}" \
+  --task-definition "${TASK_DEF_FAMILY}:${PREV_VERSION}"
+
+echo "Rollback initiated. Monitor: aws ecs describe-services --cluster ${CLUSTER} --services ${SERVICE}"
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|AllAtOnce Deployment in Production
+|100% Blast Radius; keine Möglichkeit fehlerhafte Version zu isolieren
+
+|Canary ohne Health Check Alarms
+|Canary läuft durch auch wenn 50% Fehlerrate – kein Auto-Rollback
+
+|Feature Flags nie entfernt (Stale Flags)
+|Code-Komplexität steigt; "was passiert wenn ich dieses Flag entferne?" – niemand weiß es mehr
+
+|Rollback erfordert neues Deployment
+|Bei Incident: 10-20 Minuten Wartezeit für Deployment-Zyklus statt 30 Sekunden Flag-Toggle
+
+|Blue/Green ohne Traffic-Split-Monitoring
+|Beide Umgebungen laufen, aber kein Metriken-Vergleich zwischen Blue und Green
+
+|===
+
+== Metriken
+
+* *Change Failure Rate:* % der Deployments die Rollback erforderten (Ziel: < 5%)
+* *MTTR nach fehlerhaftem Deployment:* Zeit bis vollständige Erholung (Ziel: < 5 Minuten mit Rollback)
+* *Blast-Radius-Reduktion:* % der fehlerhaften Deployments mit < 10% Nutzerauswirkung (Ziel: > 80%)
+* *Feature-Flag-Lifecycle:* Durchschnittliche Lebensdauer von Feature Flags (Warnsignal: > 90 Tage)
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Big-Bang Deployments. Rollback = neues Deployment = 15+ Minuten.
+
+|*Level 2*
+|Rolling Updates oder manuelle Blue/Green. Kein Auto-Rollback.
+
+|*Level 3*
+|Canary oder Blue/Green mit Health-Check-basiertem Auto-Rollback. Feature Flags für neue Features.
+
+|*Level 4*
+|Automatische Canary-Analyse via Metriken-Vergleich. Change Failure Rate tracked.
+
+|*Level 5*
+|DORA Elite: Change Failure Rate < 5%. Automatisches Deployment-Decision basierend auf Metriken.
+
+|===

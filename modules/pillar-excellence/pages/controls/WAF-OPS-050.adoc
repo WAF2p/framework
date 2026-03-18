@@ -1,0 +1,168 @@
+= WAF-OPS-050 – Change Management & Deployment Risk Assessment
+:page-toc: right
+:control-id: WAF-OPS-050
+:pillar: operations
+:severity: medium
+:category: change-management
+:automated: medium
+:description: WAF++ Operational Excellence – Alle Produktionsänderungen müssen durch einen definierten Change-Management-Prozess mit Risikobewertung und Approval laufen.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Change Management | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Änderungen an Produktionssystemen MÜSSEN durch einen definierten Change-Management-Prozess
+mit Risikobewertung, Approval-Workflow für High-Risk-Changes und Post-Deployment-Verifikation.
+Deployment-Freeze-Policies MÜSSEN für kritische Geschäftsperioden konfiguriert sein.
+Change-Records MÜSSEN mit Deployment-Artefakten verknüpft und auditierbar sein.
+
+== Rationale
+
+Unkontrollierte Änderungen sind die häufigste Ursache von Produktions-Incidents.
+Change Management bedeutet nicht: alles verlangsamen. Es bedeutet: jede Änderung hat
+einen bekannten Owner, ein bekanntes Risiklevel und einen Verifikationsplan.
+Automatisierte Change-Klassifikation (Low-Risk auto-approved, High-Risk reviewt)
+ermöglicht sowohl Geschwindigkeit als auch Sicherheit.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Ungeprüfte Änderungen*
+|Ohne Review: Security-Konfigurationsänderungen ohne Security-Team; kein Rollback-Plan.
+
+|*Change-Kollisionen*
+|Mehrere Teams deployen gleichzeitig ohne Koordination; gegenseitige Störung unbekannt.
+
+|*Kritische-Perioden-Deployment*
+|Release während Black Friday, Monatsende, Steuerzahlung – erhöhtes Risiko ohne Freeze.
+
+|*Compliance-Verletzung*
+|SOC 2, PCI DSS, ISO 20000 fordern Change-Records mit Approval-Nachweis.
+
+|===
+
+== Anforderung
+
+* Change-Kategorien MÜSSEN definiert sein (Standard: pre-approved; Normal: Review; Notfall: expedited)
+* High-Risk-Changes MÜSSEN Approval von mindestens 2 Personen erfordern
+* Deployment-Freeze MUSS für konfigurierbare Perioden erzwungen werden können
+* Jedes Deployment MUSS auf ein Change-Record oder Ticket verweisen
+* Post-Deployment-Verifikation MUSS automatisiert sein (Smoke Tests)
+
+== Implementierungsanleitung
+
+. *Change-Kategorien definieren:* Standard (pre-approved Routineaufgaben), Normal (Review erforderlich), Notfall (expedited mit rückwirkender Dokumentation)
+. *Approval-Routing automatisieren:* Low-Risk (1 Reviewer), High-Risk (Tech Lead + Security), Notfall (CTO)
+. *Branch-Protection stärken:* `CODEOWNERS` für kritische Pfade; `required_approving_review_count >= 1`
+. *Deployment-Freeze konfigurieren:* GitHub Environment Protection Wait Times; Pipeline-Freeze-Check gegen Kalender
+. *Change-Tickets verknüpfen:* CI-Pipeline prüft Commit-Message oder Branch-Name auf Ticket-ID
+. *Smoke Tests als Gate:* Deployment gilt erst als erfolgreich wenn Smoke Tests grün sind
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Kontrolle
+|Jeder kann jederzeit in Produktion deployen. Keine Dokumentation. Keine Review.
+
+|*2*
+|Basis-Review
+|Pull-Request-Reviews für Code-Änderungen. Informelle Koordination vor Deployments.
+
+|*3*
+|Dokumentierter Change-Prozess
+|Change-Kategorien definiert. High-Risk mit Multi-Approval. Deployment-Freeze konfiguriert.
+
+|*4*
+|Automatische Risikobewertung
+|Auto-Risikoscoring basierend auf betroffenen Ressourcen. Smoke Tests als Deployment-Gate.
+
+|*5*
+|Kontinuierliche Change-Optimierung
+|Change Failure Rate < 5%. MTTR < 1 Stunde. Predictive Risk Scoring via ML.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-050.tf.aws.codepipeline-manual-approval
+*Prüft:* AWS CodePipeline hat eine manuelle Approval-Stage vor dem Production-Deployment.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_codepipeline" "app" {
+  /* ... */
+  stage {
+    name = "Approval-Production"
+    action {
+      name     = "ManualApproval"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+      configuration = {
+        NotificationArn = aws_sns_topic.approvals.arn
+      }
+    }
+  }
+  stage { name = "Deploy-Production" /* ... */ }
+}
+----
+a|[source,hcl]
+----
+resource "aws_codepipeline" "app" {
+  /* Source → Build → Deploy-Production */
+  /* Kein Approval-Gate vor Production */
+  /* WAF-OPS-050 Violation */
+}
+----
+
+|===
+
+*Remediation:* Approval-Stage mit `category = "Approval"` und `provider = "Manual"` vor dem
+Production-Deployment in der CodePipeline konfigurieren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Process*
+|✅ Pflicht
+|Change-Management-Policy mit Change-Kategorien, Approval-Anforderungen und Freeze-Perioden.
+
+|*Config*
+|✅ Pflicht
+|Branch-Protection- und Approval-Konfiguration (min. Reviewer, CODEOWNERS).
+
+|*Governance*
+|Optional
+|Change-Log mit Change-Records verknüpft zu Deployments (letzte 3 Monate).
+
+|*Config*
+|Optional
+|Deployment-Freeze-Konfiguration (Environment Protection Rules oder Pipeline-Freeze-Check).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
+* xref:controls/WAF-OPS-080.adoc[WAF-OPS-080 – Feature Flags & Safe Deployments]
+* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+
+== Best Practice
+
+* xref:best-practices/bp-cicd.adoc[CI/CD-Pipeline aufbauen und absichern →]

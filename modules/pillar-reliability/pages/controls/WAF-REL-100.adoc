@@ -1,0 +1,167 @@
+= WAF-REL-100 – Reliability Debt Register & Quarterly Review
+:page-toc: right
+:control-id: WAF-REL-100
+:pillar: reliability
+:severity: medium
+:category: reliability-governance
+:automated: low-medium
+:description: WAF++ Reliability – Versioniertes Reliability Debt Register mit quartalsweisem Review-Prozess.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* Medium | *Kategorie:* Reliability Governance | *Automatisierbar:* Niedrig–Mittel
+
+== Beschreibung
+
+Alle bekannten Reliability-Risiken und deferred Reliability-Improvements MÜSSEN in einem
+versionierten Reliability Debt Register erfasst werden. Jeder Eintrag MUSS Owner, Severity
+(P1–P4), geschätzten Aufwand, Business-Risiko und Zieldatum enthalten. Das Register
+MUSS quartalsweise von Engineering-Leadership reviewed werden. P1-Einträge MÜSSEN
+innerhalb eines Sprints adressiert werden.
+
+== Rationale
+
+Reliability-Schulden akkumulieren still und werden ohne Tracking unsichtbar. Das
+Reliability Debt Register macht bekannte Risiken für alle Stakeholder transparent.
+Quarterly Reviews stellen sicher, dass Einträge nicht dauerhaft aufgeschoben werden.
+Das Register dient auch als Compliance-Evidenz für strukturiertes Risikomanagement.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unsichtbare Risiken*
+|Bekannte SPOFs nicht dokumentiert; niemand prioritisiert sie; bis sie einen Incident verursachen.
+
+|*Endlose Deferral*
+|Reliability-Verbesserungen werden quartalweise verschoben ohne formalen Track.
+
+|*Audit-Finding*
+|Compliance-Audit findet kein strukturiertes Risk-Management-Dokument.
+
+|*Hoher Toil*
+|Unremediierter Reliability Debt erzeugt wiederkehrenden manuellen Aufwand.
+
+|===
+
+== Anforderung
+
+* Reliability Debt Register: versioniert (Git), pro Workload oder zentral
+* Einträge: Beschreibung, Workload, Priorität P1–P4, Owner, Aufwand, Risiko, Zieldatum
+* P1 (Critical): Adressierung innerhalb eines Sprints (< 2 Wochen)
+* P2 (High): Adressierung im aktuellen Quartal
+* Quarterly Review: Protokolliert, mit Engineering-Leadership, Closures und neue Einträge
+* Abgeschlossene Einträge: als resolved markiert (nicht gelöscht)
+
+== Implementierungsanleitung
+
+. *Register-Format wählen*: YAML-Datei im Repository oder zentrales Governance-Dokument
+. *Erstbefüllung*: Post-Mortem-Actions, bekannte SPOFs, TODO-Kommentare im Code als Einträge
+. *Priorität-Framework*: P1 = Sicherheitsrisiko/Datenverlust, P2 = SLO-Risiko, P3 = Roadmap, P4 = Nice-to-have
+. *Owner zuweisen*: Default Owner = Team Lead; kein Eintrag ohne Owner
+. *Review-Kalender*: Quarterly Architecture Review enthält festes Agenda-Item "Reliability Debt"
+. *Debt-Ratio tracken*: (offene P1+P2 Einträge) / Gesamteinträge als Metrik
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Tracking
+|Reliability-Schulden nicht dokumentiert; nur durch Incidents sichtbar.
+
+|*2*
+|Ad-hoc Notizen
+|Einige Punkte im Ticketsystem; keine formale Priorisierung.
+
+|*3*
+|Formales Register + Quarterly Review
+|Versioniertes Register; alle Einträge mit Owner und Zieldatum; quarterly Review protokolliert.
+
+|*4*
+|Integriert in Architecture Governance
+|Einträge mit ADRs verlinkt; neue Arch-Entscheidungen gegen Register geprüft.
+
+|*5*
+|Automatisierte Erkennung
+|Reliability-Risiken automatisch erkannt (WAF++ Scanner, Config Rules); Debt-Ratio < 10%.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-100.tf.aws.config-conformance-pack
+*Prüft:* AWS Config Conformance Pack für Reliability Compliance Tracking konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_config_conformance_pack"
+    "reliability" {
+  name = "reliability-pack"
+
+  template_body = <<-EOT
+    Resources:
+      RDSMultiAZ:
+        Type: AWS::Config::ConfigRule
+        Properties:
+          ConfigRuleName:
+            rds-multi-az-support
+          Source:
+            Owner: AWS
+            SourceIdentifier:
+              RDS_MULTI_AZ_SUPPORT
+  EOT
+}
+----
+a|[source,hcl]
+----
+# Kein AWS Config Conformance Pack –
+# Reliability Compliance nicht
+# automatisch getrackt
+# WAF-REL-100 Violation
+----
+|===
+
+*Remediation:* `aws_config_conformance_pack` mit Reliability-bezogenen Config Rules
+konfigurieren: RDS Multi-AZ, Backup Retention, etc.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Versioniertes Reliability Debt Register: alle Einträge mit Owner, Priorität, Zieldatum.
+
+|*Process*
+|✅ Pflicht
+|Quarterly Review Protokolle: Registerdurchsicht, Abschlüsse, neue Einträge, Unterschrift.
+
+|*Governance*
+|Optional
+|Reliability Debt Trend-Diagramm: P1/P2 Backlog über 4 Quartale.
+
+|*Process*
+|Optional
+|Engineering Roadmap mit Reliability Debt Remediation Items.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response]
+* xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]
+
+== Best Practice
+
+* xref:best-practices/bp-slo-definition.adoc[SLO & SLA definieren und messen →]

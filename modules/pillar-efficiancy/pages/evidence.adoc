@@ -1,0 +1,285 @@
+= Evidenz & Audit – Performance Efficiency
+:page-toc: right
+:description: WAF++ Performance Efficiency – Evidenzanforderungen für Audits, organisiert nach Evidenztyp.
+
+Diese Seite beschreibt die Evidenzanforderungen für alle WAF-PERF-Controls
+in einer für Audits geeigneten Übersichtsform.
+
+== Evidenztypen
+
+[cols="1,3"]
+|===
+|Typ |Beschreibung
+
+|*IaC*
+|Terraform-Code oder äquivalente Infrastructure-as-Code-Artefakte, die eine konforme Konfiguration beweisen.
+
+|*Config*
+|Screenshots, Exports oder API-Ausgaben aus Cloud-Konsolen oder Monitoring-Tools.
+
+|*Governance*
+|Dokumente, Policies, Strategie-Papers oder Meeting-Protokolle, die Prozesse und Entscheidungen belegen.
+
+|*Process*
+|Nachweise über regelmäßig durchgeführte Prozesse: Berichte, Tickets, Kalendereinträge, Review-Protokolle.
+
+|===
+
+== Pflicht-Evidenz je Control
+
+=== WAF-PERF-010 – Compute Sizing
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|Sizing-Dokument oder ADR-Sektion mit gemessenen CPU/Memory-Baselines und Instanztyp-Begründung.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit aktueller Instanzgeneration und expliziter Größendeklaration.
+
+|*Process*
+|Optional
+|Quartalsbericht über Sizing-Reviews mit Liste überprovisionierter/unterprovisionierter Ressourcen.
+
+|*Config*
+|Optional
+|Export aus AWS Compute Optimizer, Azure Advisor oder GCP Recommender.
+
+|===
+
+=== WAF-PERF-020 – Auto-Scaling
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Auto-Scaling-Konfiguration mit min/desired/max und Scaling-Policy.
+
+|*Process*
+|✅ Pflicht
+|Lasttest-Ergebnisse, die belegen, dass Auto-Scaling innerhalb des Latenz-SLOs auslöst.
+
+|*Config*
+|Optional
+|CloudWatch/Azure Monitor/GCP-Monitoring-Alerts für Scaling-Events.
+
+|*Governance*
+|Optional
+|Runbook mit dokumentierten Skalierungsgrenzen und bekannten Engpässen.
+
+|===
+
+=== WAF-PERF-030 – Caching
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Caching-Strategie-Dokument mit Layer-Definition, TTL-Policies und Invalidierungsmechanismus.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration für ElastiCache/Azure Redis/Memorystore und CDN mit Cache-Rules.
+
+|*Config*
+|Optional
+|Cache-Hit-Rate-Dashboard mit Zielerreichungsnachweis (>= 80% Applikations-Cache).
+
+|*Process*
+|Optional
+|Cache-Invalidierungs-Runbook für Datenmutationen.
+
+|===
+
+=== WAF-PERF-040 – Datenbank-Performance
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|Performance-Insights- oder Slow-Query-Log-Konfiguration (aktiv auf Produktions-Datenbanken).
+
+|*Governance*
+|✅ Pflicht
+|Index-Strategie-Dokument für hochfrequente Abfragen.
+
+|*Process*
+|Optional
+|Monatlicher Slow-Query-Review-Bericht mit Action Items.
+
+|*Config*
+|Optional
+|Query-Performance-Baseline (P50/P95/P99 der Top-20-Queries).
+
+|===
+
+=== WAF-PERF-050 – SLOs & Monitoring
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|SLO-Dokument für alle Produktions-Services (SLI-Definition, SLO-Ziele, Error-Budget-Policy).
+
+|*Config*
+|✅ Pflicht
+|Monitoring-/APM-Konfiguration mit SLI-Instrumentierung und SLO-Alerting-Rules.
+
+|*Config*
+|Optional
+|SLO-Compliance-Dashboard mit historischen Trends und aktuellem Error-Budget-Status.
+
+|*Process*
+|Optional
+|Quartalsbericht SLO-Reviews mit Anpassungen.
+
+|===
+
+=== WAF-PERF-060 – Lasttests
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC / Code*
+|✅ Pflicht
+|Lasttest-Skripte (k6/Gatling/Locust) mit expliziten Akzeptanzkriterien in Versionskontrolle.
+
+|*Process*
+|✅ Pflicht
+|CI/CD-Pipeline-Konfiguration mit Lasttest als Deployment-Gate.
+
+|*Config*
+|Optional
+|Historische Lasttest-Ergebnisse über mehrere Releases als Regression-Baseline.
+
+|*Governance*
+|Optional
+|Performance-Test-Strategie-Dokument mit Szenarien, Akzeptanzkriterien und Ausführungsrhythmus.
+
+|===
+
+=== WAF-PERF-070 – Netzwerk-Performance
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit CDN und VPC/Private Endpoints für Cloud-Service-Zugriffe.
+
+|*Governance*
+|✅ Pflicht
+|Netzwerktopologie-Diagramm mit Service-Placement, AZ-Verteilung und Traffic-Routing.
+
+|*Config*
+|Optional
+|Netzwerk-Latenz-Baselines (Service-zu-Service RTT nach AZ-Kombination).
+
+|*Process*
+|Optional
+|CDN-Cache-Hit-Rate-Bericht.
+
+|===
+
+=== WAF-PERF-080 – Serverless & Managed Services
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration für Lambda/Functions mit explizitem Memory, Timeout und Concurrency.
+
+|*Governance*
+|✅ Pflicht
+|Dokumentation der Serverless-Adoption-Rationale für variable Workloads.
+
+|*Config*
+|Optional
+|Lambda Power Tuning-Ergebnisse oder äquivalente Memory-Optimierungsanalyse.
+
+|*Process*
+|Optional
+|Kostenvergleich Serverless vs. EC2/Container für Spike-Workloads.
+
+|===
+
+=== WAF-PERF-090 – Storage I/O
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration mit explizitem Storage-Typ, IOPS und Throughput-Einstellungen.
+
+|*Config*
+|✅ Pflicht
+|Monitoring-Konfiguration für Storage-I/O-Alerts (Queue-Depth, Throughput, Burst-Balance).
+
+|*Process*
+|Optional
+|Storage-I/O-Baseline mit P95/P99 Queue-Depth und Throughput-Auslastung.
+
+|*Governance*
+|Optional
+|Storage-Tier-Auswahlrichtlinien nach Workload-Typ.
+
+|===
+
+=== WAF-PERF-100 – Performance-Schuld-Register
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Performance-Schuld-Register mit allen erforderlichen Feldern (ID, Beschreibung, Impact, Owner, Priorität).
+
+|*Process*
+|✅ Pflicht
+|Quarterly-Review-Meeting-Protokoll oder Kalender mit regelmäßigem Review-Nachweis.
+
+|*Process*
+|Optional
+|Sprint-/Backlog-Einträge mit priorisierten Performance-Schuld-Tickets.
+
+|*Config*
+|Optional
+|Dashboard mit Performance-Schuld-Metriken (offene Einträge, Altersverteilung, Abbau-Rate).
+
+|===
+
+== Audit-Checkliste (Kurzform)
+
+Für einen schnellen Audit-Überblick kann die folgende Checkliste verwendet werden:
+
+* [ ] Sizing-Dokumentation für alle Produktions-Compute-Ressourcen vorhanden
+* [ ] Auto-Scaling-Konfiguration in IaC mit min/max und Scaling-Policy
+* [ ] Lasttest-Ergebnis als Nachweis validierten Auto-Scalings vorhanden
+* [ ] Caching-Strategie-Dokument erstellt und aktuell
+* [ ] Performance Insights oder äquivalentes DB-Monitoring aktiv
+* [ ] SLO-Dokument für alle kritischen Services vorhanden
+* [ ] CI/CD-Pipeline mit Lasttest-Gate konfiguriert
+* [ ] CDN und VPC Endpoints in IaC konfiguriert
+* [ ] Lambda/Functions-Konfiguration mit explizitem Memory und Timeout
+* [ ] gp3 oder äquivalente optimale Storage-Typen verwendet
+* [ ] Performance-Schuld-Register geführt und aktuell
+* [ ] Quarterly-Review-Nachweis vorhanden

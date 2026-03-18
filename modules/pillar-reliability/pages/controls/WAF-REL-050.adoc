@@ -1,0 +1,160 @@
+= WAF-REL-050 – Circuit Breaker & Timeout Configuration
+:page-toc: right
+:control-id: WAF-REL-050
+:pillar: reliability
+:severity: high
+:category: resilience-patterns
+:automated: high
+:description: WAF++ Reliability – Circuit Breaker, Timeouts und Retry-Logik gegen Cascading Failures.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* High | *Kategorie:* Resilience Patterns | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle ausgehenden HTTP/gRPC-Calls MÜSSEN explizite Timeout-Werte definieren.
+Kritische Service-Abhängigkeiten MÜSSEN Circuit Breaker implementieren.
+Retry-Logik MUSS Exponential Backoff mit Jitter verwenden.
+Connection Pools MÜSSEN maximale Größen definieren.
+Kein Service darf Default-Timeouts (undefined oder infinite) für externe Calls verwenden.
+
+== Rationale
+
+Cascading Failures sind die primäre Ursache großer Cloud-Outages. Ohne Circuit Breaker
+erschöpft eine langsame Abhängigkeit schrittweise Thread Pools und Connection Pools,
+bis der abhängige Service selbst ausfällt und die Kaskade sich fortsetzt. Explizite
+Timeouts verhindern, dass Ressource-Threads ewig auf nicht-antwortende Services warten.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Thread Pool Exhaustion*
+|Langsame externe API lässt alle Handler-Threads warten → Service vollständig blockiert.
+
+|*Connection Pool Depletion*
+|Geteilter DB-Connection-Pool erschöpft sich → alle abhängigen Services scheitern.
+
+|*Retry Storm*
+|1000 Clients retrien synchron ohne Jitter → 1000x Lastspitze auf degradiertem Service.
+
+|*Optionale Dep reißt Hauptservice mit*
+|Nicht-kritische Enrichment-API ohne Circuit Breaker → Totalausfall statt Feature-Verlust.
+
+|===
+
+== Anforderung
+
+* Explizite Timeouts für alle ausgehenden Calls (connect + read getrennt)
+* Circuit Breaker für alle kritischen synchronen Abhängigkeiten
+* Retry: maximal 3 Versuche, Exponential Backoff (100ms → 200ms → 400ms), Jitter ±50%
+* Connection Pool: maximale Größe pro Abhängigkeitsklasse definiert
+* Bulkhead: separate Resource Pools für verschiedene Abhängigkeitsklassen
+* Load Balancer: expliziter `idle_timeout` – kein Provider-Default
+
+== Implementierungsanleitung
+
+. *Timeout-Audit*: Alle ausgehenden HTTP-Clients auf explizite Timeout-Werte prüfen
+. *Circuit Breaker konfigurieren*: Resilience4j, pybreaker, oder Service Mesh `outlierDetection`
+. *Retry konfigurieren*: `maxAttempts=3`, `initialDelay=100ms`, `multiplier=2`, `jitter=0.5`
+. *Connection Pools*: Separate HTTP-Client-Instanzen pro Abhängigkeit
+. *ALB idle_timeout*: Explizit auf API-Latenz abstimmen (typisch 30s für REST APIs)
+. *Chaos Test*: Circuit Breaker durch Latenz-Injektion validieren
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Timeouts
+|Default/infinite Timeouts für externe Calls.
+
+|*2*
+|Timeouts konfiguriert
+|Connect und Read Timeouts für externe HTTP-Calls definiert.
+
+|*3*
+|Circuit Breaker + Retry
+|CB für alle kritischen Deps; Retry mit Backoff und Jitter; Connection Pools.
+
+|*4*
+|Bulkheads + Service Mesh
+|Bulkhead-Isolation; Istio/Linkerd verwaltet CB deklarativ; Chaos Tests.
+
+|*5*
+|Adaptive Thresholds
+|CB-Schwellenwerte auto-tuned; Request Hedging; vollständige Resilience Matrix.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-050.tf.aws.alb-idle-timeout
+*Prüft:* ALB hat expliziten `idle_timeout` – kein Provider-Default.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_lb" "api" {
+  name               = "payment-api-alb"
+  load_balancer_type = "application"
+  security_groups    =
+    [aws_security_group.alb.id]
+  subnets = var.public_subnet_ids
+  idle_timeout = 30  # Explizit gesetzt
+  tags = var.mandatory_tags
+}
+----
+a|[source,hcl]
+----
+resource "aws_lb" "api" {
+  name               = "payment-api-alb"
+  load_balancer_type = "application"
+  security_groups    =
+    [aws_security_group.alb.id]
+  subnets = var.public_subnet_ids
+  # Kein idle_timeout –
+  # AWS Default 60s wird verwendet
+  # WAF-REL-050 Violation
+}
+----
+|===
+
+*Remediation:* `idle_timeout` explizit setzen. REST APIs: 30s; File Uploads: 300s.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform oder Service Mesh-Konfiguration mit Timeout und Circuit Breaker Settings.
+
+|*Config*
+|✅ Pflicht
+|Application-Konfigurationsdateien mit expliziten Timeout-Werten für alle Abhängigkeiten.
+
+|*Process*
+|Optional
+|Latenz-Injektions-Testergebnisse mit Circuit Breaker Aktivierung dokumentiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
+* xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]
+* xref:controls/WAF-REL-090.adoc[WAF-REL-090 – Chaos Engineering]
+
+== Best Practice
+
+* xref:best-practices/bp-circuit-breaker.adoc[Circuit Breaker, Timeouts & Bulkheads →]

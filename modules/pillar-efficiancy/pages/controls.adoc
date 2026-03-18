@@ -1,0 +1,325 @@
+= Controls (WAF-PERF)
+:page-toc: right
+:description: WAF++ – Vollständiger Controls-Katalog der Performance-Efficiency-Säule (WAF-PERF-010 bis WAF-PERF-100).
+
+Die Performance-Efficiency-Säule wird durch 10 messbare Controls operationalisiert.
+Jeder Control hat eine eindeutige ID im Format `WAF-PERF-NNN`, eine Severity-Einstufung,
+maschinenlesbare YAML-Checks und eine Reifegradabstufung.
+
+Die YAML-Quelldateien befinden sich unter `modules/controls/controls/WAF-PERF-*.yml`
+und können vom WAF++ Checker Tool direkt ausgeführt werden.
+
+== Controls-Übersicht
+
+[cols="1,3,1,1"]
+|===
+|Control ID |Titel |Severity |Kategorie
+
+|xref:controls/WAF-PERF-010.adoc[WAF-PERF-010]
+|Compute Instance Type & Sizing Validated
+|High
+|Compute Sizing
+
+|xref:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+|Auto-Scaling Configured & Tested
+|High
+|Auto-Scaling
+
+|xref:controls/WAF-PERF-030.adoc[WAF-PERF-030]
+|Caching Strategy Defined & Implemented
+|Medium
+|Caching
+
+|xref:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+|Database Performance Baseline & Index Strategy
+|High
+|Database Performance
+
+|xref:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+|Performance Monitoring & SLO Definition
+|High
+|Observability
+
+|xref:controls/WAF-PERF-060.adoc[WAF-PERF-060]
+|Load & Stress Testing in CI/CD Pipeline
+|Medium
+|Load Testing
+
+|xref:controls/WAF-PERF-070.adoc[WAF-PERF-070]
+|Network Latency & Topology Optimization
+|Medium
+|Network Performance
+
+|xref:controls/WAF-PERF-080.adoc[WAF-PERF-080]
+|Serverless & Managed Services for Variable Load
+|Low
+|Compute Architecture
+
+|xref:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+|Storage I/O Performance & Throughput Optimization
+|Medium
+|Storage Performance
+
+|xref:controls/WAF-PERF-100.adoc[WAF-PERF-100]
+|Performance Debt Register & Quarterly Review
+|Medium
+|Performance Governance
+
+|===
+
+---
+
+[#WAF-PERF-010]
+== WAF-PERF-010 – Compute Instance Type & Sizing Validated
+
+*Severity:* High | *Kategorie:* Compute Sizing | *Automatisierbar:* Hoch
+
+*Intent:* Instanztypen müssen auf Basis gemessener Auslastungsdaten gewählt werden, nicht aus Intuition oder Angst vor Unterversorgung.
+
+*Anforderung:* Alle Compute-Ressourcen MÜSSEN aktuelle Instanzgenerationen verwenden.
+Sizing-Entscheidungen MÜSSEN durch gemessene CPU/Memory-Baselines belegt sein.
+Über- und unterprovisionierte Ressourcen MÜSSEN quartalsweise reviewed werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-010.tf.aws.ec2-current-generation` – Keine Previous-Generation-Instanztypen (t2, m4, c4)
+* `waf-perf-010.tf.azurerm.vm-sizing-documented` – Azure VMs mit aktuellem Size und Sizing-Tag
+* `waf-perf-010.tf.google.gce-machine-type-validated` – GCP N2/C2 statt N1-Maschinentypes
+
+*Evidenz:*
+
+* Sizing-Dokument oder ADR-Sektion mit gemessenen Baselines *(Pflicht)*
+* Terraform-Konfiguration mit aktuellen Instanztypen *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-compute-sizing.adoc[Compute-Sizing & Instanzauswahl →]
+
+---
+
+[#WAF-PERF-020]
+== WAF-PERF-020 – Auto-Scaling Configured & Tested
+
+*Severity:* High | *Kategorie:* Auto-Scaling | *Automatisierbar:* Hoch
+
+*Intent:* Statische Kapazität ist für variable Last das falsche Modell. Auto-Scaling muss nicht nur konfiguriert, sondern unter Last validiert sein.
+
+*Anforderung:* Alle zustandslosen Produktions-Workloads MÜSSEN Auto-Scaling konfiguriert haben.
+Skalierungsmetriken MÜSSEN auf Anwendungsverhalten basieren.
+Skalierungskonfiguration MUSS durch Lasttests validiert werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-020.tf.aws.autoscaling-group-policy` – ASG min >= 1, max >= 2, Health-Check konfiguriert
+* `waf-perf-020.tf.azurerm.vmss-autoscale` – Azure Monitor Autoscale Settings aktiviert
+* `waf-perf-020.tf.google.managed-instance-group-autoscaler` – GCP Autoscaler mit Policy
+
+*Evidenz:*
+
+* IaC-Konfiguration mit min/max und Scaling-Policy *(Pflicht)*
+* Lasttest-Ergebnisse mit Nachweis des Skalierungstriggers *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-autoscaling.adoc[Auto-Scaling konfigurieren →]
+
+---
+
+[#WAF-PERF-030]
+== WAF-PERF-030 – Caching Strategy Defined & Implemented
+
+*Severity:* Medium | *Kategorie:* Caching | *Automatisierbar:* Mittel
+
+*Intent:* Caching ohne Strategie erzeugt Inkonsistenz. Caching ohne Messung erzeugt falsches Vertrauen.
+
+*Anforderung:* Eine dokumentierte Caching-Strategie MUSS für alle Read-Heavy-Workloads existieren.
+Distributed Cache MUSS für Session-Daten und hochfrequente Lookups eingesetzt werden.
+CDN MUSS für alle öffentlichen statischen Inhalte konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-030.tf.aws.elasticache-cluster-configured` – Automatic Failover, Multi-Node, Verschlüsselung
+* `waf-perf-030.tf.azurerm.redis-cache-premium` – Standard/Premium SKU, kein Non-SSL Port, TLS 1.2
+* `waf-perf-030.tf.google.memorystore-redis-ha` – STANDARD_HA Tier, Transit Encryption
+
+*Evidenz:*
+
+* Caching-Strategie-Dokument *(Pflicht)*
+* IaC-Konfiguration für Cache-Services und CDN *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-caching.adoc[Caching-Strategie implementieren →]
+
+---
+
+[#WAF-PERF-040]
+== WAF-PERF-040 – Database Performance Baseline & Index Strategy
+
+*Severity:* High | *Kategorie:* Database Performance | *Automatisierbar:* Hoch
+
+*Intent:* Fehlende Indizes sind der häufigste Grund für Datenbankperformance-Probleme. Slow-Query-Logs sind das wichtigste diagnostische Werkzeug.
+
+*Anforderung:* Performance Insights MUSS auf allen Produktionsdatenbanken aktiv sein.
+Slow-Query-Logging MUSS aktiviert und monatlich reviewed werden.
+Eine Index-Strategie MUSS für alle hochfrequenten Abfragen dokumentiert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-040.tf.aws.rds-performance-insights` – Performance Insights, Enhanced Monitoring, CW-Logs
+* `waf-perf-040.tf.azurerm.sql-query-insights` – TLS 1.2, kein public_network_access, Audit-Policy
+* `waf-perf-040.tf.google.cloudsql-insights-enabled` – Query Insights, Backups, Deletion Protection
+
+*Evidenz:*
+
+* Performance-Insights- oder Slow-Query-Log-Konfiguration *(Pflicht)*
+* Index-Strategie-Dokument *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-database-performance.adoc[Datenbankperformance optimieren →]
+
+---
+
+[#WAF-PERF-050]
+== WAF-PERF-050 – Performance Monitoring & SLO Definition
+
+*Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Mittel–Hoch
+
+*Intent:* Ohne SLOs gibt es kein objektives Kriterium für "gut genug". Ohne Error Budgets gibt es kein objektives Kriterium für "stopp, wir müssen stabilisieren".
+
+*Anforderung:* Alle Produktions-Services MÜSSEN SLOs mit P95/P99-Latenzzielen, Fehlerrate und Verfügbarkeit haben.
+SLIs MÜSSEN kontinuierlich instrumentiert und gemessen werden.
+SLO-Burn-Rate-Alerting MUSS konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-050.tf.aws.cloudwatch-latency-alarm` – P99-Latenz-Alarm mit Actions und Beschreibung
+* `waf-perf-050.tf.azurerm.app-insights-availability` – Application Insights mit Retention >= 30 Tage
+* `waf-perf-050.tf.google.monitoring-uptime-check` – Alert Policy mit Notification Channels, aktiviert
+
+*Evidenz:*
+
+* SLO-Dokument für alle Produktions-Services *(Pflicht)*
+* Monitoring-Konfiguration mit SLI-Instrumentierung *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-observability.adoc[Performance-Observability & SLOs →]
+
+---
+
+[#WAF-PERF-060]
+== WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline
+
+*Severity:* Medium | *Kategorie:* Load Testing | *Automatisierbar:* Mittel
+
+*Intent:* Jede ungetestete Skalierungskonfiguration ist ein untestetes Sicherheitsnetz. Performance-Regressions sind ebenso ernst zu nehmen wie Funktions-Bugs.
+
+*Anforderung:* Lasttests MÜSSEN automatisch als Deployment-Gate in der CI/CD-Pipeline ausgeführt werden.
+Akzeptanzkriterien MÜSSEN vor dem Lasttest definiert sein.
+Performance-Regressions (>10% P99-Anstieg) MÜSSEN automatisch erkannt werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-060.tf.aws.codepipeline-performance-stage` – CodePipeline mit Performance-Test-Stage
+* `waf-perf-060.tf.azurerm.devops-pipeline-perf-gate` – Azure DevOps Pipeline mit Perf-Gate
+* `waf-perf-060.tf.google.cloud-build-perf-step` – Cloud Build Trigger aktiviert mit Performance-Steps
+
+*Evidenz:*
+
+* Lasttest-Skripte mit Akzeptanzkriterien in Versionskontrolle *(Pflicht)*
+* CI/CD-Pipeline-Konfiguration mit Lasttest-Gate *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-load-testing.adoc[Lasttests & Stresstests →]
+
+---
+
+[#WAF-PERF-070]
+== WAF-PERF-070 – Network Latency & Topology Optimization
+
+*Severity:* Medium | *Kategorie:* Network Performance | *Automatisierbar:* Mittel
+
+*Intent:* Netzwerklatenz ist kumulativ. Jeder Cross-AZ-Hop, jeder Internet-Round-Trip zu einem Cloud-Service, jeder CDN-Miss addiert sich in der User-Response-Time.
+
+*Anforderung:* CDN MUSS für alle öffentlichen statischen und cachefähigen Inhalte konfiguriert sein.
+VPC Endpoints MÜSSEN für alle Cloud-Service-API-Zugriffe aus privaten Subnetzen verwendet werden.
+Cross-AZ-Traffic in latenz-sensitiven Pfaden MUSS minimiert werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-070.tf.aws.vpc-endpoint-s3` – Gateway VPC Endpoint für S3 in privaten Subnetzen
+* `waf-perf-070.tf.azurerm.cdn-profile-configured` – Azure CDN oder Front Door für Public-Apps
+* `waf-perf-070.tf.google.cloud-cdn-enabled` – Cloud CDN auf External Backend Services aktiviert
+
+*Evidenz:*
+
+* IaC-Konfiguration mit CDN und VPC Endpoints *(Pflicht)*
+* Netzwerktopologie-Diagramm *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-network-performance.adoc[Netzwerk-Performance optimieren →]
+
+---
+
+[#WAF-PERF-080]
+== WAF-PERF-080 – Serverless & Managed Services for Variable Load
+
+*Severity:* Low | *Kategorie:* Compute Architecture | *Automatisierbar:* Mittel
+
+*Intent:* Serverlose Architekturen sind für variable Last oft die kosteneffizienteste und performanteste Lösung – aber nur, wenn richtig konfiguriert.
+
+*Anforderung:* Variable-Load-Workloads SOLLEN auf Serverless-Eignung evaluiert werden.
+Lambda/Functions MÜSSEN explizit konfiguriertes Memory, Timeout und Concurrency haben.
+Cold-Start-Mitigation MUSS für latenz-sensitive Funktionen evaluiert werden.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-080.tf.aws.lambda-memory-timeout-configured` – Memory >= 256MB, Timeout gesetzt, Reserved Concurrency
+* `waf-perf-080.tf.azurerm.function-app-plan-configured` – Premium oder Dedicated Plan für Produktion
+* `waf-perf-080.tf.google.cloud-run-min-instances` – Min-Instances > 0 für latenz-sensitive Services
+
+*Evidenz:*
+
+* IaC-Konfiguration mit explizitem Memory, Timeout, Concurrency *(Pflicht)*
+* Serverless-Adoption-Dokumentation *(Pflicht)*
+
+*Best Practice:* xref:best-practices/bp-autoscaling.adoc[Auto-Scaling & Serverless →]
+
+---
+
+[#WAF-PERF-090]
+== WAF-PERF-090 – Storage I/O Performance & Throughput Optimization
+
+*Severity:* Medium | *Kategorie:* Storage Performance | *Automatisierbar:* Hoch
+
+*Intent:* Storage I/O ist der häufigste unsichtbare Bottleneck. gp2-Burst-Erschöpfung und falscher Disk-Typ sind häufige Ursachen für unerklärte Latenz-Spikes.
+
+*Anforderung:* Alle neuen EBS-Volumes MÜSSEN gp3 statt gp2 verwenden.
+Storage-Typ MUSS zum Workload passen (Premium SSD für Datenbanken, HDD für Archive).
+IOPS und Throughput MÜSSEN explizit konfiguriert sein.
+Storage-I/O-Alerts MÜSSEN konfiguriert sein.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-090.tf.aws.ebs-gp3-volume-type` – gp3 statt gp2; explizite IOPS und Throughput
+* `waf-perf-090.tf.azurerm.managed-disk-premium` – Premium_LRS für Datenbank-Volumes
+* `waf-perf-090.tf.google.persistent-disk-ssd` – pd-ssd oder pd-balanced statt pd-standard
+
+*Evidenz:*
+
+* IaC-Konfiguration mit explizitem Storage-Typ, IOPS, Throughput *(Pflicht)*
+* Monitoring-Konfiguration für Storage-I/O-Alerts *(Pflicht)*
+
+---
+
+[#WAF-PERF-100]
+== WAF-PERF-100 – Performance Debt Register & Quarterly Review
+
+*Severity:* Medium | *Kategorie:* Performance Governance | *Automatisierbar:* Niedrig
+
+*Intent:* Undokumentierte Performance-Schulden akkumulieren unbemerkt. Dokumentierte Performance-Schulden können priorisiert und abgebaut werden.
+
+*Anforderung:* Ein Performance-Schuld-Register MUSS geführt werden mit ID, Beschreibung, Impact, Owner und Priorität.
+Quarterly Reviews MÜSSEN stattfinden.
+Jeder Performance-Incident MUSS einen Register-Eintrag erzeugen.
+
+*Terraform Checks (Auszug):*
+
+* `waf-perf-100.tf.aws.config-performance-rules` – AWS Config mit Performance-Governance-Regeln
+* `waf-perf-100.tf.azurerm.policy-performance-governance` – Azure Policy mit Performance-Initiativen
+* `waf-perf-100.tf.google.security-health-analytics` – GCP SCC Notification für Performance-Findings
+
+*Evidenz:*
+
+* Performance-Schuld-Register *(Pflicht)*
+* Quarterly-Review-Nachweis *(Pflicht)*

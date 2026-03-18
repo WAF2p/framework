@@ -1,0 +1,168 @@
+= WAF-PERF-100 – Performance Debt Register & Quarterly Review
+:page-toc: right
+:control-id: WAF-PERF-100
+:pillar: performance
+:severity: medium
+:category: performance-governance
+:automated: low
+:description: WAF++ Performance Efficiency – Bekannte Performance-Einschränkungen dokumentieren und quartalsweise reviewen.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Performance Governance | *Automatisierbar:* Niedrig
+
+== Beschreibung
+
+Alle bekannten Performance-Limitierungen und bewusst akzeptierten Performance-Einschränkungen
+MÜSSEN in einem Performance-Schuld-Register dokumentiert werden.
+Jeder Eintrag MUSS enthalten: ID, Titel, Beschreibung, geschätzter Impact,
+betroffene Services, Owner, Priorität, Zieldatum und Remediation-Plan oder Akzeptanzrationale.
+Das Register MUSS quartalsweise von Engineering-Leadership reviewt werden.
+Jeder Performance-Incident MUSS innerhalb von 30 Tagen einen Register-Eintrag erzeugen.
+
+== Rationale
+
+Performance-Schuld verhält sich wie technische Schuld: Einzelne Entscheidungen sind rational,
+aber untracked werden sie zu unsichtbarem Risiko. Ein Team ohne Performance-Schuld-Register
+kann keine informierten Entscheidungen treffen über Performance-Investitionen vs. neue Features.
+Das Register erzeugt Transparenz, ermöglicht Priorisierung und verhindert Wissenverlust
+wenn Mitarbeitende das Unternehmen verlassen.
+
+Dokumentierte Performance-Schulden können priorisiert und abgebaut werden.
+Undokumentierte Performance-Schulden akkumulieren als stille Risiken.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unsichtbare Risiko-Akkumulation*
+|Performance-Einschränkungen ohne Register bleiben unsichtbar und kumulieren.
+
+|*Wiederholende Incidents*
+|Gleiche Performance-Probleme treten wiederholt auf, weil Root Causes nicht dokumentiert wurden.
+
+|*Wissensverlust*
+|Engineer kennt Systemlimitation; verlässt Unternehmen; Limitation ist jetzt unbekannt.
+
+|*Fehlende Priorisierungsgrundlage*
+|Ohne Register kein Überblick: Wie viel Performance-Schuld haben wir? Was ist am riskantesten?
+
+|===
+
+== Anforderung
+
+* Performance-Schuld-Register MUSS geführt werden mit allen Pflichtfeldern (ID, Beschreibung, Impact, Owner, Priorität)
+* Quarterly Reviews MÜSSEN stattfinden und protokolliert werden
+* Jeder Performance-Incident MUSS Register-Eintrag erzeugen (innerhalb 30 Tage)
+* Neue Features MÜSSEN auf Performance-Schuld-Entstehung bewertet werden (ADR-Performance-Sektion)
+
+== Implementierungsanleitung
+
+. *Register anlegen*: Wiki, Jira-Epic oder versioniertes YAML-Dokument; mindestens 6 Pflichtfelder
+. *Initiales Befüllen*: Workshop mit Engineering-Team: "Was wissen wir, aber haben nie aufgeschrieben?"
+. *Quarterly-Review-Termin*: Fixer Kalendertermin mit Engineering-Leadership; 60-Minuten-Meeting
+. *Postmortem-Integration*: Template erweitern: "Performance-Schuld-Eintrag erstellt? Y/N. Eintrag-ID: ?"
+. *ADR-Performance-Sektion*: ADR-Template erweitern mit "Performance Debt Created" Sektion
+. *Priorisierung*: High-Impact + High-Probability = Top-Priorität für Paydown
+. *Fortschritt messen*: Offene Einträge, Abbaurate, durchschnittliches Alter als KPIs
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Dokumentation
+|Bekannte Performance-Probleme sind Tribal Knowledge; kein Register.
+
+|*2*
+|Informelles Tracking
+|Performance-Issues in Tickets, aber kein strukturiertes Register; kein Quarterly Review.
+
+|*3*
+|Register + Quarterly Review
+|Register mit Pflichtfeldern; Quarterly Review etabliert; Postmortem-Integration.
+
+|*4*
+|Business-Impact sichtbar
+|Einträge mit quantifiziertem Business-Impact; Paydown im Sprint priorisiert; Trend-Tracking.
+
+|*5*
+|Proaktive Performance-Governance
+|Performance-Schuld-Budget definiert; automatische Debt-Erkennung; KPI in Engineering-Reviews.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-100.tf.aws.config-performance-rules
+*Prüft:* AWS Config sollte Performance-Governance-Regeln für automatische Debt-Erkennung haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_config_config_rule" "rds_insights" {
+  name        = "rds-performance-insights-enabled"
+  description = "WAF-PERF-040: Performance Insights check"
+  source {
+    owner             = "AWS"
+    source_identifier = "RDS_INSTANCE_PUBLIC_ACCESS_CHECK"
+  }
+  tags = {
+    pillar  = "performance"
+    control = "WAF-PERF-040"
+  }
+}
+----
+a|[source,hcl]
+----
+# Keine AWS Config Rules für
+# Performance-Governance definiert
+# Performance-Schulden nicht
+# automatisch detektierbar
+# WAF-PERF-100 Advisory
+----
+|===
+
+*Remediation:* AWS Config Rules für Performance-Governance erstellen.
+AWS Security Hub für zentralisiertes Findings-Management konfigurieren.
+Findings mit Performance-Schuld-Register verknüpfen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Performance-Schuld-Register mit allen Pflichtfeldern (ID, Impact, Owner, Priorität, Zieldatum).
+
+|*Process*
+|✅ Pflicht
+|Quarterly-Review-Meeting-Protokoll oder Kalendereinladung als Nachweis regulärer Reviews.
+
+|*Process*
+|Optional
+|Sprint-Backlog mit priorisierten Performance-Schuld-Tickets.
+
+|*Config*
+|Optional
+|Dashboard mit Performance-Schuld-Metriken (offene Items, Alter, Abbaurate).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
+* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
+
+== Best Practice
+
+* xref:../best-practices/bp-observability.adoc[Performance-Observability & SLOs →]

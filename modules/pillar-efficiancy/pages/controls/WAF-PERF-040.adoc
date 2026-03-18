@@ -1,0 +1,161 @@
+= WAF-PERF-040 – Database Performance Baseline & Index Strategy
+:page-toc: right
+:control-id: WAF-PERF-040
+:pillar: performance
+:severity: high
+:category: database-performance
+:automated: high
+:description: WAF++ Performance Efficiency – Datenbankperformance messen, Slow-Query-Logs aktivieren und Indexstrategie dokumentieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Database Performance | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Produktionsdatenbanken MÜSSEN Performance Insights oder äquivalentes Monitoring aktiv haben.
+Slow-Query-Logging MUSS aktiviert sein mit einer definierten Schwelle (Standard: 1000ms).
+Eine Index-Strategie MUSS für alle Tabellen mit signifikanter Lese-/Schreiblast existieren.
+Performance-Baselines (P50/P95/P99 Ausführungszeiten) MÜSSEN für die Top-20-Queries dokumentiert sein.
+
+== Rationale
+
+Fehlende Indizes auf hochfrequentierten Tabellen sind die häufigste einzelne Ursache für
+Datenbankperformance-Probleme. Ein Full Table Scan auf einer Tabelle mit 10 Millionen Zeilen
+kann die gesamte Datenbankkapazität sättigen und Cascading-Timeouts über den gesamten Anwendungsstack
+auslösen. Ohne Slow-Query-Log gibt es keine Möglichkeit, solche Probleme proaktiv zu identifizieren.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Full Table Scans*
+|Fehlende Indizes → Vollständige Tabellenscans → I/O-Sättigung und CPU-Spike.
+
+|*Connection-Pool-Erschöpfung*
+|Langsame Queries blockieren Verbindungen → Pool erschöpft → Neue Requests können nicht verbinden.
+
+|*Query-Regression nach Schema-Änderung*
+|Neuer Index für ein Feature entfernt den Query-Plan eines anderen Features – unbemerkt.
+
+|*Kein Diagnostic-Zugang bei Incident*
+|Performance Insights nicht aktiv → Incident kann nicht diagnostiziert werden.
+
+|===
+
+== Anforderung
+
+* Performance Insights MUSS auf allen Produktions-RDS/Aurora/Cloud SQL-Instanzen aktiv sein
+* Slow-Query-Log MUSS aktiv sein mit Schwelle <= 1000ms
+* Index-Strategie MUSS für Tabellen mit > 1M Rows und hoher Query-Frequenz dokumentiert sein
+* Performance-Baseline (P50/P95/P99) MUSS für Top-20-Queries vorliegen
+
+== Implementierungsanleitung
+
+. *Performance Insights aktivieren*: Bei RDS: `performance_insights_enabled = true`
+. *Slow-Query-Log konfigurieren*: `log_min_duration_statement = 1000` (PostgreSQL)
+. *Slow Queries analysieren*: Wöchentlich `pg_stat_statements` / MySQL Slow Query Log reviewen
+. *Top-20-Queries identifizieren*: Nach Gesamtausführungszeit sortiert; `EXPLAIN ANALYZE` ausführen
+. *Index-Strategie dokumentieren*: `docs/database/index-strategy.yml` für jede Haupttabelle
+. *Fehlende Indizes anlegen*: `CREATE INDEX CONCURRENTLY` für Online-Migration
+. *Connection Pooling*: PgBouncer oder RDS Proxy für Connection-Pool-Management
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Analyse
+|Slow-Query-Log nicht aktiv; Datenbankperformance unbekannt; Indizes nur ad-hoc.
+
+|*2*
+|Slow Queries bekannt
+|Slow-Query-Log aktiv; Reviews nach Incidents; Primärschlüssel und einige FK-Indizes.
+
+|*3*
+|Baseline dokumentiert
+|Performance Insights aktiv; Index-Strategie dokumentiert; monatlicher Review.
+
+|*4*
+|Automatisierte Analyse
+|Automatische Slow-Query-Tickets; Regression-Tests im CI; Unused-Index-Cleanup.
+
+|*5*
+|Continuous Optimization
+|Query-SLOs; automatisches Tuning; DB-Version-Upgrades gegen Baseline getestet.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-040.tf.aws.rds-performance-insights
+*Prüft:* RDS-Instanzen müssen Performance Insights und Enhanced Monitoring aktiviert haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier = "db-payment"
+  engine     = "postgres"
+  performance_insights_enabled = true
+  monitoring_interval          = 60
+  monitoring_role_arn          = aws_iam_role.rds_monitoring.arn
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  deletion_protection = true
+}
+----
+a|[source,hcl]
+----
+resource "aws_db_instance" "main" {
+  identifier = "db-payment"
+  engine     = "postgres"
+  # Kein Performance Insights
+  # Kein Enhanced Monitoring
+  # Keine CW-Log-Exports
+  # WAF-PERF-040 Violation
+}
+----
+|===
+
+*Remediation:* `performance_insights_enabled = true`, `monitoring_interval = 60`,
+`enabled_cloudwatch_logs_exports = ["postgresql"]` setzen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|Performance-Insights-Konfiguration auf Produktionsdatenbanken (Screenshot oder Terraform).
+
+|*Governance*
+|✅ Pflicht
+|Index-Strategie-Dokument für hochfrequente Tabellen.
+
+|*Process*
+|Optional
+|Monatlicher Slow-Query-Review-Bericht mit Action Items.
+
+|*Config*
+|Optional
+|Query-Performance-Baseline (P50/P95/P99 für Top-20-Queries).
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-030.adoc[WAF-PERF-030 – Caching Strategy Defined & Implemented]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-090.adoc[WAF-PERF-090 – Storage I/O Performance & Throughput Optimization]
+
+== Best Practice
+
+* xref:../best-practices/bp-database-performance.adoc[Datenbankperformance optimieren →]

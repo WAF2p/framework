@@ -1,0 +1,161 @@
+= WAF-PERF-030 – Caching Strategy Defined & Implemented
+:page-toc: right
+:control-id: WAF-PERF-030
+:pillar: performance
+:severity: medium
+:category: caching
+:automated: medium
+:description: WAF++ Performance Efficiency – Caching-Strategie dokumentieren und mehrschichtig implementieren.
+
+[.metadata]
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Caching | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Alle Workloads mit wiederholenden Lesemustern oder hochlatenten Datenquellen MÜSSEN eine
+dokumentierte Caching-Strategie haben. Die Strategie MUSS Cache-Layer, TTL-Policies und
+Invalidierungsmechanismen spezifizieren. CDN MUSS für alle öffentlichen statischen und
+cachefähigen Inhalte konfiguriert sein. Distributed Cache (Redis, Memcached) MUSS für
+Session-Daten und hochfrequente Read-Heavy-Lookups eingesetzt werden.
+
+== Rationale
+
+Wiederholte identische Datenbankabfragen ohne Caching erzeugen unnötige Last auf dem Datenbankserver,
+unnötige Latenz für den Nutzer und unnötige Kosten für Datentransfer.
+Ein gut konfigurierter Cache kann die Datenbankauslastung um 60–90% reduzieren.
+Schlechtes Caching (falsche TTLs, fehlende Invalidierung) erzeugt Stale-Data-Probleme,
+die schwerer zu debuggen sind als kein Caching.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Datenbanküberlastung*
+|Identische Queries hundertfach pro Sekunde sättigen I/O und CPU des Datenbankservers.
+
+|*Thundering Herd*
+|Cache-Expiry vieler gleichzeitiger Keys → simultane Backend-Anfragen → Datenbankausfall.
+
+|*Stale Data*
+|Fehlende Cache-Invalidierung bei Datenmutationen → Nutzer sehen veraltete Daten.
+
+|*Kein CDN → hohe Latenz*
+|Statische Assets ohne CDN von Origin ausgeliefert → unnötige Latenz für Nutzer außerhalb der Region.
+
+|===
+
+== Anforderung
+
+* Caching-Strategie MUSS dokumentiert sein (Layer, TTL pro Datentyp, Invalidierungsmechanismus)
+* Distributed Cache MUSS für Session-Daten und hochfrequente Lookups verwendet werden
+* CDN MUSS für alle öffentlichen statischen Inhalte konfiguriert sein
+* Cache-Hit-Raten MÜSSEN gemessen und gemonitored werden (Ziel: >= 80% App-Cache, >= 95% CDN)
+
+== Implementierungsanleitung
+
+. *Zugriffsmuster analysieren*: Top-20-Datenbankabfragen identifizieren; Wiederholungsfrequenz messen
+. *Caching-Strategie-Dokument erstellen*: `docs/caching-strategy.yml` mit Layer, TTL, Invalidierungslogik
+. *Redis/ElastiCache deployen*: Multi-AZ, Automatic Failover, Encryption in Transit
+. *Cache-Aside Pattern implementieren*: Stampede-Schutz via Lock oder Probabilistic Early Expiration
+. *CDN konfigurieren*: CloudFront/Azure CDN/Cloud CDN für statische Assets
+. *Hit-Rate-Monitoring*: CloudWatch ElastiCache Metrics; Alert bei Hit-Rate < 70%
+. *Invalidierungslogik sicherstellen*: Jede Datenmutation muss zugehörige Cache-Entries invalidieren
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein Cache
+|Alle Requests gehen auf Origin; keine CDN; keine distributed Cache.
+
+|*2*
+|Ad-hoc Cache
+|Einige Dinge gecacht ohne Strategie; TTLs arbiträr; keine Hit-Rate-Messung.
+
+|*3*
+|Dokumentierte Strategie
+|Caching-Strategie-Dokument; Hit-Rate gemessen; CDN aktiv; HA-Redis deployed.
+
+|*4*
+|Optimierter Cache
+|Hit-Rate >= 80% erreicht; automatische Invalidierung; Stampede-Schutz.
+
+|*5*
+|Adaptiver Cache
+|ML-basiertes Cache-Warming; adaptive TTLs; intelligentes Edge-Caching.
+
+|===
+
+== Terraform Checks
+
+=== waf-perf-030.tf.aws.elasticache-cluster-configured
+*Prüft:* ElastiCache Replication Group muss Automatic Failover, multi-node und Encryption haben.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_elasticache_replication_group" "main" {
+  replication_group_id       = "payment-cache"
+  node_type                  = "cache.t3.medium"
+  num_cache_clusters         = 2
+  automatic_failover_enabled = true
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+}
+----
+a|[source,hcl]
+----
+resource "aws_elasticache_cluster" "main" {
+  cluster_id      = "payment-cache"
+  engine          = "redis"
+  num_cache_nodes = 1
+  # Single node, kein Failover
+  # WAF-PERF-030 Violation
+}
+----
+|===
+
+*Remediation:* `aws_elasticache_replication_group` mit `automatic_failover_enabled = true`,
+`num_cache_clusters >= 2`, `at_rest_encryption_enabled = true` verwenden.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Governance*
+|✅ Pflicht
+|Caching-Strategie-Dokument mit Layer, TTL-Policies und Invalidierungsmechanismus.
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Konfiguration für Redis/ElastiCache und CDN mit Cache-Rules.
+
+|*Config*
+|Optional
+|Cache-Hit-Rate-Dashboard (Ziel: >= 80% Applikations-Cache).
+
+|*Process*
+|Optional
+|Cache-Invalidierungs-Runbook für Datenmutationen.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-070.adoc[WAF-PERF-070 – Network Latency & Topology Optimization]
+
+== Best Practice
+
+* xref:../best-practices/bp-caching.adoc[Caching-Strategie implementieren →]

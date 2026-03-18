@@ -1,0 +1,189 @@
+= WAF-REL-090 – Chaos Engineering & Fault Injection
+:page-toc: right
+:control-id: WAF-REL-090
+:pillar: reliability
+:severity: medium
+:category: chaos-engineering
+:automated: medium
+:description: WAF++ Reliability – Strukturierte Chaos-Experimente zur Validierung von Resilienz-Behauptungen.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* Medium | *Kategorie:* Chaos Engineering | *Automatisierbar:* Mittel
+
+== Beschreibung
+
+Produktions- und Staging-Workloads MÜSSEN quartalsweise strukturierte Chaos-Experimente
+mit dokumentierten Hypothesen durchführen. Experimente MÜSSEN Stop Conditions definieren.
+Jedes Experiment MUSS zuerst in Staging validiert werden, bevor es in Produktion läuft.
+Ergebnisse MÜSSEN dokumentiert und in Reliability Improvements überführt werden.
+
+== Rationale
+
+Chaos Engineering validiert Reliability-Behauptungen empirisch. SLOs, Circuit Breaker,
+Multi-AZ-Konfigurationen und Health Checks sind Behauptungen über das System-Verhalten
+unter Fehlerbedingungen. Ohne Chaos Testing bleiben diese Behauptungen unvalidiert.
+Nur durch kontrollierte Fehler-Injektion kann eine Organisation wissen, dass ihre
+Resilience-Maßnahmen tatsächlich funktionieren.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Unbekannte Failure Modes*
+|Resilienz-Lücken werden erst im echten Disaster entdeckt.
+
+|*Unvalidierte Reliability Claims*
+|Circuit Breaker konfiguriert, aber nie getriggert – unklar ob korrekt.
+
+|*Ungetestete Recovery*
+|Multi-AZ deployed, aber AZ-Failover-Zeit unbekannt – RTO nicht validiert.
+
+|*Versteckte Kopplung*
+|Abhängigkeiten, die nur bei spezifischen Fehlermustern sichtbar werden.
+
+|===
+
+== Anforderung
+
+* Hypothesis-driven Experiments: "Wenn X ausfällt, erwarten wir Y innerhalb von Z Sekunden"
+* Stop Conditions: automatischer Abbruch wenn SLO-Alarm ausgelöst
+* Staging First: jedes Experiment zuerst in Staging, dann schrittweise in Produktion
+* Blast Radius Limit: max. 25% der Instanzen beim ersten Experiment einer Art
+* Ergebnisdokumentation: Hypothese, erwartet, tatsächlich, Actions
+* Quartalsweise mindestens 3 dokumentierte Experimente pro Team
+
+== Implementierungsanleitung
+
+. *Hypothesen-Liste erstellen*: Welche Failure Modes sind für diesen Service relevant?
+. *Staging-Experimente starten*: Mit kleinstem Blast Radius beginnen (1 Pod, 10% Instanzen)
+. *Stop Conditions*: CloudWatch Alarm oder Prometheus Alert als Abbruchbedingung konfigurieren
+. *AWS FIS verwenden*: Experiment Template mit stop_condition Resource konfigurieren
+. *Ergebnisse dokumentieren*: YAML-Experiment-Dokument mit Hypothese und Outcome
+. *Actions tracken*: Findings in Reliability Debt Register (WAF-REL-100) eintragen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Keine Chaos-Tests
+|Resilienz nur durch Produktions-Incidents bekannt.
+
+|*2*
+|Ad-hoc Tests
+|Gelegentliche manuelle Tests ohne Dokumentation.
+
+|*3*
+|Strukturiert + dokumentiert
+|Hypothesis-driven; quartalsweise; AWS FIS / Azure Chaos Studio; Ergebnisse dokumentiert.
+
+|*4*
+|Produktions-Chaos kontrolliert
+|Produktion mit Stop Conditions; GameDay jährlich; Experimente in Release-Pipeline.
+
+|*5*
+|Kontinuierlich + ML
+|Automatisierte Low-Blast-Radius Experimente; ML-Anomalieerkennung.
+
+|===
+
+== Terraform Checks
+
+=== waf-rel-090.tf.aws.fis-experiment-template
+*Prüft:* AWS FIS Experiment Template hat `stop_condition` und `description`.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_fis_experiment_template"
+    "az_failure" {
+  description = "Hypothesis: Service
+    recovers from 25% instance
+    termination in < 60s"
+  role_arn = aws_iam_role.fis.arn
+
+  stop_condition {
+    source = "aws:cloudwatch:alarm"
+    value  =
+      aws_cloudwatch_metric_alarm
+      .slo_burn.arn
+  }
+
+  action {
+    name = "terminate-instances"
+    action_id =
+      "aws:ec2:terminate-instances"
+    target { key = "Instances"
+             value = "az1-instances" }
+  }
+  # ... target block ...
+}
+----
+a|[source,hcl]
+----
+resource "aws_fis_experiment_template"
+    "az_failure" {
+  description = "AZ test"
+  role_arn = aws_iam_role.fis.arn
+  # Kein stop_condition –
+  # Experiment läuft unkontrolliert
+  # WAF-REL-090 Violation
+  action {
+    name = "terminate-all"
+    action_id =
+      "aws:ec2:terminate-instances"
+    target { key = "Instances"
+             value = "all-instances" }
+  }
+  target {
+    name = "all-instances"
+    resource_type = "aws:ec2:instance"
+    selection_mode = "ALL"
+  }
+}
+----
+|===
+
+*Remediation:* `stop_condition` Block mit CloudWatch Alarm hinzufügen.
+`description` mit Hypothesen-Text befüllen.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Process*
+|✅ Pflicht
+|Quartalsweise Chaos-Experiment-Berichte: Hypothese, Erwartung, Ergebnis, Actions.
+
+|*Governance*
+|✅ Pflicht
+|Chaos Engineering Charter mit Genehmigungsprozess und Blast-Radius-Limits.
+
+|*IaC*
+|Optional
+|AWS FIS Experiment Templates oder Azure Chaos Studio Workflow-Konfigurationen.
+
+|*Process*
+|Optional
+|GameDay-Bericht des letzten Jahres.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-REL-050.adoc[WAF-REL-050 – Circuit Breaker & Timeout]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response]
+* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+
+== Best Practice
+
+* xref:best-practices/bp-chaos-engineering.adoc[Chaos Engineering & Fault Injection →]

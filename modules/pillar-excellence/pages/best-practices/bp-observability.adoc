@@ -1,0 +1,265 @@
+= Best Practice: Observability-Stack aufbauen
+:page-toc: right
+:description: Structured Logging, Distributed Tracing und Metriken mit OpenTelemetry, CloudWatch, Azure Monitor und Google Cloud Operations Suite – den Observability-Stack aufbauen.
+
+== Kontext
+
+Observability ist die Fähigkeit, den internen Zustand eines Systems aus seinen Ausgaben
+zu verstehen. Sie besteht aus drei Säulen: Logs, Metriken und Traces.
+Ein System ohne alle drei Säulen ist im Incident-Fall blind.
+
+== Zugehörige Controls
+
+* xref:controls.adoc#WAF-OPS-030[WAF-OPS-030 – Observability Stack Configured]
+
+== Zielbild
+
+Ein vollständiger Observability-Stack:
+
+* Alle Services emittieren strukturierte JSON-Logs mit Trace-ID und Request-ID
+* Distributed Tracing ist via OpenTelemetry implementiert und visualisierbar
+* RED-Metriken (Rate, Errors, Duration) für jeden Service exportiert
+* Dashboards zeigen Service-Gesundheit auf einen Blick
+* Log-Retention-Policies steuern Kosten und Compliance
+
+== Technische Umsetzung
+
+=== Schritt 1: Structured Logging einrichten
+
+[source,javascript]
+----
+// Node.js Beispiel mit Winston und OpenTelemetry
+const winston = require('winston');
+const { trace, context } = require('@opentelemetry/api');
+
+const logger = winston.createLogger({
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [new winston.transports.Console()]
+});
+
+// Middleware: Trace-ID und Request-ID in jeden Log einbetten
+function createLogContext() {
+  const span = trace.getActiveSpan();
+  const spanContext = span?.spanContext();
+
+  return {
+    trace_id: spanContext?.traceId || 'no-trace',
+    span_id:  spanContext?.spanId  || 'no-span',
+  };
+}
+
+// Verwendung:
+logger.info('Payment processed', {
+  ...createLogContext(),
+  service:    'payment-service',
+  request_id: req.headers['x-request-id'],
+  user_id:    req.user.id,
+  amount:     payment.amount,
+  currency:   payment.currency,
+});
+
+// Erwartetes Log-Ausgabe-Format:
+// {
+//   "timestamp": "2025-03-18T10:30:00.000Z",
+//   "level": "info",
+//   "service": "payment-service",
+//   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+//   "span_id": "00f067aa0ba902b7",
+//   "request_id": "req-abc123",
+//   "message": "Payment processed",
+//   "amount": 99.99,
+//   "currency": "EUR"
+// }
+----
+
+=== Schritt 2: OpenTelemetry konfigurieren (AWS X-Ray Backend)
+
+[source,javascript]
+----
+// otel-setup.js – vor allem anderen importieren
+const { NodeSDK } = require('@opentelemetry/sdk-node');
+const { AWSXRayPropagator } = require('@opentelemetry/propagator-aws-xray');
+const { AWSXRayIdGenerator } = require('@opentelemetry/id-generator-aws-xray');
+const { AWSXRayLambdaPropagator } = require('@opentelemetry/propagator-aws-xray');
+const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
+const { ExpressInstrumentation } = require('@opentelemetry/instrumentation-express');
+
+const sdk = new NodeSDK({
+  textMapPropagator: new AWSXRayPropagator(),
+  idGenerator: new AWSXRayIdGenerator(),
+  traceExporter: new OTLPTraceExporter({
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+  }),
+  instrumentations: [
+    new HttpInstrumentation(),
+    new ExpressInstrumentation(),
+  ],
+  serviceName: process.env.SERVICE_NAME || 'payment-service',
+});
+
+sdk.start();
+process.on('SIGTERM', () => sdk.shutdown());
+----
+
+=== Schritt 3: CloudWatch Log Groups mit Terraform konfigurieren
+
+[source,hcl]
+----
+# CloudWatch Log Group für Applikation
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/aws/ecs/${var.service_name}"
+  retention_in_days = 90  # 90 Tage für Applikations-Logs
+
+  tags = {
+    service     = var.service_name
+    environment = var.environment
+    managed-by  = "terraform"
+  }
+}
+
+# CloudWatch Log Group für Security/Audit-Logs (längere Retention)
+resource "aws_cloudwatch_log_group" "audit" {
+  name              = "/audit/${var.service_name}"
+  retention_in_days = 365  # 1 Jahr für Audit-Logs
+
+  tags = {
+    service     = var.service_name
+    environment = var.environment
+    log-type    = "audit"
+  }
+}
+
+# CloudWatch Contributor Insights (Anomalie-Erkennung in Logs)
+resource "aws_cloudwatch_log_metric_filter" "error_rate" {
+  name           = "${var.service_name}-error-rate"
+  pattern        = "{ $.level = \"ERROR\" }"
+  log_group_name = aws_cloudwatch_log_group.app.name
+
+  metric_transformation {
+    name      = "ErrorCount"
+    namespace = "PaymentService"
+    value     = "1"
+  }
+}
+
+# X-Ray Sampling-Regel konfigurieren
+resource "aws_xray_sampling_rule" "payment_service" {
+  rule_name      = "payment-service-sampling"
+  priority       = 1000
+  reservoir_size = 5     # Minimum 5 Traces/Sekunde
+  fixed_rate     = 0.05  # 5% Sampling für normale Requests
+  url_path       = "/api/payment/*"
+  host           = "*"
+  http_method    = "*"
+  service_type   = "*"
+  service_name   = "payment-service"
+  resource_arn   = "*"
+  version        = 1
+}
+----
+
+=== Schritt 4: Dashboard erstellen
+
+[source,hcl]
+----
+resource "aws_cloudwatch_dashboard" "service_health" {
+  dashboard_name = "${var.service_name}-health"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        width  = 8
+        height = 6
+        properties = {
+          title  = "Request Rate (RPM)"
+          period = 60
+          stat   = "Sum"
+          metrics = [["PaymentService", "RequestCount"]]
+        }
+      },
+      {
+        type   = "metric"
+        width  = 8
+        height = 6
+        properties = {
+          title  = "Error Rate (%)"
+          period = 60
+          stat   = "Average"
+          metrics = [["PaymentService", "ErrorRate"]]
+        }
+      },
+      {
+        type   = "metric"
+        width  = 8
+        height = 6
+        properties = {
+          title  = "p99 Latency (ms)"
+          period = 60
+          stat   = "p99"
+          metrics = [["PaymentService", "Latency"]]
+        }
+      }
+    ]
+  })
+}
+----
+
+== Typische Fehlmuster
+
+[cols="1,3"]
+|===
+|Fehlmuster |Problem
+
+|Unstrukturiertes Logging (Text)
+|Nicht maschinell verarbeitbar; Log-Suche aufwändig; Trace-ID-Korrelation unmöglich
+
+|Log ohne Trace-ID
+|Requests können nicht über Services verfolgt werden; Root-Cause-Analyse dauert Stunden
+
+|Keine Log-Retention
+|Kosten wachsen unbegrenzt; Compliance-Verletzung (GDPR: keine unendliche Datenspeicherung)
+
+|Sampling Rate 100% in Production
+|Tracing-Kosten explodieren bei hohem Traffic; Alternative: adaptive Sampling
+
+|Sensitive Daten in Logs
+|GDPR-Verstoß; PII, Passwörter, Tokens in Logs sind Security-Incident
+
+|Dashboard ohne Alerting
+|Dashboard wird nur beobachtet wenn jemand schaut; Symptome unbemerkt bis Nutzer klagen
+
+|===
+
+== Metriken
+
+* *Log-Verfügbarkeit:* Sind Logs innerhalb von 60 Sekunden in der Aggregationsplattform? (Ziel: Ja)
+* *Trace-Abdeckung:* % der Services mit konfiguriertem Distributed Tracing (Ziel: 100%)
+* *MTTR-Korrelation:* Zeit bis zur Diagnose mit vs. ohne Tracing (messen bei Postmortems)
+
+== Reifegrad
+
+[cols="1,2"]
+|===
+|Stufe |Charakteristika
+
+|*Level 1*
+|Unstrukturierte Logs in Dateien; kein zentrales Aggregation; kein Tracing.
+
+|*Level 2*
+|Logs zentral aggregiert; Basis-Dashboards; kein Distributed Tracing; kein strukturiertes Format.
+
+|*Level 3*
+|Structured JSON Logs mit Trace-ID; Distributed Tracing konfiguriert; RED-Metriken; Log-Retention.
+
+|*Level 4*
+|OpenTelemetry vendor-agnostisch; SLO-basiertes Alerting auf Metriken; Trace-Sampling optimiert.
+
+|*Level 5*
+|Vollständige Korrelation Logs/Traces/Metriken; Observability-as-a-Product mit internen SLAs.
+
+|===

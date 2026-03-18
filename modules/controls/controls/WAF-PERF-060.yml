@@ -1,0 +1,258 @@
+id: WAF-PERF-060
+title: "Load & Stress Testing in CI/CD Pipeline"
+pillar: "performance"
+status: "active"
+severity: "medium"
+category: "load-testing"
+type: ['automation', 'governance', 'configuration']
+tags: ['load-testing', 'stress-testing', 'cicd', 'performance-regression', 'k6', 'gatling', 'locust']
+
+description: >
+  All production services handling external or variable load MUST have load tests defined
+  and executed at least as part of staging or pre-production validation gates. Load tests
+  MUST define explicit acceptance criteria (P95/P99 latency thresholds, error rate limits,
+  minimum throughput targets). Performance regression MUST be detected automatically by
+  comparing load test results against the established baseline. Critical services MUST be
+  stress-tested to identify capacity limits before production launches.
+
+rationale: >
+  Performance issues discovered in production are 10–100x more expensive to remediate than
+  those found in pre-production testing. Load tests provide the only reliable evidence that
+  a service will perform within its SLOs under realistic concurrent load. Without load testing,
+  every production deployment is a gamble with user experience and availability.
+  Auto-scaling configurations, connection pools, database query plans, and caching strategies
+  must all be validated under realistic concurrent load conditions.
+
+threat:
+  - "Performance regressions shipped to production due to absent pre-deployment performance gates"
+  - "Auto-scaling misconfiguration not detected until actual traffic event"
+  - "Database connection pool exhaustion under concurrent load not caught in unit testing"
+  - "New features causing unexpected performance degradation in shared components"
+  - "Third-party dependency latency under load unknown and untested"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 29119"
+    controls:
+      - "Software Testing – Performance Testing"
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Time Behavior"
+      - "Performance Efficiency – Capacity"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 5 – How do you visualize and review performance?"
+      - "REL 9 – How do you test reliability?"
+  - framework: "DORA"
+    controls:
+      - "Continuous testing as part of deployment pipelines"
+
+implementation_guidance:
+  - "Choose appropriate load testing framework: k6 (developer-friendly, scripted), Gatling (Scala DSL, high throughput), or Locust (Python)."
+  - "Define test scenarios matching real user journeys: not just endpoint testing but workflow testing."
+  - "Set acceptance criteria: P95 < [SLO target], P99 < [2x SLO target], error rate < 0.1%, target TPS achieved."
+  - "Run load tests against a staging environment that mirrors production sizing (or use production with traffic shaping)."
+  - "Integrate into CI/CD: add load test stage to deployment pipeline that blocks promotion on acceptance criteria failure."
+  - "Store load test results as artifacts; compare against baseline to detect regressions (>10% P99 increase = violation)."
+  - "Run stress tests (2x, 3x, 5x expected peak load) quarterly to identify breaking points and capacity headroom."
+
+maturity_levels:
+  level_1:
+    description: "No load testing; performance unknown under load"
+    criteria:
+      - "No load tests exist or run ad-hoc without automation"
+      - "Performance under load discovered only in production incidents"
+      - "No acceptance criteria defined for performance"
+  level_2:
+    description: "Manual load tests run before major releases"
+    criteria:
+      - "Load tests exist but run manually, not in CI/CD"
+      - "Results reviewed informally; no acceptance criteria enforcement"
+      - "Baseline not established; regressions not detected systematically"
+  level_3:
+    description: "Automated load tests in deployment pipeline with acceptance criteria"
+    criteria:
+      - "Load tests run automatically in staging before production deployment"
+      - "Acceptance criteria defined and enforced; deployment blocked on failure"
+      - "Test results stored and compared against previous run"
+      - "Load test scenarios cover main user journeys"
+  level_4:
+    description: "Continuous performance testing with regression detection"
+    criteria:
+      - "Performance regression alerts triggered when test results exceed 10% of baseline"
+      - "Stress tests run quarterly with capacity reports"
+      - "Load tests run against production-equivalent staging"
+      - "Test scenarios updated with each significant feature addition"
+  level_5:
+    description: "Continuous load testing with chaos engineering integration"
+    criteria:
+      - "Load tests run continuously against production-like environments"
+      - "Chaos engineering combined with load testing (inject failures under load)"
+      - "ML-based anomaly detection in load test result trends"
+      - "Capacity forecasting based on load test extrapolation"
+
+evidence:
+  required:
+    - kind: "automation"
+      description: "Load test scripts (k6/Gatling/Locust) with explicit acceptance criteria committed to version control."
+    - kind: "process"
+      description: "CI/CD pipeline configuration showing load test execution as a deployment gate."
+  optional:
+    - kind: "config"
+      description: "Historical load test results showing compliance with acceptance criteria over time."
+    - kind: "governance"
+      description: "Performance test strategy document defining scenarios, acceptance criteria, and execution cadence."
+
+checks:
+  - id: "waf-perf-060.tf.aws.codepipeline-performance-stage"
+    engine: "terraform"
+    provider: "aws"
+    automated: false
+    severity: "medium"
+    title: "AWS CodePipeline should include a performance testing stage"
+    description: >
+      AWS CodePipeline deployment pipelines for production services should include a performance
+      testing stage (using CodeBuild running k6/Gatling/Locust) before promoting to production.
+      This check verifies that a performance stage is referenced in pipeline configuration.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_codepipeline"
+    assertions:
+      - attribute: "stage"
+        op: "not_empty"
+        message: "CodePipeline must have at least 3 stages (Source, Build, Deploy) with performance validation included."
+    on_fail: "violation"
+    remediation: >
+      Add a performance testing stage to CodePipeline using CodeBuild to execute load tests.
+      Configure the stage to block promotion to production when acceptance criteria are not met.
+    example:
+      compliant: |
+        resource "aws_codepipeline" "app" {
+          name     = "pipeline-payment-api"
+          role_arn = aws_iam_role.pipeline.arn
+          artifact_store { location = aws_s3_bucket.artifacts.bucket; type = "S3" }
+          stage { name = "Source"; action { ... } }
+          stage { name = "Build";  action { ... } }
+          stage {
+            name = "PerformanceTest"
+            action {
+              name     = "LoadTest"
+              category = "Build"
+              owner    = "AWS"
+              provider = "CodeBuild"
+              configuration = {
+                ProjectName = aws_codebuild_project.load_test.name
+              }
+            }
+          }
+          stage { name = "Deploy"; action { ... } }
+        }
+      non_compliant: |
+        resource "aws_codepipeline" "app" {
+          name = "pipeline-payment-api"
+          stage { name = "Source"; action { ... } }
+          stage { name = "Build";  action { ... } }
+          stage { name = "Deploy"; action { ... } }
+          # No performance test stage – WAF-PERF-060 violation
+        }
+
+  - id: "waf-perf-060.tf.azurerm.devops-pipeline-perf-gate"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: false
+    severity: "medium"
+    title: "Azure DevOps pipelines should include performance validation gates"
+    description: >
+      Azure deployment pipelines should configure release gates or pre-deployment conditions
+      that execute performance tests before production deployment.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_resource_group_policy_assignment"
+    assertions:
+      - attribute: "name"
+        op: "not_empty"
+        message: "Policy assignments must be named descriptively."
+    on_fail: "advisory"
+    remediation: >
+      Configure Azure DevOps pipeline YAML with a performance test job that runs k6 or
+      Gatling and fails the pipeline if acceptance criteria are not met.
+      Reference load test scripts stored in the repository.
+    example:
+      compliant: |
+        # azure-pipelines.yml (referenced by Terraform azuredevops_build_definition)
+        stages:
+          - stage: PerformanceTest
+            dependsOn: BuildAndPush
+            jobs:
+              - job: LoadTest
+                steps:
+                  - script: |
+                      k6 run --vus 50 --duration 5m \
+                        --env BASE_URL=$(STAGING_URL) \
+                        tests/performance/payment-api.js
+                    displayName: "Run k6 Load Tests"
+                  - task: PublishTestResults@2
+                    inputs:
+                      testResultsFormat: JUnit
+                      testResultsFiles: 'k6-results.xml'
+      non_compliant: |
+        # azure-pipelines.yml without performance stage
+        stages:
+          - stage: Build
+          - stage: Deploy  # Direct deploy without performance gate – WAF-PERF-060 violation
+
+  - id: "waf-perf-060.tf.google.cloud-build-perf-step"
+    engine: "terraform"
+    provider: "google"
+    automated: false
+    severity: "medium"
+    title: "GCP Cloud Build triggers should include performance test steps"
+    description: >
+      GCP Cloud Build configurations for production deployments should include load test
+      execution steps before deploying to production.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_cloudbuild_trigger"
+    assertions:
+      - attribute: "filename"
+        op: "not_empty"
+        message: "Cloud Build trigger must reference a cloudbuild.yaml file."
+      - attribute: "disabled"
+        op: "is_false"
+        message: "Cloud Build trigger must not be disabled."
+    on_fail: "violation"
+    remediation: >
+      Enable Cloud Build trigger and ensure the referenced cloudbuild.yaml includes
+      a performance test step using k6 or Locust before the deploy step.
+    example:
+      compliant: |
+        resource "google_cloudbuild_trigger" "deploy" {
+          name     = "deploy-payment-api"
+          filename = "cloudbuild.yaml"
+          disabled = false
+          github {
+            owner = var.github_owner
+            name  = var.github_repo
+            push { branch = "^main$" }
+          }
+        }
+        # cloudbuild.yaml includes:
+        # - id: 'performance-test'
+        #   name: 'grafana/k6'
+        #   args: ['run', 'tests/performance/payment-api.js']
+      non_compliant: |
+        resource "google_cloudbuild_trigger" "deploy" {
+          name     = "deploy-payment-api"
+          disabled = true  # Trigger disabled – WAF-PERF-060 violation
+          filename = "cloudbuild.yaml"
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-060"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-load-testing.adoc"
+  related_controls:
+    - "WAF-PERF-020"
+    - "WAF-PERF-050"
+    - "WAF-PERF-100"

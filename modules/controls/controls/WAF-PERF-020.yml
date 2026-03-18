@@ -1,0 +1,298 @@
+id: WAF-PERF-020
+title: "Auto-Scaling Configured & Tested"
+pillar: "performance"
+status: "active"
+severity: "high"
+category: "auto-scaling"
+type: ['configuration', 'automation', 'governance']
+tags: ['auto-scaling', 'horizontal-scaling', 'elasticity', 'load-management', 'availability', 'performance']
+
+description: >
+  All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling
+  configured with appropriate minimum, desired, and maximum capacity thresholds. Auto-scaling
+  policies MUST be based on meaningful metrics (CPU utilization, request latency, queue depth,
+  or custom application metrics), not just time-based schedules. Auto-scaling configurations
+  MUST be tested under realistic load conditions before production deployment and re-validated
+  after significant architectural changes.
+
+rationale: >
+  Static compute capacity creates a fundamental trade-off: either over-provision to handle peaks
+  (wasting money in normal operation) or under-provision and accept degraded performance or
+  outages during load spikes. Auto-scaling eliminates this trade-off by dynamically matching
+  capacity to demand. However, misconfigured auto-scaling (wrong thresholds, missing cooldown
+  periods, inadequate minimum capacity) can cause oscillations, cold-start delays, or failures
+  to scale in time. Only tested auto-scaling configurations provide reliable performance guarantees.
+
+threat:
+  - "Service outages or severe latency degradation during traffic peaks due to insufficient capacity"
+  - "Autoscaling oscillation causing resource thrashing and increased costs"
+  - "Scaling events triggered too late (wrong thresholds) causing SLO violations"
+  - "Cold-start latency from stateful applications scaling from zero"
+  - "Untested scaling paths failing silently until a real traffic event"
+
+regulatory_mapping:
+  - framework: "ISO/IEC 25010"
+    controls:
+      - "Performance Efficiency – Capacity"
+      - "Reliability – Fault Tolerance"
+  - framework: "AWS Well-Architected Framework"
+    controls:
+      - "PERF 2 – How do you select and use scaling mechanisms?"
+      - "REL 6 – How do you monitor workload resources?"
+  - framework: "Azure Well-Architected Framework"
+    controls:
+      - "Performance Efficiency – Design for scaling"
+      - "Reliability – Use automatic scaling"
+  - framework: "Google Cloud Architecture Framework"
+    controls:
+      - "Performance optimization – Use autoscaling"
+
+implementation_guidance:
+  - "Define scaling metrics based on measured application behavior: prefer latency-based or custom metrics over CPU alone."
+  - "Set minimum capacity to handle baseline traffic without cold starts; never set min=0 for synchronous services."
+  - "Configure scale-out aggressively (low threshold, short cooldown) and scale-in conservatively (higher threshold, longer cooldown)."
+  - "Test auto-scaling with load tests: validate that scaling triggers within target latency SLO."
+  - "For Kubernetes: use Horizontal Pod Autoscaler (HPA) with custom metrics via KEDA for queue-based workloads."
+  - "Document tested scaling limits in runbooks: max tested TPS, observed scale-out duration, known bottlenecks."
+  - "Validate auto-scaling after every major infrastructure change (instance type change, dependency updates)."
+
+maturity_levels:
+  level_1:
+    description: "Static capacity, no auto-scaling"
+    criteria:
+      - "All compute resources run at fixed capacity"
+      - "Traffic peaks are absorbed by over-provisioning or cause degradation"
+      - "Scaling is manual and reactive"
+  level_2:
+    description: "Auto-scaling configured but not validated"
+    criteria:
+      - "Auto-scaling groups or HPA configured for most workloads"
+      - "Scaling based on default CPU thresholds"
+      - "Not tested under realistic load conditions"
+  level_3:
+    description: "Validated auto-scaling with appropriate metrics"
+    criteria:
+      - "All stateless production workloads have auto-scaling configured"
+      - "Scaling metrics are appropriate (latency, request rate, or custom) not just CPU"
+      - "Auto-scaling tested with load tests before production deployment"
+      - "Scale-out and scale-in thresholds documented with rationale"
+  level_4:
+    description: "Predictive and event-driven scaling"
+    criteria:
+      - "Predictive scaling pre-warms capacity based on historical patterns"
+      - "Event-driven scaling triggers on queue depth, event rate, or external signals"
+      - "Scale-out duration tested and validated against SLO requirements"
+      - "Scaling runbooks document tested limits and failure modes"
+  level_5:
+    description: "Autonomous capacity management"
+    criteria:
+      - "Capacity requirements are fully automated with no manual intervention needed"
+      - "ML-based scaling policies adapt to changing traffic patterns automatically"
+      - "SLO breach prediction triggers preemptive scaling before impact occurs"
+      - "Cost-aware scaling policies balance performance and spend continuously"
+
+evidence:
+  required:
+    - kind: "iac"
+      description: "Terraform configuration showing auto-scaling group, HPA, or equivalent with min/desired/max and scaling policy."
+    - kind: "process"
+      description: "Load test results demonstrating auto-scaling triggers within required latency SLO."
+  optional:
+    - kind: "config"
+      description: "CloudWatch/Azure Monitor/GCP Cloud Monitoring alerts configured for scaling events."
+    - kind: "governance"
+      description: "Runbook documenting tested scaling limits, cooldown periods, and known scaling bottlenecks."
+
+checks:
+  - id: "waf-perf-020.tf.aws.autoscaling-group-policy"
+    engine: "terraform"
+    provider: "aws"
+    automated: true
+    severity: "high"
+    title: "AWS Auto Scaling Groups must have scaling policies defined"
+    description: >
+      AWS Auto Scaling Groups must have at minimum one scaling policy defined.
+      Groups without scaling policies rely on manual scaling only and cannot respond
+      to traffic changes automatically.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "aws_autoscaling_group"
+    assertions:
+      - attribute: "min_size"
+        op: "greater_than_or_equal"
+        value: 1
+        message: "Auto Scaling Group min_size must be at least 1 to prevent cold starts in synchronous workloads."
+      - attribute: "max_size"
+        op: "greater_than_or_equal"
+        value: 2
+        message: "Auto Scaling Group max_size must be at least 2 to enable actual scaling."
+      - attribute: "health_check_type"
+        op: "not_empty"
+        message: "Auto Scaling Group must have health_check_type configured (EC2 or ELB)."
+    on_fail: "violation"
+    remediation: >
+      Add scaling policies to the Auto Scaling Group. At minimum, add target tracking scaling
+      based on ALBRequestCountPerTarget or CPU utilization. Set min_size >= 1, max_size >= 2.
+      Configure health checks to use ELB type for web applications.
+    example:
+      compliant: |
+        resource "aws_autoscaling_group" "app" {
+          name                = "asg-payment-api"
+          min_size            = 2
+          max_size            = 10
+          desired_capacity    = 2
+          health_check_type   = "ELB"
+          target_group_arns   = [aws_lb_target_group.app.arn]
+          vpc_zone_identifier = var.private_subnet_ids
+          launch_template {
+            id      = aws_launch_template.app.id
+            version = "$Latest"
+          }
+          tag {
+            key                 = "workload"
+            value               = "payment-api"
+            propagate_at_launch = true
+          }
+        }
+        resource "aws_autoscaling_policy" "scale_out" {
+          name                   = "payment-api-target-tracking"
+          autoscaling_group_name = aws_autoscaling_group.app.name
+          policy_type            = "TargetTrackingScaling"
+          target_tracking_configuration {
+            predefined_metric_specification {
+              predefined_metric_type = "ALBRequestCountPerTarget"
+              resource_label         = "${aws_lb.app.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
+            }
+            target_value = 1000.0
+          }
+        }
+      non_compliant: |
+        resource "aws_autoscaling_group" "app" {
+          name             = "asg-payment-api"
+          min_size         = 1
+          max_size         = 1  # max == min, no scaling possible – WAF-PERF-020 violation
+          desired_capacity = 1
+          # No scaling policy – manual only
+        }
+
+  - id: "waf-perf-020.tf.azurerm.vmss-autoscale"
+    engine: "terraform"
+    provider: "azurerm"
+    automated: true
+    severity: "high"
+    title: "Azure VMSS must have autoscale settings configured"
+    description: >
+      Azure Virtual Machine Scale Sets used for production workloads must have
+      autoscale settings configured with at least one scale-out and one scale-in rule.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "azurerm_monitor_autoscale_setting"
+    assertions:
+      - attribute: "enabled"
+        op: "is_true"
+        message: "Autoscale setting must be enabled."
+      - attribute: "profile"
+        op: "not_empty"
+        message: "Autoscale setting must have at least one profile configured."
+    on_fail: "violation"
+    remediation: >
+      Enable autoscale settings for the VMSS. Configure at least one profile with scale-out
+      and scale-in rules based on CPU percentage or custom metrics.
+    example:
+      compliant: |
+        resource "azurerm_monitor_autoscale_setting" "app" {
+          name                = "autoscale-payment-api"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          target_resource_id  = azurerm_linux_virtual_machine_scale_set.app.id
+          enabled             = true
+          profile {
+            name = "defaultProfile"
+            capacity {
+              default = 2
+              minimum = 2
+              maximum = 10
+            }
+            rule {
+              metric_trigger {
+                metric_name        = "Percentage CPU"
+                metric_resource_id = azurerm_linux_virtual_machine_scale_set.app.id
+                time_grain         = "PT1M"
+                statistic          = "Average"
+                time_window        = "PT5M"
+                time_aggregation   = "Average"
+                operator           = "GreaterThan"
+                threshold          = 70
+              }
+              scale_action {
+                direction = "Increase"
+                type      = "ChangeCount"
+                value     = "1"
+                cooldown  = "PT3M"
+              }
+            }
+          }
+        }
+      non_compliant: |
+        # No azurerm_monitor_autoscale_setting resource defined
+        # VMSS deployed with fixed capacity – WAF-PERF-020 violation
+        resource "azurerm_linux_virtual_machine_scale_set" "app" {
+          instances = 2  # Static, no scaling
+        }
+
+  - id: "waf-perf-020.tf.google.managed-instance-group-autoscaler"
+    engine: "terraform"
+    provider: "google"
+    automated: true
+    severity: "high"
+    title: "GCP Managed Instance Groups must have autoscaler configured"
+    description: >
+      GCP Managed Instance Groups used for production compute must have a google_compute_autoscaler
+      resource configured with appropriate scaling policies.
+    scope:
+      block_type: "resource"
+      resource_types:
+        - "google_compute_autoscaler"
+        - "google_compute_region_autoscaler"
+    assertions:
+      - attribute: "autoscaling_policy"
+        op: "not_empty"
+        message: "Autoscaler must have autoscaling_policy defined with min and max replicas."
+    on_fail: "violation"
+    remediation: >
+      Add a google_compute_autoscaler resource targeting the Managed Instance Group.
+      Configure autoscaling_policy with appropriate min_replicas, max_replicas, and
+      cpu_utilization target or load_balancing_utilization.
+    example:
+      compliant: |
+        resource "google_compute_autoscaler" "app" {
+          name   = "autoscaler-payment-api"
+          zone   = "europe-west3-a"
+          target = google_compute_instance_group_manager.app.id
+          autoscaling_policy {
+            max_replicas    = 10
+            min_replicas    = 2
+            cooldown_period = 60
+            cpu_utilization {
+              target = 0.6
+            }
+          }
+        }
+      non_compliant: |
+        # No google_compute_autoscaler defined
+        resource "google_compute_instance_group_manager" "app" {
+          name               = "igm-payment-api"
+          base_instance_name = "payment-api"
+          zone               = "europe-west3-a"
+          # Static capacity, no autoscaler – WAF-PERF-020 violation
+        }
+
+references:
+  narrative: "modules/pillar-efficiancy/pages/controls.adoc#WAF-PERF-020"
+  best_practice: "modules/pillar-efficiancy/pages/best-practices/bp-autoscaling.adoc"
+  related_controls:
+    - "WAF-PERF-010"
+    - "WAF-PERF-050"
+    - "WAF-PERF-060"

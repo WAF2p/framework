@@ -1,0 +1,171 @@
+= WAF-OPS-020 – Infrastructure as Code Enforced
+:page-toc: right
+:control-id: WAF-OPS-020
+:pillar: operations
+:severity: high
+:category: infrastructure-as-code
+:automated: high
+:description: WAF++ Operational Excellence – Alle Cloud-Infrastruktur muss als IaC definiert sein. Manuelle Ressourcenerstellung in Produktion ist verboten.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Infrastructure as Code | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Cloud-Infrastruktur MUSS als Code (Terraform, Pulumi, AWS CDK) definiert sein.
+Manuelle Ressourcenerstellung durch Cloud-Konsole MUSS für Produktion und Staging
+verboten sein. IaC-Definitionen MÜSSEN versioniert, reviewed und durch CI/CD deployt werden.
+
+== Rationale
+
+Manuell erstellte Infrastruktur kann nicht zuverlässig reproduziert werden, kann nicht reviewed
+werden und kann nicht auditiert werden. Snowflake-Server sind ein Hauptrisiko für Reliability
+und Operational Debt. IaC eliminiert Configuration Drift, ermöglicht Audit-Trails und erlaubt
+Disaster-Recovery in Minuten statt Wochen.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Configuration Drift*
+|Manuelle Konsolen-Änderungen erzeugen unsichtbare Abweichungen zwischen IaC-Definition und Realität.
+
+|*Snowflake-Server*
+|Manuell konfigurierte Systeme können nach Ausfall nicht reproduziert werden.
+
+|*Fehlende Peer-Review*
+|Ohne IaC und Pull-Requests gibt es keine zweiten Augen für Infrastruktur-Änderungen.
+
+|*DR-Versagen*
+|Disaster-Recovery-Tests scheitern weil tatsächliche Infrastruktur vom dokumentierten IaC abweicht.
+
+|===
+
+== Anforderung
+
+* Alle Produktions- und Staging-Infrastruktur MUSS als IaC definiert sein
+* Manuelle Änderungen MÜSSEN durch IAM-Policy oder Service Control Policy (SCP) eingeschränkt sein
+* Remote-State-Backend mit Locking MUSS konfiguriert sein (kein lokaler State)
+* Alle IaC-Änderungen MÜSSEN Pull-Request-Review durchlaufen
+* State-Bucket MUSS Versioning aktiviert haben für Rollback-Fähigkeit
+
+== Implementierungsanleitung
+
+. *Remote-State konfigurieren:* S3+DynamoDB (AWS), Azure Storage Account, GCS Bucket – mit Locking
+. *State-Bucket absichern:* Versioning aktivieren; Encryption at Rest; Access-Logging
+. *Konsolen-Zugriff einschränken:* SCP oder IAM-Permission-Boundary für Produktions-Accounts
+. *Modul-Bibliothek aufbauen:* Wiederverwendbare Module für Networking, Compute, Security
+. *Drift-Erkennung aktivieren:* `terraform plan` täglich per EventBridge Schedule; Alert bei Drift
+. *Brownfield-Import:* Bestehende Ressourcen per `terraform import` in State übernehmen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Manuell
+|Keine IaC; Infrastruktur manuell via Konsole oder CLI erstellt.
+
+|*2*
+|Inkonsistentes IaC
+|Teile der Infrastruktur als IaC; manuelle Ressourcen koexistieren; kein Remote State.
+
+|*3*
+|IaC vollständig enforced
+|100% Produktions-Infrastruktur als IaC; Remote State; manuelle Änderungen eingeschränkt.
+
+|*4*
+|Drift Detection & Policy Enforcement
+|Drift täglich erkannt und alarmiert; Policy-as-Code in CI; Modul-Bibliothek vorhanden.
+
+|*5*
+|GitOps
+|Git-State = Single Source of Truth; Automatische Drift-Remediation; IaC Coverage 100%.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-020.tf.aws.s3-terraform-state-backend
+*Prüft:* Terraform-Remote-State im S3 Backend konfiguriert (nicht lokaler State).
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+terraform {
+  backend "s3" {
+    bucket         = "my-org-tf-state"
+    key            = "service/prod/terraform.tfstate"
+    region         = "eu-central-1"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+  }
+}
+----
+a|[source,hcl]
+----
+terraform {
+  # Kein Backend – lokaler State
+  # WAF-OPS-020 Violation:
+  # kein Remote State, kein Locking
+}
+----
+
+|===
+
+=== waf-ops-020.tf.aws.s3-state-bucket-versioning
+*Prüft:* S3 State-Bucket hat Versioning aktiviert.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"  # Nicht Suspended
+  }
+}
+----
+
+*Remediation:* Remote-State-Backend mit S3+DynamoDB Locking konfigurieren.
+State-Bucket-Versioning aktivieren.
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*IaC*
+|✅ Pflicht
+|Terraform-Repository mit Remote-State-Konfiguration (backend.tf mit S3/Azure/GCS).
+
+|*Config*
+|✅ Pflicht
+|State-Backend-Konfiguration mit aktiviertem Versioning und Locking.
+
+|*Process*
+|Optional
+|Drift-Detection-Report (letzte 30 Tage, Drift-Events mit Resolutionszeiten).
+
+|*Governance*
+|Optional
+|SCP oder IAM-Policy die direkte Console-Änderungen in Produktions-Accounts verhindert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
+* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
+
+== Best Practice
+
+* xref:best-practices/bp-iac.adoc[Infrastructure as Code konsequent umsetzen →]

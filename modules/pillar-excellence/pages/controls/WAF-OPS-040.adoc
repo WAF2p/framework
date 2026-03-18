@@ -1,0 +1,180 @@
+= WAF-OPS-040 – Alerting on Symptoms, Not Causes
+:page-toc: right
+:control-id: WAF-OPS-040
+:pillar: operations
+:severity: high
+:category: alerting
+:automated: high
+:description: WAF++ Operational Excellence – Alerts müssen auf nutzer-sichtbaren Symptomen basieren. Jeder Page-Alert braucht eine Runbook-URL.
+
+[.metadata]
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Alerting | *Automatisierbar:* Hoch
+
+== Beschreibung
+
+Alle Produktions-Alerts MÜSSEN auf nutzer-sichtbaren Symptomen basieren (Fehlerrate, Latenz,
+Verfügbarkeit), nicht auf internen Ursachen (CPU, Memory). Jeder Alert der On-Call-Engineers
+paged MUSS actionable sein und MUSS eine Runbook-URL enthalten. Alert-Fatigue
+MUSS aktiv gemessen und reduziert werden.
+
+== Rationale
+
+Ursachen-basiertes Alerting erzeugt Noise: Ein CPU-Alert > 80% bedeutet nicht zwingend
+eine Nutzerauswirkung. Symptom-basiertes Alerting stellt sicher, dass Engineers nur dann
+gerufen werden wenn Nutzer tatsächlich betroffen sind. Alert-Fatigue ist die Hauptursache
+für On-Call-Burnout und übergangene kritische Alerts.
+
+== Bedrohungskontext
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Alert-Fatigue*
+|Zu viele non-actionable Alerts trainieren Engineers, Alerts zu ignorieren oder zu snoozen.
+
+|*Verpasste Nutzerauswirkung*
+|Nur Infrastruktur-Metriken überwacht: Service komplett down aber kein Alert ausgelöst.
+
+|*On-Call-Burnout*
+|Regelmäßige 3-Uhr-Pages für nicht-actionable CPU-Alerts zerstören On-Call-Rotation.
+
+|*Fehlende Runbooks*
+|Engineer geweckt um 3 Uhr ohne Runbook – Diagnose auf der Basis von Intuition.
+
+|===
+
+== Anforderung
+
+* Alle kritischen Alerts MÜSSEN symptom-basiert sein (Fehlerrate, Latenz, Verfügbarkeit)
+* Jeder paging Alert MUSS eine Runbook-URL in der Beschreibung/Annotation enthalten
+* SLOs MÜSSEN für alle kritischen Services definiert sein
+* Alert-Noise-Metrik MUSS tracked werden (Ziel: < 10 Pages/Woche/Ingenieur)
+* Quarterly Alert-Audit: nicht-actionable Alerts werden entfernt oder stummgeschaltet
+
+== Implementierungsanleitung
+
+. *SLOs definieren:* Availability (z.B. 99.9%), Latenz p99 (z.B. < 500ms), Fehlerrate (< 0.1%)
+. *Burn-Rate-Alerts konfigurieren:* Fast-Burn sofort pagen; Slow-Burn als Ticket
+. *Alert-Audit durchführen:* Alle bestehenden Alerts: Symptom-basiert? Actionable? Runbook-URL?
+. *Runbook-URLs in Alerts:* `alarm_description` (CloudWatch), `runbook_url` (Prometheus), `description` (Azure Monitor)
+. *Alert-Noise-Tracking:* PagerDuty/OpsGenie Analytics; Pages pro Schicht tracken
+. *Quarterly Review:* Alerts ohne Aktion in letzten 90 Tagen deaktivieren oder löschen
+
+== Reifegrad-Abstufung
+
+[cols="1,2,3"]
+|===
+|Level |Bezeichnung |Kriterien
+
+|*1*
+|Kein oder Noise-Alerting
+|Keine Alerts oder ausschließlich Infrastructure-Metriken (CPU, Memory). Hohe Alert-Noise.
+
+|*2*
+|Basis-Service-Alerts
+|HTTP 5xx und Service-Availability Alerts konfiguriert. Keine Runbooks verlinkt.
+
+|*3*
+|Symptom-basiert mit Runbooks
+|Alle kritischen Alerts symptom-basiert. Runbook-URLs in allen Alerts. SLOs definiert.
+
+|*4*
+|Burn-Rate-Alerting
+|Burn-Rate-Alerts für alle SLOs. Alert-Noise-Metrik < 10/Schicht. Quarterly Review.
+
+|*5*
+|Automatische Alert-Optimierung
+|Alert-as-Code. ML-basierte Anomalie-Erkennung. 100% Alert-Coverage für kritische Services.
+
+|===
+
+== Terraform Checks
+
+=== waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based
+*Prüft:* CloudWatch Alarm hat nicht-leere `alarm_description` mit Runbook-URL und `alarm_actions`.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "errors" {
+  alarm_name    = "payment-5xx-rate"
+  metric_name   = "5XXError"
+  namespace     = "AWS/ApplicationELB"
+  alarm_description = "Payment 5xx > 10/min. Runbook: https://wiki/runbooks/5xx"
+  alarm_actions = [aws_sns_topic.oncall.arn]
+  /* ... */
+}
+----
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "cpu" {
+  alarm_name  = "high-cpu"
+  metric_name = "CPUUtilization"
+  namespace   = "AWS/EC2"
+  threshold   = 80
+  # Kein alarm_description mit Runbook
+  # Kein alarm_actions
+  # WAF-OPS-040 Violation
+}
+----
+
+|===
+
+=== waf-ops-040.tf.azurerm.monitor-alert-symptom
+*Prüft:* Azure Monitor Alert hat `description` mit Runbook-Hinweis und `action` mit Action Group.
+
+[source,hcl]
+----
+# Compliant
+resource "azurerm_monitor_metric_alert" "error_rate" {
+  name                = "payment-error-rate-high"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_application_insights.main.id]
+  description         = "Payment error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
+  action {
+    action_group_id = azurerm_monitor_action_group.oncall.id
+  }
+  /* criteria block ... */
+}
+----
+
+*Remediation:* `alarm_description` mit Runbook-URL versehen. `alarm_actions` auf SNS-Topic setzen.
+Symptom-basierte Metriken verwenden (Fehlerrate, Latenz statt CPU/Memory).
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Pflicht |Beschreibung
+
+|*Config*
+|✅ Pflicht
+|Alert-Definitionen mit symptom-basierten Metriken und Runbook-URLs.
+
+|*Governance*
+|✅ Pflicht
+|SLO-Definitionen für alle kritischen Services (Availability, Latenz, Fehlerrate-Targets).
+
+|*Process*
+|Optional
+|Monatlicher Alert-Noise-Report (Pages pro Woche, Actionability-Rate).
+
+|*Config*
+|Optional
+|Runbook-Index mit Coverage-Nachweis für alle paging Alerts.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-OPS-030.adoc[WAF-OPS-030 – Observability Stack]
+* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
+* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+
+== Best Practice
+
+* xref:best-practices/bp-alerting.adoc[Alerting auf Symptome statt Ursachen →]
