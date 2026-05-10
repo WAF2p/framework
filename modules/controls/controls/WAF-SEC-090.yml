@@ -1,133 +1,122 @@
+# Retrieved from wafpass-server: http://localhost:8000
+# ID: WAF-SEC-090
 id: WAF-SEC-090
-title: "Policy-as-Code & Compliance Automation"
-pillar: "security"
-status: "active"
-severity: "medium"
-category: "policy-as-code"
-type: ['automation', 'governance', 'configuration']
-tags: ['policy-as-code', 'compliance', 'aws-config', 'opa', 'sentinel', 'automation', 'iac-security']
-
-description: >
-  Compliance controls MUST be expressed as machine-readable policies using AWS Config rules,
-  Open Policy Agent (OPA) policies, HashiCorp Sentinel, or WAF++ Control definitions.
-  AWS Config recorder MUST be enabled with recording of all supported resource types in all
-  active regions. A Config delivery channel MUST be configured to deliver configuration
-  snapshots and compliance notifications. Policy compliance checks MUST run automatically
-  on every infrastructure change via CI/CD pipeline gates. Non-compliant resources MUST
-  trigger automated alerts and initiate a documented remediation workflow.
-
-rationale: >
-  Manual compliance audits are point-in-time, error-prone, and cannot scale to the pace of
-  cloud infrastructure change. Infrastructure as Code enables declarative specification of
-  desired state, but does not automatically verify that deployed state matches compliance
-  requirements. Policy-as-code makes compliance requirements explicit, version-controlled,
-  testable, and enforceable at both pre-deployment (IaC scan) and post-deployment (AWS Config)
-  stages. Continuous compliance monitoring converts compliance from an annual audit event into
-  a continuous engineering discipline, reducing the cost and risk of compliance gaps.
-
-threat:
-  - "Configuration drift from compliant state going undetected between periodic audit cycles"
-  - "Infrastructure changes deployed without security review bypassing manual compliance checks"
-  - "Compliance evidence gaps discovered only during external audits with insufficient remediation time"
-  - "Inconsistent policy enforcement across multiple accounts and regions due to manual review bottlenecks"
-
+pillar: security
+severity: medium
+type:
+  - governance
+  - configuration
+description: |
+  Compliance controls MUST be expressed as machine-readable policies using AWS Config rules, Open Policy Agent (OPA) policies, HashiCorp Sentinel, or WAF++ Control definitions. AWS Config recorder MUST be enabled with recording of all supported resource types in all active regions. A Config delivery channel MUST be configured to deliver configuration snapshots and compliance notifications. Policy compliance checks MUST run automatically on every infrastructure change via CI/CD pipeline gates. Non-compliant resources MUST trigger automated alerts and initiate a documented remediation workflow.
 regulatory_mapping:
-  - framework: "BSI C5:2020"
+  - framework: 'ISO 27001:2022'
     controls:
-      - "OPS-04 – Compliance monitoring and reporting"
-      - "SIM-02 – Security information and event management"
-  - framework: "ISO 27001:2022"
+      - 'A.5.36 – Compliance with policies, rules and standards'
+      - 'A.8.8 – Management of technical vulnerabilities'
+      - 'A.5.37 – Documented operating procedures'
+  - framework: 'ISO 27017'
     controls:
-      - "A.5.36 – Compliance with policies, rules and standards for information security"
-      - "A.8.8 – Management of technical vulnerabilities"
-  - framework: "EUCS (ENISA)"
+      - 'CLD.6.3 – Cloud-specific compliance monitoring'
+  - framework: 'CIS Controls v8'
     controls:
-      - "OPS-01 – Operational security monitoring"
-  - framework: "SOC 2"
+      - 'CIS 4 – Secure Configuration'
+      - 'CIS 16.1 – Establish and maintain a secure configuration'
+  - framework: 'CSA STAR'
     controls:
-      - "CC7.1 – Infrastructure and software monitoring"
-      - "CC7.2 – Evaluation of system changes"
-
-implementation_guidance:
-  - "Enable AWS Config in all active regions using aws_config_configuration_recorder with recording enabled for all resource types; create a service-linked role for Config."
-  - "Configure an aws_config_delivery_channel pointing to a dedicated S3 bucket in a centralized logging account for configuration snapshots and compliance history."
-  - "Deploy managed Config rules for critical controls: restricted-ssh, s3-bucket-public-read-prohibited, rds-storage-encrypted, iam-password-policy, mfa-enabled-for-iam-console-access."
-  - "Integrate OPA or Conftest into the CI/CD pipeline to evaluate Terraform plan output against policy rules before apply; fail the pipeline on policy violations."
-  - "Use AWS Config Conformance Packs to deploy curated sets of Config rules aligned to CIS AWS Foundations Benchmark or NIST 800-53."
-  - "Store all policy-as-code files (WAF++ control YAML, OPA Rego policies, Sentinel policies) in version-controlled repositories with mandatory peer review before merge."
-  - "Configure Config remediation using aws_config_remediation_configuration with AWS SSM Automation runbooks for auto-remediatable findings."
-
-maturity_levels:
-  level_1:
-    description: "Compliance checked manually during periodic audits; no automation"
-    criteria:
-      - "No AWS Config or equivalent continuous compliance monitoring deployed"
-      - "Compliance checked manually during quarterly or annual review cycles"
-  level_2:
-    description: "AWS Config enabled; managed rules deployed for critical controls"
-    criteria:
-      - "AWS Config recorder enabled in production account with delivery channel configured"
-      - "At least 10 managed Config rules deployed covering IAM, S3, RDS, and network controls"
-      - "Config findings reviewed weekly"
-  level_3:
-    description: "Policy-as-code in CI/CD; Config conformance packs deployed"
-    criteria:
-      - "IaC security scanner (Checkov, tfsec, or custom WAF++ engine) runs on every PR"
-      - "Config conformance packs aligned to regulatory frameworks deployed and monitored"
-      - "Non-compliant findings trigger automated tickets with defined SLA"
-  level_4:
-    description: "Automated remediation; cross-account compliance dashboard"
-    criteria:
-      - "Auto-remediation configured for at least 50% of non-compliant finding types"
-      - "Compliance posture dashboard covering all accounts and regions in real time"
-      - "Policy exceptions tracked in a risk register with owner and expiry date"
-  level_5:
-    description: "Continuous compliance with evidence pipeline and audit-ready reporting"
-    criteria:
-      - "Compliance evidence automatically collected and linked to control IDs for audit"
-      - "Drift from compliant state triggers automated quarantine or rollback"
-      - "Policy-as-code repository is the system of record; no manual compliance exceptions"
-
-evidence:
-  required:
-    - kind: "iac"
-      description: "Terraform configuration showing aws_config_configuration_recorder and aws_config_delivery_channel resources with appropriate settings."
-    - kind: "config"
-      description: "AWS Config compliance dashboard export showing compliance percentage per rule and total non-compliant resources."
-  optional:
-    - kind: "process"
-      description: "CI/CD pipeline configuration showing IaC security scan stage with policy check results and blocking behavior."
-    - kind: "governance"
-      description: "Policy exception register with documented risk acceptance, owner, compensating controls, and expiry dates."
-
+      - 'CCM GRC-01 – Governance, Risk and Compliance Program'
+      - 'CCM GRC-04 – Policy Management'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 6.4 – Develop systems using secure coding standards'
+      - 'Req 11.4 – Internal and external network testing'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC7.1 – Infrastructure and software monitoring'
+      - 'CC7.2 – Evaluation of system changes'
+      - 'CC4.1 – Monitoring activities'
+  - framework: 'COBIT 2019'
+    controls:
+      - 'MEA03 – Managed compliance with external requirements'
+      - 'APO13 – Managed security'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 24 – Responsibility of the controller'
+      - 'Art. 32 – Security of processing'
+  - framework: 'NIS2'
+    controls:
+      - 'Art. 21(2)(d) – Supply chain security and compliance'
+  - framework: 'DORA'
+    controls:
+      - 'Art. 6 – ICT risk management framework'
+  - framework: 'EUCS (ENISA)'
+    controls:
+      - 'OPS-01 – Operational security monitoring'
+      - 'GRC-01 – Compliance management'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'GOV-04 – Compliance monitoring and reporting'
+      - 'OPS-13 – Configuration management'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ISMS.1 – Sicherheitsmanagement'
+      - 'ORP.1 – Organisation'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Compliance and policy enforcement'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Compliance and audit'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Compliance en beleidshandhaving'
+  - framework: 'ENS High'
+    controls:
+      - 'org.4 – Proceso de autorización'
+      - 'op.pl.4 – Dimensionamiento – verificación'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'A1 – Governance'
+      - 'A4 – Policy and assurance'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'CA-2 – Control Assessments'
+      - 'CA-7 – Continuous Monitoring'
+      - 'CM-2 – Baseline Configuration'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'GV.PO – Policy'
+      - 'DE.CM – Continuous Monitoring'
+  - framework: 'FedRAMP'
+    controls:
+      - 'CA-2, CA-7, CM-2 (Moderate/High baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'CA.L2-3.12.1 – Periodically assess security controls'
+      - 'CA.L2-3.12.3 – Continuously monitor controls'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Compliance and assessment'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'CA-7 – Continuous monitoring'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.3 – Technology risk governance'
+  - framework: 'ISMAP'
+    controls:
+      - 'Compliance and continuous control assessment'
+  - framework: 'FISC'
+    controls:
+      - 'Operational measures – Compliance and audit'
 checks:
-  - id: "waf-sec-090.tf.aws.config-recorder-enabled"
-    engine: "terraform"
-    provider: "aws"
+  - id: waf-sec-090.tf.aws.config-recorder-enabled
+    engine: terraform
     automated: true
-    severity: "medium"
-    title: "AWS Config configuration recorder must be enabled for all resource types"
-    description: >
-      An aws_config_configuration_recorder resource must exist with a recording_group
-      block that records all supported resource types. This ensures continuous tracking
-      of configuration changes across all AWS resources in the account.
-    scope:
-      block_type: "resource"
-      resource_types:
-        - "aws_config_configuration_recorder"
-    assertions:
-      - attribute: "name"
-        op: "attribute_exists"
-        message: "AWS Config configuration recorder must have a name attribute defined."
-      - attribute: "recording_group"
-        op: "attribute_exists"
-        message: "AWS Config configuration recorder must have a recording_group block specifying which resources to record."
-    on_fail: "violation"
-    remediation: >
-      Create an aws_config_configuration_recorder resource with a recording_group block
-      setting all_supported = true and include_global_resource_types = true.
-      Create an IAM role with the AWS managed policy AWSConfigRole and reference it
-      via the role_arn attribute.
+    title: 'AWS Config configuration recorder must be enabled for all resource types'
+    provider: aws
+    description: 'An aws_config_configuration_recorder resource must exist with a recording_group block that records all supported resource types. This ensures continuous tracking of configuration changes across all AWS resources in the account.'
+    expected: 'true'
+    remediation: 'Create an aws_config_configuration_recorder resource with a recording_group block setting all_supported = true and include_global_resource_types = true. Create an IAM role with the AWS managed policy AWSConfigRole and reference it via the role_arn attribute.\n'
     example:
       compliant: |
         resource "aws_iam_role" "config" {
@@ -151,33 +140,31 @@ checks:
           is_enabled = true
           depends_on = [aws_config_delivery_channel.main]
         }
+        
       non_compliant: |
         # aws_config_configuration_recorder absent from Terraform configuration
         # WAF-SEC-090 violation: AWS Config is not deployed in this account
-
-  - id: "waf-sec-090.tf.aws.config-delivery-channel"
-    engine: "terraform"
-    provider: "aws"
-    automated: true
-    severity: "medium"
-    title: "AWS Config delivery channel must be configured"
-    description: >
-      An aws_config_delivery_channel resource must exist pointing to a valid S3 bucket
-      for configuration snapshot delivery. This ensures compliance history is persisted
-      and available for audit.
+        
     scope:
-      block_type: "resource"
+      block_type: resource
       resource_types:
-        - "aws_config_delivery_channel"
+        - aws_config_configuration_recorder
     assertions:
-      - attribute: "name"
-        op: "attribute_exists"
-        message: "AWS Config delivery channel must have a name attribute."
-    on_fail: "violation"
-    remediation: >
-      Create an aws_config_delivery_channel resource with s3_bucket_name pointing to
-      a dedicated logging bucket. Optionally configure sns_topic_arn to receive
-      configuration change notifications and compliance state change notifications.
+      - attribute: 'name'
+        op: 'attribute_exists'
+        message: 'AWS Config configuration recorder must have a name attribute defined.'
+      - attribute: 'recording_group'
+        op: 'attribute_exists'
+        message: 'AWS Config configuration recorder must have a recording_group block specifying which resources to record.'
+    on_fail: violation
+  - id: waf-sec-090.tf.aws.config-delivery-channel
+    engine: terraform
+    automated: true
+    title: 'AWS Config delivery channel must be configured'
+    provider: aws
+    description: 'An aws_config_delivery_channel resource must exist pointing to a valid S3 bucket for configuration snapshot delivery. This ensures compliance history is persisted and available for audit.'
+    expected: 'true'
+    remediation: 'Create an aws_config_delivery_channel resource with s3_bucket_name pointing to a dedicated logging bucket. Optionally configure sns_topic_arn to receive configuration change notifications and compliance state change notifications.\n'
     example:
       compliant: |
         resource "aws_config_delivery_channel" "main" {
@@ -189,13 +176,17 @@ checks:
           }
           depends_on = [aws_config_configuration_recorder.main]
         }
+        
       non_compliant: |
         # aws_config_delivery_channel resource absent
         # WAF-SEC-090 violation: Config findings not delivered to any persistent destination
-
-references:
-  narrative: "modules/pillar-security/pages/controls.adoc#WAF-SEC-090"
-  best_practice: "modules/pillar-security/pages/best-practices/bp-policy-as-code.adoc"
-  related_controls:
-    - "WAF-SEC-080"
-    - "WAF-SOV-060"
+        
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_config_delivery_channel
+    assertions:
+      - attribute: 'name'
+        op: 'attribute_exists'
+        message: 'AWS Config delivery channel must have a name attribute.'
+    on_fail: violation
