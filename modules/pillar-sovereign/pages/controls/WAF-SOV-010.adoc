@@ -135,8 +135,13 @@ A data residency policy MUST:
 |===
 |Compliant |Non-Compliant
 
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
 a|[source,hcl]
 ----
+# AWS
 resource "aws_s3_bucket" "customer_data" {
   bucket = "acme-customer-data-prod"
   tags = {
@@ -145,18 +150,19 @@ resource "aws_s3_bucket" "customer_data" {
     environment    = "production"
   }
 }
-----
 
+# Azure
 resource "azurerm_storage_account" "customer_data" {
-  name             = "acmestorage"
+  name                = "acmestorage"
   resource_group_name = azurerm_resource_group.main.name
-  location         = "germanywestcentral"
+  location            = "germanywestcentral"
   tags = {
     data-class     = "pii"
     data-residency = "eu-only"
   }
 }
 
+# GCP
 resource "google_storage_bucket" "customer_data" {
   name     = "acme-customer-data-prod"
   location = "europe-west3"
@@ -166,6 +172,7 @@ resource "google_storage_bucket" "customer_data" {
   }
 }
 
+# StackIT
 resource "stackit_container_registry" "customer_data" {
   project_id = stackit_project.main.id
   name       = "acme-registry"
@@ -175,11 +182,13 @@ resource "stackit_container_registry" "customer_data" {
   }
 }
 
+# OVH
 resource "ovh_cloud_project" "customer_data" {
   description = "Sovereign workload"
   tags        = ["data-residency=eu-only", "data-class=pii"]
 }
 
+# Hetzner Cloud
 resource "hcloud_server" "customer_data" {
   name        = "sovereign-server"
   server_type = "cx22"
@@ -190,7 +199,8 @@ resource "hcloud_server" "customer_data" {
   }
 }
 ----
-a|[source,hcl]
+
+| a|[source,hcl]
 ----
 resource "aws_s3_bucket" "customer_data" {
   bucket = "acme-customer-data-prod"
