@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Sustainability-Schulden dokumentieren, vierteljährlich reviewen und als Governance-Risiko adressieren. CSRD-Nachweis für aktive Sustainability-Governance.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* Low |*Kategorie:* Sustainability Governance |*Automatisierbar:* Niedrig
+*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Sustainability Governance | *Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adr
 |===
 |Risiko |Beschreibung
 
-|* CSRD-Governance-Lücke*
+|*CSRD-Governance-Lücke*
 |Fehlende Dokumentation bekannter Sustainability-Gaps ist ein CSRD-Governance-Finding: "keine aktive Verwaltung".
 
-|* Ungetrackte Optimierungspotenziale*
+|*Ungetrackte Optimierungspotenziale*
 |Bekannte x86-Altlasten, fehlende Lifecycle-Policies und Idle-Ressourcen bleiben unpriorisiert ohne Register.
 
-|* SBTi-Zielverfehlung*
+|*SBTi-Zielverfehlung*
 |Ohne dokumentierten Remediation-Backlog sind SBTi-Scope-3-Ziele nicht planbar oder verfolgbar.
 
-|* Engineering-Silos*
+|*Engineering-Silos*
 |Ohne zentrales Register optimiert jedes Team nach eigenem Ermessen; Cross-Team-Synergien bleiben ungenutzt.
 
 |===
@@ -107,26 +107,26 @@ Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adr
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu_arm.id
- instance_type = "m7g.large"
- tags = {
- environment = "production"
- workload = "payment-service"
- owner = "platform-team"
- sustainability-reviewed = "2026-01-15"
- }
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+  tags = {
+    environment             = "production"
+    workload                = "payment-service"
+    owner                   = "platform-team"
+    sustainability-reviewed = "2026-01-15"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "m4.large"
- tags = {
- Name = "payment-app"
- # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
- # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
- }
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "m4.large"
+  tags = {
+    Name = "payment-app"
+    # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
+    # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
+  }
 }
 ----
 |===
@@ -142,19 +142,19 @@ resource "aws_instance" "app" {
 ----
 # Compliant: AWS Config Rule für Log-Retention-Prüfung (Sustainability-Governance)
 resource "aws_config_config_rule" "log_retention" {
- name = "cloudwatch-log-group-retention-period-check"
- description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
+  name        = "cloudwatch-log-group-retention-period-check"
+  description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
 
- source {
- owner = "AWS"
- source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
- }
- input_parameters = jsonencode({ MinRetentionTime = "14" })
+  source {
+    owner             = "AWS"
+    source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
+  }
+  input_parameters = jsonencode({ MinRetentionTime = "14" })
 
- tags = {
- purpose = "sustainability-governance"
- control = "WAF-SUS-100"
- }
+  tags = {
+    purpose = "sustainability-governance"
+    control = "WAF-SUS-100"
+  }
 }
 ----
 
@@ -164,26 +164,24 @@ resource "aws_config_config_rule" "log_retention" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Sustainability Debt Register (versioniert) mit WAF-SUS-Control-Gaps, Owner, Carbon Impact, Zieldatum.
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Quarterly Review Meeting-Protokolle mit Fortschrittsverfolgung (Items geschlossen, neu, Gesamtstatus).
 
-|* Governance*
+|*Governance*
 |Optional
 |ESG/Annual-Report-Sektion zum Sustainability-Governance-Prozess und aktiven Debt-Register.
 
-|* Process*
+|*Process*
 |Optional
 |Engineering-Backlog-Nachweis (Epics/Stories) für Sustainability-Debt-Items in Sprint-Planning.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -256,13 +254,4 @@ resource "aws_config_config_rule" "log_retention" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
-* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
-* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
-
-== Best Practice
-
-* xref:best-practices/bp-esg-reporting.adoc[ESG-Reporting automatisieren & Sustainability-Governance →]

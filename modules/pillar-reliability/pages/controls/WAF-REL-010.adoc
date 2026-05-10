@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Documented and monitored Service Level Objectives as the foundation of all reliability measures.
 
 [.metadata]
-*Pillar:* Reliability |*Severity:* Critical |*Category:* Reliability Governance |*Automatable:* Medium
+*Pillar:* Reliability | *Severity:* Critical | *Category:* Reliability Governance | *Automatable:* Medium
 
 == Description
 
@@ -33,16 +33,16 @@ political pressure – not a sustainable approach.
 |===
 |Risk |Description
 
-|* Unmeasurable Degradation*
+|*Unmeasurable Degradation*
 |Without an SLO it is unclear when a system is considered degraded; incidents are detected too late.
 
-|* Missing Error Budget*
+|*Missing Error Budget*
 |Without an error budget the operational framework for velocity-vs-stability decisions is absent.
 
-|* SLA Without Foundation*
+|*SLA Without Foundation*
 |External SLAs not based on measured SLOs are promises without evidence.
 
-|* No Escalation Thresholds*
+|*No Escalation Thresholds*
 |On-call teams cannot consistently classify severity without defined thresholds.
 
 |===
@@ -108,37 +108,37 @@ Every production workload MUST:
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
- "slo_error_rate" {
- alarm_name = "slo-payment-svc"
- comparison_operator =
- "GreaterThanThreshold"
- evaluation_periods = 5
- metric_name = "5XXError"
- namespace = "AWS/ApiGateway"
- period = 60
- statistic = "Sum"
- threshold = 10
- alarm_actions =
- [aws_sns_topic.oncall.arn]
- ok_actions =
- [aws_sns_topic.oncall.arn]
+    "slo_error_rate" {
+  alarm_name          = "slo-payment-svc"
+  comparison_operator =
+    "GreaterThanThreshold"
+  evaluation_periods  = 5
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApiGateway"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_actions =
+    [aws_sns_topic.oncall.arn]
+  ok_actions =
+    [aws_sns_topic.oncall.arn]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
- "errors" {
- alarm_name = "errors"
- comparison_operator =
- "GreaterThanThreshold"
- evaluation_periods = 1
- metric_name = "Errors"
- namespace = "AWS/Lambda"
- period = 300
- statistic = "Sum"
- threshold = 100
- # No alarm_actions –
- # alert fires silently
+    "errors" {
+  alarm_name          = "errors"
+  comparison_operator =
+    "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 100
+  # No alarm_actions –
+  # alert fires silently
 }
 ----
 |===
@@ -152,19 +152,19 @@ the on-call system (PagerDuty/OpsGenie).
 |===
 |Type |Required |Description
 
-|* Governance*
+|*Governance*
 |✅ Required
 |SLO document per workload (versioned): availability, latency, error rate, measurement window.
 
-|* Config*
+|*Config*
 |✅ Required
 |Monitoring dashboard with SLO compliance and error budget burn rate in real time.
 
-|* Governance*
+|*Governance*
 |Optional
 |SLA contract with reference to SLO document and escalation clauses.
 
-|* Process*
+|*Process*
 |Optional
 |Quarterly SLO review minutes with history of adjustments.
 
@@ -176,8 +176,6 @@ the on-call system (PagerDuty/OpsGenie).
 * xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbook Readiness]
 * xref:controls/WAF-REL-100.adoc[WAF-REL-100 – Reliability Debt Register]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -250,27 +248,4 @@ the on-call system (PagerDuty/OpsGenie).
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
-* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbook Readiness]
-* xref:controls/WAF-REL-100.adoc[WAF-REL-100 – Reliability Debt Register]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* ISO/IEC 27001:2022* | A.17.1 – Information security continuity; A.17.2 – Redundancies
-|* ITIL 4* | Service Level Management; Service Continuity Management
-|* AWS Well-Architected Framework* | REL 1 – Manage service quotas and constraints; REL 10 – Use fault isolation to protect your workload
-|* SRE Book (Google)* | Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating Toil; id: waf-rel-010.tf.aws.cloudwatch-slo-alarm; aws_cloudwatch_metric_alarm; id: waf-rel-010.tf.azurerm.monitor-metric-alert-slo; azurerm_monitor_metric_alert; id: waf-rel-010.tf.google.monitoring-alert-policy-slo; google_monitoring_alert_policy
-
-|===
-
 == Best Practice
-
-* xref:best-practices/bp-slo-definition.adoc[Defining and Measuring SLOs & SLAs →]

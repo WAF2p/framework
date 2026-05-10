@@ -8,7 +8,7 @@
 :description: WAF++ Security – Netzwerksegmentierung und Security-Group-Härtung: Keine öffentlichen IPs auf internen Ressourcen, kein SSH/RDP offen zum Internet.
 
 [.metadata]
-*Pillar:* Security |*Severity:* High |*Kategorie:* Netzwerksicherheit |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Kategorie:* Netzwerksicherheit | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -108,23 +108,23 @@ und Command-and-Control-Kommunikation, selbst wenn der Ingress gesperrt ist.
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t3.medium"
- subnet_id = aws_subnet.private.id
- associate_public_ip_address = false
- vpc_security_group_ids = [aws_security_group.app.id]
- tags = { Name = "app-server" }
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.private.id
+  associate_public_ip_address = false
+  vpc_security_group_ids      = [aws_security_group.app.id]
+  tags = { Name = "app-server" }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t3.medium"
- subnet_id = aws_subnet.public.id
- associate_public_ip_address = true
- # WAF-SEC-050 Violation: öffentliche IP
- vpc_security_group_ids = [aws_security_group.app.id]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.public.id
+  associate_public_ip_address = true
+  # WAF-SEC-050 Violation: öffentliche IP
+  vpc_security_group_ids      = [aws_security_group.app.id]
 }
 ----
 |===
@@ -143,30 +143,30 @@ resource "aws_instance" "app" {
 a|[source,hcl]
 ----
 resource "aws_security_group" "app" {
- name = "app-server-sg"
- vpc_id = aws_vpc.main.id
- # Kein SSH-Ingress – SSM Session Manager verwenden
- egress {
- from_port = 443
- to_port = 443
- protocol = "tcp"
- cidr_blocks = ["0.0.0.0/0"]
- description = "HTTPS outbound for AWS API calls"
- }
+  name   = "app-server-sg"
+  vpc_id = aws_vpc.main.id
+  # Kein SSH-Ingress – SSM Session Manager verwenden
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS outbound for AWS API calls"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_security_group" "bad" {
- name = "app-server-sg"
- vpc_id = aws_vpc.main.id
- ingress {
- from_port = 22
- to_port = 22
- protocol = "tcp"
- cidr_blocks = ["0.0.0.0/0"]
- # WAF-SEC-050 Violation: SSH offen zum Internet
- }
+  name   = "app-server-sg"
+  vpc_id = aws_vpc.main.id
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    # WAF-SEC-050 Violation: SSH offen zum Internet
+  }
 }
 ----
 |===
@@ -198,8 +198,6 @@ NOTE: WAF-SOV-090 adressiert darüber hinaus Netzwerksouveränitätsaspekte und 
 |AWS Config Rule `restricted-ssh` Compliance-Report ohne Security Groups mit offenem SSH-Zugang.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -284,11 +282,4 @@ NOTE: WAF-SOV-090 adressiert darüber hinaus Netzwerksouveränitätsaspekte und 
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-040.adoc[WAF-SEC-040 – Encryption in Transit – TLS Enforcement]
-
 == Best Practice
-
-* xref:../best-practices/bp-network-security.adoc[Netzwerksicherheits-Best-Practice →]

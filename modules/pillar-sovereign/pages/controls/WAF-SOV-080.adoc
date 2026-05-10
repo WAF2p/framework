@@ -8,7 +8,7 @@
 :description: WAF++ Sovereign – Maintain a complete inventory of all dependencies and subprocessors; pin Terraform provider versions and module sources; ensure DPA for all data processors.
 
 [.metadata]
-*Pillar:* Sovereign |*Severity:* 🟡 Medium |*Category:* Supply Chain |*Automatable:* Medium
+*Pillar:* Sovereign | *Severity:* 🟡 Medium | *Category:* Supply Chain | *Automatable:* Medium
 
 == Description
 
@@ -33,19 +33,19 @@ awareness is the prerequisite for supply chain control.
 |===
 |Risk |Description
 
-|* SaaS tool outside approved jurisdiction*
+|*SaaS tool outside approved jurisdiction*
 |Monitoring, ticketing, or CI/CD tool processes sovereign data outside the approved region.
 
-|* Unpinned Terraform provider*
+|*Unpinned Terraform provider*
 |Unpinned provider version is silently updated to a version with breaking changes or changed behavior.
 
-|* Unreviewed Terraform module*
+|*Unreviewed Terraform module*
 |Terraform module from an unknown author with malicious resource configurations.
 
-|* Subprocessor without DPA*
+|*Subprocessor without DPA*
 |New subprocessor added without a GDPR Art. 28-compliant DPA.
 
-|* CI/CD as unrecognized subprocessor*
+|*CI/CD as unrecognized subprocessor*
 |CI/CD platform (GitHub, GitLab, CircleCI) with production access not listed as a subprocessor.
 
 |===
@@ -56,22 +56,22 @@ awareness is the prerequisite for supply chain control.
 |===
 |Framework |Controls
 
-|* GDPR*
+|*GDPR*
 |Art. 28 – Data processors; Art. 30 – Records of processing activities; Art. 44–46 – Transfers to third countries
 
-|* BSI C5:2020*
+|*BSI C5:2020*
 |SCA-01 – Supply chain management; OPS-04 – Data management
 
-|* EUCS (ENISA)*
+|*EUCS (ENISA)*
 |SCA-01 – Supply chain; IAM-04 – Third-party access
 
-|* ISO 27001:2022*
+|*ISO 27001:2022*
 |A.5.19 – Information security in supplier relationships; A.5.20 – Information security in supplier agreements; A.5.21 – Information security in the ICT supply chain
 
-|* SLSA*
+|*SLSA*
 |L2 – Build integrity; L3 – Source integrity
 
-|* BSI C3A:2026*
+|*BSI C3A:2026*
 |Dimension 6 – Supply Chain: Software inventory (SBoM); Dimension 6 – Supply Chain: Hardware inventory; Dimension 6 – Supply Chain: External service dependencies
 
 |===
@@ -137,29 +137,29 @@ awareness is the prerequisite for supply chain control.
 a|[source,hcl]
 ----
 terraform {
- required_version = ">= 1.6.0"
- required_providers {
- aws = {
- source = "hashicorp/aws"
- version = "~> 5.40"
- }
- azurerm = {
- source = "hashicorp/azurerm"
- version = "~> 3.100"
- }
- }
+  required_version = ">= 1.6.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.40"
+    }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.100"
+    }
+  }
 }
 ----
 a|[source,hcl]
 ----
 terraform {
- required_providers {
- aws = {
- source = "hashicorp/aws"
- # ❌ No version constraint –
- # any version accepted
- }
- }
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      # ❌ No version constraint –
+      #    any version accepted
+    }
+  }
 }
 ----
 |===
@@ -176,14 +176,14 @@ terraform {
 a|[source,hcl]
 ----
 terraform {
- required_version = ">= 1.6.0, < 2.0.0"
+  required_version = ">= 1.6.0, < 2.0.0"
 }
 ----
 a|[source,hcl]
 ----
 terraform {
- # ❌ No required_version –
- # any Terraform version accepted
+  # ❌ No required_version –
+  #    any Terraform version accepted
 }
 ----
 |===
@@ -200,25 +200,25 @@ terraform {
 a|[source,hcl]
 ----
 module "vpc" {
- source = "terraform-aws-modules/vpc/aws"
- version = "5.5.3" # ✅ Pinned version
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"  # ✅ Pinned version
 }
 
 module "internal" {
- source = "git::https://git.example.com/modules/vpc.git?ref=v2.1.0"
- # ✅ Git tag instead of branch reference
+  source = "git::https://git.example.com/modules/vpc.git?ref=v2.1.0"
+  # ✅ Git tag instead of branch reference
 }
 ----
 a|[source,hcl]
 ----
 module "vpc" {
- source = "terraform-aws-modules/vpc/aws"
- # ❌ No version – latest version
+  source = "terraform-aws-modules/vpc/aws"
+  # ❌ No version – latest version
 }
 
 module "internal" {
- source = "git::https://git.example.com/modules/vpc.git?ref=main"
- # ❌ Mutable branch reference
+  source = "git::https://git.example.com/modules/vpc.git?ref=main"
+  # ❌ Mutable branch reference
 }
 ----
 |===
@@ -232,14 +232,14 @@ module "internal" {
 ----
 # Non-Compliant: Unauthorized public GitHub repository
 module "custom" {
- source = "github.com/unknown-user/terraform-aws-module.git"
- # ⚠️ Unapproved public repository without registry validation
+  source = "github.com/unknown-user/terraform-aws-module.git"
+  # ⚠️ Unapproved public repository without registry validation
 }
 
 # Compliant: Official Terraform Registry
 module "vpc" {
- source = "terraform-aws-modules/vpc/aws"
- version = "5.5.3"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"
 }
 ----
 
@@ -249,19 +249,19 @@ module "vpc" {
 |===
 |Type |Required |Description
 
-|* Governance*
+|*Governance*
 |✅ Required
 |Dependency/subprocessor register (versioned; covering all external services with data flows).
 
-|* IaC*
+|*IaC*
 |✅ Required
 |Terraform `required_providers` with pinned version constraints and committed lock file.
 
-|* Process*
+|*Process*
 |Optional
 |Quarterly review records of the subprocessor inventory.
 
-|* Governance*
+|*Governance*
 |Optional
 |DPA agreement reference list for all data-processing subprocessors.
 
@@ -273,8 +273,6 @@ module "vpc" {
 * xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
 * xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -350,29 +348,4 @@ module "vpc" {
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
-* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
-* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* GDPR* | Art. 28 – Processor; Art. 30 – Records of processing activities; Art. 44-46 – Transfers to third countries
-|* BSI C5:2020* | SCA-01 – Supply chain management; OPS-04 – Data management
-|* BSI C3A:2026* | Dimension 6 – Supply Chain: Software inventory (SBoM); Dimension 6 – Supply Chain: Hardware inventory; Dimension 6 – Supply Chain: External service dependencies
-|* EUCS (ENISA)* | SCA-01 – Supply chain; IAM-04 – Third-party access
-|* ISO 27001:2022* | A.5.19 – Information security in supplier relationships; A.5.20 – Addressing information security in supplier agreements; A.5.21 – Managing information security in the ICT supply chain
-|* SLSA* | L2 – Build integrity; L3 – Source integrity; id: waf-sov-080.tf.any.required-providers-version-pinned; id: waf-sov-080.tf.any.required-terraform-version; id: waf-sov-080.tf.any.module-source-version-pinned; id: waf-sov-080.tf.any.no-untrusted-registry-modules
-
-|===
-
 == Best Practice
-
-* xref:best-practices/bp-supply-chain.adoc[Implement Supply Chain Governance →]

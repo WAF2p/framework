@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – EBS gp3, Storage-Typen und I/O-Monitoring für Produktionssysteme konfigurieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Storage Performance |*Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Storage Performance | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -35,13 +35,13 @@ Für Datenbanken ist der richtige Disk-Typ oft wichtiger als der Instanztyp.
 |*gp2 Burst-Erschöpfung*
 |gp2-Volumes akkumulieren I/O-Credits und verlieren sie bei anhaltender Last → plötzlicher Performance-Einbruch.
 
-|* I/O-Sättigung*
+|*I/O-Sättigung*
 |Zu wenige IOPS für Workload → Query-Latenz steigt bei normaler CPU/Network → schwer zu diagnostizieren.
 
-|* Falscher Disk-Typ*
+|*Falscher Disk-Typ*
 |Standard-HDD (pd-standard, Standard_LRS) für Datenbankvolumes → 10x höhere Latenz als SSD.
 
-|* Snapshot-I/O-Interferenz*
+|*Snapshot-I/O-Interferenz*
 |Backup-Snapshots auf gleichem Volume wie Produktions-Daten → I/O-Spikes während Backup-Fenster.
 
 |===
@@ -103,22 +103,22 @@ Für Datenbanken ist der richtige Disk-Typ oft wichtiger als der Instanztyp.
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
- availability_zone = "eu-west-1a"
- size = 100
- type = "gp3"
- iops = 6000 # Explizit > Default 3000
- throughput = 250 # Explizit > Default 125 MB/s
- encrypted = true
+  availability_zone = "eu-west-1a"
+  size              = 100
+  type              = "gp3"
+  iops              = 6000    # Explizit > Default 3000
+  throughput        = 250     # Explizit > Default 125 MB/s
+  encrypted         = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
- availability_zone = "eu-west-1a"
- size = 100
- type = "gp2"
- # Burst-basiert – WAF-PERF-090
- # Violation
+  availability_zone = "eu-west-1a"
+  size              = 100
+  type              = "gp2"
+  # Burst-basiert – WAF-PERF-090
+  # Violation
 }
 ----
 |===
@@ -132,26 +132,24 @@ gp3 bietet gleiche oder bessere Performance bei 20% niedrigerem Preis als gp2.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit explizitem Storage-Typ, IOPS und Throughput.
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Monitoring-Konfiguration für I/O-Alerts (Queue-Depth, Throughput, Burst-Balance).
 
-|* Process*
+|*Process*
 |Optional
 |Storage-I/O-Baseline (P95/P99 Queue-Depth und Throughput-Auslastung).
 
-|* Governance*
+|*Governance*
 |Optional
 |Storage-Tier-Richtlinien nach Workload-Typ.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -239,9 +237,4 @@ gp3 bietet gleiche oder bessere Performance bei 20% niedrigerem Preis als gp2.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline & Index Strategy]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]

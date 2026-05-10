@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Serverlose Architekturen für variable Last einsetzen und korrekt konfigurieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* Low |*Kategorie:* Compute Architecture |*Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency | *Severity:* Low | *Kategorie:* Compute Architecture | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ schnellere Ausführung. Falsch konfigurierter Serverless-Code hat unvorhersehbar
 |===
 |Risiko |Beschreibung
 
-|* Cold-Start-Latenz*
+|*Cold-Start-Latenz*
 |Erste Anfrage nach Idle-Phase ist 1–10x langsamer → SLO-Verletzung für erste Nutzer.
 
-|* Unter-Memory = langsamere Ausführung*
+|*Unter-Memory = langsamere Ausführung*
 |Lambda CPU ist proportional zu Memory; 256MB = 2x CPU-Credits vs 128MB.
 
-|* Unkontrollierte Concurrency*
+|*Unkontrollierte Concurrency*
 |Keine Reserved Concurrency → eine Funktion verbraucht alle Account-Concurrency-Credits.
 
-|* Timeout-Misconfiguration*
+|*Timeout-Misconfiguration*
 |Default 3s-Timeout zu kurz → Silent Failures; 15min-Timeout zu lang → Zombie-Executions.
 
 |===
@@ -104,22 +104,22 @@ schnellere Ausführung. Falsch konfigurierter Serverless-Code hat unvorhersehbar
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "processor" {
- function_name = "payment-processor"
- runtime = "python3.12"
- memory_size = 512 # Aus Power Tuning
- timeout = 30 # 2x P99 = 15s
- reserved_concurrent_executions = 100
+  function_name = "payment-processor"
+  runtime       = "python3.12"
+  memory_size   = 512    # Aus Power Tuning
+  timeout       = 30     # 2x P99 = 15s
+  reserved_concurrent_executions = 100
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "processor" {
- function_name = "payment-processor"
- runtime = "python3.12"
- # memory_size default 128MB
- # timeout default 3s
- # Keine reserved_concurrent_executions
- # WAF-PERF-080 Violation
+  function_name = "payment-processor"
+  runtime       = "python3.12"
+  # memory_size default 128MB
+  # timeout default 3s
+  # Keine reserved_concurrent_executions
+  # WAF-PERF-080 Violation
 }
 ----
 |===
@@ -133,26 +133,24 @@ Lambda Power Tuning ausführen: https://github.com/alexcasalboni/aws-lambda-powe
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Lambda-/Function-Konfiguration mit explizitem Memory, Timeout, Concurrency.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Dokumentation der Serverless-Adoption-Entscheidung für variable Workloads.
 
-|* Config*
+|*Config*
 |Optional
 |Lambda Power Tuning-Ergebnisse oder Memory-Optimierungsanalyse.
 
-|* Process*
+|*Process*
 |Optional
 |Kostenvergleich Serverless vs. EC2/Container für Spike-Workloads.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -240,13 +238,4 @@ Lambda Power Tuning ausführen: https://github.com/alexcasalboni/aws-lambda-powe
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-
-== Best Practice
-
-* xref:../best-practices/bp-autoscaling.adoc[Auto-Scaling & Serverless →]

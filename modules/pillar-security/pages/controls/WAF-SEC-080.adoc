@@ -8,7 +8,7 @@
 :description: WAF++ Security – Zentralisiertes Security Monitoring mit CloudTrail, GuardDuty und Security Hub.
 
 [.metadata]
-*Pillar:* Security |*Severity:* High |*Kategorie:* Monitoring |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Kategorie:* Monitoring | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -105,22 +105,22 @@ Muster, die regelbasierte Systeme verpassen – Cryptomining, Credential-Exfiltr
 a|[source,hcl]
 ----
 resource "aws_cloudtrail" "main" {
- name = "prod-cloudtrail"
- s3_bucket_name = aws_s3_bucket.cloudtrail.id
- is_multi_region_trail = true
- enable_log_file_validation = true
- include_global_service_events = true
- kms_key_id = aws_kms_key.cloudtrail.arn
+  name                          = "prod-cloudtrail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+  is_multi_region_trail         = true
+  enable_log_file_validation    = true
+  include_global_service_events = true
+  kms_key_id                    = aws_kms_key.cloudtrail.arn
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudtrail" "main" {
- name = "prod-cloudtrail"
- s3_bucket_name = aws_s3_bucket.cloudtrail.id
- # is_multi_region_trail fehlt (default: false)
- # enable_log_file_validation fehlt
- # WAF-SEC-080 Violation
+  name           = "prod-cloudtrail"
+  s3_bucket_name = aws_s3_bucket.cloudtrail.id
+  # is_multi_region_trail fehlt (default: false)
+  # enable_log_file_validation fehlt
+  # WAF-SEC-080 Violation
 }
 ----
 |===
@@ -139,20 +139,20 @@ resource "aws_cloudtrail" "main" {
 a|[source,hcl]
 ----
 resource "aws_guardduty_detector" "main" {
- enable = true
- datasources {
- s3_logs { enable = true }
- kubernetes {
- audit_logs { enable = true }
- }
- }
+  enable = true
+  datasources {
+    s3_logs { enable = true }
+    kubernetes {
+      audit_logs { enable = true }
+    }
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_guardduty_detector" "main" {
- enable = false
- # WAF-SEC-080 Violation: GuardDuty deaktiviert
+  enable = false
+  # WAF-SEC-080 Violation: GuardDuty deaktiviert
 }
 ----
 |===
@@ -267,7 +267,6 @@ resource "aws_guardduty_detector" "main" {
 |Operational measures – Access control
 
 |===
-
 
 == Verwandte Controls
 

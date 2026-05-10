@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – SLOs definieren, SLIs instrumentieren und Error-Budget-Management etablieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* High |*Kategorie:* Observability |*Automatisierbar:* Mittel–Hoch
+*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Mittel–Hoch
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ Alerting auf Durchschnittswerte maskiert Tail-Latenz-Probleme, die 1% der Nutzer
 |===
 |Risiko |Beschreibung
 
-|* Graduelle Degradation unbemerkt*
+|*Graduelle Degradation unbemerkt*
 |Ohne P99-Monitoring können Services über Wochen langsamer werden ohne dass es auffällt.
 
-|* SLA-Verletzungen*
+|*SLA-Verletzungen*
 |Externe SLAs können nicht nachgewiesen oder überwacht werden ohne interne SLOs.
 
-|* Tail-Latenz maskiert*
+|*Tail-Latenz maskiert*
 |P50 avg = 50ms, P99 = 5000ms: Durchschnitt sieht gut aus, 1% der Nutzer leiden.
 
-|* Fehlende Deployment-Entscheidungsgrundlage*
+|*Fehlende Deployment-Entscheidungsgrundlage*
 |Ohne Error-Budget kein objektives Kriterium für "wann pausieren wir Features".
 
 |===
@@ -103,24 +103,24 @@ Alerting auf Durchschnittswerte maskiert Tail-Latenz-Probleme, die 1% der Nutzer
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "p99" {
- alarm_name = "payment-api-p99"
- alarm_description = "P99 > 500ms. Runbook: https://wiki/perf"
- metric_name = "TargetResponseTime"
- statistic = "p99"
- threshold = 0.5
- evaluation_periods = 3
- alarm_actions = [aws_sns_topic.alerts.arn]
+  alarm_name         = "payment-api-p99"
+  alarm_description  = "P99 > 500ms. Runbook: https://wiki/perf"
+  metric_name        = "TargetResponseTime"
+  statistic          = "p99"
+  threshold          = 0.5
+  evaluation_periods = 3
+  alarm_actions      = [aws_sns_topic.alerts.arn]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "latency" {
- alarm_name = "latency"
- statistic = "Average" # Avg statt p99
- threshold = 1.0
- evaluation_periods = 1
- # Keine alarm_actions
- # WAF-PERF-050 Violation
+  alarm_name = "latency"
+  statistic  = "Average"  # Avg statt p99
+  threshold  = 1.0
+  evaluation_periods = 1
+  # Keine alarm_actions
+  # WAF-PERF-050 Violation
 }
 ----
 |===
@@ -134,26 +134,24 @@ resource "aws_cloudwatch_metric_alarm" "latency" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |SLO-Dokument für alle Produktions-Services (SLI, SLO-Ziel, Error-Budget-Policy).
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Monitoring-/APM-Konfiguration mit SLI-Instrumentierung und SLO-Alerting.
 
-|* Config*
+|*Config*
 |Optional
 |SLO-Compliance-Dashboard mit historischen Trends.
 
-|* Process*
+|*Process*
 |Optional
 |Quarterly-SLO-Review-Meeting-Protokoll.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -241,14 +239,4 @@ resource "aws_cloudwatch_metric_alarm" "latency" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
-* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
-
-== Best Practice
-
-* xref:../best-practices/bp-observability.adoc[Performance-Observability & SLOs →]

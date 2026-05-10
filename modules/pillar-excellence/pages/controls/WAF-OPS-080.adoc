@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Produktions-Deployments müssen Progressive Delivery nutzen (Canary, Blue/Green, Feature Flags). Rollback in < 5 Minuten ohne neues Deployment.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Deployment-Sicherheit |*Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Deployment-Sicherheit | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ ohne Deployment-Zyklus.
 |===
 |Risiko |Beschreibung
 
-|* Voller Blast Radius*
+|*Voller Blast Radius*
 |Big-Bang-Deployment: fehlerhafter Release trifft 100% der Nutzer gleichzeitig.
 
-|* Langsamer Rollback*
+|*Langsamer Rollback*
 |Ohne Progressive Delivery erfordert Rollback einen neuen Deployment-Zyklus (10–20 Minuten).
 
-|* Nicht abbrechbare Launches*
+|*Nicht abbrechbare Launches*
 |Features ohne Flag können nicht sofort deaktiviert werden wenn negative Metriken auftreten.
 
-|* Irreversible Deployments*
+|*Irreversible Deployments*
 |Datenbankmigrationen ohne Canary machen Deployments praktisch unumkehrbar.
 
 |===
@@ -100,23 +100,23 @@ ohne Deployment-Zyklus.
 a|[source,hcl]
 ----
 resource "aws_codedeploy_deployment_group" "production" {
- app_name = aws_codedeploy_app.app.name
- deployment_group_name = "payment-service-production"
- service_role_arn = aws_iam_role.codedeploy.arn
- deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
- auto_rollback_configuration {
- enabled = true
- events = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
- }
+  app_name              = aws_codedeploy_app.app.name
+  deployment_group_name = "payment-service-production"
+  service_role_arn      = aws_iam_role.codedeploy.arn
+  deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+  auto_rollback_configuration {
+    enabled = true
+    events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_codedeploy_deployment_group" "production" {
- deployment_config_name = "CodeDeployDefault.AllAtOnce"
- # AllAtOnce = 100% Blast Radius
- # Kein Auto-Rollback
- # WAF-OPS-080 Violation
+  deployment_config_name = "CodeDeployDefault.AllAtOnce"
+  # AllAtOnce = 100% Blast Radius
+  # Kein Auto-Rollback
+  # WAF-OPS-080 Violation
 }
 ----
 
@@ -129,12 +129,12 @@ resource "aws_codedeploy_deployment_group" "production" {
 ----
 # Compliant
 resource "aws_appconfig_application" "feature_flags" {
- name = "payment-service-feature-flags"
- description = "Feature flags for payment service"
+  name        = "payment-service-feature-flags"
+  description = "Feature flags for payment service"
 }
 resource "aws_appconfig_environment" "production" {
- name = "production"
- application_id = aws_appconfig_application.feature_flags.id
+  name           = "production"
+  application_id = aws_appconfig_application.feature_flags.id
 }
 ----
 
@@ -147,26 +147,24 @@ resource "aws_appconfig_environment" "production" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Load-Balancer oder Deployment-Konfiguration mit Progressive-Delivery-Pattern.
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Feature-Flag-Service-Konfiguration (AppConfig, LaunchDarkly, etc.).
 
-|* Process*
+|*Process*
 |Optional
 |Deployment-Runbook mit Canary-Promotion und Rollback-Entscheidungskriterien.
 
-|* Config*
+|*Config*
 |Optional
 |Auto-Rollback-Alarm-Konfiguration mit Schwellenwerten für Deployment-Abbruch.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -242,13 +240,4 @@ resource "aws_appconfig_environment" "production" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
-* xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
-* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
-
-== Best Practice
-
-* xref:best-practices/bp-deployment-safety.adoc[Sichere Deployments (Feature Flags, Canary, Blue/Green) →]

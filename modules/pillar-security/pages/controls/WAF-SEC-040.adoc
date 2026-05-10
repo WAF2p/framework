@@ -8,7 +8,7 @@
 :description: WAF++ Security – TLS-Durchsetzung für alle Datenübertragungen: Load Balancer, Datenbanken und Suchdienste müssen HTTPS erzwingen.
 
 [.metadata]
-*Pillar:* Security |*Severity:* High |*Kategorie:* Encryption |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Kategorie:* Encryption | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -109,44 +109,44 @@ a|[source,hcl]
 ----
 # HTTP-Redirect-Listener
 resource "aws_lb_listener" "http" {
- load_balancer_arn = aws_lb.app.arn
- port = 80
- protocol = "HTTP"
- default_action {
- type = "redirect"
- redirect {
- port = "443"
- protocol = "HTTPS"
- status_code = "HTTP_301"
- }
- }
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = "HTTP"
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
 }
 
 # HTTPS-Listener
 resource "aws_lb_listener" "https" {
- load_balancer_arn = aws_lb.app.arn
- port = 443
- protocol = "HTTPS"
- ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06"
- certificate_arn = aws_acm_certificate.app.arn
- default_action {
- type = "forward"
- target_group_arn = aws_lb_target_group.app.arn
- }
+  load_balancer_arn = aws_lb.app.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.app.arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lb_listener" "http" {
- load_balancer_arn = aws_lb.app.arn
- port = 80
- protocol = "HTTP"
- default_action {
- type = "forward"
- target_group_arn = aws_lb_target_group.app.arn
- # Kein Redirect zu HTTPS
- # WAF-SEC-040 Violation
- }
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+    # Kein Redirect zu HTTPS
+    # WAF-SEC-040 Violation
+  }
 }
 ----
 |===
@@ -165,26 +165,26 @@ resource "aws_lb_listener" "http" {
 a|[source,hcl]
 ----
 resource "aws_opensearch_domain" "app" {
- domain_name = "app-search"
- engine_version = "OpenSearch_2.11"
+  domain_name    = "app-search"
+  engine_version = "OpenSearch_2.11"
 
- domain_endpoint_options {
- enforce_https = true
- tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
- }
+  domain_endpoint_options {
+    enforce_https       = true
+    tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_opensearch_domain" "app" {
- domain_name = "app-search"
- engine_version = "OpenSearch_2.11"
+  domain_name    = "app-search"
+  engine_version = "OpenSearch_2.11"
 
- domain_endpoint_options {
- enforce_https = false # WAF-SEC-040 Violation
- tls_security_policy = "Policy-Min-TLS-1-0-2020-07"
- # TLS 1.0 als Minimum – WAF-SEC-040 Violation
- }
+  domain_endpoint_options {
+    enforce_https       = false  # WAF-SEC-040 Violation
+    tls_security_policy = "Policy-Min-TLS-1-0-2020-07"
+    # TLS 1.0 als Minimum – WAF-SEC-040 Violation
+  }
 }
 ----
 |===
@@ -214,8 +214,6 @@ resource "aws_opensearch_domain" "app" {
 |TLS-Scan-Report (z. B. SSL Labs oder testssl.sh) für alle externen Endpunkte mit Bewertung ≥ A.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -300,12 +298,4 @@ resource "aws_opensearch_domain" "app" {
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
-* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050 – Network Segmentation & Security Group Hardening]
-
 == Best Practice
-
-* xref:../best-practices/bp-encryption.adoc[Verschlüsselungs-Best-Practice →]

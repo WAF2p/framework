@@ -8,7 +8,7 @@
 :description: WAF++ Security – Container-Sicherheit: Non-Root-Ausführung, kein Privileged Mode, EKS-Secrets-Verschlüsselung, Resource-Limits.
 
 [.metadata]
-*Pillar:* Security |*Severity:* High |*Kategorie:* Container |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Kategorie:* Container | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -107,33 +107,33 @@ einen Denial-of-Service verursacht.
 a|[source,hcl]
 ----
 resource "aws_kms_key" "eks" {
- description = "EKS secrets encryption CMK"
- enable_key_rotation = true
+  description         = "EKS secrets encryption CMK"
+  enable_key_rotation = true
 }
 
 resource "aws_eks_cluster" "main" {
- name = "prod-cluster"
- role_arn = aws_iam_role.eks.arn
+  name     = "prod-cluster"
+  role_arn = aws_iam_role.eks.arn
 
- encryption_config {
- resources = ["secrets"]
- provider {
- key_arn = aws_kms_key.eks.arn
- }
- }
+  encryption_config {
+    resources = ["secrets"]
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+  }
 
- enabled_cluster_log_types = ["api", "audit", "authenticator"]
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_eks_cluster" "main" {
- name = "prod-cluster"
- role_arn = aws_iam_role.eks.arn
- # encryption_config fehlt
- # WAF-SEC-120 Violation: Secrets unverschlüsselt in etcd
- # enabled_cluster_log_types fehlt
- # WAF-SEC-120 Violation: kein Audit-Logging
+  name     = "prod-cluster"
+  role_arn = aws_iam_role.eks.arn
+  # encryption_config fehlt
+  # WAF-SEC-120 Violation: Secrets unverschlüsselt in etcd
+  # enabled_cluster_log_types fehlt
+  # WAF-SEC-120 Violation: kein Audit-Logging
 }
 ----
 |===
@@ -163,8 +163,6 @@ resource "aws_eks_cluster" "main" {
 |GuardDuty Runtime Monitoring Aktivierungs-Screenshot oder Falco-Deployment-Konfiguration.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -249,9 +247,4 @@ resource "aws_eks_cluster" "main" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SEC-050.adoc[WAF-SEC-050 – Network Segmentation & Security Group Hardening]
-* xref:controls/WAF-SEC-070.adoc[WAF-SEC-070 – Vulnerability & Patch Management]
-* xref:controls/WAF-SEC-110.adoc[WAF-SEC-110 – Supply Chain Security]

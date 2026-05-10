@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Runbooks für alle bekannten Fehlerfälle sind pflicht; alle paging Alerts müssen Runbook-URLs enthalten.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Dokumentation |*Automatisierbar:* Niedrig
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Dokumentation | *Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ Incidents 40–60% schneller.
 |===
 |Risiko |Beschreibung
 
-|* Wissenssilo*
+|*Wissenssilo*
 |Kritisches Betriebswissen in einzelnen Köpfen: Urlaub oder Kündigung → Betrieb gefährdet.
 
-|* Verlängerte MTTR*
+|*Verlängerte MTTR*
 |Ohne Runbook: Diagnose und Behebung auf Intuition – Stunden statt Minuten.
 
-|* Veraltete Informationen*
+|*Veraltete Informationen*
 |Runbooks die nicht aktualisiert werden: falsche Schritte können Incident verschlimmern.
 
-|* On-Call-Unfähigkeit*
+|*On-Call-Unfähigkeit*
 |Junior-Engineers können ohne Runbooks keine selbstständigen On-Call-Shifts übernehmen.
 
 |===
@@ -102,21 +102,21 @@ Incidents 40–60% schneller.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
- alarm_name = "payment-5xx-rate"
- alarm_description = "5xx Rate hoch. " +
- "Runbook: https://wiki/payment/5xx-errors"
- alarm_actions = [aws_sns_topic.oncall.arn]
- /* ... */
+  alarm_name    = "payment-5xx-rate"
+  alarm_description = "5xx Rate hoch. " +
+    "Runbook: https://wiki/payment/5xx-errors"
+  alarm_actions = [aws_sns_topic.oncall.arn]
+  /* ... */
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
- alarm_name = "payment-5xx-rate"
- alarm_description = "High error rate"
- # Kein Runbook-URL
- # WAF-OPS-060 Violation
- alarm_actions = [aws_sns_topic.oncall.arn]
+  alarm_name    = "payment-5xx-rate"
+  alarm_description = "High error rate"
+  # Kein Runbook-URL
+  # WAF-OPS-060 Violation
+  alarm_actions = [aws_sns_topic.oncall.arn]
 }
 ----
 
@@ -129,10 +129,10 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
 ----
 # Compliant
 - alert: HighErrorRate
- expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
- annotations:
- runbook_url: "https://wiki/runbooks/payment-errors"
- # WAF-OPS-060 compliant
+  expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
+  annotations:
+    runbook_url: "https://wiki/runbooks/payment-errors"
+    # WAF-OPS-060 compliant
 ----
 
 *Remediation:* `alarm_description` mit Runbook-URL versehen. Prometheus-Alerts
@@ -144,26 +144,24 @@ mit `runbook_url: "https://..."` Annotation erweitern.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Runbook-Repository mit Versionsverlauf und Letzte-Überprüfung-Datum.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Runbook-Coverage-Report: Anzahl Services mit Runbooks vs. Gesamt.
 
-|* Config*
+|*Config*
 |Optional
 |Alert-Konfiguration mit Runbook-URL-Annotation.
 
-|* Process*
+|*Process*
 |Optional
 |Quarterly-Review-Protokoll oder JIRA-Tickets für Runbook-Review-Aufgaben.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -239,13 +237,4 @@ mit `runbook_url: "https://..."` Annotation erweitern.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
-* xref:controls/WAF-OPS-100.adoc[WAF-OPS-100 – Operational Debt Register]
-
-== Best Practice
-
-* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen →]

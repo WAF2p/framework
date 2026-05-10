@@ -8,7 +8,7 @@
 :description: WAF++ Security – Secrets Management: Keine hartcodierten Credentials in IaC oder Code; alle Secrets in AWS Secrets Manager mit CMK-Verschlüsselung.
 
 [.metadata]
-*Pillar:* Security |*Severity:* Critical |*Kategorie:* Secrets |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* Critical | *Kategorie:* Secrets | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -108,23 +108,23 @@ feingranulare Zugriffssteuerung und einen einzigen Revokationspunkt im Kompromit
 a|[source,hcl]
 ----
 resource "aws_secretsmanager_secret" "db_password" {
- name = "prod/app/db-password"
- description = "RDS-Masterpasswort für Produktionsdatenbank"
- kms_key_id = aws_kms_key.secrets.arn
- recovery_window_in_days = 30
- tags = {
- owner = "platform-team"
- environment = "production"
- }
+  name                    = "prod/app/db-password"
+  description             = "RDS-Masterpasswort für Produktionsdatenbank"
+  kms_key_id              = aws_kms_key.secrets.arn
+  recovery_window_in_days = 30
+  tags = {
+    owner       = "platform-team"
+    environment = "production"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_secretsmanager_secret" "db_password" {
- # name fehlt – WAF-SEC-060 Violation
- recovery_window_in_days = 0
- # recovery_window = 0 – WAF-SEC-060 Violation
- # kms_key_id fehlt – WAF-SEC-060 Violation
+  # name fehlt             – WAF-SEC-060 Violation
+  recovery_window_in_days = 0
+  # recovery_window = 0   – WAF-SEC-060 Violation
+  # kms_key_id fehlt       – WAF-SEC-060 Violation
 }
 ----
 |===
@@ -143,22 +143,22 @@ resource "aws_secretsmanager_secret" "db_password" {
 a|[source,hcl]
 ----
 resource "aws_kms_key" "secrets" {
- description = "CMK für Secrets Manager"
- enable_key_rotation = true
+  description         = "CMK für Secrets Manager"
+  enable_key_rotation = true
 }
 
 resource "aws_secretsmanager_secret" "api_key" {
- name = "prod/app/external-api-key"
- kms_key_id = aws_kms_key.secrets.arn
+  name       = "prod/app/external-api-key"
+  kms_key_id = aws_kms_key.secrets.arn
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_secretsmanager_secret" "api_key" {
- name = "prod/app/external-api-key"
- # kms_key_id fehlt – Standard-AWS-Schlüssel
- # aws/secretsmanager wird verwendet
- # WAF-SEC-060 Violation: CMK erforderlich
+  name = "prod/app/external-api-key"
+  # kms_key_id fehlt – Standard-AWS-Schlüssel
+  # aws/secretsmanager wird verwendet
+  # WAF-SEC-060 Violation: CMK erforderlich
 }
 ----
 |===
@@ -188,8 +188,6 @@ resource "aws_secretsmanager_secret" "api_key" {
 |CloudTrail-Log-Sample mit `secretsmanager:GetSecretValue`-API-Aufrufen nur durch autorisierte IAM-Principals.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -274,12 +272,4 @@ resource "aws_secretsmanager_secret" "api_key" {
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010 – Identity & Access Management Baseline]
-* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
-
 == Best Practice
-
-* xref:../best-practices/bp-secrets.adoc[Secrets-Management-Best-Practice →]

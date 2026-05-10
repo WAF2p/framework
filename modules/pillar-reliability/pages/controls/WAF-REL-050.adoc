@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Circuit breakers, timeouts and retry logic against cascading failures.
 
 [.metadata]
-*Pillar:* Reliability |*Severity:* High |*Category:* Resilience Patterns |*Automatable:* High
+*Pillar:* Reliability | *Severity:* High | *Category:* Resilience Patterns | *Automatable:* High
 
 == Description
 
@@ -31,16 +31,16 @@ timeouts prevent resource threads from waiting forever on non-responding service
 |===
 |Risk |Description
 
-|* Thread Pool Exhaustion*
+|*Thread Pool Exhaustion*
 |Slow external API leaves all handler threads waiting → service completely blocked.
 
-|* Connection Pool Depletion*
+|*Connection Pool Depletion*
 |Shared DB connection pool is exhausted → all dependent services fail.
 
-|* Retry Storm*
+|*Retry Storm*
 |1000 clients retry synchronously without jitter → 1000x load spike on degraded service.
 
-|* Optional Dep Brings Down Main Service*
+|*Optional Dep Brings Down Main Service*
 |Non-critical enrichment API without circuit breaker → total failure instead of feature loss.
 
 |===
@@ -103,26 +103,26 @@ timeouts prevent resource threads from waiting forever on non-responding service
 a|[source,hcl]
 ----
 resource "aws_lb" "api" {
- name = "payment-api-alb"
- load_balancer_type = "application"
- security_groups =
- [aws_security_group.alb.id]
- subnets = var.public_subnet_ids
- idle_timeout = 30 # Explicitly set
- tags = var.mandatory_tags
+  name               = "payment-api-alb"
+  load_balancer_type = "application"
+  security_groups    =
+    [aws_security_group.alb.id]
+  subnets = var.public_subnet_ids
+  idle_timeout = 30  # Explicitly set
+  tags = var.mandatory_tags
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lb" "api" {
- name = "payment-api-alb"
- load_balancer_type = "application"
- security_groups =
- [aws_security_group.alb.id]
- subnets = var.public_subnet_ids
- # No idle_timeout –
- # AWS default 60s is used
- # WAF-REL-050 Violation
+  name               = "payment-api-alb"
+  load_balancer_type = "application"
+  security_groups    =
+    [aws_security_group.alb.id]
+  subnets = var.public_subnet_ids
+  # No idle_timeout –
+  # AWS default 60s is used
+  # WAF-REL-050 Violation
 }
 ----
 |===
@@ -135,15 +135,15 @@ resource "aws_lb" "api" {
 |===
 |Type |Required |Description
 
-|* IaC*
+|*IaC*
 |✅ Required
 |Terraform or service mesh configuration with timeout and circuit breaker settings.
 
-|* Config*
+|*Config*
 |✅ Required
 |Application configuration files with explicit timeout values for all dependencies.
 
-|* Process*
+|*Process*
 |Optional
 |Latency injection test results with circuit breaker activation documented.
 
@@ -155,8 +155,6 @@ resource "aws_lb" "api" {
 * xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]
 * xref:controls/WAF-REL-090.adoc[WAF-REL-090 – Chaos Engineering]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -229,27 +227,4 @@ resource "aws_lb" "api" {
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
-* xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]
-* xref:controls/WAF-REL-090.adoc[WAF-REL-090 – Chaos Engineering]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* AWS Well-Architected Framework* | REL 7 – Deploy using immutable infrastructure; REL 10 – Use fault isolation to protect your workload
-|* ISO/IEC 27001:2022* | A.17.1 – Information security continuity
-|* ITIL 4* | Service Continuity Management; Problem Management
-|* SRE Book (Google)* | Chapter 22 – Addressing Cascading Failures; id: waf-rel-050.tf.aws.alb-idle-timeout; aws_lb; id: waf-rel-050.tf.azurerm.app-gateway-timeout; azurerm_application_gateway; id: waf-rel-050.tf.google.cloud-run-timeout; google_cloud_run_service; google_cloud_run_v2_service
-
-|===
-
 == Best Practice
-
-* xref:best-practices/bp-circuit-breaker.adoc[Circuit Breaker, Timeouts & Bulkheads →]

@@ -8,7 +8,7 @@
 :description: WAF++ Cost Optimization – VPC Endpoints, kein Public IP auf internen Ressourcen, CDN für Public Assets, Egress-Budget-Alert.
 
 [.metadata]
-*Pillar:* Cost Optimization |*Severity:* High |*Kategorie:* Data Transfer |*Automatisierbar:* Mittel
+*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Data Transfer | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ aller Cloud-Optimierungsmaßnahmen: Einmaliger Implementierungsaufwand, permanen
 |===
 |Risiko |Beschreibung
 
-|* Unnötige Egress-Gebühren*
+|*Unnötige Egress-Gebühren*
 |S3/KMS-Traffic ohne VPC-Endpoint läuft über Internet-Gateway und erzeugt Egress-Kosten.
 
-|* Public IP auf internen Services*
+|*Public IP auf internen Services*
 |Interne App-Server mit Public IP erzeugen Internet-Pfad-Traffic statt VPC-intern.
 
-|* Fehlende CDN-Nutzung*
+|*Fehlende CDN-Nutzung*
 |Jede Anfrage an statische Assets trifft den S3-Origin; CDN würde 80–90% der Egress eliminieren.
 
-|* Multi-Cloud-Datentransferkosten*
+|*Multi-Cloud-Datentransferkosten*
 |Cross-Provider-Datentransfer (AWS zu Azure) ist teuer; wird in Architekturentscheidungen oft ignoriert.
 
 |===
@@ -96,36 +96,36 @@ aller Cloud-Optimierungsmaßnahmen: Einmaliger Implementierungsaufwand, permanen
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.s3"
- vpc_endpoint_type = "Gateway"
- route_table_ids = [aws_route_table.private.id]
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
 
- tags = merge(module.mandatory_tags.tags, {
- Name = "vpce-s3-${var.environment}"
- })
+  tags = merge(module.mandatory_tags.tags, {
+    Name = "vpce-s3-${var.environment}"
+  })
 }
 
 resource "aws_vpc_endpoint" "kms" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.kms"
- vpc_endpoint_type = "Interface"
- subnet_ids = aws_subnet.private[*].id
- security_group_ids = [aws_security_group.vpce.id]
- private_dns_enabled = true
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.kms"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
 
- tags = merge(module.mandatory_tags.tags, {
- Name = "vpce-kms-${var.environment}"
- })
+  tags = merge(module.mandatory_tags.tags, {
+    Name = "vpce-kms-${var.environment}"
+  })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
- cidr_block = "10.0.0.0/16"
- # Keine VPC Endpoints definiert
- # S3/KMS-Traffic über Internet-Gateway
- # WAF-COST-090 Violation
+  cidr_block = "10.0.0.0/16"
+  # Keine VPC Endpoints definiert
+  # S3/KMS-Traffic über Internet-Gateway
+  # WAF-COST-090 Violation
 }
 ----
 |===
@@ -142,23 +142,23 @@ resource "aws_vpc" "main" {
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t3.medium"
- subnet_id = aws_subnet.private.id
- associate_public_ip_address = false
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.private.id
+  associate_public_ip_address = false
 
- tags = module.mandatory_tags.tags
+  tags = module.mandatory_tags.tags
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t3.medium"
- subnet_id = aws_subnet.public.id
- associate_public_ip_address = true
- # Unnötige Public IP für internen App-Server
- # WAF-COST-090 Finding
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  subnet_id                   = aws_subnet.public.id
+  associate_public_ip_address = true
+  # Unnötige Public IP für internen App-Server
+  # WAF-COST-090 Finding
 }
 ----
 |===
@@ -172,33 +172,33 @@ ALB/NLB mit Public IP für eingehenden öffentlichen Traffic.
 [source,hcl]
 ----
 resource "aws_cloudfront_distribution" "assets" {
- enabled = true
- is_ipv6_enabled = true
+  enabled         = true
+  is_ipv6_enabled = true
 
- origin {
- domain_name = aws_s3_bucket.public_assets.bucket_regional_domain_name
- origin_id = "s3-public-assets"
- origin_access_control_id = aws_cloudfront_origin_access_control.main.id
- }
+  origin {
+    domain_name            = aws_s3_bucket.public_assets.bucket_regional_domain_name
+    origin_id              = "s3-public-assets"
+    origin_access_control_id = aws_cloudfront_origin_access_control.main.id
+  }
 
- default_cache_behavior {
- target_origin_id = "s3-public-assets"
- viewer_protocol_policy = "redirect-to-https"
- cached_methods = ["GET", "HEAD"]
- allowed_methods = ["GET", "HEAD"]
- compress = true
+  default_cache_behavior {
+    target_origin_id       = "s3-public-assets"
+    viewer_protocol_policy = "redirect-to-https"
+    cached_methods         = ["GET", "HEAD"]
+    allowed_methods        = ["GET", "HEAD"]
+    compress               = true
 
- forwarded_values {
- query_string = false
- cookies { forward = "none" }
- }
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
 
- min_ttl = 0
- default_ttl = 86400 # 1 Tag Cache
- max_ttl = 604800 # 7 Tage Cache
- }
+    min_ttl     = 0
+    default_ttl = 86400   # 1 Tag Cache
+    max_ttl     = 604800  # 7 Tage Cache
+  }
 
- tags = module.mandatory_tags.tags
+  tags = module.mandatory_tags.tags
 }
 ----
 
@@ -208,19 +208,19 @@ resource "aws_cloudfront_distribution" "assets" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |VPC-Endpoint-Ressourcen für S3 und KMS in Terraform.
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |CDN-Konfiguration für öffentlich zugängliche Storage-Assets.
 
-|* Config*
+|*Config*
 |Optional
 |VPC-Flow-Log-Konfiguration für Egress-Analyse.
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Egress-Kostentrend-Report (Ziel: < 15% des Gesamt-Cloud-Budgets).
 
@@ -233,28 +233,15 @@ resource "aws_cloudfront_distribution" "assets" {
 |===
 |Framework |Controls
 
-|* FinOps Foundation* | Optimize Phase – Network Cost Optimization; Optimize Phase – Data Transfer Cost Reduction
-|* Internal Governance* | Cloud Cost Governance Policy – Egress Cost Target; Network Architecture Standard – VPC Endpoints Mandatory
+|*FinOps Foundation*
+|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
 
-|===
+|*ISO 20000*
+|Service financial management – cost allocation
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* FinOps Foundation* | Optimize Phase – Network Cost Optimization; Optimize Phase – Data Transfer Cost Reduction
-|* Internal Governance* | Cloud Cost Governance Policy – Egress Cost Target; Network Architecture Standard – VPC Endpoints Mandatory; id: waf-cost-090.tf.aws.vpc-endpoint-s3-exists; aws_vpc_endpoint; id: waf-cost-090.tf.aws.no-public-ip-internal-compute; aws_instance; aws_launch_template
+|*Internal Governance*
+|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
 
 |===
 
 == Verwandte Controls
-
-* xref:controls/WAF-COST-020.adoc[WAF-COST-020 – Cost Budgets & Alerting]
-* xref:controls/WAF-COST-050.adoc[WAF-COST-050 – Cost Impact Assessment in ADRs]
-
-== Best Practice
-
-* xref:../best-practices/bp-greenfield.adoc[Greenfield FinOps by Design →]

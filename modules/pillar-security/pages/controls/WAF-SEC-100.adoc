@@ -8,7 +8,7 @@
 :description: WAF++ Security – Incident Response Bereitschaft: Runbooks, Alerting, Drills und dokumentierte Eskalationswege.
 
 [.metadata]
-*Pillar:* Security |*Severity:* Medium |*Kategorie:* Incident Response |*Automatisierbar:* Gering
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Incident Response | *Automatisierbar:* Gering
 
 == Beschreibung
 
@@ -105,21 +105,21 @@ Drills testen die Realitätsnähe der Runbooks und identifizieren Lücken, bevor
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_event_rule" "guardduty_alerts" {
- name = "guardduty-high-severity"
- description = "Alert on HIGH/CRITICAL GuardDuty findings"
- event_pattern = jsonencode({
- source = ["aws.guardduty"]
- detail-type = ["GuardDuty Finding"]
- detail = {
- severity = [{ numeric = [">=", 4] }]
- }
- })
+  name        = "guardduty-high-severity"
+  description = "Alert on HIGH/CRITICAL GuardDuty findings"
+  event_pattern = jsonencode({
+    source      = ["aws.guardduty"]
+    detail-type = ["GuardDuty Finding"]
+    detail = {
+      severity = [{ numeric = [">=", 4] }]
+    }
+  })
 }
 
 resource "aws_cloudwatch_event_target" "guardduty_sns" {
- rule = aws_cloudwatch_event_rule.guardduty_alerts.name
- target_id = "guardduty-sns"
- arn = aws_sns_topic.security_alerts.arn
+  rule      = aws_cloudwatch_event_rule.guardduty_alerts.name
+  target_id = "guardduty-sns"
+  arn       = aws_sns_topic.security_alerts.arn
 }
 ----
 a|[source,hcl]
@@ -240,7 +240,6 @@ a|[source,hcl]
 |Operational measures – Access control
 
 |===
-
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alle Produktions-Services müssen strukturierte Logs, Metriken und Distributed Tracing emittieren.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* High |*Kategorie:* Observability |*Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ Ohne alle drei Säulen ist MTTR hoch und Post-Incident-Learning eingeschränkt.
 |===
 |Risiko |Beschreibung
 
-|* Blinde Incidents*
+|*Blinde Incidents*
 |Ohne strukturierte Logs dauert die Fehlerdiagnose Stunden statt Minuten.
 
-|* Stille Fehler*
+|*Stille Fehler*
 |Ohne Metriken werden Fehler erst durch Nutzerberichte entdeckt, nicht durch Alerting.
 
-|* Root-Cause-Unmöglichkeit*
+|*Root-Cause-Unmöglichkeit*
 |Ohne Distributed Tracing in Microservices ist die Ursache eines Fehlers nicht isolierbar.
 
-|* Security-Blind-Spots*
+|*Security-Blind-Spots*
 |Ohne zentrale Log-Aggregation sind Security-Incidents nicht erkennbar.
 
 |===
@@ -101,20 +101,20 @@ Ohne alle drei Säulen ist MTTR hoch und Post-Incident-Learning eingeschränkt.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
- name = "/aws/ecs/payment-service"
- retention_in_days = 90
- tags = {
- environment = "production"
- }
+  name              = "/aws/ecs/payment-service"
+  retention_in_days = 90
+  tags = {
+    environment = "production"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
- name = "/aws/ecs/payment-service"
- # Kein retention_in_days
- # Logs akkumulieren unbegrenzt
- # WAF-OPS-030 Violation
+  name = "/aws/ecs/payment-service"
+  # Kein retention_in_days
+  # Logs akkumulieren unbegrenzt
+  # WAF-OPS-030 Violation
 }
 ----
 
@@ -127,10 +127,10 @@ resource "aws_cloudwatch_log_group" "app" {
 ----
 # Compliant
 resource "aws_lambda_function" "processor" {
- function_name = "payment-processor"
- tracing_config {
- mode = "Active" # Nicht PassThrough
- }
+  function_name = "payment-processor"
+  tracing_config {
+    mode = "Active"  # Nicht PassThrough
+  }
 }
 ----
 
@@ -143,26 +143,24 @@ Lambda Functions `tracing_config { mode = "Active" }` hinzufügen.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Log-Group-Konfiguration mit definierten Retention-Policies in Terraform.
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Tracing-Konfiguration (X-Ray, OTel Collector) als IaC-Ressource.
 
-|* Process*
+|*Process*
 |Optional
 |Dashboard-Screenshot mit RED-Metriken für kritische Services.
 
-|* Config*
+|*Config*
 |Optional
 |OpenTelemetry SDK-Konfiguration im Applikationscode (Sampling-Konfiguration).
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -238,12 +236,4 @@ Lambda Functions `tracing_config { mode = "Active" }` hinzufügen.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
-
-== Best Practice
-
-* xref:best-practices/bp-observability.adoc[Observability-Stack aufbauen →]

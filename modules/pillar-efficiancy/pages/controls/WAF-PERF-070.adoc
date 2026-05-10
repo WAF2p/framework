@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Netzwerktopologie latenzoptimieren, CDN einsetzen und VPC Endpoints konfigurieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Network Performance |*Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Network Performance | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ von Origin geliefert werden – 100–500ms zusätzliche Latenz für internation
 |===
 |Risiko |Beschreibung
 
-|* Cross-AZ-Latenz-Akkumulation*
+|*Cross-AZ-Latenz-Akkumulation*
 |Häufige Service-Calls zwischen AZs akkumulieren Latenz in der Request-Chain.
 
-|* Kein VPC Endpoint*
+|*Kein VPC Endpoint*
 |S3/DynamoDB/SSM-Traffic über Internet → erhöhte Latenz + Egress-Kosten.
 
-|* Fehlendes CDN*
+|*Fehlendes CDN*
 |Statische Assets von Origin geladen → hohe Latenz für internationale Nutzer.
 
-|* DNS-Resolution-Overhead*
+|*DNS-Resolution-Overhead*
 |Fehlende DNS-Caching-Konfiguration → 10–50ms pro DNS-Lookup in hot paths.
 
 |===
@@ -103,22 +103,22 @@ von Origin geliefert werden – 100–500ms zusätzliche Latenz für internation
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.s3"
- vpc_endpoint_type = "Gateway"
- route_table_ids = [aws_route_table.private.id]
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
 }
 resource "aws_vpc_endpoint" "dynamodb" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.dynamodb"
- vpc_endpoint_type = "Gateway"
- route_table_ids = [aws_route_table.private.id]
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
- cidr_block = "10.0.0.0/16"
+  cidr_block = "10.0.0.0/16"
 }
 # Keine VPC Endpoints definiert
 # S3-Traffic über Internet
@@ -135,26 +135,24 @@ Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig,
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit CDN und VPC Endpoints für Cloud-Service-Zugriffe.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Netzwerktopologie-Diagramm mit Service-Placement, AZ-Verteilung, Traffic-Routing.
 
-|* Config*
+|*Config*
 |Optional
 |Netzwerk-Latenz-Baseline (Service-zu-Service RTT nach AZ-Kombination).
 
-|* Process*
+|*Process*
 |Optional
 |CDN-Cache-Hit-Rate-Bericht.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -242,13 +240,4 @@ Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig,
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-030.adoc[WAF-PERF-030 – Caching Strategy Defined & Implemented]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-080.adoc[WAF-PERF-080 – Serverless & Managed Services for Variable Load]
-
-== Best Practice
-
-* xref:../best-practices/bp-network-performance.adoc[Netzwerk-Performance optimieren →]

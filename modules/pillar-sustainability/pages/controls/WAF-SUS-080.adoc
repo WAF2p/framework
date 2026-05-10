@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Datentransfer minimieren: CDN mit Kompression, VPC Endpoints für AWS-Services, Same-Region Co-location, HTTP-Kompression auf allen APIs.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* Network Efficiency |*Automatisierbar:* Hoch
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Network Efficiency | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ Sustainability-Gewinne mit direkten Kosteneinsparungen (Egress-Gebühren).
 |===
 |Risiko |Beschreibung
 
-|* Unkomprimierte CDN-Delivers*
+|*Unkomprimierte CDN-Delivers*
 |Jeder User erhält unkomprimierte HTML/JSON-Payloads — 5–10× höherer Netzwerk-Energiebedarf.
 
-|* Internet-Gateway-Egress für AWS-Services*
+|*Internet-Gateway-Egress für AWS-Services*
 |S3, DynamoDB, CloudWatch-Calls über Internet-Gateway statt VPC Endpoint verursachen unnötige Netzwerk-Energie und Egress-Kosten.
 
-|* Fehlende Cross-Region-Governance*
+|*Fehlende Cross-Region-Governance*
 |Unbeabsichtigte Cross-Region-Replikation durch fehlende S3-Bucket-Policies oder falsch konfigurierte Multi-Region-Architectures.
 
-|* Maximale Payload-Größen ohne Filterung*
+|*Maximale Payload-Größen ohne Filterung*
 |REST-APIs, die immer alle Felder zurückgeben statt nur angefragter Felder — unnötiger Transfer für jede Anfrage.
 
 |===
@@ -104,26 +104,26 @@ Sustainability-Gewinne mit direkten Kosteneinsparungen (Egress-Gebühren).
 a|[source,hcl]
 ----
 resource "aws_cloudfront_distribution" "web" {
- default_cache_behavior {
- allowed_methods = ["GET", "HEAD"]
- cached_methods = ["GET", "HEAD"]
- target_origin_id = "web-origin"
- viewer_protocol_policy = "redirect-to-https"
- compress = true
- }
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "web-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudfront_distribution" "web" {
- default_cache_behavior {
- allowed_methods = ["GET", "HEAD"]
- cached_methods = ["GET", "HEAD"]
- target_origin_id = "web-origin"
- viewer_protocol_policy = "redirect-to-https"
- compress = false
- # WAF-SUS-080 Violation: unkomprimierte Delivers
- }
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "web-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = false
+    # WAF-SUS-080 Violation: unkomprimierte Delivers
+  }
 }
 ----
 |===
@@ -142,24 +142,24 @@ resource "aws_cloudfront_distribution" "web" {
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.s3"
- vpc_endpoint_type = "Gateway"
- route_table_ids = aws_route_table.private[*].id
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
 }
 resource "aws_vpc_endpoint" "dynamodb" {
- vpc_id = aws_vpc.main.id
- service_name = "com.amazonaws.${var.region}.dynamodb"
- vpc_endpoint_type = "Gateway"
- route_table_ids = aws_route_table.private[*].id
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
- cidr_block = "10.0.0.0/16"
- # Keine VPC Endpoints
- # WAF-SUS-080 Warning: AWS-Service-Traffic über Internet-GW
+  cidr_block = "10.0.0.0/16"
+  # Keine VPC Endpoints
+  # WAF-SUS-080 Warning: AWS-Service-Traffic über Internet-GW
 }
 ----
 |===
@@ -172,26 +172,24 @@ resource "aws_vpc" "main" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |CDN-Konfiguration (CloudFront, Azure CDN, Cloud CDN) für user-facing Anwendungen.
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |VPC-Endpoint-Konfiguration für AWS-Services (S3, DynamoDB mindestens).
 
-|* Config*
+|*Config*
 |Optional
 |HTTP-Response-Headers mit `Content-Encoding: gzip` oder `br` auf API-Responses.
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Data-Transfer-Cost-Report mit Cross-Region-Breakdown.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -264,13 +262,4 @@ resource "aws_vpc" "main" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-050.adoc[WAF-SUS-050 – Storage Lifecycle & Data Minimization]
-* xref:controls/WAF-SUS-070.adoc[WAF-SUS-070 – Sustainable Software Design Standards]
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-
-== Best Practice
-
-* xref:best-practices/bp-data-efficiency.adoc[Datenminimierung, Storage-Lifecycle, Transferoptimierung →]

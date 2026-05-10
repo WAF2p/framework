@@ -8,7 +8,7 @@
 :description: WAF++ Security – Datenklassifizierung und kategoriengerechter Schutz: Tags, Verschlüsselung und Zugriffskontrolle nach Schutzstufe.
 
 [.metadata]
-*Pillar:* Security |*Severity:* Medium |*Kategorie:* Data Governance |*Automatisierbar:* Mittel
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Data Governance | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -107,27 +107,27 @@ Der `data-classification`-Tag ist der Startpunkt für alle datenschutzbezogenen 
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
- bucket = "myapp-prod-data"
- tags = {
- "data-classification" = "confidential"
- owner = "platform-team"
- environment = "production"
- }
+  bucket = "myapp-prod-data"
+  tags = {
+    "data-classification" = "confidential"
+    owner                 = "platform-team"
+    environment           = "production"
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "data" {
- bucket = aws_s3_bucket.data.id
- block_public_acls = true
- block_public_policy = true
- ignore_public_acls = true
- restrict_public_buckets = true
+  bucket                  = aws_s3_bucket.data.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
- bucket = "myapp-prod-data"
- # data-classification Tag fehlt – WAF-SEC-130 Violation
+  bucket = "myapp-prod-data"
+  # data-classification Tag fehlt – WAF-SEC-130 Violation
 }
 # aws_s3_bucket_public_access_block fehlt
 # WAF-SEC-130 Violation: kein Public-Access-Block
@@ -148,25 +148,25 @@ resource "aws_s3_bucket" "data" {
 a|[source,hcl]
 ----
 resource "aws_db_instance" "app" {
- identifier = "app-prod-db"
- engine = "postgres"
- instance_class = "db.t3.medium"
- allocated_storage = 100
- publicly_accessible = false
- tags = {
- "data-classification" = "confidential"
- }
+  identifier         = "app-prod-db"
+  engine             = "postgres"
+  instance_class     = "db.t3.medium"
+  allocated_storage  = 100
+  publicly_accessible = false
+  tags = {
+    "data-classification" = "confidential"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "app" {
- identifier = "app-prod-db"
- engine = "postgres"
- instance_class = "db.t3.medium"
- allocated_storage = 100
- publicly_accessible = true
- # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
+  identifier          = "app-prod-db"
+  engine              = "postgres"
+  instance_class      = "db.t3.medium"
+  allocated_storage   = 100
+  publicly_accessible = true
+  # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
 }
 ----
 |===
@@ -196,8 +196,6 @@ resource "aws_db_instance" "app" {
 |Jährlicher Data-Classification-Review mit Nachweis, dass Register aktuell ist.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -282,8 +280,4 @@ resource "aws_db_instance" "app" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SEC-030.adoc[WAF-SEC-030 – Encryption at Rest with CMK]
-* xref:controls/WAF-SEC-060.adoc[WAF-SEC-060 – Secrets Management]

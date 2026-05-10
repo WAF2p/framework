@@ -8,7 +8,7 @@
 :description: WAF++ Security – Policy-as-Code mit AWS Config, OPA/Conftest und automatisierten Compliance-Checks.
 
 [.metadata]
-*Pillar:* Security |*Severity:* Medium |*Kategorie:* Compliance |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* Medium | *Kategorie:* Compliance | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -105,17 +105,17 @@ Non-Compliant-Infrastruktur, bevor sie deployed wird – deutlich günstiger als
 a|[source,hcl]
 ----
 resource "aws_config_configuration_recorder" "main" {
- name = "default"
- role_arn = aws_iam_role.config.arn
- recording_group {
- all_supported = true
- include_global_resource_types = true
- }
+  name     = "default"
+  role_arn = aws_iam_role.config.arn
+  recording_group {
+    all_supported                 = true
+    include_global_resource_types = true
+  }
 }
 
 resource "aws_config_configuration_recorder_status" "main" {
- name = aws_config_configuration_recorder.main.name
- is_enabled = true
+  name       = aws_config_configuration_recorder.main.name
+  is_enabled = true
 }
 ----
 a|[source,hcl]
@@ -123,9 +123,9 @@ a|[source,hcl]
 # aws_config_configuration_recorder fehlt komplett
 # oder:
 resource "aws_config_configuration_recorder_status" "main" {
- name = "default"
- is_enabled = false
- # WAF-SEC-090 Violation: Config Recorder deaktiviert
+  name       = "default"
+  is_enabled = false
+  # WAF-SEC-090 Violation: Config Recorder deaktiviert
 }
 ----
 |===
@@ -155,8 +155,6 @@ resource "aws_config_configuration_recorder_status" "main" {
 |OPA/Rego-Policy-Dateien im Repository mit nachvollziehbarer Versionierung und Code-Review-Historie.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -241,12 +239,4 @@ resource "aws_config_configuration_recorder_status" "main" {
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-080.adoc[WAF-SEC-080 – Security Monitoring & Threat Detection]
-* xref:controls/WAF-SEC-100.adoc[WAF-SEC-100 – Incident Response Readiness]
-
 == Best Practice
-
-* xref:../best-practices/bp-policy-as-code.adoc[Policy-as-Code Best Practice →]

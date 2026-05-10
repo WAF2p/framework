@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Strukturierte Chaos-Experimente zur Validierung von Resilienz-Behauptungen.
 
 [.metadata]
-*Pillar:* Reliability |*Severity:* Medium |*Kategorie:* Chaos Engineering |*Automatisierbar:* Mittel
+*Pillar:* Reliability | *Severity:* Medium | *Kategorie:* Chaos Engineering | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ Resilience-Maßnahmen tatsächlich funktionieren.
 |===
 |Risiko |Beschreibung
 
-|* Unbekannte Failure Modes*
+|*Unbekannte Failure Modes*
 |Resilienz-Lücken werden erst im echten Disaster entdeckt.
 
-|* Unvalidierte Reliability Claims*
+|*Unvalidierte Reliability Claims*
 |Circuit Breaker konfiguriert, aber nie getriggert – unklar ob korrekt.
 
-|* Ungetestete Recovery*
+|*Ungetestete Recovery*
 |Multi-AZ deployed, aber AZ-Failover-Zeit unbekannt – RTO nicht validiert.
 
-|* Versteckte Kopplung*
+|*Versteckte Kopplung*
 |Abhängigkeiten, die nur bei spezifischen Fehlermustern sichtbar werden.
 
 |===
@@ -103,50 +103,50 @@ Resilience-Maßnahmen tatsächlich funktionieren.
 a|[source,hcl]
 ----
 resource "aws_fis_experiment_template"
- "az_failure" {
- description = "Hypothesis: Service
- recovers from 25% instance
- termination in < 60s"
- role_arn = aws_iam_role.fis.arn
+    "az_failure" {
+  description = "Hypothesis: Service
+    recovers from 25% instance
+    termination in < 60s"
+  role_arn = aws_iam_role.fis.arn
 
- stop_condition {
- source = "aws:cloudwatch:alarm"
- value =
- aws_cloudwatch_metric_alarm
- .slo_burn.arn
- }
+  stop_condition {
+    source = "aws:cloudwatch:alarm"
+    value  =
+      aws_cloudwatch_metric_alarm
+      .slo_burn.arn
+  }
 
- action {
- name = "terminate-instances"
- action_id =
- "aws:ec2:terminate-instances"
- target { key = "Instances"
- value = "az1-instances" }
- }
- # ... target block ...
+  action {
+    name = "terminate-instances"
+    action_id =
+      "aws:ec2:terminate-instances"
+    target { key = "Instances"
+             value = "az1-instances" }
+  }
+  # ... target block ...
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_fis_experiment_template"
- "az_failure" {
- description = "AZ test"
- role_arn = aws_iam_role.fis.arn
- # Kein stop_condition –
- # Experiment läuft unkontrolliert
- # WAF-REL-090 Violation
- action {
- name = "terminate-all"
- action_id =
- "aws:ec2:terminate-instances"
- target { key = "Instances"
- value = "all-instances" }
- }
- target {
- name = "all-instances"
- resource_type = "aws:ec2:instance"
- selection_mode = "ALL"
- }
+    "az_failure" {
+  description = "AZ test"
+  role_arn = aws_iam_role.fis.arn
+  # Kein stop_condition –
+  # Experiment läuft unkontrolliert
+  # WAF-REL-090 Violation
+  action {
+    name = "terminate-all"
+    action_id =
+      "aws:ec2:terminate-instances"
+    target { key = "Instances"
+             value = "all-instances" }
+  }
+  target {
+    name = "all-instances"
+    resource_type = "aws:ec2:instance"
+    selection_mode = "ALL"
+  }
 }
 ----
 |===
@@ -160,26 +160,24 @@ resource "aws_fis_experiment_template"
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Quartalsweise Chaos-Experiment-Berichte: Hypothese, Erwartung, Ergebnis, Actions.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Chaos Engineering Charter mit Genehmigungsprozess und Blast-Radius-Limits.
 
-|* IaC*
+|*IaC*
 |Optional
 |AWS FIS Experiment Templates oder Azure Chaos Studio Workflow-Konfigurationen.
 
-|* Process*
+|*Process*
 |Optional
 |GameDay-Bericht des letzten Jahres.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -252,13 +250,4 @@ resource "aws_fis_experiment_template"
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-REL-050.adoc[WAF-REL-050 – Circuit Breaker & Timeout]
-* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response]
-* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
-
-== Best Practice
-
-* xref:best-practices/bp-chaos-engineering.adoc[Chaos Engineering & Fault Injection →]

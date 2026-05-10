@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Lasttests automatisch in die CI/CD-Pipeline integrieren und als Deployment-Gate betreiben.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Load Testing |*Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Load Testing | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ alle unter realistischer gleichzeitiger Last validiert werden.
 |===
 |Risiko |Beschreibung
 
-|* Performance-Regression in Produktion*
+|*Performance-Regression in Produktion*
 |Neues Feature verursacht 30% P99-Anstieg → entdeckt erst nach Nutzerbeschweren.
 
-|* Auto-Scaling-Versagen*
+|*Auto-Scaling-Versagen*
 |Scaling-Konfiguration greift zu spät oder gar nicht → entdeckt erst beim echten Traffic-Peak.
 
-|* Connection-Pool-Erschöpfung*
+|*Connection-Pool-Erschöpfung*
 |Concurrent-Load sättigt Connection Pool → entdeckt erst bei Production-Incident.
 
-|* Unbekannte Kapazitätsgrenzen*
+|*Unbekannte Kapazitätsgrenzen*
 |Kein Stresstest → niemand weiß, bei welcher Last der Service versagt.
 
 |===
@@ -102,32 +102,32 @@ alle unter realistischer gleichzeitiger Last validiert werden.
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
- name = "pipeline-payment-api"
- stage { name = "Source" }
- stage { name = "Build" }
- stage {
- name = "PerformanceTest"
- action {
- name = "LoadTest"
- category = "Build"
- provider = "CodeBuild"
- configuration = {
- ProjectName = aws_codebuild_project.load_test.name
- }
- }
- }
- stage { name = "Deploy" }
+  name = "pipeline-payment-api"
+  stage { name = "Source" }
+  stage { name = "Build" }
+  stage {
+    name = "PerformanceTest"
+    action {
+      name     = "LoadTest"
+      category = "Build"
+      provider = "CodeBuild"
+      configuration = {
+        ProjectName = aws_codebuild_project.load_test.name
+      }
+    }
+  }
+  stage { name = "Deploy" }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
- name = "pipeline-payment-api"
- stage { name = "Source" }
- stage { name = "Build" }
- stage { name = "Deploy" }
- # Kein Performance-Test-Stage
- # WAF-PERF-060 Violation
+  name = "pipeline-payment-api"
+  stage { name = "Source" }
+  stage { name = "Build" }
+  stage { name = "Deploy" }
+  # Kein Performance-Test-Stage
+  # WAF-PERF-060 Violation
 }
 ----
 |===
@@ -142,26 +142,24 @@ Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC / Code*
+|*IaC / Code*
 |✅ Pflicht
 |Lasttest-Skripte mit Akzeptanzkriterien in Versionskontrolle.
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |CI/CD-Pipeline-Konfiguration mit Lasttest als Deployment-Gate.
 
-|* Config*
+|*Config*
 |Optional
 |Historische Lasttest-Ergebnisse als Regression-Baseline.
 
-|* Governance*
+|*Governance*
 |Optional
 |Performance-Test-Strategie-Dokument mit Szenarien und Kadenz.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -249,13 +247,4 @@ Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
-
-== Best Practice
-
-* xref:../best-practices/bp-load-testing.adoc[Lasttests & Stresstests →]

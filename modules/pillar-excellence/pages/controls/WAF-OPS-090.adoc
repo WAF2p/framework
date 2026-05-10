@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Produktionsinfrastruktur wird kontinuierlich mit der IaC-Definition verglichen. Drift wird automatisch erkannt und nach definierten SLAs behoben.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* High |*Kategorie:* Configuration Management |*Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Configuration Management | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ Drift ist die Lücke zwischen dem was man denkt zu haben und dem was man tatsäc
 |===
 |Risiko |Beschreibung
 
-|* Stille Security-Verschlechterung*
+|*Stille Security-Verschlechterung*
 |Security-Group-Regeln manuell geöffnet für Debugging – bleibt offen; IaC weiß es nicht.
 
-|* Debugging-Änderungen permanent*
+|*Debugging-Änderungen permanent*
 |"Temporäre" Konsolen-Änderung wird vergessen und zur permanenten, nicht-dokumentierten Konfiguration.
 
-|* DR-Versagen*
+|*DR-Versagen*
 |Disaster-Recovery aus IaC scheitert weil tatsächliche Konfiguration von IaC abweicht.
 
-|* Audit-Versagen*
+|*Audit-Versagen*
 |Infrastruktur entspricht nicht dem genehmigten Design; Compliance-Nachweis nicht möglich.
 
 |===
@@ -101,16 +101,16 @@ Drift ist die Lücke zwischen dem was man denkt zu haben und dem was man tatsäc
 a|[source,hcl]
 ----
 resource "aws_config_configuration_recorder" "main" {
- name = "default"
- role_arn = aws_iam_role.config.arn
- recording_group {
- all_supported = true
- include_global_resource_types = true
- }
+  name     = "default"
+  role_arn = aws_iam_role.config.arn
+  recording_group {
+    all_supported = true
+    include_global_resource_types = true
+  }
 }
 resource "aws_config_delivery_channel" "main" {
- name = "default"
- s3_bucket_name = aws_s3_bucket.config.bucket
+  name           = "default"
+  s3_bucket_name = aws_s3_bucket.config.bucket
 }
 ----
 a|[source,hcl]
@@ -129,11 +129,11 @@ a|[source,hcl]
 ----
 # Compliant
 resource "aws_cloudtrail" "main" {
- name = "production-trail"
- s3_bucket_name = aws_s3_bucket.cloudtrail.id
- is_multi_region_trail = true # Pflicht
- enable_log_file_validation = true # Pflicht
- include_global_service_events = true
+  name                       = "production-trail"
+  s3_bucket_name             = aws_s3_bucket.cloudtrail.id
+  is_multi_region_trail      = true   # Pflicht
+  enable_log_file_validation = true   # Pflicht
+  include_global_service_events = true
 }
 ----
 
@@ -146,26 +146,24 @@ CloudTrail mit `is_multi_region_trail = true` und `enable_log_file_validation = 
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Automatische Drift-Detection-Konfiguration (EventBridge Schedule, AWS Config Recorder).
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Drift-SLA-Policy mit Schweregrad-Klassifikation und Remediation-Fristen.
 
-|* Governance*
+|*Governance*
 |Optional
 |Drift-Log der letzten 90 Tage mit Erkennungszeit, Schweregrad und Resolutionszeit.
 
-|* IaC*
+|*IaC*
 |Optional
 |SCP oder IAM-Permission-Boundary die Console-Änderungen an sensiblen Ressourcen verhindert.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -241,12 +239,4 @@ CloudTrail mit `is_multi_region_trail = true` und `enable_log_file_validation = 
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-020.adoc[WAF-OPS-020 – Infrastructure as Code Enforced]
-* xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
-
-== Best Practice
-
-* xref:best-practices/bp-iac.adoc[Infrastructure as Code konsequent umsetzen →]

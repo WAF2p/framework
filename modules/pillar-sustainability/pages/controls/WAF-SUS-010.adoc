@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – CO₂-Fußabdruck messen, Workload-Attribution, Cloud-Provider-Tools aktivieren und in CSRD/ESG-Reporting integrieren.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* High |*Kategorie:* Carbon Measurement |*Automatisierbar:* Hoch
+*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Carbon Measurement | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ verifizierbar und ESG-Berichte nicht CSRD-konform.
 |===
 |Risiko |Beschreibung
 
-|* CSRD Non-Compliance*
+|*CSRD Non-Compliance*
 |Fehlende IT-Emissionsdaten in ESRS E1-6 sind ein klassisches Audit-Finding in der CSRD-Erstprüfung — Bußgeld-Risiko.
 
-|* Greenwashing-Vorwurf*
+|*Greenwashing-Vorwurf*
 |Nachhaltigkeitsversprechen ohne messbare CO₂-Daten sind regulatorisch und reputational ein Hochrisiko-Szenario.
 
-|* SBTi-Zielverfehlung*
+|*SBTi-Zielverfehlung*
 |Scope-3-Reduktionsziele können nicht verfolgt oder nachgewiesen werden ohne Cloud-IT-Emissionsdaten.
 
-|* Investoren-Anfragen*
+|*Investoren-Anfragen*
 |ESG-bewusste Investoren stellen explizit nach Cloud-IT-Emissionsdaten; fehlende Antworten schaden der Bewertung.
 
 |===
@@ -104,20 +104,20 @@ verifizierbar und ESG-Berichte nicht CSRD-konform.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
- name = "/sustainability/carbon-footprint"
- retention_in_days = 365
- tags = {
- purpose = "carbon-audit"
- workload = "sustainability-reporting"
- }
+  name              = "/sustainability/carbon-footprint"
+  retention_in_days = 365
+  tags = {
+    purpose  = "carbon-audit"
+    workload = "sustainability-reporting"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
- name = "/sustainability/carbon-footprint"
- # retention_in_days fehlt
- # WAF-SUS-010 Violation: infinite retention
+  name = "/sustainability/carbon-footprint"
+  # retention_in_days fehlt
+  # WAF-SUS-010 Violation: infinite retention
 }
 ----
 |===
@@ -134,18 +134,18 @@ Für CSRD-Pflicht: 7-Jahres-Retention über S3-Lifecycle-Archivierung ergänzen.
 ----
 # Compliant: 7-Jahres-Retention für CSRD-konforme Aufbewahrung
 resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
- bucket = aws_s3_bucket.carbon_data.id
- rule {
- id = "csrd-retention"
- status = "Enabled"
- transition {
- days = 365
- storage_class = "GLACIER"
- }
- expiration {
- days = 2555 # 7 Jahre
- }
- }
+  bucket = aws_s3_bucket.carbon_data.id
+  rule {
+    id     = "csrd-retention"
+    status = "Enabled"
+    transition {
+      days          = 365
+      storage_class = "GLACIER"
+    }
+    expiration {
+      days = 2555  # 7 Jahre
+    }
+  }
 }
 ----
 
@@ -155,26 +155,24 @@ resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Screenshot/API-Bestätigung: Cloud-Provider Carbon-Tool aktiviert (AWS CCF, Azure EID, GCP CF).
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Monatliche Carbon Footprint Exports (min. 3 Monate) mit Workload-Breakdown.
 
-|* Process*
+|*Process*
 |Optional
 |Carbon-Review-Meeting-Protokolle oder Jira-Tickets mit monatlichem Review-Nachweis.
 
-|* Governance*
+|*Governance*
 |Optional
 |ESRS E1 Report-Sektion mit Cloud-IT-Emissionen und Methodik-Vermerk.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -247,13 +245,4 @@ resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
-* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
-* xref:controls/WAF-SUS-100.adoc[WAF-SUS-100 – Sustainability Debt Register & Quarterly Review]
-
-== Best Practice
-
-* xref:best-practices/bp-carbon-measurement.adoc[CO₂-Fußabdruck messen und reporten →]

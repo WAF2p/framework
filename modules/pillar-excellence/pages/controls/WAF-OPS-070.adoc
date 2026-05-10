@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Blameless Postmortems für alle qualifying Incidents mit Action-Item-Tracking innerhalb von 5 Arbeitstagen.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Incident-Learning |*Automatisierbar:* Niedrig
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Incident-Learning | *Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ Postmortem-Prozessen reduzieren Repeat Incidents um 30–50% innerhalb von 12 Mo
 |===
 |Risiko |Beschreibung
 
-|* Repeat Incidents*
+|*Repeat Incidents*
 |Ohne Postmortems werden Root Causes nicht behoben; derselbe Incident wiederholt sich.
 
-|* Blame-Kultur*
+|*Blame-Kultur*
 |Schuld-fokussierte Reviews unterdrücken Information; zukünftige Incidents werden versteckt.
 
-|* Unverfolgtes Action-Item*
+|*Unverfolgtes Action-Item*
 |Action Items ohne Owner und Tracking werden niemals abgeschlossen.
 
-|* Isoliertes Lernen*
+|*Isoliertes Lernen*
 |Team A lernt aus Incident; Team B erlebt denselben Incident 3 Monate später.
 
 |===
@@ -101,25 +101,25 @@ Postmortem-Prozessen reduzieren Repeat Incidents um 30–50% innerhalb von 12 Mo
 a|[source,hcl]
 ----
 resource "aws_sns_topic" "incidents" {
- name = "production-incident-notifications"
+  name = "production-incident-notifications"
 }
 resource "aws_sns_topic_subscription" "pagerduty" {
- topic_arn = aws_sns_topic.incidents.arn
- protocol = "https"
- endpoint = var.pagerduty_endpoint
+  topic_arn = aws_sns_topic.incidents.arn
+  protocol  = "https"
+  endpoint  = var.pagerduty_endpoint
 }
 resource "aws_cloudwatch_metric_alarm" "critical" {
- alarm_actions = [aws_sns_topic.incidents.arn]
- /* ... */
+  alarm_actions = [aws_sns_topic.incidents.arn]
+  /* ... */
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "critical" {
- alarm_name = "payment-critical"
- # Keine alarm_actions
- # Incidents werden nicht gemeldet
- # WAF-OPS-070 Violation
+  alarm_name = "payment-critical"
+  # Keine alarm_actions
+  # Incidents werden nicht gemeldet
+  # WAF-OPS-070 Violation
 }
 ----
 
@@ -132,13 +132,13 @@ resource "aws_cloudwatch_metric_alarm" "critical" {
 ----
 # Compliant
 resource "azurerm_monitor_action_group" "oncall" {
- name = "production-oncall"
- resource_group_name = azurerm_resource_group.main.name
- short_name = "oncall"
- email_receiver {
- name = "oncall-engineer"
- email_address = var.oncall_email
- }
+  name                = "production-oncall"
+  resource_group_name = azurerm_resource_group.main.name
+  short_name          = "oncall"
+  email_receiver {
+    name          = "oncall-engineer"
+    email_address = var.oncall_email
+  }
 }
 ----
 
@@ -151,26 +151,24 @@ CloudWatch Alarms müssen `alarm_actions` mit diesem SNS-Topic referenzieren.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Post-Incident-Review-Policy (Trigger, Timeline, Template, Publikationsanforderungen).
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Postmortem-Archiv der letzten 3 Monate mit Action Items und Completion-Status.
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Incident-Trend-Report (Kategorien, Frequenz, Action-Item-Completion-Rate).
 
-|* Governance*
+|*Governance*
 |Optional
 |Team-OKR oder KPI für Repeat-Incident-Reduktion.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -246,13 +244,4 @@ CloudWatch Alarms müssen `alarm_actions` mit diesem SNS-Topic referenzieren.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
-* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
-* xref:controls/WAF-OPS-100.adoc[WAF-OPS-100 – Operational Debt Register]
-
-== Best Practice
-
-* xref:best-practices/bp-postmortem.adoc[Blameless Postmortems und kontinuierliches Lernen →]

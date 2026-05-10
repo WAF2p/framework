@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Batch-Workloads in emissionsarme Zeitfenster verschieben: Off-Peak-Scheduling, EventBridge Flexible Windows, Carbon-Intensity-API-Integration.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* Low |*Kategorie:* Workload Scheduling |*Automatisierbar:* Mittel
+*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Workload Scheduling | *Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ EventBridge Flexible Time Windows ermöglichen diese Optimierung ohne zusätzlic
 |===
 |Risiko |Beschreibung
 
-|* Peak-Stunden-Batch*
+|*Peak-Stunden-Batch*
 |Batch-Jobs um 09:00 Uhr ausgeführt, wenn Stromverbrauch und Carbon Intensity ihr Tages-Maximum erreichen.
 
-|* Fehlende Dokumentation*
+|*Fehlende Dokumentation*
 |Scheduling-Entscheidungen ohne Carbon-Rationale sind CSRD-Governance-Gap.
 
-|* Kein Flexible Window*
+|*Kein Flexible Window*
 |Starre Ausführungszeiten verhindern Carbon-Aware-Optimierung ohne zusätzlichen Engineering-Aufwand.
 
-|* AWS Batch auf ON_DEMAND*
+|*AWS Batch auf ON_DEMAND*
 |Batch-Workloads auf On-Demand statt SPOT verbrauchen dedizierte Kapazität statt geteilter ungenutzter.
 
 |===
@@ -105,30 +105,30 @@ EventBridge Flexible Time Windows ermöglichen diese Optimierung ohne zusätzlic
 a|[source,hcl]
 ----
 resource "aws_scheduler_schedule" "nightly_report" {
- name = "nightly-report"
- schedule_expression = "cron(0 22 * * ? *)"
+  name = "nightly-report"
+  schedule_expression = "cron(0 22 * * ? *)"
 
- flexible_time_window {
- mode = "FLEXIBLE"
- maximum_window_in_minutes = 120
- }
+  flexible_time_window {
+    mode                      = "FLEXIBLE"
+    maximum_window_in_minutes = 120
+  }
 
- target {
- arn = aws_lambda_function.report.arn
- role_arn = aws_iam_role.scheduler.arn
- }
+  target {
+    arn      = aws_lambda_function.report.arn
+    role_arn = aws_iam_role.scheduler.arn
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_scheduler_schedule" "nightly_report" {
- name = "nightly-report"
- schedule_expression = "cron(0 9 * * ? *)"
+  name = "nightly-report"
+  schedule_expression = "cron(0 9 * * ? *)"
 
- flexible_time_window {
- mode = "OFF"
- # WAF-SUS-060 Warning: Peak-Zeit, kein Flex-Window
- }
+  flexible_time_window {
+    mode = "OFF"
+    # WAF-SUS-060 Warning: Peak-Zeit, kein Flex-Window
+  }
 }
 ----
 |===
@@ -147,30 +147,30 @@ resource "aws_scheduler_schedule" "nightly_report" {
 a|[source,hcl]
 ----
 resource "aws_batch_compute_environment" "processing" {
- compute_environment_name = "data-processing"
- type = "MANAGED"
+  compute_environment_name = "data-processing"
+  type                     = "MANAGED"
 
- compute_resources {
- type = "SPOT"
- allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
- min_vcpus = 0
- max_vcpus = 256
- instance_type = ["m7g", "c7g"]
- }
+  compute_resources {
+    type                = "SPOT"
+    allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
+    min_vcpus           = 0
+    max_vcpus           = 256
+    instance_type       = ["m7g", "c7g"]
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_batch_compute_environment" "processing" {
- compute_environment_name = "data-processing"
- type = "MANAGED"
+  compute_environment_name = "data-processing"
+  type                     = "MANAGED"
 
- compute_resources {
- type = "ON_DEMAND"
- min_vcpus = 4
- max_vcpus = 64
- # WAF-SUS-060 Warning: Batch auf On-Demand
- }
+  compute_resources {
+    type      = "ON_DEMAND"
+    min_vcpus = 4
+    max_vcpus = 64
+    # WAF-SUS-060 Warning: Batch auf On-Demand
+  }
 }
 ----
 |===
@@ -183,22 +183,20 @@ resource "aws_batch_compute_environment" "processing" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |EventBridge Scheduler oder Cron-Konfiguration mit Off-Peak-Scheduling und Flexible Windows.
 
-|* Process*
+|*Process*
 |Optional
 |Carbon-Intensity-API-Integration für dynamisches Scheduling.
 
-|* Governance*
+|*Governance*
 |Optional
 |Scheduling-Dokumentation für Major-Batch-Pipelines mit Carbon-Rationale.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -271,13 +269,4 @@ resource "aws_batch_compute_environment" "processing" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
-* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
-
-== Best Practice
-
-* xref:best-practices/bp-workload-scheduling.adoc[Workload Time-Shifting und Carbon-Aware Scheduling →]

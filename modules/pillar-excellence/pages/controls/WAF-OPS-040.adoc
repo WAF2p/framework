@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alerts müssen auf nutzer-sichtbaren Symptomen basieren. Jeder Page-Alert braucht eine Runbook-URL.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* High |*Kategorie:* Alerting |*Automatisierbar:* Hoch
+*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Alerting | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ für On-Call-Burnout und übergangene kritische Alerts.
 |===
 |Risiko |Beschreibung
 
-|* Alert-Fatigue*
+|*Alert-Fatigue*
 |Zu viele non-actionable Alerts trainieren Engineers, Alerts zu ignorieren oder zu snoozen.
 
-|* Verpasste Nutzerauswirkung*
+|*Verpasste Nutzerauswirkung*
 |Nur Infrastruktur-Metriken überwacht: Service komplett down aber kein Alert ausgelöst.
 
-|* On-Call-Burnout*
+|*On-Call-Burnout*
 |Regelmäßige 3-Uhr-Pages für nicht-actionable CPU-Alerts zerstören On-Call-Rotation.
 
-|* Fehlende Runbooks*
+|*Fehlende Runbooks*
 |Engineer geweckt um 3 Uhr ohne Runbook – Diagnose auf der Basis von Intuition.
 
 |===
@@ -101,24 +101,24 @@ für On-Call-Burnout und übergangene kritische Alerts.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
- alarm_name = "payment-5xx-rate"
- metric_name = "5XXError"
- namespace = "AWS/ApplicationELB"
- alarm_description = "Payment 5xx > 10/min. Runbook: https://wiki/runbooks/5xx"
- alarm_actions = [aws_sns_topic.oncall.arn]
- /* ... */
+  alarm_name    = "payment-5xx-rate"
+  metric_name   = "5XXError"
+  namespace     = "AWS/ApplicationELB"
+  alarm_description = "Payment 5xx > 10/min. Runbook: https://wiki/runbooks/5xx"
+  alarm_actions = [aws_sns_topic.oncall.arn]
+  /* ... */
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "cpu" {
- alarm_name = "high-cpu"
- metric_name = "CPUUtilization"
- namespace = "AWS/EC2"
- threshold = 80
- # Kein alarm_description mit Runbook
- # Kein alarm_actions
- # WAF-OPS-040 Violation
+  alarm_name  = "high-cpu"
+  metric_name = "CPUUtilization"
+  namespace   = "AWS/EC2"
+  threshold   = 80
+  # Kein alarm_description mit Runbook
+  # Kein alarm_actions
+  # WAF-OPS-040 Violation
 }
 ----
 
@@ -131,14 +131,14 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
 ----
 # Compliant
 resource "azurerm_monitor_metric_alert" "error_rate" {
- name = "payment-error-rate-high"
- resource_group_name = azurerm_resource_group.main.name
- scopes = [azurerm_application_insights.main.id]
- description = "Payment error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
- action {
- action_group_id = azurerm_monitor_action_group.oncall.id
- }
- /* criteria block ... */
+  name                = "payment-error-rate-high"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_application_insights.main.id]
+  description         = "Payment error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
+  action {
+    action_group_id = azurerm_monitor_action_group.oncall.id
+  }
+  /* criteria block ... */
 }
 ----
 
@@ -151,26 +151,24 @@ Symptom-basierte Metriken verwenden (Fehlerrate, Latenz statt CPU/Memory).
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Alert-Definitionen mit symptom-basierten Metriken und Runbook-URLs.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |SLO-Definitionen für alle kritischen Services (Availability, Latenz, Fehlerrate-Targets).
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Alert-Noise-Report (Pages pro Woche, Actionability-Rate).
 
-|* Config*
+|*Config*
 |Optional
 |Runbook-Index mit Coverage-Nachweis für alle paging Alerts.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -246,13 +244,4 @@ Symptom-basierte Metriken verwenden (Fehlerrate, Latenz statt CPU/Memory).
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-030.adoc[WAF-OPS-030 – Observability Stack]
-* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
-
-== Best Practice
-
-* xref:best-practices/bp-alerting.adoc[Alerting auf Symptome statt Ursachen →]

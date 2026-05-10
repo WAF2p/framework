@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Energie-Effizienz als Software-Qualitätsmerkmal: SCI messen, Event-Driven statt Polling, Dependency-Hygiene, Scale-to-Zero für serverless Workloads.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* Software Efficiency |*Automatisierbar:* Teilweise
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Software Efficiency | *Automatisierbar:* Teilweise
 
 == Beschreibung
 
@@ -34,19 +34,19 @@ Scale-to-Zero bei serverlosen Diensten vermeidet Idle-Compute komplett.
 |===
 |Risiko |Beschreibung
 
-|* Ineffiziente Algorithmen*
+|*Ineffiziente Algorithmen*
 |O(n²)-Algorithmen verbrauchen bei 10.000 Elementen 750× mehr CPU als O(n log n) — direkte Emissionsmultiplikation.
 
-|* Polling-Pattern*
+|*Polling-Pattern*
 |Konstante API-Abfragen statt Event-Trigger erzeugen thousands unnötiger Requests pro Stunde.
 
-|* Bloated Dependencies*
+|*Bloated Dependencies*
 |Lambda-Funktionen mit 200MB-Deployment-Package haben 5× höhere Cold-Start-Energie als schlanke 20MB-Packages.
 
-|* Microservice-Proliferation*
+|*Microservice-Proliferation*
 |50 Services für was 5 leisten könnten: 10× mehr Netzwerk-Overhead, Service-Discovery-Load, Health-Check-Calls.
 
-|* Fehlende SCI-Messung*
+|*Fehlende SCI-Messung*
 |Ohne SCI-Metrik können Software-Effizienz-Verbesserungen nicht quantifiziert oder als Ziel gesetzt werden.
 
 |===
@@ -109,20 +109,20 @@ Scale-to-Zero bei serverlosen Diensten vermeidet Idle-Compute komplett.
 a|[source,hcl]
 ----
 resource "aws_lambda_event_source_mapping" "sqs" {
- event_source_arn = aws_sqs_queue.events.arn
- function_name = aws_lambda_function.processor.arn
- batch_size = 100
- maximum_batching_window_in_seconds = 30
- function_response_types = ["ReportBatchItemFailures"]
+  event_source_arn                   = aws_sqs_queue.events.arn
+  function_name                      = aws_lambda_function.processor.arn
+  batch_size                         = 100
+  maximum_batching_window_in_seconds = 30
+  function_response_types            = ["ReportBatchItemFailures"]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lambda_event_source_mapping" "sqs" {
- event_source_arn = aws_sqs_queue.events.arn
- function_name = aws_lambda_function.processor.arn
- batch_size = 1
- # WAF-SUS-070 Warning: batch_size=1, kein Batching-Window
+  event_source_arn = aws_sqs_queue.events.arn
+  function_name    = aws_lambda_function.processor.arn
+  batch_size       = 1
+  # WAF-SUS-070 Warning: batch_size=1, kein Batching-Window
 }
 ----
 |===
@@ -141,27 +141,27 @@ resource "aws_lambda_event_source_mapping" "sqs" {
 a|[source,hcl]
 ----
 resource "google_cloud_run_v2_service" "api" {
- name = "api-service"
- location = "europe-north1"
- template {
- scaling {
- min_instance_count = 0
- max_instance_count = 10
- }
- }
+  name     = "api-service"
+  location = "europe-north1"
+  template {
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 10
+    }
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "google_cloud_run_v2_service" "api" {
- name = "api-service"
- location = "us-east1"
- template {
- scaling {
- min_instance_count = 5
- # WAF-SUS-070 Warning: immer 5 Instanzen; kein Zero-Scale
- }
- }
+  name     = "api-service"
+  location = "us-east1"
+  template {
+    scaling {
+      min_instance_count = 5
+      # WAF-SUS-070 Warning: immer 5 Instanzen; kein Zero-Scale
+    }
+  }
 }
 ----
 |===
@@ -174,26 +174,24 @@ resource "google_cloud_run_v2_service" "api" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |ADR-Template oder Architecture-Review-Checkliste mit Energie-Effizienz / SCI-Betrachtung.
 
-|* Config*
+|*Config*
 |Optional
 |Container-Image-Size-Reports (Distroless/Alpine-Compliance).
 
-|* Process*
+|*Process*
 |Optional
 |SCI-Measurement-Report für Tier-1-Services mit Baseline und Trend.
 
-|* Governance*
+|*Governance*
 |Optional
 |Dependency-Review-Policy und Audit-Log.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -266,13 +264,4 @@ resource "google_cloud_run_v2_service" "api" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
-
-== Best Practice
-
-* xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute & Software-Design →]

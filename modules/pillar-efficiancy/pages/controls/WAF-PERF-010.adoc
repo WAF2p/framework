@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Select compute instance types based on data and document sizing decisions.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* High |*Category:* Compute Sizing |*Automatable:* High
+*Pillar:* Performance Efficiency | *Severity:* High | *Category:* Compute Sizing | *Automatable:* High
 
 == Description
 
@@ -35,16 +35,16 @@ data-driven rightsizing recommendations. These MUST be included in the quarterly
 |===
 |Risk |Description
 
-|* Performance Degradation Under Load*
+|*Performance Degradation Under Load*
 |Under-provisioned instances saturate CPU/memory during load spikes – timeouts and errors cascade.
 
-|* Cost Waste*
+|*Cost Waste*
 |Over-provisioned instances with < 10% CPU utilization pay for unused capacity.
 
-|* Previous-Generation Risk*
+|*Previous-Generation Risk*
 |t2/m4 instances have burst mechanics and worse baseline performance; t3/m6i are better and cheaper.
 
-|* Undocumented Sizing*
+|*Undocumented Sizing*
 |If nobody knows why an instance size was chosen, it will never be optimized.
 
 |===
@@ -105,21 +105,21 @@ data-driven rightsizing recommendations. These MUST be included in the quarterly
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t3.medium"
- tags = {
- sizing-reviewed = "2026-03-18"
- workload = "payment-api"
- }
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.medium"
+  tags = {
+    sizing-reviewed = "2026-03-18"
+    workload        = "payment-api"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "t2.medium"
- # Previous-Gen –
- # WAF-PERF-010 Violation
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t2.medium"
+  # Previous-Gen –
+  # WAF-PERF-010 Violation
 }
 ----
 |===
@@ -134,11 +134,11 @@ Consult Compute Optimizer before migration. Migration is online (stop/start of t
 ----
 # Compliant
 resource "google_compute_instance" "app" {
- machine_type = "n2-standard-2" # Current generation
+  machine_type = "n2-standard-2"  # Current generation
 }
 # Non-Compliant
 resource "google_compute_instance" "app" {
- machine_type = "n1-standard-2" # N1 outdated – WAF-PERF-010 Violation
+  machine_type = "n1-standard-2"  # N1 outdated – WAF-PERF-010 Violation
 }
 ----
 
@@ -148,19 +148,19 @@ resource "google_compute_instance" "app" {
 |===
 |Type |Required |Description
 
-|* Config*
+|*Config*
 |✅ Required
 |Sizing document or ADR section with measured CPU/memory baselines.
 
-|* IaC*
+|*IaC*
 |✅ Required
 |Terraform configuration with current instance generation and `sizing-reviewed` tag.
 
-|* Process*
+|*Process*
 |Optional
 |Quarterly sizing review report with rightsizing actions.
 
-|* Config*
+|*Config*
 |Optional
 |Export from AWS Compute Optimizer, Azure Advisor or GCP Recommender.
 
@@ -172,8 +172,6 @@ resource "google_compute_instance" "app" {
 * xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
 * xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -261,27 +259,4 @@ resource "google_compute_instance" "app" {
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* ISO/IEC 25010* | Performance Efficiency – Time Behavior; Performance Efficiency – Resource Utilization; Performance Efficiency – Capacity
-|* AWS Well-Architected Framework* | Performance Efficiency Pillar – Select the right resource types and sizes; PERF 1 – How do you select the best performing architecture?
-|* Azure Well-Architected Framework* | Performance Efficiency – Choose the right resources
-|* Google Cloud Architecture Framework* | Performance optimization – Right-size your instances; id: waf-perf-010.tf.aws.ec2-current-generation; aws_instance; aws_launch_template; aws_launch_configuration; id: waf-perf-010.tf.azurerm.vm-sizing-documented; azurerm_linux_virtual_machine; azurerm_windows_virtual_machine; azurerm_virtual_machine_scale_set; id: waf-perf-010.tf.google.gce-machine-type-validated; google_compute_instance; google_compute_instance_template
-
-|===
-
 == Best Practice
-
-* xref:../best-practices/bp-compute-sizing.adoc[Compute Sizing & Instance Selection →]

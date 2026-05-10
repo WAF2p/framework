@@ -8,7 +8,7 @@
 :description: WAF++ Cost Optimization – Log-Tiering (Hot/Warm/Cold/Archive), kein Infinite Retention, kein DEBUG in Produktion.
 
 [.metadata]
-*Pillar:* Cost Optimization |*Severity:* Medium |*Kategorie:* Observability Cost |*Automatisierbar:* Hoch
+*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Observability Cost | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ In schlecht gemanagten Umgebungen übersteigen Observability-Kosten regelmäßig
 |===
 |Risiko |Beschreibung
 
-|* Observability-Kostendominanz*
+|*Observability-Kostendominanz*
 |Logging/Monitoring-Kosten übersteigen Compute-Kosten – klassisches Anti-Pattern ohne Tiering.
 
-|* DEBUG in Produktion*
+|*DEBUG in Produktion*
 |10–100× höheres Log-Volumen; 95% der DEBUG-Logs werden nie gelesen.
 
-|* Unbegrenzte Trace-Speicherung*
+|*Unbegrenzte Trace-Speicherung*
 |Ohne Sampling sammeln APM-Tools jede einzelne Anfrage – exponentiell wachsende Kosten.
 
-|* DSGVO-Risiko*
+|*DSGVO-Risiko*
 |Logs können personenbezogene Daten enthalten; unbegrenzte Retention = DSGVO-Verstoß.
 
 |===
@@ -51,22 +51,22 @@ In schlecht gemanagten Umgebungen übersteigen Observability-Kosten regelmäßig
 |===
 |Tier |Retention |Typ |Kosten
 
-|* Hot*
+|*Hot*
 |7–30 Tage
 |Operational Logs (Errors, Warnings, App-Logs)
 |Höchste Kosten/GB; minimale Menge
 
-|* Warm*
+|*Warm*
 |30–90 Tage
 |Security-Logs, Audit-Trails, Access-Logs
 |Mittlere Kosten; Compliance-relevante Daten
 
-|* Cold*
+|*Cold*
 |90–365 Tage
 |Regulatory-Logs, Finanzlogs, DSGVO-relevante Logs
 |Günstig; selten abgefragt
 
-|* Archive*
+|*Archive*
 |> 365 Tage
 |Legal Hold, Langzeit-Compliance (S3 + Glacier)
 |Sehr günstig; quasi kein Zugriff
@@ -113,39 +113,39 @@ In schlecht gemanagten Umgebungen übersteigen Observability-Kosten regelmäßig
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
- name = "/app/production/payment"
- retention_in_days = 30
- kms_key_id = aws_kms_key.logging.arn
+  name              = "/app/production/payment"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.logging.arn
 
- tags = merge(module.mandatory_tags.tags, {
- log-tier = "hot"
- log-type = "operational"
- })
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "hot"
+    log-type = "operational"
+  })
 }
 
 resource "aws_cloudwatch_log_group" "audit" {
- name = "/app/production/audit"
- retention_in_days = 365
- kms_key_id = aws_kms_key.logging.arn
+  name              = "/app/production/audit"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.logging.arn
 
- tags = merge(module.mandatory_tags.tags, {
- log-tier = "cold"
- log-type = "audit"
- })
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "cold"
+    log-type = "audit"
+  })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
- name = "/app/production/payment"
- # retention_in_days fehlt = unbegrenzt
- # WAF-COST-070 Violation
+  name = "/app/production/payment"
+  # retention_in_days fehlt = unbegrenzt
+  # WAF-COST-070 Violation
 }
 
 resource "aws_cloudwatch_log_group" "debug" {
- name = "/app/production/debug"
- retention_in_days = 0 # Explizit unbegrenzt
- # WAF-COST-070 Violation
+  name              = "/app/production/debug"
+  retention_in_days = 0  # Explizit unbegrenzt
+  # WAF-COST-070 Violation
 }
 ----
 |===
@@ -159,16 +159,16 @@ resource "aws_cloudwatch_log_group" "debug" {
 ----
 # Für Compliance-Logs > 365 Tage: S3-Export verwenden
 resource "aws_cloudwatch_log_subscription_filter" "compliance_export" {
- name = "compliance-logs-to-s3"
- log_group_name = aws_cloudwatch_log_group.compliance.name
- filter_pattern = ""
- destination_arn = aws_kinesis_firehose_delivery_stream.s3_archive.arn
+  name            = "compliance-logs-to-s3"
+  log_group_name  = aws_cloudwatch_log_group.compliance.name
+  filter_pattern  = ""
+  destination_arn = aws_kinesis_firehose_delivery_stream.s3_archive.arn
 }
 
 # CloudWatch: kurze Retention für Zugriff
 resource "aws_cloudwatch_log_group" "compliance" {
- name = "/app/production/compliance"
- retention_in_days = 90 # In CloudWatch; Export nach S3 für 7 Jahre
+  name              = "/app/production/compliance"
+  retention_in_days = 90  # In CloudWatch; Export nach S3 für 7 Jahre
 }
 ----
 
@@ -178,19 +178,19 @@ resource "aws_cloudwatch_log_group" "compliance" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Terraform Log-Group-Konfigurationen mit expliziten `retention_in_days`-Werten (nicht 0).
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Retention-Strategie-Dokument mit Log-Tier-Definitionen und Retention-Perioden je Log-Typ.
 
-|* Config*
+|*Config*
 |Optional
 |Trace-Sampling-Konfiguration für APM-Tools.
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Observability-Kostenanteil am Gesamtbudget (Ziel: < 20%).
 
@@ -203,30 +203,15 @@ resource "aws_cloudwatch_log_group" "compliance" {
 |===
 |Framework |Controls
 
-|* GDPR* | Art. 5(1)(e) – Storage limitation (logs containing personal data must not be kept indefinitely)
-|* FinOps Foundation* | Optimize Phase – Observability Cost Management
-|* Internal Governance* | Retention Policy – Tiered Log Retention; Cloud Cost Governance – Observability Cost Target < 20% of Total
+|*FinOps Foundation*
+|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
 
-|===
+|*ISO 20000*
+|Service financial management – cost allocation
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* GDPR* | Art. 5(1)(e) – Storage limitation (logs containing personal data must not be kept indefinitely)
-|* FinOps Foundation* | Optimize Phase – Observability Cost Management
-|* Internal Governance* | Retention Policy – Tiered Log Retention; Cloud Cost Governance – Observability Cost Target < 20% of Total; id: waf-cost-070.tf.aws.cloudwatch-retention-not-infinite; aws_cloudwatch_log_group; id: waf-cost-070.tf.aws.cloudwatch-operational-retention-max-365; aws_cloudwatch_log_group
+|*Internal Governance*
+|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
 
 |===
 
 == Verwandte Controls
-
-* xref:controls/WAF-COST-040.adoc[WAF-COST-040 – Storage & Retention Lifecycle Defined]
-* xref:controls/WAF-COST-100.adoc[WAF-COST-100 – Architectural Cost Debt Register]
-
-== Best Practice
-
-* xref:../best-practices/bp-retention.adoc[Retention Strategy →]

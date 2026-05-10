@@ -8,7 +8,7 @@
 :description: WAF++ Security – Verschlüsselung ruhender Daten mit kundenverwalteten KMS-Schlüsseln (CMK) auf allen Datenspeichern.
 
 [.metadata]
-*Pillar:* Security |*Severity:* High |*Kategorie:* Encryption |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Kategorie:* Encryption | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -109,32 +109,32 @@ Automatische Schlüsselrotation begrenzt das Kryptomaterial-Exposition-Fenster o
 a|[source,hcl]
 ----
 resource "aws_kms_key" "rds" {
- description = "CMK for RDS encryption"
- enable_key_rotation = true
+  description         = "CMK for RDS encryption"
+  enable_key_rotation = true
 }
 
 resource "aws_db_instance" "app" {
- identifier = "app-prod-db"
- engine = "postgres"
- instance_class = "db.t3.medium"
- allocated_storage = 100
- storage_encrypted = true
- kms_key_id = aws_kms_key.rds.arn
- username = "app_user"
- password = var.db_password
+  identifier        = "app-prod-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.rds.arn
+  username          = "app_user"
+  password          = var.db_password
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "app" {
- identifier = "app-prod-db"
- engine = "postgres"
- instance_class = "db.t3.medium"
- allocated_storage = 100
- # storage_encrypted fehlt – WAF-SEC-030 Violation
- # kms_key_id fehlt – WAF-SEC-030 Violation
- username = "app_user"
- password = var.db_password
+  identifier        = "app-prod-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  # storage_encrypted fehlt  – WAF-SEC-030 Violation
+  # kms_key_id fehlt         – WAF-SEC-030 Violation
+  username          = "app_user"
+  password          = var.db_password
 }
 ----
 |===
@@ -153,21 +153,21 @@ resource "aws_db_instance" "app" {
 a|[source,hcl]
 ----
 resource "aws_kms_key" "app_data" {
- description = "CMK for application data"
- enable_key_rotation = true
- deletion_window_in_days = 30
- tags = {
- owner = "platform-team"
- environment = "production"
- }
+  description             = "CMK for application data"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  tags = {
+    owner       = "platform-team"
+    environment = "production"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_kms_key" "app_data" {
- description = "CMK for application data"
- # enable_key_rotation fehlt (default: false)
- # WAF-SEC-030 Violation
+  description = "CMK for application data"
+  # enable_key_rotation fehlt (default: false)
+  # WAF-SEC-030 Violation
 }
 ----
 |===
@@ -197,8 +197,6 @@ resource "aws_kms_key" "app_data" {
 |KMS-Key-Policy-Review-Protokolle (quartalsweise) mit Dokumentation ungenutzter Key-Grants.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -283,11 +281,4 @@ resource "aws_kms_key" "app_data" {
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-040.adoc[WAF-SEC-040 – Encryption in Transit – TLS Enforcement]
-
 == Best Practice
-
-* xref:../best-practices/bp-encryption.adoc[Verschlüsselungs-Best-Practice →]

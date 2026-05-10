@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Dokumentierte DR-Tests mit gemessenem RTO/RPO, mindestens zweimal jährlich.
 
 [.metadata]
-*Pillar:* Reliability |*Severity:* High |*Kategorie:* Disaster Recovery |*Automatisierbar:* Teilweise
+*Pillar:* Reliability | *Severity:* High | *Kategorie:* Disaster Recovery | *Automatisierbar:* Teilweise
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ validiert, dass RTO-Ziele tatsächlich erreichbar sind.
 |===
 |Risiko |Beschreibung
 
-|* Ungetesteter DR-Plan*
+|*Ungetesteter DR-Plan*
 |DR-Plan 18 Monate alt; Architektur hat sich geändert; Recovery dauert 4x länger als RTO.
 
-|* Fehlende DB-Restore-Schritte*
+|*Fehlende DB-Restore-Schritte*
 |Restore-Prozedur scheitert an nicht-dokumentiertem manuellem Schritt.
 
-|* Verschlüsselungsschlüssel nicht verfügbar*
+|*Verschlüsselungsschlüssel nicht verfügbar*
 |KMS-Schlüssel im ausgefallenen Account gespeichert; Backup nicht entschlüsselbar.
 
-|* IaC-Abhängigkeiten fehlen*
+|*IaC-Abhängigkeiten fehlen*
 |Terraform nimmt Ressourcen an, die im Ziel-Account nicht existieren.
 
 |===
@@ -103,29 +103,29 @@ validiert, dass RTO-Ziele tatsächlich erreichbar sind.
 a|[source,hcl]
 ----
 resource "aws_route53_health_check"
- "primary" {
- fqdn = "api.example.com"
- port = 443
- type = "HTTPS"
- resource_path = "/health/ready"
- failure_threshold = 3
- request_interval = 10
- tags = {
- Name = "payment-api-hc"
- }
+    "primary" {
+  fqdn              = "api.example.com"
+  port              = 443
+  type              = "HTTPS"
+  resource_path     = "/health/ready"
+  failure_threshold = 3
+  request_interval  = 10
+  tags = {
+    Name = "payment-api-hc"
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_route53_record" "api" {
- zone_id = var.hosted_zone_id
- name = "api.example.com"
- type = "A"
- ttl = 300
- records = [var.primary_ip]
- # Kein Failover Routing,
- # kein Health Check
- # WAF-REL-070 Violation
+  zone_id = var.hosted_zone_id
+  name    = "api.example.com"
+  type    = "A"
+  ttl     = 300
+  records = [var.primary_ip]
+  # Kein Failover Routing,
+  # kein Health Check
+  # WAF-REL-070 Violation
 }
 ----
 |===
@@ -139,26 +139,24 @@ DNS-TTL auf 30s reduzieren für schnelles Failover.
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |DR-Testberichte letzter 12 Monate: RTO/RPO erreicht, Probleme, Unterschrift.
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |DR-Plan mit RTO/RPO-Zielen, Testplan und Datum der letzten Aktualisierung.
 
-|* IaC*
+|*IaC*
 |Optional
 |Automatisierungsskripte oder Terraform für DR-Failover-Prozeduren.
 
-|* Process*
+|*Process*
 |Optional
 |DR-Testkalender für die nächsten 12 Monate.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -231,13 +229,4 @@ DNS-TTL auf 30s reduzieren für schnelles Failover.
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-REL-040.adoc[WAF-REL-040 – Backup & Recovery]
-* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response]
-* xref:controls/WAF-REL-090.adoc[WAF-REL-090 – Chaos Engineering]
-
-== Best Practice
-
-* xref:best-practices/bp-backup-recovery.adoc[Backup, Recovery & Disaster Recovery →]

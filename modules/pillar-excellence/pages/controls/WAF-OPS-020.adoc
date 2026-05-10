@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – All cloud infrastructure must be defined as IaC. Manual resource creation in production is prohibited.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* High |*Category:* Infrastructure as Code |*Automatable:* High
+*Pillar:* Operational Excellence | *Severity:* High | *Category:* Infrastructure as Code | *Automatable:* High
 
 == Description
 
@@ -29,16 +29,16 @@ disaster recovery in minutes instead of weeks.
 |===
 |Risk |Description
 
-|* Configuration Drift*
+|*Configuration Drift*
 |Manual console changes create invisible deviations between the IaC definition and reality.
 
-|* Snowflake Servers*
+|*Snowflake Servers*
 |Manually configured systems cannot be reproduced after a failure.
 
-|* Missing Peer Review*
+|*Missing Peer Review*
 |Without IaC and pull requests, there are no second eyes on infrastructure changes.
 
-|* DR Failure*
+|*DR Failure*
 |Disaster recovery tests fail because the actual infrastructure deviates from the documented IaC.
 
 |===
@@ -100,21 +100,21 @@ disaster recovery in minutes instead of weeks.
 a|[source,hcl]
 ----
 terraform {
- backend "s3" {
- bucket = "my-org-tf-state"
- key = "service/prod/terraform.tfstate"
- region = "eu-central-1"
- dynamodb_table = "terraform-state-lock"
- encrypt = true
- }
+  backend "s3" {
+    bucket         = "my-org-tf-state"
+    key            = "service/prod/terraform.tfstate"
+    region         = "eu-central-1"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+  }
 }
 ----
 a|[source,hcl]
 ----
 terraform {
- # No backend – local state
- # WAF-OPS-020 Violation:
- # no remote state, no locking
+  # No backend – local state
+  # WAF-OPS-020 Violation:
+  # no remote state, no locking
 }
 ----
 
@@ -127,10 +127,10 @@ terraform {
 ----
 # Compliant
 resource "aws_s3_bucket_versioning" "state" {
- bucket = aws_s3_bucket.terraform_state.id
- versioning_configuration {
- status = "Enabled" # Not Suspended
- }
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"  # Not Suspended
+  }
 }
 ----
 
@@ -143,19 +143,19 @@ Enable state bucket versioning.
 |===
 |Type |Required |Description
 
-|* IaC*
+|*IaC*
 |✅ Required
 |Terraform repository with remote state configuration (backend.tf with S3/Azure/GCS).
 
-|* Config*
+|*Config*
 |✅ Required
 |State backend configuration with versioning and locking enabled.
 
-|* Process*
+|*Process*
 |Optional
 |Drift detection report (last 30 days, drift events with resolution times).
 
-|* Governance*
+|*Governance*
 |Optional
 |SCP or IAM policy preventing direct console changes in production accounts.
 
@@ -166,8 +166,6 @@ Enable state bucket versioning.
 * xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
 * xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -243,27 +241,4 @@ Enable state bucket versioning.
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
-* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* ISO/IEC 20000-1* | Configuration management; Change and deployment management
-|* ITIL 4* | Infrastructure and platform management; Configuration management
-|* AWS Well-Architected Framework* | Operational Excellence Pillar – OPS 5: How do you reduce defects, ease remediation, and improve flow in your workload?
-|* DevOps Research and Assessment (DORA)* | Version Control; Infrastructure as Code
-|* CIS Controls v8* | CIS-4.6: Securely Manage Enterprise Assets and Software; id: waf-ops-020.tf.aws.s3-terraform-state-backend; id: waf-ops-020.tf.aws.s3-state-bucket-versioning; aws_s3_bucket_versioning; id: waf-ops-020.tf.azurerm.terraform-state-storage; azurerm_storage_account
-
-|===
-
 == Best Practice
-
-* xref:best-practices/bp-iac.adoc[Implementing Infrastructure as Code Consistently →]

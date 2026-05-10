@@ -8,7 +8,7 @@
 :description: WAF++ Sovereign – Explicitly define and enforce key ownership; CMK/BYOK for sensitive data classes; enforce key rotation and deletion policy.
 
 [.metadata]
-*Pillar:* Sovereign |*Severity:* 🔴 Critical |*Category:* Key Sovereignty |*Automatable:* High
+*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Category:* Key Sovereignty | *Automatable:* High
 
 == Description
 
@@ -36,19 +36,19 @@ secure deletion are critical for limiting the blast radius of a key compromise.
 |===
 |Risk |Description
 
-|* Provider-controlled keys*
+|*Provider-controlled keys*
 |Provider or law enforcement can access data via PMK keys.
 
-|* Unencrypted data at rest*
+|*Unencrypted data at rest*
 |Storage services use provider-default encryption without a CMK.
 
-|* Key material in source code*
+|*Key material in source code*
 |Key material exposed in Terraform state, environment variables, or application code.
 
-|* Disabled key rotation*
+|*Disabled key rotation*
 |Missing automatic key rotation increases the blast radius of a key compromise.
 
-|* Missing deletion policy*
+|*Missing deletion policy*
 |Outdated key material persists after data deletion; GDPR Art. 17 cannot be fulfilled.
 
 |===
@@ -59,22 +59,22 @@ secure deletion are critical for limiting the blast radius of a key compromise.
 |===
 |Framework |Controls
 
-|* GDPR*
+|*GDPR*
 |Art. 32 – Security of processing (encryption); Art. 17 – Right to erasure (cryptographic erasure via key deletion)
 
-|* BSI C5:2020*
+|*BSI C5:2020*
 |CRY-01 – Cryptography policy; CRY-02 – Key management
 
-|* EUCS (ENISA)*
+|*EUCS (ENISA)*
 |CRY-01 – Encryption at rest; CRY-03 – Key Management; SOV-03 – Customer key control
 
-|* ISO 27001:2022*
+|*ISO 27001:2022*
 |A.8.24 – Use of cryptography; A.8.25 – Secure development lifecycle
 
-|* GAIA-X*
+|*GAIA-X*
 |Sovereign Cloud – Cryptographic self-determination
 
-|* BSI C3A:2026*
+|*BSI C3A:2026*
 |Dimension 4 – Data: Key ownership model (CMK/BYOK/HYOK); Dimension 4 – Data: External key management; Dimension 4 – Data: Client-side encryption
 
 |===
@@ -140,17 +140,17 @@ secure deletion are critical for limiting the blast radius of a key compromise.
 a|[source,hcl]
 ----
 resource "aws_kms_key" "sovereign" {
- description = "Sovereign data encryption key"
- enable_key_rotation = true
- deletion_window_in_days = 30
- policy = data.aws_iam_policy_document.kms_policy.json
+  description             = "Sovereign data encryption key"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+  policy = data.aws_iam_policy_document.kms_policy.json
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_kms_key" "data" {
- description = "Data key"
- # ❌ enable_key_rotation defaults to false
+  description = "Data key"
+  # ❌ enable_key_rotation defaults to false
 }
 ----
 |===
@@ -167,15 +167,15 @@ resource "aws_kms_key" "data" {
 a|[source,hcl]
 ----
 resource "aws_kms_key" "sovereign" {
- enable_key_rotation = true
- deletion_window_in_days = 30 # ✅ >= 14
+  enable_key_rotation     = true
+  deletion_window_in_days = 30  # ✅ >= 14
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_kms_key" "data" {
- deletion_window_in_days = 7
- # ❌ Too short – no sufficient review window
+  deletion_window_in_days = 7
+  # ❌ Too short – no sufficient review window
 }
 ----
 |===
@@ -192,26 +192,26 @@ resource "aws_kms_key" "data" {
 a|[source,hcl]
 ----
 resource "aws_s3_bucket_server_side_encryption_configuration" "sovereign" {
- bucket = aws_s3_bucket.data.id
- rule {
- apply_server_side_encryption_by_default {
- sse_algorithm = "aws:kms"
- kms_master_key_id = aws_kms_key.sovereign.arn
- }
- bucket_key_enabled = true
- }
+  bucket = aws_s3_bucket.data.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.sovereign.arn
+    }
+    bucket_key_enabled = true
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
- bucket = aws_s3_bucket.data.id
- rule {
- apply_server_side_encryption_by_default {
- sse_algorithm = "AES256"
- # ❌ Provider-Managed Key – not sovereign
- }
- }
+  bucket = aws_s3_bucket.data.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+      # ❌ Provider-Managed Key – not sovereign
+    }
+  }
 }
 ----
 |===
@@ -228,18 +228,18 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
- availability_zone = "eu-central-1a"
- size = 100
- encrypted = true
- kms_key_id = aws_kms_key.sovereign.arn
+  availability_zone = "eu-central-1a"
+  size              = 100
+  encrypted         = true
+  kms_key_id        = aws_kms_key.sovereign.arn
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
- availability_zone = "eu-central-1a"
- size = 100
- # ❌ encrypted defaults to false
+  availability_zone = "eu-central-1a"
+  size              = 100
+  # ❌ encrypted defaults to false
 }
 ----
 |===
@@ -256,15 +256,15 @@ resource "aws_ebs_volume" "data" {
 a|[source,hcl]
 ----
 resource "aws_db_instance" "sovereign" {
- storage_encrypted = true
- kms_key_id = aws_kms_key.rds.arn
- # ...
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.rds.arn
+  # ...
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "db" {
- # ❌ storage_encrypted defaults to false
+  # ❌ storage_encrypted defaults to false
 }
 ----
 |===
@@ -281,20 +281,20 @@ resource "aws_db_instance" "db" {
 a|[source,hcl]
 ----
 resource "azurerm_key_vault" "sovereign" {
- name = "kv-sovereign-prod"
- location = var.azure_location
- resource_group_name = azurerm_resource_group.main.name
- sku_name = "premium"
- soft_delete_retention_days = 90
- purge_protection_enabled = true # ✅
+  name                       = "kv-sovereign-prod"
+  location                   = var.azure_location
+  resource_group_name        = azurerm_resource_group.main.name
+  sku_name                   = "premium"
+  soft_delete_retention_days = 90
+  purge_protection_enabled   = true  # ✅
 }
 ----
 a|[source,hcl]
 ----
 resource "azurerm_key_vault" "kv" {
- name = "kv-prod"
- sku_name = "standard"
- # ❌ purge_protection_enabled defaults to false
+  name     = "kv-prod"
+  sku_name = "standard"
+  # ❌ purge_protection_enabled defaults to false
 }
 ----
 |===
@@ -305,23 +305,23 @@ resource "azurerm_key_vault" "kv" {
 |===
 |Type |Required |Description
 
-|* IaC*
+|*IaC*
 |✅ Required
 |KMS key resources with `enable_key_rotation = true` and explicit deletion window.
 
-|* IaC*
+|*IaC*
 |✅ Required
 |Encryption configurations for all data resources (S3, RDS, EBS) with CMK ARN reference.
 
-|* Config*
+|*Config*
 |Optional
 |KMS key policy export with restricted principal access.
 
-|* Process*
+|*Process*
 |Optional
 |Key rotation schedule and deletion procedure documentation.
 
-|* Logs*
+|*Logs*
 |Optional
 |CloudTrail/KMS access logs with key usage patterns.
 
@@ -334,8 +334,6 @@ resource "azurerm_key_vault" "kv" {
 * xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
 * xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -411,30 +409,4 @@ resource "azurerm_key_vault" "kv" {
 
 |===
 
-
-== Related Controls
-
-* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
-* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
-* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
-* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|* GDPR* | Art. 32 – Security of processing (encryption as a technical measure); Art. 17 – Right to erasure (cryptographic erasure via key deletion)
-|* BSI C5:2020* | CRY-01 – Cryptography policy; CRY-02 – Key management
-|* BSI C3A:2026* | Dimension 4 – Data: Key ownership model (CMK/BYOK/HYOK); Dimension 4 – Data: External key management; Dimension 4 – Data: Client-side encryption
-|* EUCS (ENISA)* | CRY-01 – Encryption at rest; CRY-03 – Key management; SOV-03 – Customer key control
-|* ISO 27001:2022* | A.8.24 – Use of cryptography; A.8.25 – Secure development life cycle
-|* GAIA-X* | Sovereign Cloud – Cryptographic self-determination; id: waf-sov-050.tf.aws.kms-key-rotation-enabled; aws_kms_key; id: waf-sov-050.tf.aws.kms-key-deletion-window; aws_kms_key; id: waf-sov-050.tf.aws.s3-bucket-kms-encryption; aws_s3_bucket_server_side_encryption_configuration; id: waf-sov-050.tf.aws.ebs-volume-encrypted; aws_ebs_volume; aws_instance; id: waf-sov-050.tf.aws.rds-storage-encrypted; aws_db_instance; aws_rds_cluster; id: waf-sov-050.tf.azurerm.key-vault-soft-delete; azurerm_key_vault
-
-|===
-
 == Best Practice
-
-* xref:best-practices/bp-key-sovereignty.adoc[Implement Key Sovereignty →]

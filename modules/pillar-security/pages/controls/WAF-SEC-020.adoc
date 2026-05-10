@@ -8,7 +8,7 @@
 :description: WAF++ Security – Minimalprinzip und RBAC: AdministratorAccess darf nicht direkt an IAM-User vergeben werden; Rollen benötigen Bedingungen.
 
 [.metadata]
-*Pillar:* Security |*Severity:* Critical |*Kategorie:* IAM |*Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* Critical | *Kategorie:* IAM | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -108,38 +108,38 @@ Ohne gültige MFA-Session oder aus einer fremden IP ist die Rolle nicht annehmba
 a|[source,hcl]
 ----
 resource "aws_iam_role" "admin" {
- name = "OrganizationAdminRole"
- assume_role_policy = jsonencode({
- Version = "2012-10-17"
- Statement = [{
- Effect = "Allow"
- Principal = { AWS = var.admin_principal }
- Action = "sts:AssumeRole"
- Condition = {
- Bool = {
- "aws:MultiFactorAuthPresent" = "true"
- }
- }
- }]
- })
+  name = "OrganizationAdminRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { AWS = var.admin_principal }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        Bool = {
+          "aws:MultiFactorAuthPresent" = "true"
+        }
+      }
+    }]
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "admin" {
- role = aws_iam_role.admin.name
- policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  role       = aws_iam_role.admin.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_iam_user" "admin_user" {
- name = "alice"
+  name = "alice"
 }
 
 # WAF-SEC-020 Violation:
 # AdministratorAccess direkt an Benutzer
 resource "aws_iam_user_policy_attachment" "bad" {
- user = aws_iam_user.admin_user.name
- policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  user       = aws_iam_user.admin_user.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 ----
 |===
@@ -158,40 +158,40 @@ resource "aws_iam_user_policy_attachment" "bad" {
 a|[source,hcl]
 ----
 resource "aws_iam_role" "ops" {
- name = "OperationsRole"
- assume_role_policy = jsonencode({
- Version = "2012-10-17"
- Statement = [{
- Effect = "Allow"
- Principal = {
- AWS = "arn:aws:iam::123456789:root"
- }
- Action = "sts:AssumeRole"
- Condition = {
- Bool = {
- "aws:MultiFactorAuthPresent" = "true"
- }
- }
- }]
- })
+  name = "OperationsRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::123456789:root"
+      }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        Bool = {
+          "aws:MultiFactorAuthPresent" = "true"
+        }
+      }
+    }]
+  })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_iam_role" "ops" {
- name = "OperationsRole"
- assume_role_policy = jsonencode({
- Version = "2012-10-17"
- Statement = [{
- Effect = "Allow"
- Principal = {
- AWS = "arn:aws:iam::123456789:root"
- }
- Action = "sts:AssumeRole"
- # Kein Condition-Block
- # WAF-SEC-020 Violation
- }]
- })
+  name = "OperationsRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::123456789:root"
+      }
+      Action = "sts:AssumeRole"
+      # Kein Condition-Block
+      # WAF-SEC-020 Violation
+    }]
+  })
 }
 ----
 |===
@@ -221,8 +221,6 @@ resource "aws_iam_role" "ops" {
 |OPA- oder WAF++-CI-Gate-Konfiguration, die direkte Admin-Policy-Bindungen an Benutzer blockiert.
 
 |===
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -307,11 +305,4 @@ resource "aws_iam_role" "ops" {
 
 |===
 
-
-== Verwandte Controls
-
-* xref:controls/WAF-SEC-010.adoc[WAF-SEC-010 – Identity & Access Management Baseline]
-
 == Best Practice
-
-* xref:../best-practices/bp-iam.adoc[Identity & Access Management Best Practice →]

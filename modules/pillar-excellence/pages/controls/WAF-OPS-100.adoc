@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alle bekannten Operational Debt-Posten werden in einem version-controlled Register dokumentiert und quartalsweise reviewed.
 
 [.metadata]
-*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Operational Governance |*Automatisierbar:* Niedrig
+*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Operational Governance | *Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ priorisiert und nicht abgebaut werden.
 |===
 |Risiko |Beschreibung
 
-|* On-Call-Burnout*
+|*On-Call-Burnout*
 |Stetig wachsender Toil ohne Tracking oder Abbau führt zu Engineer-Burnout und hoher Fluktuation.
 
-|* Manuelle Prozesse als SPOF*
+|*Manuelle Prozesse als SPOF*
 |Manuelle Operationen werden Single Points of Failure wenn die zuständige Person fehlt.
 
-|* Stille Akkumulation*
+|*Stille Akkumulation*
 |Operational Debt wächst unbemerkt bis er einen Major Incident verursacht.
 
-|* Toil übersteigt Feature-Arbeit*
+|*Toil übersteigt Feature-Arbeit*
 |Teams verbringen mehr Zeit mit Toil als mit Produkt-Entwicklung – Wettbewerbsnachteil.
 
 |===
@@ -102,15 +102,15 @@ priorisiert und nicht abgebaut werden.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_event_rule" "ops_review" {
- name = "quarterly-ops-debt-review"
- description = "Quarterly Ops Debt Register review reminder"
- schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
- is_enabled = true
+  name                = "quarterly-ops-debt-review"
+  description         = "Quarterly Ops Debt Register review reminder"
+  schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
+  is_enabled          = true
 }
 resource "aws_cloudwatch_event_target" "ops_sns" {
- rule = aws_cloudwatch_event_rule.ops_review.name
- target_id = "OpsReviewNotification"
- arn = aws_sns_topic.team_notifications.arn
+  rule      = aws_cloudwatch_event_rule.ops_review.name
+  target_id = "OpsReviewNotification"
+  arn       = aws_sns_topic.team_notifications.arn
 }
 ----
 a|[source,hcl]
@@ -129,10 +129,10 @@ a|[source,hcl]
 ----
 # Compliant
 resource "aws_ssm_document" "rotate_instances" {
- name = "RotateASGInstances"
- document_type = "Automation"
- document_format = "YAML"
- content = file("ssm-documents/rotate-asg-instances.yaml")
+  name            = "RotateASGInstances"
+  document_type   = "Automation"
+  document_format = "YAML"
+  content         = file("ssm-documents/rotate-asg-instances.yaml")
 }
 ----
 
@@ -145,26 +145,24 @@ SSM Automation Documents für alle bekannten manuellen Routineaufgaben erstellen
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Operational Debt Register (version-controlled) mit Einträgen, Severity, Toil-Schätzungen, Owners, Status.
 
-|* Process*
+|*Process*
 |✅ Pflicht
 |Quarterly-Review-Protokoll mit Priorisierungsentscheidungen und Sprint-Budget-Zuweisung.
 
-|* Process*
+|*Process*
 |Optional
 |Sprint-Kapazitäts-Report: % des Sprints für Operational-Debt-Abbau.
 
-|* Governance*
+|*Governance*
 |Optional
 |Toil-Metriken-Report: wöchentliche Toil-Stunden pro Ingenieur, Trend der letzten 6 Monate.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -240,12 +238,4 @@ SSM Automation Documents für alle bekannten manuellen Routineaufgaben erstellen
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
-
-== Best Practice
-
-* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen →]

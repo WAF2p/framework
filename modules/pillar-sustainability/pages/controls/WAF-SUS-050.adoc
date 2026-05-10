@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Lifecycle-Policies auf allen Storage-Ressourcen, Data Minimization, S3 Intelligent-Tiering, keine infinite Retention.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* Storage Efficiency |*Automatisierbar:* Hoch
+*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Storage Efficiency | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -33,16 +33,16 @@ ausgerichtet: weniger Daten = weniger Energie.
 |===
 |Risiko |Beschreibung
 
-|* Unbegrenzte Datenakkumulation*
+|*Unbegrenzte Datenakkumulation*
 |S3-Buckets ohne Lifecycle-Rules wachsen unbegrenzt im teuersten Tier; Energieverbrauch steigt proportional.
 
-|* Infinite Log Retention*
+|*Infinite Log Retention*
 |CloudWatch ohne `retention_in_days` akkumuliert Terabytes historischer Logs ohne Governance.
 
-|* Orphaned EBS Volumes*
+|*Orphaned EBS Volumes*
 |Detached EBS-Volumes nach Instanz-Terminierung laufen weiter und verbrauchen persistent Energie.
 
-|* DSGVO-Verstoß*
+|*DSGVO-Verstoß*
 |Excessive Retention von personenbezogenen Daten ohne Lifecycle-Regel ist Verstoß gegen Art. 5 DSGVO.
 
 |===
@@ -104,28 +104,28 @@ ausgerichtet: weniger Daten = weniger Energie.
 a|[source,hcl]
 ----
 resource "aws_s3_bucket_lifecycle_configuration" "data" {
- bucket = aws_s3_bucket.data.id
- rule {
- id = "data-lifecycle"
- status = "Enabled"
- transition {
- days = 30
- storage_class = "STANDARD_IA"
- }
- transition {
- days = 90
- storage_class = "GLACIER"
- }
- expiration { days = 730 }
- }
+  bucket = aws_s3_bucket.data.id
+  rule {
+    id     = "data-lifecycle"
+    status = "Enabled"
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+    expiration { days = 730 }
+  }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
- bucket = "acme-app-data"
- # Keine Lifecycle-Config
- # WAF-SUS-050 Violation
+  bucket = "acme-app-data"
+  # Keine Lifecycle-Config
+  # WAF-SUS-050 Violation
 }
 ----
 |===
@@ -138,26 +138,24 @@ resource "aws_s3_bucket" "data" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Terraform mit S3-Lifecycle-Rules und CloudWatch Log Group `retention_in_days` für alle Storage-Ressourcen.
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |AWS Config oder Cloud-Inventory: kein S3-Bucket ohne Lifecycle-Policy.
 
-|* Process*
+|*Process*
 |Optional
 |Monthly Orphaned-Resource-Scan-Report.
 
-|* Governance*
+|*Governance*
 |Optional
 |Data-Minimization-Policy-Dokument.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -230,13 +228,4 @@ resource "aws_s3_bucket" "data" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
-* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
-
-== Best Practice
-
-* xref:best-practices/bp-data-efficiency.adoc[Datenminimierung, Storage-Lifecycle, Transferoptimierung →]

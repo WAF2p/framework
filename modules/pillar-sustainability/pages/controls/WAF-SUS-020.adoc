@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – ARM/Graviton-Instanzen als Standard; Lambda arm64; Previous-Generation-Instanztypen eliminieren.
 
 [.metadata]
-*Pillar:* Sustainability |*Severity:* High |*Kategorie:* Compute Efficiency |*Automatisierbar:* Hoch
+*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Compute Efficiency | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ Dieser Control hat den höchsten Automatisierungsgrad aller WAF-SUS-Controls.
 |===
 |Risiko |Beschreibung
 
-|* Excess Scope 3 Emissionen*
+|*Excess Scope 3 Emissionen*
 |Previous-Gen x86-Instanzen emittieren 30–50% mehr CO₂/Workload als aktuelle Graviton-Äquivalente.
 
-|* SCI-Ziele verfehlt*
+|*SCI-Ziele verfehlt*
 |Software Carbon Intensity kann ohne energieeffiziente Hardware-Basis nicht nachhaltig verbessert werden.
 
-|* Sustainability-Schulden*
+|*Sustainability-Schulden*
 |Ungeprüfte Instanztypen akkumulieren sich und werden bei Skalierung proportional teurer in CO₂ und Kosten.
 
-|* CI-Gate fehlt*
+|*CI-Gate fehlt*
 |Ohne automatisierte Prüfung im Pipeline werden Previous-Gen-Typen unkontrolliert weiter deployed.
 
 |===
@@ -103,24 +103,24 @@ Dieser Control hat den höchsten Automatisierungsgrad aller WAF-SUS-Controls.
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "handler" {
- function_name = "api-handler"
- runtime = "python3.12"
- architectures = ["arm64"]
- handler = "main.handler"
- role = aws_iam_role.lambda.arn
- filename = "function.zip"
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "main.handler"
+  role          = aws_iam_role.lambda.arn
+  filename      = "function.zip"
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "handler" {
- function_name = "api-handler"
- runtime = "python3.12"
- architectures = ["x86_64"]
- # WAF-SUS-020 Violation: nutze arm64
- handler = "main.handler"
- role = aws_iam_role.lambda.arn
- filename = "function.zip"
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+  # WAF-SUS-020 Violation: nutze arm64
+  handler  = "main.handler"
+  role     = aws_iam_role.lambda.arn
+  filename = "function.zip"
 }
 ----
 |===
@@ -139,18 +139,18 @@ resource "aws_lambda_function" "handler" {
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu_arm.id
- instance_type = "m7g.large"
- # Graviton3 – 40% besser als m4.large
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+  # Graviton3 – 40% besser als m4.large
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
- ami = data.aws_ami.ubuntu.id
- instance_type = "m4.large"
- # WAF-SUS-020 Violation: Previous-Gen
- # Migriere zu m7g.large
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "m4.large"
+  # WAF-SUS-020 Violation: Previous-Gen
+  # Migriere zu m7g.large
 }
 ----
 |===
@@ -163,26 +163,24 @@ resource "aws_instance" "app" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* IaC*
+|*IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit Graviton/arm64 Instanztypen für EC2 und Lambda.
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Cloud-Inventory-Report mit Verteilung der Instanztypen nach Familie (ARM-Share in %).
 
-|* Governance*
+|*Governance*
 |Optional
 |Compute-Sustainability-Policy mit bevorzugten Instanzfamilien.
 
-|* Process*
+|*Process*
 |Optional
 |Migrationsplan für verbleibende x86-Workloads mit Timeline und Progress-Tracking.
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -255,13 +253,4 @@ resource "aws_instance" "app" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-* xref:controls/WAF-SUS-060.adoc[WAF-SUS-060 – Workload Scheduling & Time-Shifting]
-* xref:controls/WAF-SUS-010.adoc[WAF-SUS-010 – Carbon Footprint Measurement & Reporting]
-
-== Best Practice
-
-* xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute: ARM/Graviton, Spot →]

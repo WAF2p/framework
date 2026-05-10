@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Datenbankperformance messen, Slow-Query-Logs aktivieren und Indexstrategie dokumentieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency |*Severity:* High |*Kategorie:* Database Performance |*Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Database Performance | *Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ auslösen. Ohne Slow-Query-Log gibt es keine Möglichkeit, solche Probleme proak
 |===
 |Risiko |Beschreibung
 
-|* Full Table Scans*
+|*Full Table Scans*
 |Fehlende Indizes → Vollständige Tabellenscans → I/O-Sättigung und CPU-Spike.
 
-|* Connection-Pool-Erschöpfung*
+|*Connection-Pool-Erschöpfung*
 |Langsame Queries blockieren Verbindungen → Pool erschöpft → Neue Requests können nicht verbinden.
 
-|* Query-Regression nach Schema-Änderung*
+|*Query-Regression nach Schema-Änderung*
 |Neuer Index für ein Feature entfernt den Query-Plan eines anderen Features – unbemerkt.
 
-|* Kein Diagnostic-Zugang bei Incident*
+|*Kein Diagnostic-Zugang bei Incident*
 |Performance Insights nicht aktiv → Incident kann nicht diagnostiziert werden.
 
 |===
@@ -101,24 +101,24 @@ auslösen. Ohne Slow-Query-Log gibt es keine Möglichkeit, solche Probleme proak
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
- identifier = "db-payment"
- engine = "postgres"
- performance_insights_enabled = true
- monitoring_interval = 60
- monitoring_role_arn = aws_iam_role.rds_monitoring.arn
- enabled_cloudwatch_logs_exports = ["postgresql"]
- deletion_protection = true
+  identifier = "db-payment"
+  engine     = "postgres"
+  performance_insights_enabled = true
+  monitoring_interval          = 60
+  monitoring_role_arn          = aws_iam_role.rds_monitoring.arn
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  deletion_protection = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
- identifier = "db-payment"
- engine = "postgres"
- # Kein Performance Insights
- # Kein Enhanced Monitoring
- # Keine CW-Log-Exports
- # WAF-PERF-040 Violation
+  identifier = "db-payment"
+  engine     = "postgres"
+  # Kein Performance Insights
+  # Kein Enhanced Monitoring
+  # Keine CW-Log-Exports
+  # WAF-PERF-040 Violation
 }
 ----
 |===
@@ -132,26 +132,24 @@ resource "aws_db_instance" "main" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|* Config*
+|*Config*
 |✅ Pflicht
 |Performance-Insights-Konfiguration auf Produktionsdatenbanken (Screenshot oder Terraform).
 
-|* Governance*
+|*Governance*
 |✅ Pflicht
 |Index-Strategie-Dokument für hochfrequente Tabellen.
 
-|* Process*
+|*Process*
 |Optional
 |Monatlicher Slow-Query-Review-Bericht mit Action Items.
 
-|* Config*
+|*Config*
 |Optional
 |Query-Performance-Baseline (P50/P95/P99 für Top-20-Queries).
 
 |===
 
-
-== Regulatorisches Mapping
 
 == Regulatorisches Mapping
 
@@ -239,13 +237,4 @@ resource "aws_db_instance" "main" {
 
 |===
 
-
 == Verwandte Controls
-
-* xref:controls/WAF-PERF-030.adoc[WAF-PERF-030 – Caching Strategy Defined & Implemented]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-090.adoc[WAF-PERF-090 – Storage I/O Performance & Throughput Optimization]
-
-== Best Practice
-
-* xref:../best-practices/bp-database-performance.adoc[Datenbankperformance optimieren →]
