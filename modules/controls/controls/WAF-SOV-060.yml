@@ -178,3 +178,28 @@ checks:
         message: 'Long-lived IAM access keys should not be created via Terraform. Use roles or OIDC.'
         expected: 'Active'
     on_fail: warning
+  - id: waf-sov-060.tf.stackit.no-wildcard-iam-policy
+    engine: terraform
+    automated: true
+    title: 'StackIT IAM policies must not grant wildcard permissions'
+    provider: stackit
+    description: "StackIT IAM policies must not grant wildcard actions and resources. Follow least-privilege principles for sovereign environments."
+    expected: 'true'
+    remediation: 'Replace wildcard permissions with specific actions and resource ARNs.\n'
+    example:
+      compliant: |
+        # Use specific permissions for StackIT resources
+
+      non_compliant: |
+        # Wildcard permissions in StackIT IAM policies
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_project
+    assertions:
+      - attribute: 'iam_policy'
+        op: 'not_contains_pattern'
+        message: 'StackIT IAM policy grants wildcard permissions.'
+        pattern: '"\\*":\\s*"\\*"'
+    on_fail: violation

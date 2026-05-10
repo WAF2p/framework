@@ -210,6 +210,104 @@ provider "aws" {
 |===
 
 ---
+=== waf-sov-020.tf.stackit.region-validation
+*Checks:* StackIT region variables must have a `validation` block.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+variable "stackit_region" {
+  type    = string
+  default = "eu-central-1"
+  validation {
+    condition = contains(["eu-central-1", "eu-west-1"], var.stackit_region)
+    error_message = "StackIT region must be an approved sovereign region."
+  }
+}
+provider "stackit" {
+  region = var.stackit_region
+}
+----
+a|[source,hcl]
+----
+variable "stackit_region" {
+  type    = string
+  default = "us-east-1"
+  # No validation block
+}
+----
+|===
+
+---
+=== waf-sov-020.tf.ovh.location-validation
+*Checks:* OVH location variables must have a `validation` block.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+variable "ovh_location" {
+  type    = string
+  default = "DE-FRA"
+  validation {
+    condition = contains(["DE-FRA", "DE-EDE", "EU-CY"], var.ovh_location)
+    error_message = "OVH location must be an approved sovereign region."
+  }
+}
+provider "ovh" {
+  endpoint = "ovh-eu"
+}
+----
+a|[source,hcl]
+----
+variable "ovh_location" {
+  type    = string
+  default = "US-CA"
+  # No validation block
+}
+----
+|===
+
+---
+=== waf-sov-020.tf.hcloud.location-validation
+*Checks:* Hetzner Cloud location variables must have a `validation` block.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+variable "hcloud_location" {
+  type    = string
+  default = "fsn1"
+  validation {
+    condition = contains(["fsn1", "nbg1", "hel1"], var.hcloud_location)
+    error_message = "Hetzner Cloud location must be an approved sovereign region."
+  }
+}
+resource "hcloud_server" "main" {
+  name        = "sovereign-server"
+  server_type = "cx22"
+  location    = var.hcloud_location
+}
+----
+a|[source,hcl]
+----
+variable "hcloud_location" {
+  type    = string
+  default = "us-ca"
+  # No validation block
+}
+----
+|===
+
+---
 
 === SCP Example (Organization Level)
 *Purpose:* Last safety net – prevents API calls outside approved regions.

@@ -146,6 +146,50 @@ resource "aws_s3_bucket" "customer_data" {
   }
 }
 ----
+
+resource "azurerm_storage_account" "customer_data" {
+  name             = "acmestorage"
+  resource_group_name = azurerm_resource_group.main.name
+  location         = "germanywestcentral"
+  tags = {
+    data-class     = "pii"
+    data-residency = "eu-only"
+  }
+}
+
+resource "google_storage_bucket" "customer_data" {
+  name     = "acme-customer-data-prod"
+  location = "europe-west3"
+  labels = {
+    data-class     = "pii"
+    data-residency = "eu-only"
+  }
+}
+
+resource "stackit_container_registry" "customer_data" {
+  project_id = stackit_project.main.id
+  name       = "acme-registry"
+  labels = {
+    data-class     = "pii"
+    data-residency = "eu-only"
+  }
+}
+
+resource "ovh_cloud_project" "customer_data" {
+  description = "Sovereign workload"
+  tags        = ["data-residency=eu-only", "data-class=pii"]
+}
+
+resource "hcloud_server" "customer_data" {
+  name        = "sovereign-server"
+  server_type = "cx22"
+  location    = "fsn1"
+  labels = {
+    data-class     = "pii"
+    data-residency = "eu-only"
+  }
+}
+----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "customer_data" {
@@ -158,9 +202,10 @@ resource "aws_s3_bucket" "customer_data" {
 ----
 |===
 
-*Remediation:* Add `data-residency` and `data-class` tags to all data-holding resources
-(S3, RDS, DynamoDB, Storage Accounts, GCS Buckets).
+*Remediation:* Add `data-residency` and `data-class` tags to all data-holding resources.
 Allowed values for `data-residency`: `eu-only`, `de-only`, `ch-only`, `global-approved`.
+
+*Supported providers:* AWS, Azure, GCP, **StackIT**, **OVH**, **Hetzner Cloud**
 
 ---
 

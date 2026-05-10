@@ -299,6 +299,45 @@ resource "azurerm_key_vault" "kv" {
 ----
 |===
 
+---
+=== waf-sov-050.tf.stackit.key-rotation-enabled
+*Checks:* StackIT Secret Manager keys must have automatic rotation enabled.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "stackit_secret_manager" "sovereign" {
+  project_id = stackit_project.main.id
+  name       = "sovereign-secrets"
+  rotation {
+    enabled = true
+    interval_days = 90
+  }
+}
+----
+a|[source,hcl]
+----
+resource "stackit_secret_manager" "secrets" {
+  project_id = stackit_project.main.id
+  name       = "secrets"
+  # No rotation configured
+}
+----
+|===
+
+*Supported providers:* AWS, Azure, **StackIT**, **OVH**, **Hetzner Cloud**
+
+---
+=== waf-sov-050.tf.ovh.key-rotation-enabled
+*Checks:* OVH secret manager keys must have rotation configured.
+
+---
+=== waf-sov-050.tf.hcloud.key-rotation-enabled
+*Checks:* Hetzner Cloud secret store keys must have rotation configured.
+
 == Evidence
 
 [cols="1,1,2"]

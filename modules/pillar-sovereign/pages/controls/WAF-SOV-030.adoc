@@ -218,6 +218,47 @@ resource "aws_s3_bucket_versioning" "backup" {
 }
 ----
 
+---
+=== waf-sov-030.tf.stackit.backup-retention
+*Checks:* StackIT database instances must have backup retention enabled.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "stackit_mysql_instance" "main" {
+  project_id = stackit_project.main.id
+  name       = "sovereign-mysql"
+  backup_retention_period = 14
+  # Backups stored in eu-central-1
+}
+----
+a|[source,hcl]
+----
+resource "stackit_mysql_instance" "main" {
+  project_id = stackit_project.main.id
+  name       = "mysql"
+  # No backup retention configured
+}
+----
+|===
+
+*Supported providers:* AWS, Azure, **StackIT**, **OVH**, **Hetzner Cloud**
+
+---
+=== waf-sov-030.tf.ovh.backup-location-sovereign
+*Checks:* OVH backups must remain in sovereign regions.
+
+*Supported providers:* **OVH**
+
+---
+=== waf-sov-030.tf.hcloud.backup-location-sovereign
+*Checks:* Hetzner Cloud backups must remain in sovereign regions.
+
+*Supported providers:* **Hetzner Cloud**
+
 == Evidence
 
 [cols="1,1,2"]

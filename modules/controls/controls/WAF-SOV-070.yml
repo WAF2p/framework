@@ -198,3 +198,101 @@ checks:
         op: 'references_cloudtrail_bucket'
         message: 'CloudTrail S3 bucket should have an aws_s3_bucket_logging resource configured.'
     on_fail: warning
+  - id: waf-sov-070.tf.stackit.logging-enabled
+    engine: terraform
+    automated: true
+    title: 'StackIT services must have logging enabled'
+    provider: stackit
+    description: 'StackIT services (MySQL, Redis, OpenSearch, Container Registry) must have logging enabled for break-glass activity monitoring.'
+    expected: 'true'
+    remediation: 'Enable logging on all StackIT services with log file validation.\n'
+    example:
+      compliant: |
+        resource "stackit_mysql_instance" "main" {
+          project_id = stackit_project.main.id
+          name       = "sovereign-mysql"
+          logging {
+            enabled = true
+          }
+        }
+
+      non_compliant: |
+        resource "stackit_mysql_instance" "main" {
+          project_id = stackit_project.main.id
+          name       = "mysql"
+          # Logging not enabled
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_mysql_instance
+        - stackit_redis_instance
+        - stackit_opensearch_instance
+        - stackit_container_registry
+    assertions:
+      - attribute: 'logging.enabled'
+        op: 'is_true'
+        message: 'StackIT service must have logging enabled for audit purposes.'
+    on_fail: warning
+  - id: waf-sov-070.tf.ovh.logging-enabled
+    engine: terraform
+    automated: true
+    title: 'OVH services must have logging enabled'
+    provider: ovh
+    description: 'OVH cloud services must have logging enabled for break-glass activity monitoring.'
+    expected: 'true'
+    remediation: 'Enable logging on OVH services for audit trail compliance.\n'
+    example:
+      compliant: |
+        # OVH services with logging enabled
+
+      non_compliant: |
+        # OVH services without logging
+
+    scope:
+      block_type: resource
+      resource_types:
+        - ovh_cloud_project
+        - ovh_vps
+        - ovh_dedicated_server
+    assertions:
+      - attribute: 'logging_enabled'
+        op: 'is_true'
+        message: 'OVH service must have logging enabled for audit purposes.'
+    on_fail: warning
+  - id: waf-sov-070.tf.hcloud.logging-enabled
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud services must have logging enabled'
+    provider: hcloud
+    description: 'Hetzner Cloud servers must have logging enabled for break-glass activity monitoring.'
+    expected: 'true'
+    remediation: 'Enable ssh access logging and system logging on Hetzner Cloud servers.\n'
+    example:
+      compliant: |
+        resource "hcloud_server" "main" {
+          name        = "sovereign-server"
+          server_type = "cx22"
+          labels = {
+            logging-enabled = "true"
+          }
+        }
+
+      non_compliant: |
+        resource "hcloud_server" "main" {
+          name        = "server"
+          server_type = "cx22"
+          # No logging configuration
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - hcloud_server
+    assertions:
+      - attribute: 'labels'
+        op: 'key_exists'
+        key: 'logging-enabled'
+        message: 'Hetzner Cloud server must have logging-enabled label.'
+    on_fail: warning

@@ -174,12 +174,12 @@ checks:
         provider "aws" {
           region = var.aws_region  # validated to eu-central-1 or eu-west-1
         }
-        
+
       non_compliant: |
         provider "aws" {
           region = "us-east-1"  # Non-sovereign region hardcoded
         }
-        
+
     scope:
       block_type: any
     assertions:
@@ -187,4 +187,114 @@ checks:
         op: 'not_matches'
         message: 'Hardcoded non-sovereign AWS region detected. Only EU/approved regions are permitted.'
         pattern: '^(us-|ap-|sa-|ca-|me-|af-)'
+    on_fail: violation
+  - id: waf-sov-020.tf.stackit.region-validation
+    engine: terraform
+    automated: true
+    title: 'StackIT region variable must have a validation constraint'
+    provider: stackit
+    description: 'StackIT project region variables must have validation blocks restricting to approved sovereign regions. StackIT regions include: eu-central-1 (Karlsruhe), eu-west-1 (Strasbourg).'
+    expected: 'true'
+    remediation: 'Add a validation block restricting the StackIT region to approved sovereign values.\n'
+    example:
+      compliant: |
+        variable "stackit_region" {
+          type    = string
+          default = "eu-central-1"
+          validation {
+            condition     = contains(["eu-central-1", "eu-west-1"], var.stackit_region)
+            error_message = "StackIT region must be an approved sovereign region."
+          }
+        }
+        provider "stackit" {
+          region = var.stackit_region
+        }
+
+      non_compliant: |
+        variable "stackit_region" {
+          type    = string
+          default = "us-east-1"
+          # No validation block
+        }
+
+    scope:
+      block_type: variable
+    assertions:
+      - attribute: 'validation'
+        op: 'block_exists'
+        message: "StackIT region/location variable is missing a 'validation' block."
+    on_fail: violation
+  - id: waf-sov-020.tf.ovh.location-validation
+    engine: terraform
+    automated: true
+    title: 'OVH location variable must have a validation constraint'
+    provider: ovh
+    description: 'OVH project location variables must have validation blocks restricting to approved sovereign regions. OVH regions include: DE-FRA (Frankfurt), DE-EDE (Ede), EU-CY (Cyprus).'
+    expected: 'true'
+    remediation: 'Add a validation block restricting OVH location to approved sovereign regions.\n'
+    example:
+      compliant: |
+        variable "ovh_location" {
+          type    = string
+          default = "DE-FRA"
+          validation {
+            condition     = contains(["DE-FRA", "DE-EDE", "EU-CY"], var.ovh_location)
+            error_message = "OVH location must be an approved sovereign region."
+          }
+        }
+        provider "ovh" {
+          endpoint = "ovh-eu"
+        }
+
+      non_compliant: |
+        variable "ovh_location" {
+          type    = string
+          default = "US-CA"
+          # No validation block
+        }
+
+    scope:
+      block_type: variable
+    assertions:
+      - attribute: 'validation'
+        op: 'block_exists'
+        message: "OVH location variable is missing a 'validation' block."
+    on_fail: violation
+  - id: waf-sov-020.tf.hcloud.location-validation
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud location variable must have a validation constraint'
+    provider: hcloud
+    description: 'Hetzner Cloud location variables must have validation blocks restricting to approved sovereign regions. Hetzner regions include: fsn1 (Frankfurt), nbg1 (Nuremberg), hel1 (Helsinki).'
+    expected: 'true'
+    remediation: 'Add a validation block restricting Hetzner Cloud location to approved sovereign regions.\n'
+    example:
+      compliant: |
+        variable "hcloud_location" {
+          type    = string
+          default = "fsn1"
+          validation {
+            condition     = contains(["fsn1", "nbg1", "hel1"], var.hcloud_location)
+            error_message = "Hetzner Cloud location must be an approved sovereign region."
+          }
+        }
+        resource "hcloud_server" "main" {
+          name        = "sovereign-server"
+          server_type = "cx22"
+          location    = var.hcloud_location
+        }
+
+      non_compliant: |
+        variable "hcloud_location" {
+          type    = string
+          default = "us-ca"
+          # No validation block
+        }
+
+    scope:
+      block_type: variable
+    assertions:
+      - attribute: 'validation'
+        op: 'block_exists'
+        message: "Hetzner Cloud location variable is missing a 'validation' block."
     on_fail: violation
