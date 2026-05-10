@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Lifecycle-Policies auf allen Storage-Ressourcen, Data Minimization, S3 Intelligent-Tiering, keine infinite Retention.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Storage Efficiency | *Automatisierbar:* Hoch
+*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* Storage Efficiency |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -33,16 +33,16 @@ ausgerichtet: weniger Daten = weniger Energie.
 |===
 |Risiko |Beschreibung
 
-|*Unbegrenzte Datenakkumulation*
+|* Unbegrenzte Datenakkumulation*
 |S3-Buckets ohne Lifecycle-Rules wachsen unbegrenzt im teuersten Tier; Energieverbrauch steigt proportional.
 
-|*Infinite Log Retention*
+|* Infinite Log Retention*
 |CloudWatch ohne `retention_in_days` akkumuliert Terabytes historischer Logs ohne Governance.
 
-|*Orphaned EBS Volumes*
+|* Orphaned EBS Volumes*
 |Detached EBS-Volumes nach Instanz-Terminierung laufen weiter und verbrauchen persistent Energie.
 
-|*DSGVO-Verstoß*
+|* DSGVO-Verstoß*
 |Excessive Retention von personenbezogenen Daten ohne Lifecycle-Regel ist Verstoß gegen Art. 5 DSGVO.
 
 |===
@@ -104,28 +104,28 @@ ausgerichtet: weniger Daten = weniger Energie.
 a|[source,hcl]
 ----
 resource "aws_s3_bucket_lifecycle_configuration" "data" {
-  bucket = aws_s3_bucket.data.id
-  rule {
-    id     = "data-lifecycle"
-    status = "Enabled"
-    transition {
-      days          = 30
-      storage_class = "STANDARD_IA"
-    }
-    transition {
-      days          = 90
-      storage_class = "GLACIER"
-    }
-    expiration { days = 730 }
-  }
+ bucket = aws_s3_bucket.data.id
+ rule {
+ id = "data-lifecycle"
+ status = "Enabled"
+ transition {
+ days = 30
+ storage_class = "STANDARD_IA"
+ }
+ transition {
+ days = 90
+ storage_class = "GLACIER"
+ }
+ expiration { days = 730 }
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
-  bucket = "acme-app-data"
-  # Keine Lifecycle-Config
-  # WAF-SUS-050 Violation
+ bucket = "acme-app-data"
+ # Keine Lifecycle-Config
+ # WAF-SUS-050 Violation
 }
 ----
 |===
@@ -138,19 +138,19 @@ resource "aws_s3_bucket" "data" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform mit S3-Lifecycle-Rules und CloudWatch Log Group `retention_in_days` für alle Storage-Ressourcen.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |AWS Config oder Cloud-Inventory: kein S3-Bucket ohne Lifecycle-Policy.
 
-|*Process*
+|* Process*
 |Optional
 |Monthly Orphaned-Resource-Scan-Report.
 
-|*Governance*
+|* Governance*
 |Optional
 |Data-Minimization-Policy-Dokument.
 
@@ -159,16 +159,77 @@ resource "aws_s3_bucket" "data" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change – resource efficiency in IT operations
-|*GDPR*|Article 5(1)(e) – Storage limitation principle; Article 25 – Data protection by design and by default
-|*GHG Protocol*|Scope 3 Category 11 – reducing storage-related cloud emissions
-|*Green Software Foundation*|Hardware Efficiency – minimize data stored in high-energy tiers; Energy Efficiency – data tiering and lifecycle management; id: waf-sus-050.tf.aws.s3-lifecycle-required; aws_s3_bucket_lifecycle_configuration; id: waf-sus-050.tf.aws.ebs-no-orphan; aws_instance; id: waf-sus-050.tf.azurerm.blob-lifecycle; azurerm_storage_management_policy
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Sovereign – Control outbound network traffic with default-deny or allow-list; VPC endpoints for cloud API access; implement data exfiltration detection.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Network Sovereignty | *Automatable:* High
+*Pillar:* Sovereign |*Severity:* 🟠 High |*Category:* Network Sovereignty |*Automatable:* High
 
 == Description
 
@@ -35,19 +35,19 @@ egress controls are insufficient or circumvented.
 |===
 |Risk |Description
 
-|*Compromised application copies DB dumps*
+|* Compromised application copies DB dumps*
 |Unrestricted egress allows copying entire databases to external storage.
 
-|*DNS tunneling by insider*
+|* DNS tunneling by insider*
 |Open outbound port used for data exfiltration via DNS tunneling.
 
-|*Misconfigured data pipeline*
+|* Misconfigured data pipeline*
 |Data pipeline routes PII to a non-sovereign external destination.
 
-|*AWS API calls over the internet*
+|* AWS API calls over the internet*
 |Missing VPC endpoints expose traffic metadata over the public internet.
 
-|*Open security group egress*
+|* Open security group egress*
 |Allows port scans and outbound connections to C2 servers.
 
 |===
@@ -58,19 +58,19 @@ egress controls are insufficient or circumvented.
 |===
 |Framework |Controls
 
-|*GDPR*
+|* GDPR*
 |Art. 32 – Security of processing (network security); Art. 44–46 – Transfers to third countries
 
-|*BSI C5:2020*
+|* BSI C5:2020*
 |SIM-02 – Intrusion detection; OPS-04 – Data management; NET-01 – Network security
 
-|*EUCS (ENISA)*
+|* EUCS (ENISA)*
 |IVS-09 – Network security; IVS-10 – Egress filtering
 
-|*ISO 27001:2022*
+|* ISO 27001:2022*
 |A.8.20 – Network security; A.8.21 – Security of network services; A.8.22 – Network segregation
 
-|*BSI C3A:2026*
+|* BSI C3A:2026*
 |Dimension 5 – Operational: Network security and monitoring; Dimension 5 – Operational: Disconnect and reconnect capability
 
 |===
@@ -136,31 +136,31 @@ egress controls are insufficient or circumvented.
 a|[source,hcl]
 ----
 resource "aws_security_group" "app" {
-  name   = "app-sg"
-  vpc_id = aws_vpc.main.id
+ name = "app-sg"
+ vpc_id = aws_vpc.main.id
 
-  egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]  # Internal only
-  }
-  # Internet outbound requires Network Firewall
+ egress {
+ from_port = 443
+ to_port = 443
+ protocol = "tcp"
+ cidr_blocks = ["10.0.0.0/8"] # Internal only
+ }
+ # Internet outbound requires Network Firewall
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_security_group" "app" {
-  name   = "app-sg"
-  vpc_id = aws_vpc.main.id
+ name = "app-sg"
+ vpc_id = aws_vpc.main.id
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    # ❌ Unrestricted outbound access
-  }
+ egress {
+ from_port = 0
+ to_port = 0
+ protocol = "-1"
+ cidr_blocks = ["0.0.0.0/0"]
+ # ❌ Unrestricted outbound access
+ }
 }
 ----
 |===
@@ -177,19 +177,19 @@ resource "aws_security_group" "app" {
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
-  policy = data.aws_iam_policy_document.s3_endpoint_policy.json
+ vpc_id = aws_vpc.main.id
+ service_name = "com.amazonaws.${var.aws_region}.s3"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids = [aws_route_table.private.id]
+ policy = data.aws_iam_policy_document.s3_endpoint_policy.json
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-  # ❌ No S3 VPC Endpoint –
-  #    S3 traffic over public internet
+ cidr_block = "10.0.0.0/16"
+ # ❌ No S3 VPC Endpoint –
+ # S3 traffic over public internet
 }
 ----
 |===
@@ -206,19 +206,19 @@ resource "aws_vpc" "main" {
 a|[source,hcl]
 ----
 resource "aws_flow_log" "main" {
-  vpc_id               = aws_vpc.main.id
-  traffic_type         = "ALL"
-  log_destination_type = "cloud-watch-logs"
-  log_destination      = aws_cloudwatch_log_group.flow.arn
-  iam_role_arn         = aws_iam_role.flow_log.arn
+ vpc_id = aws_vpc.main.id
+ traffic_type = "ALL"
+ log_destination_type = "cloud-watch-logs"
+ log_destination = aws_cloudwatch_log_group.flow.arn
+ iam_role_arn = aws_iam_role.flow_log.arn
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-  # ❌ No flow log –
-  #    no network audit for forensics
+ cidr_block = "10.0.0.0/16"
+ # ❌ No flow log –
+ # no network audit for forensics
 }
 ----
 |===
@@ -235,25 +235,25 @@ resource "aws_vpc" "main" {
 a|[source,hcl]
 ----
 resource "azurerm_network_security_rule" "outbound_https" {
-  name                        = "allow-outbound-https"
-  direction                   = "Outbound"
-  access                      = "Allow"
-  protocol                    = "Tcp"
-  destination_port_range      = "443"
-  destination_address_prefix  = "10.0.0.0/8"  # ✅ Specific destination
-  # ...
+ name = "allow-outbound-https"
+ direction = "Outbound"
+ access = "Allow"
+ protocol = "Tcp"
+ destination_port_range = "443"
+ destination_address_prefix = "10.0.0.0/8" # ✅ Specific destination
+ # ...
 }
 ----
 a|[source,hcl]
 ----
 resource "azurerm_network_security_rule" "all_outbound" {
-  name                        = "allow-all-outbound"
-  direction                   = "Outbound"
-  access                      = "Allow"
-  protocol                    = "*"
-  destination_port_range      = "*"
-  destination_address_prefix  = "*"  # ❌ Any destination
-  # ...
+ name = "allow-all-outbound"
+ direction = "Outbound"
+ access = "Allow"
+ protocol = "*"
+ destination_port_range = "*"
+ destination_address_prefix = "*" # ❌ Any destination
+ # ...
 }
 ----
 |===
@@ -264,23 +264,23 @@ resource "azurerm_network_security_rule" "all_outbound" {
 |===
 |Type |Required |Description
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Security group rules with egress restrictions; VPC endpoint resources for cloud services.
 
-|*IaC*
+|* IaC*
 |✅ Required
 |VPC Flow Log resources enabled for all VPCs.
 
-|*Config*
+|* Config*
 |Optional
 |Network Firewall / Azure Firewall domain allow-list export.
 
-|*Logs*
+|* Logs*
 |Optional
 |Sample flow log or firewall log with blocked egress attempts.
 
-|*Process*
+|* Process*
 |Optional
 |Documented allow-list of all approved external destinations with business justification.
 
@@ -296,15 +296,100 @@ resource "azurerm_network_security_rule" "all_outbound" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*GDPR*|Art. 32 – Security of processing (network security); Art. 44-46 – Transfers to third countries
-|*BSI C5:2020*|SIM-02 – Intrusion detection; OPS-04 – Data management; NET-01 – Network security
-|*BSI C3A:2026*|Dimension 5 – Operational: Network security and monitoring; Dimension 5 – Operational: Disconnect and reconnect capability
-|*EUCS (ENISA)*|IVS-09 – Network security; IVS-10 – Egress filtering
-|*ISO 27001:2022*|A.8.20 – Networks security; A.8.21 – Security of network services; A.8.22 – Segregation of networks; id: waf-sov-090.tf.aws.no-unrestricted-egress; aws_security_group_rule; aws_security_group; id: waf-sov-090.tf.aws.vpc-endpoint-s3; aws_vpc; id: waf-sov-090.tf.aws.vpc-flow-logs-enabled; aws_vpc; id: waf-sov-090.tf.aws.network-acl-no-open-egress; aws_network_acl_rule; id: waf-sov-090.tf.azurerm.nsg-no-open-outbound; azurerm_network_security_rule
+|*DSGVO*
+|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+
+|*EUCS (ENISA)*
+|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+
+|*ISO 27001:2022*
+|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+
+|*ISO 27017*
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+
+|*ISO 27018*
+|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+
+|*BSI C3A:2026*
+|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
+
+|*GAIA-X*
+|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
+
+|*NIST SP 800-53*
+|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
+
+|*FedRAMP*
+|SC-1, SC-7, SC-8 (High baseline)
+
+|*TISAX*
+|Information security – Data protection; Prototype protection – Sensitive data handling
+
+|*ANSSI SecNumCloud*
+|Domain – Data protection; Domain – Cloud security
+
+|*BIO*
+|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
+
+|*ENS High*
+|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
+
+|*UK NCSC CAF*
+|B3 – Understanding data; B4 – System security
+
+|*CMMC 2.0*
+|SC.L2-3.13.16 – Protect CUI confidentiality at rest
+
+|*IRAP*
+|ISM – Data protection; ISM – Cloud security
+
+|*CCCS PBMM*
+|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
+
+|*ISMAP*
+|Data sovereignty and cloud security
+
+|*FISC*
+|Technical measures – Data protection
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
+* xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]
+* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* GDPR* | Art. 32 – Security of processing (network security); Art. 44-46 – Transfers to third countries
+|* BSI C5:2020* | SIM-02 – Intrusion detection; OPS-04 – Data management; NET-01 – Network security
+|* BSI C3A:2026* | Dimension 5 – Operational: Network security and monitoring; Dimension 5 – Operational: Disconnect and reconnect capability
+|* EUCS (ENISA)* | IVS-09 – Network security; IVS-10 – Egress filtering
+|* ISO 27001:2022* | A.8.20 – Networks security; A.8.21 – Security of network services; A.8.22 – Segregation of networks; id: waf-sov-090.tf.aws.no-unrestricted-egress; aws_security_group_rule; aws_security_group; id: waf-sov-090.tf.aws.vpc-endpoint-s3; aws_vpc; id: waf-sov-090.tf.aws.vpc-flow-logs-enabled; aws_vpc; id: waf-sov-090.tf.aws.network-acl-no-open-egress; aws_network_acl_rule; id: waf-sov-090.tf.azurerm.nsg-no-open-outbound; azurerm_network_security_rule
 
 |===
 

@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – CO₂-Fußabdruck messen, Workload-Attribution, Cloud-Provider-Tools aktivieren und in CSRD/ESG-Reporting integrieren.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Carbon Measurement | *Automatisierbar:* Hoch
+*Pillar:* Sustainability |*Severity:* High |*Kategorie:* Carbon Measurement |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ verifizierbar und ESG-Berichte nicht CSRD-konform.
 |===
 |Risiko |Beschreibung
 
-|*CSRD Non-Compliance*
+|* CSRD Non-Compliance*
 |Fehlende IT-Emissionsdaten in ESRS E1-6 sind ein klassisches Audit-Finding in der CSRD-Erstprüfung — Bußgeld-Risiko.
 
-|*Greenwashing-Vorwurf*
+|* Greenwashing-Vorwurf*
 |Nachhaltigkeitsversprechen ohne messbare CO₂-Daten sind regulatorisch und reputational ein Hochrisiko-Szenario.
 
-|*SBTi-Zielverfehlung*
+|* SBTi-Zielverfehlung*
 |Scope-3-Reduktionsziele können nicht verfolgt oder nachgewiesen werden ohne Cloud-IT-Emissionsdaten.
 
-|*Investoren-Anfragen*
+|* Investoren-Anfragen*
 |ESG-bewusste Investoren stellen explizit nach Cloud-IT-Emissionsdaten; fehlende Antworten schaden der Bewertung.
 
 |===
@@ -104,20 +104,20 @@ verifizierbar und ESG-Berichte nicht CSRD-konform.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
-  name              = "/sustainability/carbon-footprint"
-  retention_in_days = 365
-  tags = {
-    purpose  = "carbon-audit"
-    workload = "sustainability-reporting"
-  }
+ name = "/sustainability/carbon-footprint"
+ retention_in_days = 365
+ tags = {
+ purpose = "carbon-audit"
+ workload = "sustainability-reporting"
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
-  name = "/sustainability/carbon-footprint"
-  # retention_in_days fehlt
-  # WAF-SUS-010 Violation: infinite retention
+ name = "/sustainability/carbon-footprint"
+ # retention_in_days fehlt
+ # WAF-SUS-010 Violation: infinite retention
 }
 ----
 |===
@@ -134,18 +134,18 @@ Für CSRD-Pflicht: 7-Jahres-Retention über S3-Lifecycle-Archivierung ergänzen.
 ----
 # Compliant: 7-Jahres-Retention für CSRD-konforme Aufbewahrung
 resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
-  bucket = aws_s3_bucket.carbon_data.id
-  rule {
-    id     = "csrd-retention"
-    status = "Enabled"
-    transition {
-      days          = 365
-      storage_class = "GLACIER"
-    }
-    expiration {
-      days = 2555  # 7 Jahre
-    }
-  }
+ bucket = aws_s3_bucket.carbon_data.id
+ rule {
+ id = "csrd-retention"
+ status = "Enabled"
+ transition {
+ days = 365
+ storage_class = "GLACIER"
+ }
+ expiration {
+ days = 2555 # 7 Jahre
+ }
+ }
 }
 ----
 
@@ -155,19 +155,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Screenshot/API-Bestätigung: Cloud-Provider Carbon-Tool aktiviert (AWS CCF, Azure EID, GCP CF).
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Monatliche Carbon Footprint Exports (min. 3 Monate) mit Workload-Breakdown.
 
-|*Process*
+|* Process*
 |Optional
 |Carbon-Review-Meeting-Protokolle oder Jira-Tickets mit monatlichem Review-Nachweis.
 
-|*Governance*
+|* Governance*
 |Optional
 |ESRS E1 Report-Sektion mit Cloud-IT-Emissionen und Methodik-Vermerk.
 
@@ -176,17 +176,77 @@ resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change; ESRS E1-6 – Gross Scope 1, 2, 3 GHG emissions
-|*GHG Protocol*|Scope 3 – Category 11: Use of sold products; Scope 2 – Energy Indirect Emissions (location-based and market-based)
-|*Green Software Foundation*|Software Carbon Intensity (SCI) – measurement standard
-|*SBTi (Science Based Targets initiative)*|ICT Sector Guidance – Scope 3 measurement requirements
-|*ISO 14001*|6.1.2 – Environmental Aspects identification and assessment; 9.1 – Monitoring, measurement, analysis and evaluation; id: waf-sus-010.tf.aws.cloudwatch-carbon-export; aws_cloudwatch_log_group; id: waf-sus-010.tf.aws.s3-carbon-export-lifecycle; aws_s3_bucket_lifecycle_configuration; id: waf-sus-010.tf.azurerm.log-analytics-retention; azurerm_log_analytics_workspace
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

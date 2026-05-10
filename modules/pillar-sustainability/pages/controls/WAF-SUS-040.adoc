@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Idle-Ressourcen identifizieren, Non-Production scheduled shutdown, Autoscaling mit Scale-to-Zero, Spot-Instanzen für Batch.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Resource Efficiency | *Automatisierbar:* Hoch
+*Pillar:* Sustainability |*Severity:* High |*Kategorie:* Resource Efficiency |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ höchste-ROI-Sustainability-Maßnahme: sie reduziert gleichzeitig Kosten und Emi
 |===
 |Risiko |Beschreibung
 
-|*Wasted Energy*
+|* Wasted Energy*
 |30–45% Cloud-Compute läuft idle; die Energie dieser Ressourcen trägt zu Scope-3-Emissionen bei ohne Mehrwert.
 
-|*Non-Prod 24/7*
+|* Non-Prod 24/7*
 |Dev/Test/Staging-Umgebungen laufen oft rund um die Uhr; 60–70% der Zeit ist reine Energieverschwendung.
 
-|*Zombie-Ressourcen*
+|* Zombie-Ressourcen*
 |Vergessene Instanzen, detached EBS-Volumes, ungenutzte Elastic IPs akkumulieren persistent Energie und Kosten.
 
-|*Fehlende Autoscaling-Governance*
+|* Fehlende Autoscaling-Governance*
 |Statische Instanzanzahl für Burst-Workloads bedeutet dauerhaftes Idle in Off-Peak-Phasen.
 
 |===
@@ -101,23 +101,23 @@ höchste-ROI-Sustainability-Maßnahme: sie reduziert gleichzeitig Kosten und Emi
 a|[source,hcl]
 ----
 resource "aws_autoscaling_group" "app" {
-  min_size         = 0
-  max_size         = 10
-  desired_capacity = 2
-  mixed_instances_policy {
-    instances_distribution {
-      spot_allocation_strategy = "capacity-optimized"
-    }
-  }
+ min_size = 0
+ max_size = 10
+ desired_capacity = 2
+ mixed_instances_policy {
+ instances_distribution {
+ spot_allocation_strategy = "capacity-optimized"
+ }
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_autoscaling_group" "app" {
-  min_size         = 5
-  max_size         = 5
-  desired_capacity = 5
-  # WAF-SUS-040: Fixed capacity – no scale-in possible
+ min_size = 5
+ max_size = 5
+ desired_capacity = 5
+ # WAF-SUS-040: Fixed capacity – no scale-in possible
 }
 ----
 |===
@@ -130,19 +130,19 @@ resource "aws_autoscaling_group" "app" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Autoscaling-Konfiguration (min/max/desired) für stateless Compute.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Non-Production Scheduled-Shutdown-Konfiguration.
 
-|*Process*
+|* Process*
 |Optional
 |Idle-Detection-Alert-Konfiguration und Monthly-Report.
 
-|*Process*
+|* Process*
 |Optional
 |Quarterly Zombie-Resource-Cleanup-Report.
 
@@ -151,16 +151,77 @@ resource "aws_autoscaling_group" "app" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*Green Software Foundation*|Hardware Efficiency – eliminate idle compute; Energy Efficiency – utilization-driven compute
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change – resource efficiency measures
-|*GHG Protocol*|Scope 3 Category 11 – reducing purchased cloud compute emissions
-|*ISO 14001*|6.1.2 – Environmental Aspects – resource consumption reduction; 8.1 – Operational planning and control; id: waf-sus-040.tf.aws.autoscaling-enabled; aws_autoscaling_group; id: waf-sus-040.tf.aws.spot-instances-for-dev; aws_autoscaling_group; id: waf-sus-040.tf.google.managed-instance-group-autoscaler; google_compute_autoscaler
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Datentransfer minimieren: CDN mit Kompression, VPC Endpoints für AWS-Services, Same-Region Co-location, HTTP-Kompression auf allen APIs.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Network Efficiency | *Automatisierbar:* Hoch
+*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* Network Efficiency |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ Sustainability-Gewinne mit direkten Kosteneinsparungen (Egress-Gebühren).
 |===
 |Risiko |Beschreibung
 
-|*Unkomprimierte CDN-Delivers*
+|* Unkomprimierte CDN-Delivers*
 |Jeder User erhält unkomprimierte HTML/JSON-Payloads — 5–10× höherer Netzwerk-Energiebedarf.
 
-|*Internet-Gateway-Egress für AWS-Services*
+|* Internet-Gateway-Egress für AWS-Services*
 |S3, DynamoDB, CloudWatch-Calls über Internet-Gateway statt VPC Endpoint verursachen unnötige Netzwerk-Energie und Egress-Kosten.
 
-|*Fehlende Cross-Region-Governance*
+|* Fehlende Cross-Region-Governance*
 |Unbeabsichtigte Cross-Region-Replikation durch fehlende S3-Bucket-Policies oder falsch konfigurierte Multi-Region-Architectures.
 
-|*Maximale Payload-Größen ohne Filterung*
+|* Maximale Payload-Größen ohne Filterung*
 |REST-APIs, die immer alle Felder zurückgeben statt nur angefragter Felder — unnötiger Transfer für jede Anfrage.
 
 |===
@@ -104,26 +104,26 @@ Sustainability-Gewinne mit direkten Kosteneinsparungen (Egress-Gebühren).
 a|[source,hcl]
 ----
 resource "aws_cloudfront_distribution" "web" {
-  default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "web-origin"
-    viewer_protocol_policy = "redirect-to-https"
-    compress               = true
-  }
+ default_cache_behavior {
+ allowed_methods = ["GET", "HEAD"]
+ cached_methods = ["GET", "HEAD"]
+ target_origin_id = "web-origin"
+ viewer_protocol_policy = "redirect-to-https"
+ compress = true
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudfront_distribution" "web" {
-  default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "web-origin"
-    viewer_protocol_policy = "redirect-to-https"
-    compress               = false
-    # WAF-SUS-080 Violation: unkomprimierte Delivers
-  }
+ default_cache_behavior {
+ allowed_methods = ["GET", "HEAD"]
+ cached_methods = ["GET", "HEAD"]
+ target_origin_id = "web-origin"
+ viewer_protocol_policy = "redirect-to-https"
+ compress = false
+ # WAF-SUS-080 Violation: unkomprimierte Delivers
+ }
 }
 ----
 |===
@@ -142,24 +142,24 @@ resource "aws_cloudfront_distribution" "web" {
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = aws_route_table.private[*].id
+ vpc_id = aws_vpc.main.id
+ service_name = "com.amazonaws.${var.region}.s3"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids = aws_route_table.private[*].id
 }
 resource "aws_vpc_endpoint" "dynamodb" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.dynamodb"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = aws_route_table.private[*].id
+ vpc_id = aws_vpc.main.id
+ service_name = "com.amazonaws.${var.region}.dynamodb"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids = aws_route_table.private[*].id
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-  # Keine VPC Endpoints
-  # WAF-SUS-080 Warning: AWS-Service-Traffic über Internet-GW
+ cidr_block = "10.0.0.0/16"
+ # Keine VPC Endpoints
+ # WAF-SUS-080 Warning: AWS-Service-Traffic über Internet-GW
 }
 ----
 |===
@@ -172,19 +172,19 @@ resource "aws_vpc" "main" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |CDN-Konfiguration (CloudFront, Azure CDN, Cloud CDN) für user-facing Anwendungen.
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |VPC-Endpoint-Konfiguration für AWS-Services (S3, DynamoDB mindestens).
 
-|*Config*
+|* Config*
 |Optional
 |HTTP-Response-Headers mit `Content-Encoding: gzip` oder `br` auf API-Responses.
 
-|*Process*
+|* Process*
 |Optional
 |Monatlicher Data-Transfer-Cost-Report mit Cross-Region-Breakdown.
 
@@ -193,15 +193,77 @@ resource "aws_vpc" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*Green Software Foundation*|Energy Efficiency – minimize network data transfer; Software Carbon Intensity (SCI) – network embodied energy
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change – operational energy efficiency
-|*GHG Protocol*|Scope 3 Category 11 – reducing network-related cloud emissions; id: waf-sus-080.tf.aws.cloudfront-compression; aws_cloudfront_distribution; id: waf-sus-080.tf.aws.vpc-endpoint-s3; aws_vpc_endpoint; id: waf-sus-080.tf.azurerm.cdn-compression; azurerm_cdn_endpoint
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

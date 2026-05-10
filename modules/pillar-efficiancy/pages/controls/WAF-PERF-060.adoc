@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Lasttests automatisch in die CI/CD-Pipeline integrieren und als Deployment-Gate betreiben.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Load Testing | *Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Load Testing |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ alle unter realistischer gleichzeitiger Last validiert werden.
 |===
 |Risiko |Beschreibung
 
-|*Performance-Regression in Produktion*
+|* Performance-Regression in Produktion*
 |Neues Feature verursacht 30% P99-Anstieg → entdeckt erst nach Nutzerbeschweren.
 
-|*Auto-Scaling-Versagen*
+|* Auto-Scaling-Versagen*
 |Scaling-Konfiguration greift zu spät oder gar nicht → entdeckt erst beim echten Traffic-Peak.
 
-|*Connection-Pool-Erschöpfung*
+|* Connection-Pool-Erschöpfung*
 |Concurrent-Load sättigt Connection Pool → entdeckt erst bei Production-Incident.
 
-|*Unbekannte Kapazitätsgrenzen*
+|* Unbekannte Kapazitätsgrenzen*
 |Kein Stresstest → niemand weiß, bei welcher Last der Service versagt.
 
 |===
@@ -102,32 +102,32 @@ alle unter realistischer gleichzeitiger Last validiert werden.
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
-  name = "pipeline-payment-api"
-  stage { name = "Source" }
-  stage { name = "Build" }
-  stage {
-    name = "PerformanceTest"
-    action {
-      name     = "LoadTest"
-      category = "Build"
-      provider = "CodeBuild"
-      configuration = {
-        ProjectName = aws_codebuild_project.load_test.name
-      }
-    }
-  }
-  stage { name = "Deploy" }
+ name = "pipeline-payment-api"
+ stage { name = "Source" }
+ stage { name = "Build" }
+ stage {
+ name = "PerformanceTest"
+ action {
+ name = "LoadTest"
+ category = "Build"
+ provider = "CodeBuild"
+ configuration = {
+ ProjectName = aws_codebuild_project.load_test.name
+ }
+ }
+ }
+ stage { name = "Deploy" }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
-  name = "pipeline-payment-api"
-  stage { name = "Source" }
-  stage { name = "Build" }
-  stage { name = "Deploy" }
-  # Kein Performance-Test-Stage
-  # WAF-PERF-060 Violation
+ name = "pipeline-payment-api"
+ stage { name = "Source" }
+ stage { name = "Build" }
+ stage { name = "Deploy" }
+ # Kein Performance-Test-Stage
+ # WAF-PERF-060 Violation
 }
 ----
 |===
@@ -142,19 +142,19 @@ Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC / Code*
+|* IaC / Code*
 |✅ Pflicht
 |Lasttest-Skripte mit Akzeptanzkriterien in Versionskontrolle.
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |CI/CD-Pipeline-Konfiguration mit Lasttest als Deployment-Gate.
 
-|*Config*
+|* Config*
 |Optional
 |Historische Lasttest-Ergebnisse als Regression-Baseline.
 
-|*Governance*
+|* Governance*
 |Optional
 |Performance-Test-Strategie-Dokument mit Szenarien und Kadenz.
 
@@ -163,16 +163,92 @@ Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 29119*|Software Testing – Performance Testing
-|*ISO/IEC 25010*|Performance Efficiency – Time Behavior; Performance Efficiency – Capacity
-|*AWS Well-Architected Framework*|PERF 5 – How do you visualize and review performance?; REL 9 – How do you test reliability?
-|*DORA*|Continuous testing as part of deployment pipelines; id: waf-perf-060.tf.aws.codepipeline-performance-stage; aws_codepipeline; id: waf-perf-060.tf.azurerm.devops-pipeline-perf-gate; stage: PerformanceTest; job: LoadTest; script: |; task: PublishTestResults@2; stage: Build; stage: Deploy  # Direct deploy without performance gate – WAF-PERF-060 violation; azurerm_resource_group_policy_assignment; id: waf-perf-060.tf.google.cloud-build-perf-step; google_cloudbuild_trigger
+|*ISO/IEC 25010:2011*
+|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
+
+|*AWS Well-Architected Framework*
+|Performance Efficiency Pillar – Select the right resource types and sizes
+
+|*Azure Well-Architected Framework*
+|Performance Efficiency – Choose the right resources
+
+|*Google Cloud Architecture Framework*
+|Performance optimization – Right-size your instances
+
+|*TOGAF 10*
+|ADM Phase B – Business architecture; ADM Phase C – Application architecture
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
+
+|*ISO/IEC 29119*
+|4.4.3 – Test design techniques; 4.5.3 – Test execution
+
+|*ISO/IEC 12207*
+|8.2.2.3 – Design and development of software
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*CIS Controls v8*
+|CIS 8 – Continuous Vulnerability Management
+
+|*NIST SP 800-53*
+|RA-1 – Security assessment policy; RA-2 – Security assessment controls
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
+
+|*FedRAMP*
+|RA-2, RA-5 (Moderate/High baseline)
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
+
+|*TISAX*
+|Information security – Performance monitoring
+
+|*ANSSI SecNumCloud*
+|Domain – Performance monitoring
+
+|*BIO*
+|BIO – Prestatiedoelstellingen
+
+|*ENS High*
+|op.exp.2 – Configuración de seguridad
+
+|*UK NCSC CAF*
+|B4 – System security; B5 – System performance
+
+|*CMMC 2.0*
+|RA.L2-3.8.1 – Automated monitoring
+
+|*IRAP*
+|ISM – Performance monitoring
+
+|*CCCS PBMM*
+|RA-2 – Security assessment controls; RA-5 – Security assessments
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance
+
+|*ISMAP*
+|Performance monitoring and validation
+
+|*FISC*
+|Technical measures – Performance monitoring
 
 |===
+
 
 == Verwandte Controls
 

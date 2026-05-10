@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – ARM/Graviton-Instanzen als Standard; Lambda arm64; Previous-Generation-Instanztypen eliminieren.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Compute Efficiency | *Automatisierbar:* Hoch
+*Pillar:* Sustainability |*Severity:* High |*Kategorie:* Compute Efficiency |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ Dieser Control hat den höchsten Automatisierungsgrad aller WAF-SUS-Controls.
 |===
 |Risiko |Beschreibung
 
-|*Excess Scope 3 Emissionen*
+|* Excess Scope 3 Emissionen*
 |Previous-Gen x86-Instanzen emittieren 30–50% mehr CO₂/Workload als aktuelle Graviton-Äquivalente.
 
-|*SCI-Ziele verfehlt*
+|* SCI-Ziele verfehlt*
 |Software Carbon Intensity kann ohne energieeffiziente Hardware-Basis nicht nachhaltig verbessert werden.
 
-|*Sustainability-Schulden*
+|* Sustainability-Schulden*
 |Ungeprüfte Instanztypen akkumulieren sich und werden bei Skalierung proportional teurer in CO₂ und Kosten.
 
-|*CI-Gate fehlt*
+|* CI-Gate fehlt*
 |Ohne automatisierte Prüfung im Pipeline werden Previous-Gen-Typen unkontrolliert weiter deployed.
 
 |===
@@ -103,24 +103,24 @@ Dieser Control hat den höchsten Automatisierungsgrad aller WAF-SUS-Controls.
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "handler" {
-  function_name = "api-handler"
-  runtime       = "python3.12"
-  architectures = ["arm64"]
-  handler       = "main.handler"
-  role          = aws_iam_role.lambda.arn
-  filename      = "function.zip"
+ function_name = "api-handler"
+ runtime = "python3.12"
+ architectures = ["arm64"]
+ handler = "main.handler"
+ role = aws_iam_role.lambda.arn
+ filename = "function.zip"
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lambda_function" "handler" {
-  function_name = "api-handler"
-  runtime       = "python3.12"
-  architectures = ["x86_64"]
-  # WAF-SUS-020 Violation: nutze arm64
-  handler  = "main.handler"
-  role     = aws_iam_role.lambda.arn
-  filename = "function.zip"
+ function_name = "api-handler"
+ runtime = "python3.12"
+ architectures = ["x86_64"]
+ # WAF-SUS-020 Violation: nutze arm64
+ handler = "main.handler"
+ role = aws_iam_role.lambda.arn
+ filename = "function.zip"
 }
 ----
 |===
@@ -139,18 +139,18 @@ resource "aws_lambda_function" "handler" {
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu_arm.id
-  instance_type = "m7g.large"
-  # Graviton3 – 40% besser als m4.large
+ ami = data.aws_ami.ubuntu_arm.id
+ instance_type = "m7g.large"
+ # Graviton3 – 40% besser als m4.large
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "m4.large"
-  # WAF-SUS-020 Violation: Previous-Gen
-  # Migriere zu m7g.large
+ ami = data.aws_ami.ubuntu.id
+ instance_type = "m4.large"
+ # WAF-SUS-020 Violation: Previous-Gen
+ # Migriere zu m7g.large
 }
 ----
 |===
@@ -163,19 +163,19 @@ resource "aws_instance" "app" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit Graviton/arm64 Instanztypen für EC2 und Lambda.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Cloud-Inventory-Report mit Verteilung der Instanztypen nach Familie (ARM-Share in %).
 
-|*Governance*
+|* Governance*
 |Optional
 |Compute-Sustainability-Policy mit bevorzugten Instanzfamilien.
 
-|*Process*
+|* Process*
 |Optional
 |Migrationsplan für verbleibende x86-Workloads mit Timeline und Progress-Tracking.
 
@@ -184,16 +184,77 @@ resource "aws_instance" "app" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*Green Software Foundation*|Software Carbon Intensity (SCI) – hardware efficiency component; Energy Efficiency – compute selection guidance
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change – Scope 3 emission reduction measures
-|*GHG Protocol*|Scope 2 – Location-based and market-based methods; Scope 3 Category 11 – efficiency of purchased cloud compute
-|*SBTi (Science Based Targets initiative)*|ICT Sector Guidance – energy intensity reduction targets; id: waf-sus-020.tf.aws.lambda-arm64; aws_lambda_function; id: waf-sus-020.tf.aws.ec2-no-previous-gen; aws_instance; aws_launch_template; id: waf-sus-020.tf.azurerm.vm-efficient-series; azurerm_linux_virtual_machine; azurerm_windows_virtual_machine
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

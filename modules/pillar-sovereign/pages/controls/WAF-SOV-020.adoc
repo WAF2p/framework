@@ -8,7 +8,7 @@
 :description: WAF++ Sovereign – Technical enforcement of region constraints via IaC validation, policy-as-code, and CI gates.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Category:* Data Residency | *Automatable:* High
+*Pillar:* Sovereign |*Severity:* 🔴 Critical |*Category:* Data Residency |*Automatable:* High
 
 == Description
 
@@ -36,16 +36,16 @@ Region pinning must be enforced on *every layer*:
 |===
 |Risk |Description
 
-|*Accidental deployment*
+|* Accidental deployment*
 |Wrong `AWS_DEFAULT_REGION` environment variable in the CI pipeline creates resources in US East.
 
-|*Shadow infrastructure*
+|* Shadow infrastructure*
 |Developer account without SCP guardrails enables deployments to arbitrary regions.
 
-|*Provider default fallback*
+|* Provider default fallback*
 |Missing `region` attribute in the provider block falls back to an undocumented default.
 
-|*Terraform state leak*
+|* Terraform state leak*
 |State file with sensitive metadata stored in an S3 bucket outside the approved region.
 
 |===
@@ -56,22 +56,22 @@ Region pinning must be enforced on *every layer*:
 |===
 |Framework |Controls
 
-|*GDPR*
+|* GDPR*
 |Art. 44 – General principle for transfers; Art. 46 – Appropriate safeguards
 
-|*BSI C5:2020*
+|* BSI C5:2020*
 |OPS-04 – Data management; INF-01 – Physical location of infrastructure
 
-|*EUCS (ENISA)*
+|* EUCS (ENISA)*
 |SOV-01 – Data location; SOV-02 – Jurisdictional control
 
-|*GAIA-X*
+|* GAIA-X*
 |Sovereign Cloud – Location transparency and data location
 
-|*ISO 27001:2022*
+|* ISO 27001:2022*
 |A.8.10 – Information deletion; A.5.29 – Information security during business disruption
 
-|*BSI C3A:2026*
+|* BSI C3A:2026*
 |Dimension 4 – Data: Location; Dimension 1 – Strategic: Jurisdictional alignment
 
 |===
@@ -134,14 +134,14 @@ Region pinning must be enforced on *every layer*:
 a|[source,hcl]
 ----
 provider "aws" {
-  region = var.aws_region
+ region = var.aws_region
 }
 ----
 a|[source,hcl]
 ----
 provider "aws" {
-  # region via AWS_DEFAULT_REGION –
-  # not sovereign-safe
+ # region via AWS_DEFAULT_REGION –
+ # not sovereign-safe
 }
 ----
 |===
@@ -158,28 +158,28 @@ provider "aws" {
 a|[source,hcl]
 ----
 variable "aws_region" {
-  type    = string
-  default = "eu-central-1"
-  validation {
-    condition = contains([
-      "eu-central-1",
-      "eu-west-1",
-      "eu-north-1"
-    ], var.aws_region)
-    error_message = <<-EOF
-      Region '${var.aws_region}' is not in the
-      approved sovereign region list.
-    EOF
-  }
+ type = string
+ default = "eu-central-1"
+ validation {
+ condition = contains([
+ "eu-central-1",
+ "eu-west-1",
+ "eu-north-1"
+ ], var.aws_region)
+ error_message = <<-EOF
+ Region '${var.aws_region}' is not in the
+ approved sovereign region list.
+ EOF
+ }
 }
 ----
 a|[source,hcl]
 ----
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-  # No validation block –
-  # any region is accepted
+ type = string
+ default = "us-east-1"
+ # No validation block –
+ # any region is accepted
 }
 ----
 |===
@@ -196,15 +196,15 @@ variable "aws_region" {
 a|[source,hcl]
 ----
 provider "aws" {
-  region = var.aws_region
-  # var.aws_region validated to EU
+ region = var.aws_region
+ # var.aws_region validated to EU
 }
 ----
 a|[source,hcl]
 ----
 provider "aws" {
-  region = "us-east-1"  # ❌ Hardcoded
-                         # non-sovereign region
+ region = "us-east-1" # ❌ Hardcoded
+ # non-sovereign region
 }
 ----
 |===
@@ -217,22 +217,22 @@ provider "aws" {
 [source,json]
 ----
 {
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "DenyOutsideApprovedRegions",
-    "Effect": "Deny",
-    "NotAction": ["iam:*","sts:*","route53:*","cloudfront:*"],
-    "Resource": "*",
-    "Condition": {
-      "StringNotEquals": {
-        "aws:RequestedRegion": [
-          "eu-central-1",
-          "eu-west-1",
-          "eu-north-1"
-        ]
-      }
-    }
-  }]
+ "Version": "2012-10-17",
+ "Statement": [{
+ "Sid": "DenyOutsideApprovedRegions",
+ "Effect": "Deny",
+ "NotAction": ["iam:*","sts:*","route53:*","cloudfront:*"],
+ "Resource": "*",
+ "Condition": {
+ "StringNotEquals": {
+ "aws:RequestedRegion": [
+ "eu-central-1",
+ "eu-west-1",
+ "eu-north-1"
+ ]
+ }
+ }
+ }]
 }
 ----
 
@@ -242,19 +242,19 @@ provider "aws" {
 |===
 |Type |Required |Description
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Terraform code with variable validation blocks for all region/location parameters.
 
-|*Policy*
+|* Policy*
 |✅ Required
 |OPA/Sentinel rules, AWS SCP, Azure Policy, or GCP Org Policy with region restrictions.
 
-|*Logs*
+|* Logs*
 |Optional
 |CI pipeline logs with blocked non-sovereign deployment attempt (as proof of function).
 
-|*Config*
+|* Config*
 |Optional
 |Cloud provider org-policy export with active region restrictions.
 
@@ -270,16 +270,101 @@ provider "aws" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*GDPR*|Art. 44 – General principle for transfers; Art. 46 – Transfers to third countries
-|*BSI C5:2020*|OPS-04 – Data management; INF-01 – Physical location
-|*BSI C3A:2026*|Dimension 4 – Data: Location of data processing; Dimension 1 – Strategic: Jurisdictional alignment
-|*EUCS (ENISA)*|SOV-01 – Data location; SOV-02 – Jurisdiction control
-|*GAIA-X*|Data Sovereignty – Location transparency
-|*ISO 27001:2022*|A.8.10 – Information deletion; A.5.29 – Information security during disruption; id: waf-sov-020.tf.aws.provider-region-in-allowed-list; id: waf-sov-020.tf.aws.region-variable-validation; id: waf-sov-020.tf.azurerm.location-variable-validation; id: waf-sov-020.tf.google.region-variable-validation; id: waf-sov-020.tf.aws.no-hardcoded-non-sovereign-region
+|*DSGVO*
+|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+
+|*EUCS (ENISA)*
+|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+
+|*ISO 27001:2022*
+|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+
+|*ISO 27017*
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+
+|*ISO 27018*
+|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+
+|*BSI C3A:2026*
+|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
+
+|*GAIA-X*
+|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
+
+|*NIST SP 800-53*
+|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
+
+|*FedRAMP*
+|SC-1, SC-7, SC-8 (High baseline)
+
+|*TISAX*
+|Information security – Data protection; Prototype protection – Sensitive data handling
+
+|*ANSSI SecNumCloud*
+|Domain – Data protection; Domain – Cloud security
+
+|*BIO*
+|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
+
+|*ENS High*
+|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
+
+|*UK NCSC CAF*
+|B3 – Understanding data; B4 – System security
+
+|*CMMC 2.0*
+|SC.L2-3.13.16 – Protect CUI confidentiality at rest
+
+|*IRAP*
+|ISM – Data protection; ISM – Cloud security
+
+|*CCCS PBMM*
+|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
+
+|*ISMAP*
+|Data sovereignty and cloud security
+
+|*FISC*
+|Technical measures – Data protection
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy Defined]
+* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging & Telemetry Residency]
+* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* GDPR* | Art. 44 – General principle for transfers; Art. 46 – Transfers to third countries
+|* BSI C5:2020* | OPS-04 – Data management; INF-01 – Physical location
+|* BSI C3A:2026* | Dimension 4 – Data: Location of data processing; Dimension 1 – Strategic: Jurisdictional alignment
+|* EUCS (ENISA)* | SOV-01 – Data location; SOV-02 – Jurisdiction control
+|* GAIA-X* | Data Sovereignty – Location transparency
+|* ISO 27001:2022* | A.8.10 – Information deletion; A.5.29 – Information security during disruption; id: waf-sov-020.tf.aws.provider-region-in-allowed-list; id: waf-sov-020.tf.aws.region-variable-validation; id: waf-sov-020.tf.azurerm.location-variable-validation; id: waf-sov-020.tf.google.region-variable-validation; id: waf-sov-020.tf.aws.no-hardcoded-non-sovereign-region
 
 |===
 

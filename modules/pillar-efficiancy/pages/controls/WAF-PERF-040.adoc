@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Datenbankperformance messen, Slow-Query-Logs aktivieren und Indexstrategie dokumentieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Database Performance | *Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency |*Severity:* High |*Kategorie:* Database Performance |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ auslösen. Ohne Slow-Query-Log gibt es keine Möglichkeit, solche Probleme proak
 |===
 |Risiko |Beschreibung
 
-|*Full Table Scans*
+|* Full Table Scans*
 |Fehlende Indizes → Vollständige Tabellenscans → I/O-Sättigung und CPU-Spike.
 
-|*Connection-Pool-Erschöpfung*
+|* Connection-Pool-Erschöpfung*
 |Langsame Queries blockieren Verbindungen → Pool erschöpft → Neue Requests können nicht verbinden.
 
-|*Query-Regression nach Schema-Änderung*
+|* Query-Regression nach Schema-Änderung*
 |Neuer Index für ein Feature entfernt den Query-Plan eines anderen Features – unbemerkt.
 
-|*Kein Diagnostic-Zugang bei Incident*
+|* Kein Diagnostic-Zugang bei Incident*
 |Performance Insights nicht aktiv → Incident kann nicht diagnostiziert werden.
 
 |===
@@ -101,24 +101,24 @@ auslösen. Ohne Slow-Query-Log gibt es keine Möglichkeit, solche Probleme proak
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  identifier = "db-payment"
-  engine     = "postgres"
-  performance_insights_enabled = true
-  monitoring_interval          = 60
-  monitoring_role_arn          = aws_iam_role.rds_monitoring.arn
-  enabled_cloudwatch_logs_exports = ["postgresql"]
-  deletion_protection = true
+ identifier = "db-payment"
+ engine = "postgres"
+ performance_insights_enabled = true
+ monitoring_interval = 60
+ monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+ enabled_cloudwatch_logs_exports = ["postgresql"]
+ deletion_protection = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  identifier = "db-payment"
-  engine     = "postgres"
-  # Kein Performance Insights
-  # Kein Enhanced Monitoring
-  # Keine CW-Log-Exports
-  # WAF-PERF-040 Violation
+ identifier = "db-payment"
+ engine = "postgres"
+ # Kein Performance Insights
+ # Kein Enhanced Monitoring
+ # Keine CW-Log-Exports
+ # WAF-PERF-040 Violation
 }
 ----
 |===
@@ -132,19 +132,19 @@ resource "aws_db_instance" "main" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Performance-Insights-Konfiguration auf Produktionsdatenbanken (Screenshot oder Terraform).
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Index-Strategie-Dokument für hochfrequente Tabellen.
 
-|*Process*
+|* Process*
 |Optional
 |Monatlicher Slow-Query-Review-Bericht mit Action Items.
 
-|*Config*
+|* Config*
 |Optional
 |Query-Performance-Baseline (P50/P95/P99 für Top-20-Queries).
 
@@ -153,16 +153,92 @@ resource "aws_db_instance" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010*|Performance Efficiency – Time Behavior; Performance Efficiency – Resource Utilization
-|*AWS Well-Architected Framework*|PERF 4 – How do you select your database solution?; PERF 6 – How do you use tradeoffs to improve performance?
-|*Azure Well-Architected Framework*|Performance Efficiency – Optimize database performance
-|*Google Cloud Architecture Framework*|Performance optimization – Tune your database; id: waf-perf-040.tf.aws.rds-performance-insights; aws_db_instance; aws_rds_cluster_instance; id: waf-perf-040.tf.azurerm.sql-query-insights; azurerm_mssql_database; azurerm_mssql_server; id: waf-perf-040.tf.google.cloudsql-insights-enabled; google_sql_database_instance
+|*ISO/IEC 25010:2011*
+|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
+
+|*AWS Well-Architected Framework*
+|Performance Efficiency Pillar – Select the right resource types and sizes
+
+|*Azure Well-Architected Framework*
+|Performance Efficiency – Choose the right resources
+
+|*Google Cloud Architecture Framework*
+|Performance optimization – Right-size your instances
+
+|*TOGAF 10*
+|ADM Phase B – Business architecture; ADM Phase C – Application architecture
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
+
+|*ISO/IEC 29119*
+|4.4.3 – Test design techniques; 4.5.3 – Test execution
+
+|*ISO/IEC 12207*
+|8.2.2.3 – Design and development of software
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*CIS Controls v8*
+|CIS 8 – Continuous Vulnerability Management
+
+|*NIST SP 800-53*
+|RA-1 – Security assessment policy; RA-2 – Security assessment controls
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
+
+|*FedRAMP*
+|RA-2, RA-5 (Moderate/High baseline)
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
+
+|*TISAX*
+|Information security – Performance monitoring
+
+|*ANSSI SecNumCloud*
+|Domain – Performance monitoring
+
+|*BIO*
+|BIO – Prestatiedoelstellingen
+
+|*ENS High*
+|op.exp.2 – Configuración de seguridad
+
+|*UK NCSC CAF*
+|B4 – System security; B5 – System performance
+
+|*CMMC 2.0*
+|RA.L2-3.8.1 – Automated monitoring
+
+|*IRAP*
+|ISM – Performance monitoring
+
+|*CCCS PBMM*
+|RA-2 – Security assessment controls; RA-5 – Security assessments
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance
+
+|*ISMAP*
+|Performance monitoring and validation
+
+|*FISC*
+|Technical measures – Performance monitoring
 
 |===
+
 
 == Verwandte Controls
 

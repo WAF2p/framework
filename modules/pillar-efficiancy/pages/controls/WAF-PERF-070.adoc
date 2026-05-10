@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Netzwerktopologie latenzoptimieren, CDN einsetzen und VPC Endpoints konfigurieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Network Performance | *Automatisierbar:* Mittel
+*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Network Performance |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -32,16 +32,16 @@ von Origin geliefert werden – 100–500ms zusätzliche Latenz für internation
 |===
 |Risiko |Beschreibung
 
-|*Cross-AZ-Latenz-Akkumulation*
+|* Cross-AZ-Latenz-Akkumulation*
 |Häufige Service-Calls zwischen AZs akkumulieren Latenz in der Request-Chain.
 
-|*Kein VPC Endpoint*
+|* Kein VPC Endpoint*
 |S3/DynamoDB/SSM-Traffic über Internet → erhöhte Latenz + Egress-Kosten.
 
-|*Fehlendes CDN*
+|* Fehlendes CDN*
 |Statische Assets von Origin geladen → hohe Latenz für internationale Nutzer.
 
-|*DNS-Resolution-Overhead*
+|* DNS-Resolution-Overhead*
 |Fehlende DNS-Caching-Konfiguration → 10–50ms pro DNS-Lookup in hot paths.
 
 |===
@@ -103,22 +103,22 @@ von Origin geliefert werden – 100–500ms zusätzliche Latenz für internation
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
+ vpc_id = aws_vpc.main.id
+ service_name = "com.amazonaws.${var.region}.s3"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids = [aws_route_table.private.id]
 }
 resource "aws_vpc_endpoint" "dynamodb" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.dynamodb"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
+ vpc_id = aws_vpc.main.id
+ service_name = "com.amazonaws.${var.region}.dynamodb"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids = [aws_route_table.private.id]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
+ cidr_block = "10.0.0.0/16"
 }
 # Keine VPC Endpoints definiert
 # S3-Traffic über Internet
@@ -135,19 +135,19 @@ Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig,
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit CDN und VPC Endpoints für Cloud-Service-Zugriffe.
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Netzwerktopologie-Diagramm mit Service-Placement, AZ-Verteilung, Traffic-Routing.
 
-|*Config*
+|* Config*
 |Optional
 |Netzwerk-Latenz-Baseline (Service-zu-Service RTT nach AZ-Kombination).
 
-|*Process*
+|* Process*
 |Optional
 |CDN-Cache-Hit-Rate-Bericht.
 
@@ -156,16 +156,92 @@ Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig,
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010*|Performance Efficiency – Time Behavior
-|*AWS Well-Architected Framework*|PERF 3 – How do you select your networking solution?; COST 9 – How do you manage demand and supply resources?
-|*Azure Well-Architected Framework*|Performance Efficiency – Optimize network performance
-|*Google Cloud Architecture Framework*|Network design – Optimize for latency; id: waf-perf-070.tf.aws.vpc-endpoint-s3; aws_vpc_endpoint; id: waf-perf-070.tf.azurerm.cdn-profile-configured; azurerm_cdn_profile; azurerm_frontdoor; azurerm_cdn_frontdoor_profile; id: waf-perf-070.tf.google.cloud-cdn-enabled; google_compute_backend_service
+|*ISO/IEC 25010:2011*
+|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
+
+|*AWS Well-Architected Framework*
+|Performance Efficiency Pillar – Select the right resource types and sizes
+
+|*Azure Well-Architected Framework*
+|Performance Efficiency – Choose the right resources
+
+|*Google Cloud Architecture Framework*
+|Performance optimization – Right-size your instances
+
+|*TOGAF 10*
+|ADM Phase B – Business architecture; ADM Phase C – Application architecture
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
+
+|*ISO/IEC 29119*
+|4.4.3 – Test design techniques; 4.5.3 – Test execution
+
+|*ISO/IEC 12207*
+|8.2.2.3 – Design and development of software
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*CIS Controls v8*
+|CIS 8 – Continuous Vulnerability Management
+
+|*NIST SP 800-53*
+|RA-1 – Security assessment policy; RA-2 – Security assessment controls
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
+
+|*FedRAMP*
+|RA-2, RA-5 (Moderate/High baseline)
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
+
+|*TISAX*
+|Information security – Performance monitoring
+
+|*ANSSI SecNumCloud*
+|Domain – Performance monitoring
+
+|*BIO*
+|BIO – Prestatiedoelstellingen
+
+|*ENS High*
+|op.exp.2 – Configuración de seguridad
+
+|*UK NCSC CAF*
+|B4 – System security; B5 – System performance
+
+|*CMMC 2.0*
+|RA.L2-3.8.1 – Automated monitoring
+
+|*IRAP*
+|ISM – Performance monitoring
+
+|*CCCS PBMM*
+|RA-2 – Security assessment controls; RA-5 – Security assessments
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance
+
+|*ISMAP*
+|Performance monitoring and validation
+
+|*FISC*
+|Technical measures – Performance monitoring
 
 |===
+
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alle bekannten Operational Debt-Posten werden in einem version-controlled Register dokumentiert und quartalsweise reviewed.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Operational Governance | *Automatisierbar:* Niedrig
+*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Operational Governance |*Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ priorisiert und nicht abgebaut werden.
 |===
 |Risiko |Beschreibung
 
-|*On-Call-Burnout*
+|* On-Call-Burnout*
 |Stetig wachsender Toil ohne Tracking oder Abbau führt zu Engineer-Burnout und hoher Fluktuation.
 
-|*Manuelle Prozesse als SPOF*
+|* Manuelle Prozesse als SPOF*
 |Manuelle Operationen werden Single Points of Failure wenn die zuständige Person fehlt.
 
-|*Stille Akkumulation*
+|* Stille Akkumulation*
 |Operational Debt wächst unbemerkt bis er einen Major Incident verursacht.
 
-|*Toil übersteigt Feature-Arbeit*
+|* Toil übersteigt Feature-Arbeit*
 |Teams verbringen mehr Zeit mit Toil als mit Produkt-Entwicklung – Wettbewerbsnachteil.
 
 |===
@@ -102,15 +102,15 @@ priorisiert und nicht abgebaut werden.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_event_rule" "ops_review" {
-  name                = "quarterly-ops-debt-review"
-  description         = "Quarterly Ops Debt Register review reminder"
-  schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
-  is_enabled          = true
+ name = "quarterly-ops-debt-review"
+ description = "Quarterly Ops Debt Register review reminder"
+ schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
+ is_enabled = true
 }
 resource "aws_cloudwatch_event_target" "ops_sns" {
-  rule      = aws_cloudwatch_event_rule.ops_review.name
-  target_id = "OpsReviewNotification"
-  arn       = aws_sns_topic.team_notifications.arn
+ rule = aws_cloudwatch_event_rule.ops_review.name
+ target_id = "OpsReviewNotification"
+ arn = aws_sns_topic.team_notifications.arn
 }
 ----
 a|[source,hcl]
@@ -129,10 +129,10 @@ a|[source,hcl]
 ----
 # Compliant
 resource "aws_ssm_document" "rotate_instances" {
-  name            = "RotateASGInstances"
-  document_type   = "Automation"
-  document_format = "YAML"
-  content         = file("ssm-documents/rotate-asg-instances.yaml")
+ name = "RotateASGInstances"
+ document_type = "Automation"
+ document_format = "YAML"
+ content = file("ssm-documents/rotate-asg-instances.yaml")
 }
 ----
 
@@ -145,19 +145,19 @@ SSM Automation Documents für alle bekannten manuellen Routineaufgaben erstellen
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Operational Debt Register (version-controlled) mit Einträgen, Severity, Toil-Schätzungen, Owners, Status.
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Quarterly-Review-Protokoll mit Priorisierungsentscheidungen und Sprint-Budget-Zuweisung.
 
-|*Process*
+|* Process*
 |Optional
 |Sprint-Kapazitäts-Report: % des Sprints für Operational-Debt-Abbau.
 
-|*Governance*
+|* Governance*
 |Optional
 |Toil-Metriken-Report: wöchentliche Toil-Stunden pro Ingenieur, Trend der letzten 6 Monate.
 
@@ -166,16 +166,80 @@ SSM Automation Documents für alle bekannten manuellen Routineaufgaben erstellen
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1*|Continual improvement; Risk management
-|*ITIL 4*|Continual improvement; Problem management
-|*Google SRE Book*|Chapter 5: Eliminating Toil
-|*AWS Well-Architected Framework*|Operational Excellence Pillar – OPS 10: How do you use findings to take action?; id: waf-ops-100.tf.aws.eventbridge-ops-review-schedule; aws_cloudwatch_event_rule; id: waf-ops-100.tf.aws.ssm-automation-runbook; name: TerminateInstances; aws_ssm_document
+|*ISO/IEC 20000-1:2018*
+|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*Google SRE Book*
+|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*FinOps Foundation*
+|Core Module – Financial accountability; Management Layer – Cost governance
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
+
+|*NIST SP 800-53*
+|CM-1 – Configuration management policy; CM-2 – Configuration management
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
+
+|*TISAX*
+|Information security – Change management
+
+|*ANSSI SecNumCloud*
+|Domain – Change management
+
+|*BIO*
+|BIO – Veranderingenbeheer
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance; A5 – Continual improvement
+
+|*CMMC 2.0*
+|CM.L2-3.4.1 – Establish baseline configurations
+
+|*IRAP*
+|ISM – Change management
+
+|*CCCS PBMM*
+|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
+
+|*MAS TRM*
+|Ch.3 – Technology risk governance; Ch.9 – Change management
+
+|*ISMAP*
+|Operational excellence and continuous improvement
+
+|*FISC*
+|Operational measures – Change management
 
 |===
+
 
 == Verwandte Controls
 

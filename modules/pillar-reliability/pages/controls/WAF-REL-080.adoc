@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Inventar und Klassifizierung aller Produktionsabhängigkeiten mit Fallback-Verhalten.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* Medium | *Kategorie:* Dependency Management | *Automatisierbar:* Mittel
+*Pillar:* Reliability |*Severity:* Medium |*Kategorie:* Dependency Management |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ sichtbar und ermöglicht proaktive Maßnahmen.
 |===
 |Risiko |Beschreibung
 
-|*Unbekannte kritische Abhängigkeit*
+|* Unbekannte kritische Abhängigkeit*
 |Third-Party API fällt aus; keiner weiß, welche Features davon abhängen.
 
-|*SLO mathematisch unmöglich*
+|* SLO mathematisch unmöglich*
 |Composite Availability < Workload-SLO wegen unzuverlässiger Pflicht-Abhängigkeit.
 
-|*Keine Fallback-Behavior*
+|* Keine Fallback-Behavior*
 |Optionale Abhängigkeit fällt aus; Service fällt komplett aus statt graceful degraded.
 
-|*End-of-Life unbekannt*
+|* End-of-Life unbekannt*
 |Abhängigkeit wird depreciert; Team erfährt es zu spät für Migration.
 
 |===
@@ -104,15 +104,15 @@ sichtbar und ermöglicht proaktive Maßnahmen.
 a|[source,hcl]
 ----
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id       = aws_vpc.main.id
-  service_name =
-    "com.amazonaws.${var.region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids =
-    [aws_route_table.private.id]
-  tags = merge(var.mandatory_tags, {
-    Name = "s3-vpc-endpoint"
-  })
+ vpc_id = aws_vpc.main.id
+ service_name =
+ "com.amazonaws.${var.region}.s3"
+ vpc_endpoint_type = "Gateway"
+ route_table_ids =
+ [aws_route_table.private.id]
+ tags = merge(var.mandatory_tags, {
+ Name = "s3-vpc-endpoint"
+ })
 }
 ----
 a|[source,hcl]
@@ -134,15 +134,15 @@ hochfrequentierte AWS APIs konfigurieren.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Dependency Register mit Kritikalität, SLA und Fallback für alle Produktionsabhängigkeiten.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Circuit Breaker Konfiguration für alle kritischen externen API-Abhängigkeiten.
 
-|*Process*
+|* Process*
 |Optional
 |Quarterly Dependency Review Protokoll mit Unterschrift.
 
@@ -151,16 +151,77 @@ hochfrequentierte AWS APIs konfigurieren.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.15.1 – Information security in supplier relationships; A.17.1 – Information security continuity
-|*AWS Well-Architected Framework*|REL 4 – Manage dependencies
-|*ITIL 4*|Supplier Management; Service Configuration Management
-|*NIST SP 800-161*|Supply Chain Risk Management; id: waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation; aws_vpc_endpoint; id: waf-rel-080.tf.azurerm.private-endpoint-dependency; azurerm_private_endpoint; id: waf-rel-080.tf.google.vpc-sc-dependency-isolation; google_compute_subnetwork
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
 
 |===
+
 
 == Verwandte Controls
 

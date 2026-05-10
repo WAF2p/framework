@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – Document and implement a multi-layer caching strategy.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Category:* Caching | *Automatable:* Medium
+*Pillar:* Performance Efficiency |*Severity:* Medium |*Category:* Caching |*Automatable:* Medium
 
 == Description
 
@@ -32,16 +32,16 @@ that are harder to debug than no caching at all.
 |===
 |Risk |Description
 
-|*Database Overload*
+|* Database Overload*
 |Identical queries hundreds of times per second saturate the database server's I/O and CPU.
 
-|*Thundering Herd*
+|* Thundering Herd*
 |Cache expiry of many simultaneous keys → simultaneous backend requests → database failure.
 
-|*Stale Data*
+|* Stale Data*
 |Missing cache invalidation on data mutations → users see outdated data.
 
-|*No CDN → High Latency*
+|* No CDN → High Latency*
 |Static assets served from origin without CDN → unnecessary latency for users outside the region.
 
 |===
@@ -103,22 +103,22 @@ that are harder to debug than no caching at all.
 a|[source,hcl]
 ----
 resource "aws_elasticache_replication_group" "main" {
-  replication_group_id       = "payment-cache"
-  node_type                  = "cache.t3.medium"
-  num_cache_clusters         = 2
-  automatic_failover_enabled = true
-  at_rest_encryption_enabled = true
-  transit_encryption_enabled = true
+ replication_group_id = "payment-cache"
+ node_type = "cache.t3.medium"
+ num_cache_clusters = 2
+ automatic_failover_enabled = true
+ at_rest_encryption_enabled = true
+ transit_encryption_enabled = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_elasticache_cluster" "main" {
-  cluster_id      = "payment-cache"
-  engine          = "redis"
-  num_cache_nodes = 1
-  # Single node, no failover
-  # WAF-PERF-030 Violation
+ cluster_id = "payment-cache"
+ engine = "redis"
+ num_cache_nodes = 1
+ # Single node, no failover
+ # WAF-PERF-030 Violation
 }
 ----
 |===
@@ -132,19 +132,19 @@ resource "aws_elasticache_cluster" "main" {
 |===
 |Type |Required |Description
 
-|*Governance*
+|* Governance*
 |✅ Required
 |Caching strategy document with layers, TTL policies and invalidation mechanism.
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Terraform configuration for Redis/ElastiCache and CDN with cache rules.
 
-|*Config*
+|* Config*
 |Optional
 |Cache hit rate dashboard (target: >= 80% application cache).
 
-|*Process*
+|* Process*
 |Optional
 |Cache invalidation runbook for data mutations.
 
@@ -159,14 +159,110 @@ resource "aws_elasticache_cluster" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010*|Performance Efficiency – Time Behavior; Performance Efficiency – Resource Utilization
-|*AWS Well-Architected Framework*|PERF 3 – How do you select your storage solution?; PERF 4 – How do you select your database solution?
-|*Azure Well-Architected Framework*|Performance Efficiency – Use caching
-|*TOGAF*|Architecture Building Blocks – Caching Services; id: waf-perf-030.tf.aws.elasticache-cluster-configured; aws_elasticache_replication_group; aws_elasticache_cluster; id: waf-perf-030.tf.azurerm.redis-cache-premium; azurerm_redis_cache; id: waf-perf-030.tf.google.memorystore-redis-ha; google_redis_instance
+|*ISO/IEC 25010:2011*
+|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
+
+|*AWS Well-Architected Framework*
+|Performance Efficiency Pillar – Select the right resource types and sizes
+
+|*Azure Well-Architected Framework*
+|Performance Efficiency – Choose the right resources
+
+|*Google Cloud Architecture Framework*
+|Performance optimization – Right-size your instances
+
+|*TOGAF 10*
+|ADM Phase B – Business architecture; ADM Phase C – Application architecture
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
+
+|*ISO/IEC 29119*
+|4.4.3 – Test design techniques; 4.5.3 – Test execution
+
+|*ISO/IEC 12207*
+|8.2.2.3 – Design and development of software
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*CIS Controls v8*
+|CIS 8 – Continuous Vulnerability Management
+
+|*NIST SP 800-53*
+|RA-1 – Security assessment policy; RA-2 – Security assessment controls
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
+
+|*FedRAMP*
+|RA-2, RA-5 (Moderate/High baseline)
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
+
+|*TISAX*
+|Information security – Performance monitoring
+
+|*ANSSI SecNumCloud*
+|Domain – Performance monitoring
+
+|*BIO*
+|BIO – Prestatiedoelstellingen
+
+|*ENS High*
+|op.exp.2 – Configuración de seguridad
+
+|*UK NCSC CAF*
+|B4 – System security; B5 – System performance
+
+|*CMMC 2.0*
+|RA.L2-3.8.1 – Automated monitoring
+
+|*IRAP*
+|ISM – Performance monitoring
+
+|*CCCS PBMM*
+|RA-2 – Security assessment controls; RA-5 – Security assessments
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance
+
+|*ISMAP*
+|Performance monitoring and validation
+
+|*FISC*
+|Technical measures – Performance monitoring
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline]
+* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:controls/WAF-PERF-070.adoc[WAF-PERF-070 – Network Latency & Topology Optimization]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* ISO/IEC 25010* | Performance Efficiency – Time Behavior; Performance Efficiency – Resource Utilization
+|* AWS Well-Architected Framework* | PERF 3 – How do you select your storage solution?; PERF 4 – How do you select your database solution?
+|* Azure Well-Architected Framework* | Performance Efficiency – Use caching
+|* TOGAF* | Architecture Building Blocks – Caching Services; id: waf-perf-030.tf.aws.elasticache-cluster-configured; aws_elasticache_replication_group; aws_elasticache_cluster; id: waf-perf-030.tf.azurerm.redis-cache-premium; azurerm_redis_cache; id: waf-perf-030.tf.google.memorystore-redis-ha; google_redis_instance
 
 |===
 

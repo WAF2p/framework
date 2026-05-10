@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Dokumentierte DR-Tests mit gemessenem RTO/RPO, mindestens zweimal jährlich.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Disaster Recovery | *Automatisierbar:* Teilweise
+*Pillar:* Reliability |*Severity:* High |*Kategorie:* Disaster Recovery |*Automatisierbar:* Teilweise
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ validiert, dass RTO-Ziele tatsächlich erreichbar sind.
 |===
 |Risiko |Beschreibung
 
-|*Ungetesteter DR-Plan*
+|* Ungetesteter DR-Plan*
 |DR-Plan 18 Monate alt; Architektur hat sich geändert; Recovery dauert 4x länger als RTO.
 
-|*Fehlende DB-Restore-Schritte*
+|* Fehlende DB-Restore-Schritte*
 |Restore-Prozedur scheitert an nicht-dokumentiertem manuellem Schritt.
 
-|*Verschlüsselungsschlüssel nicht verfügbar*
+|* Verschlüsselungsschlüssel nicht verfügbar*
 |KMS-Schlüssel im ausgefallenen Account gespeichert; Backup nicht entschlüsselbar.
 
-|*IaC-Abhängigkeiten fehlen*
+|* IaC-Abhängigkeiten fehlen*
 |Terraform nimmt Ressourcen an, die im Ziel-Account nicht existieren.
 
 |===
@@ -103,29 +103,29 @@ validiert, dass RTO-Ziele tatsächlich erreichbar sind.
 a|[source,hcl]
 ----
 resource "aws_route53_health_check"
-    "primary" {
-  fqdn              = "api.example.com"
-  port              = 443
-  type              = "HTTPS"
-  resource_path     = "/health/ready"
-  failure_threshold = 3
-  request_interval  = 10
-  tags = {
-    Name = "payment-api-hc"
-  }
+ "primary" {
+ fqdn = "api.example.com"
+ port = 443
+ type = "HTTPS"
+ resource_path = "/health/ready"
+ failure_threshold = 3
+ request_interval = 10
+ tags = {
+ Name = "payment-api-hc"
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_route53_record" "api" {
-  zone_id = var.hosted_zone_id
-  name    = "api.example.com"
-  type    = "A"
-  ttl     = 300
-  records = [var.primary_ip]
-  # Kein Failover Routing,
-  # kein Health Check
-  # WAF-REL-070 Violation
+ zone_id = var.hosted_zone_id
+ name = "api.example.com"
+ type = "A"
+ ttl = 300
+ records = [var.primary_ip]
+ # Kein Failover Routing,
+ # kein Health Check
+ # WAF-REL-070 Violation
 }
 ----
 |===
@@ -139,19 +139,19 @@ DNS-TTL auf 30s reduzieren für schnelles Failover.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |DR-Testberichte letzter 12 Monate: RTO/RPO erreicht, Probleme, Unterschrift.
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |DR-Plan mit RTO/RPO-Zielen, Testplan und Datum der letzten Aktualisierung.
 
-|*IaC*
+|* IaC*
 |Optional
 |Automatisierungsskripte oder Terraform für DR-Failover-Prozeduren.
 
-|*Process*
+|* Process*
 |Optional
 |DR-Testkalender für die nächsten 12 Monate.
 
@@ -160,17 +160,77 @@ DNS-TTL auf 30s reduzieren für schnelles Failover.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.17.1.3 – Verify, review and evaluate information security continuity
-|*GDPR*|Article 32 – Security of processing (resilience and recovery testing)
-|*BSI C5:2022*|RB-04 – Data Backup and Recovery; RB-05 – Disaster Recovery
-|*AWS Well-Architected Framework*|REL 14 – Plan for disaster recovery; REL 13 – Test resiliency
-|*ITIL 4*|Service Continuity Management; id: waf-rel-070.tf.aws.route53-health-check-failover; aws_route53_health_check; id: waf-rel-070.tf.azurerm.traffic-manager-profile; azurerm_traffic_manager_profile; id: waf-rel-070.tf.google.dns-managed-zone-failover; google_dns_record_set
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
 
 |===
+
 
 == Verwandte Controls
 

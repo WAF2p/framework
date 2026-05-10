@@ -8,7 +8,7 @@
 :description: WAF++ Security – Policy-as-Code mit AWS Config, OPA/Conftest und automatisierten Compliance-Checks.
 
 [.metadata]
-*Pillar:* Security | *Severity:* Medium | *Kategorie:* Compliance | *Automatisierbar:* Hoch
+*Pillar:* Security |*Severity:* Medium |*Kategorie:* Compliance |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -105,17 +105,17 @@ Non-Compliant-Infrastruktur, bevor sie deployed wird – deutlich günstiger als
 a|[source,hcl]
 ----
 resource "aws_config_configuration_recorder" "main" {
-  name     = "default"
-  role_arn = aws_iam_role.config.arn
-  recording_group {
-    all_supported                 = true
-    include_global_resource_types = true
-  }
+ name = "default"
+ role_arn = aws_iam_role.config.arn
+ recording_group {
+ all_supported = true
+ include_global_resource_types = true
+ }
 }
 
 resource "aws_config_configuration_recorder_status" "main" {
-  name       = aws_config_configuration_recorder.main.name
-  is_enabled = true
+ name = aws_config_configuration_recorder.main.name
+ is_enabled = true
 }
 ----
 a|[source,hcl]
@@ -123,9 +123,9 @@ a|[source,hcl]
 # aws_config_configuration_recorder fehlt komplett
 # oder:
 resource "aws_config_configuration_recorder_status" "main" {
-  name       = "default"
-  is_enabled = false
-  # WAF-SEC-090 Violation: Config Recorder deaktiviert
+ name = "default"
+ is_enabled = false
+ # WAF-SEC-090 Violation: Config Recorder deaktiviert
 }
 ----
 |===
@@ -158,92 +158,90 @@ resource "aws_config_configuration_recorder_status" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
 |*ISO 27001:2022*
-|A.5.36 – Compliance with policies, rules and standards; A.8.8 – Management of technical vulnerabilities; A.5.37 – Documented operating procedures
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
 
 |*ISO 27017*
-|CLD.6.3 – Cloud-specific compliance monitoring
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
 
-|*CIS Controls v8*
-|CIS 4 – Secure Configuration; CIS 16.1 – Establish and maintain a secure configuration
-
-|*CSA STAR*
-|CCM GRC-01 – Governance, Risk and Compliance Program; CCM GRC-04 – Policy Management
-
-|*PCI DSS v4.0*
-|Req 6.4 – Develop systems using secure coding standards; Req 11.4 – Internal and external network testing
-
-|*SOC 2 Type II*
-|CC7.1 – Infrastructure and software monitoring; CC7.2 – Evaluation of system changes; CC4.1 – Monitoring activities
-
-|*COBIT 2019*
-|MEA03 – Managed compliance with external requirements; APO13 – Managed security
+|*ISO 27018*
+|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
 
 |*GDPR*
-|Art. 24 – Responsibility of the controller; Art. 32 – Security of processing
-
-|*NIS2*
-|Art. 21(2)(d) – Supply chain security and compliance
-
-|*DORA*
-|Art. 6 – ICT risk management framework
-
-|*EUCS (ENISA)*
-|OPS-01 – Operational security monitoring; GRC-01 – Compliance management
+|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 32 – Security of processing
 
 |*BSI C5:2020*
-|GOV-04 – Compliance monitoring and reporting; OPS-13 – Configuration management
+|IDM-01 – Identity and access management policy; IDM-02 – Role management; IDM-03 – User lifecycle management; COM-01 – Network and service security; COM-02 – Cloud monitoring
 
-|*IT-Grundschutz*
-|ISMS.1 – Sicherheitsmanagement; ORP.1 – Organisation
-
-|*TISAX*
-|Information security – Compliance and policy enforcement
-
-|*ANSSI SecNumCloud*
-|Domain – Compliance and audit
-
-|*BIO*
-|BIO – Compliance en beleidshandhaving
-
-|*ENS High*
-|org.4 – Proceso de autorización; op.pl.4 – Dimensionamiento – verificación
-
-|*UK NCSC CAF*
-|A1 – Governance; A4 – Policy and assurance
+|*EUCS (ENISA)*
+|IAM-01 – Identity and access management; IAM-02 – Access rights management; IAM-03 – Privileged access management
 
 |*NIST SP 800-53*
-|CA-2 – Control Assessments; CA-7 – Continuous Monitoring; CM-2 – Baseline Configuration
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous Monitoring
+|AC-1 – Policy and procedures; AC-2 – Account management; AC-3 – Access enforcement; AC-6 – Least privilege; IA-2 – Identification and authentication; SI-4 – Information system monitoring
 
 |*FedRAMP*
-|CA-2, CA-7, CM-2 (Moderate/High baseline)
+|AC-1, AC-2, AC-3, AC-6, IA-2 (Moderate/High baseline)
+
+|*HIPAA*
+|§ 164.308(a)(4) – Access management; § 164.312(a) – Access control; § 164.312(d) – Information system activity review
+
+|*PCI DSS v4.0*
+|Req 7 – Restrict access to cardholder data; Req 8 – Identify and authenticate access; Req 8.3 – Non-service accounts
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC6.2 – Logical access security management; CC6.6 – Secure configuration
+
+|*CSRD*
+|ESRS E1 – Climate change; ESRS G1 – Governance
+
+|*NIST CSF 2.0*
+|GV.AC – Identity management and access control; DE.CM – Configuration management
+
+|*CIS Controls v8*
+|CIS 4 – Secure Configuration; CIS 4.4 – Access control; CIS 4.5 – Least privilege
+
+|*TISAX*
+|Information security – Access rights management
+
+|*ANSSI SecNumCloud*
+|Domain – Identity and access management; Domain – Security monitoring
+
+|*BIO*
+|BIO – Identificatie en authenticatie; BIO – Toegangsbeheer
+
+|*ENS High*
+|org.3 – Políticas de acceso; op.exp.5 – Monitorización de la configuración
+
+|*UK NCSC CAF*
+|B1 – Access control; B2 – Secure configuration
 
 |*CMMC 2.0*
-|CA.L2-3.12.1 – Periodically assess security controls; CA.L2-3.12.3 – Continuously monitor controls
+|AC.L2-3.1.1 – Access control policy; AC.L2-3.5.1 – Access enforcement
 
 |*IRAP*
-|ISM – Compliance and assessment
+|ISM – Identity and access management; ISM – Access control
 
 |*CCCS PBMM*
-|CA-7 – Continuous monitoring
+|AC-6 – Least privilege; AC-7 – Unsuccessful logon attempts
 
 |*MAS TRM*
-|Ch.3 – Technology risk governance
+|Ch.4 – Identity and access management; Ch.8 – Security monitoring
 
 |*ISMAP*
-|Compliance and continuous control assessment
+|Access control and identity management
 
 |*FISC*
-|Operational measures – Compliance and audit
+|Operational measures – Access control
 
 |===
+
+
 == Verwandte Controls
 
 * xref:controls/WAF-SEC-080.adoc[WAF-SEC-080 – Security Monitoring & Threat Detection]

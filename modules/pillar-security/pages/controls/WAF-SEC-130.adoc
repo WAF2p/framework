@@ -8,7 +8,7 @@
 :description: WAF++ Security – Datenklassifizierung und kategoriengerechter Schutz: Tags, Verschlüsselung und Zugriffskontrolle nach Schutzstufe.
 
 [.metadata]
-*Pillar:* Security | *Severity:* Medium | *Kategorie:* Data Governance | *Automatisierbar:* Mittel
+*Pillar:* Security |*Severity:* Medium |*Kategorie:* Data Governance |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -107,27 +107,27 @@ Der `data-classification`-Tag ist der Startpunkt für alle datenschutzbezogenen 
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
-  bucket = "myapp-prod-data"
-  tags = {
-    "data-classification" = "confidential"
-    owner                 = "platform-team"
-    environment           = "production"
-  }
+ bucket = "myapp-prod-data"
+ tags = {
+ "data-classification" = "confidential"
+ owner = "platform-team"
+ environment = "production"
+ }
 }
 
 resource "aws_s3_bucket_public_access_block" "data" {
-  bucket                  = aws_s3_bucket.data.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+ bucket = aws_s3_bucket.data.id
+ block_public_acls = true
+ block_public_policy = true
+ ignore_public_acls = true
+ restrict_public_buckets = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
-  bucket = "myapp-prod-data"
-  # data-classification Tag fehlt – WAF-SEC-130 Violation
+ bucket = "myapp-prod-data"
+ # data-classification Tag fehlt – WAF-SEC-130 Violation
 }
 # aws_s3_bucket_public_access_block fehlt
 # WAF-SEC-130 Violation: kein Public-Access-Block
@@ -148,25 +148,25 @@ resource "aws_s3_bucket" "data" {
 a|[source,hcl]
 ----
 resource "aws_db_instance" "app" {
-  identifier         = "app-prod-db"
-  engine             = "postgres"
-  instance_class     = "db.t3.medium"
-  allocated_storage  = 100
-  publicly_accessible = false
-  tags = {
-    "data-classification" = "confidential"
-  }
+ identifier = "app-prod-db"
+ engine = "postgres"
+ instance_class = "db.t3.medium"
+ allocated_storage = 100
+ publicly_accessible = false
+ tags = {
+ "data-classification" = "confidential"
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "app" {
-  identifier          = "app-prod-db"
-  engine              = "postgres"
-  instance_class      = "db.t3.medium"
-  allocated_storage   = 100
-  publicly_accessible = true
-  # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
+ identifier = "app-prod-db"
+ engine = "postgres"
+ instance_class = "db.t3.medium"
+ allocated_storage = 100
+ publicly_accessible = true
+ # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
 }
 ----
 |===
@@ -199,119 +199,89 @@ resource "aws_db_instance" "app" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
 |*ISO 27001:2022*
-|A.5.12 – Classification of information; A.5.13 – Labelling of information; A.8.10 – Information deletion; A.8.11 – Data masking; A.8.24 – Use of cryptography
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
 
 |*ISO 27017*
-|CLD.8.1 – Asset management in cloud services
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
 
 |*ISO 27018*
 |A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
 
-|*CIS Controls v8*
-|CIS 3 – Data Protection; CIS 3.7 – Establish and maintain a data classification scheme
-
-|*CSA STAR*
-|CCM DSP-01 – Data Classification; CCM DSP-02 – Data Inventory and Flow; CCM DSP-09 – Data Protection by Design
-
-|*PCI DSS v4.0*
-|Req 3 – Protect stored cardholder data
-
-|*SOC 2 Type II*
-|C1.1 – Confidentiality of information; P1 – Privacy criteria
-
 |*GDPR*
-|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 30 – Records of processing activities; Art. 32 – Security of processing
-
-|*NIS2*
-|Art. 21(2)(e) – Security in handling of data
-
-|*DORA*
-|Art. 9 – Protection and prevention
-
-|*EUCS (ENISA)*
-|DSP-01 – Data classification and handling; DSP-02 – Data lifecycle management
+|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 32 – Security of processing
 
 |*BSI C5:2020*
-|AM-04 – Data classification and handling; CRY-03 – Encryption of stored data
+|IDM-01 – Identity and access management policy; IDM-02 – Role management; IDM-03 – User lifecycle management; COM-01 – Network and service security; COM-02 – Cloud monitoring
 
-|*IT-Grundschutz*
-|ORP.4 – Schutzbedarfsfeststellung; CON.2 – Datenschutz
-
-|*TISAX*
-|Information security – Information classification and protection; Prototype protection – Sensitive data handling
-
-|*ANSSI SecNumCloud*
-|Domain – Data classification and protection
-
-|*HDS*
-|HDS Section 8 – Health data classification and protection
-
-|*BIO*
-|BIO – Classificatie en bescherming van informatie
-
-|*ENS High*
-|mp.info.1 – Datos de carácter personal; mp.info.2 – Calificación de la información
-
-|*UK NCSC CAF*
-|B3.a – Understanding data; B3.b – Data in transit
-
-|*UK GDPR*
-|Art. 5(1)(f) – Integrity and confidentiality; Art. 25 – Data protection by design; Art. 32 – Security of processing
+|*EUCS (ENISA)*
+|IAM-01 – Identity and access management; IAM-02 – Access rights management; IAM-03 – Privileged access management
 
 |*NIST SP 800-53*
-|MP-1 – Media Protection Policy; RA-2 – Security Categorization; SC-28 – Protection of Information at Rest
-
-|*NIST CSF 2.0*
-|ID.AM-05 – Resources are prioritized based on classification; PR.DS-01 – Data-at-rest is protected
+|AC-1 – Policy and procedures; AC-2 – Account management; AC-3 – Access enforcement; AC-6 – Least privilege; IA-2 – Identification and authentication; SI-4 – Information system monitoring
 
 |*FedRAMP*
-|MP-1, RA-2, SC-28 (Moderate/High baseline)
+|AC-1, AC-2, AC-3, AC-6, IA-2 (Moderate/High baseline)
 
 |*HIPAA*
-|§ 164.312(a)(2)(iv) – Encryption and decryption; § 164.514 – De-identification of PHI
+|§ 164.308(a)(4) – Access management; § 164.312(a) – Access control; § 164.312(d) – Information system activity review
 
-|*CCPA*
-|§ 1798.100 – Right to know about personal information; § 1798.105 – Right to deletion
+|*PCI DSS v4.0*
+|Req 7 – Restrict access to cardholder data; Req 8 – Identify and authenticate access; Req 8.3 – Non-service accounts
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC6.2 – Logical access security management; CC6.6 – Secure configuration
+
+|*CSRD*
+|ESRS E1 – Climate change; ESRS G1 – Governance
+
+|*NIST CSF 2.0*
+|GV.AC – Identity management and access control; DE.CM – Configuration management
+
+|*CIS Controls v8*
+|CIS 4 – Secure Configuration; CIS 4.4 – Access control; CIS 4.5 – Least privilege
+
+|*TISAX*
+|Information security – Access rights management
+
+|*ANSSI SecNumCloud*
+|Domain – Identity and access management; Domain – Security monitoring
+
+|*BIO*
+|BIO – Identificatie en authenticatie; BIO – Toegangsbeheer
+
+|*ENS High*
+|org.3 – Políticas de acceso; op.exp.5 – Monitorización de la configuración
+
+|*UK NCSC CAF*
+|B1 – Access control; B2 – Secure configuration
 
 |*CMMC 2.0*
-|MP.L2-3.8.1 – Protect CUI on system media; SC.L2-3.13.16 – Protect CUI confidentiality at rest
+|AC.L2-3.1.1 – Access control policy; AC.L2-3.5.1 – Access enforcement
 
 |*IRAP*
-|ISM – Information classification and handling
+|ISM – Identity and access management; ISM – Access control
 
 |*CCCS PBMM*
-|RA-2, SC-28 – Information categorization and protection
+|AC-6 – Least privilege; AC-7 – Unsuccessful logon attempts
 
 |*MAS TRM*
-|Ch.5 – Information classification and data management
-
-|*PDPA SG*
-|§ 24 – Protection obligation; § 20 – Purpose limitation
-
-|*LGPD*
-|Art. 6 – Data processing principles; Art. 46 – Security measures
-
-|*PIPEDA*
-|Principle 4 – Limiting collection; Principle 7 – Safeguards
-
-|*DPDP Act*
-|§ 4 – Grounds for processing; § 9 – Data protection obligations
-
-|*MEITY CSMP*
-|Cloud data classification and protection requirements
+|Ch.4 – Identity and access management; Ch.8 – Security monitoring
 
 |*ISMAP*
-|Information classification and protection
+|Access control and identity management
 
 |*FISC*
-|Operational measures – Information classification
+|Operational measures – Access control
 
 |===
+
 
 == Verwandte Controls
 

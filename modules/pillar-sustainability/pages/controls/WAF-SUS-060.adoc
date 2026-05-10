@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Batch-Workloads in emissionsarme Zeitfenster verschieben: Off-Peak-Scheduling, EventBridge Flexible Windows, Carbon-Intensity-API-Integration.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Workload Scheduling | *Automatisierbar:* Mittel
+*Pillar:* Sustainability |*Severity:* Low |*Kategorie:* Workload Scheduling |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ EventBridge Flexible Time Windows ermöglichen diese Optimierung ohne zusätzlic
 |===
 |Risiko |Beschreibung
 
-|*Peak-Stunden-Batch*
+|* Peak-Stunden-Batch*
 |Batch-Jobs um 09:00 Uhr ausgeführt, wenn Stromverbrauch und Carbon Intensity ihr Tages-Maximum erreichen.
 
-|*Fehlende Dokumentation*
+|* Fehlende Dokumentation*
 |Scheduling-Entscheidungen ohne Carbon-Rationale sind CSRD-Governance-Gap.
 
-|*Kein Flexible Window*
+|* Kein Flexible Window*
 |Starre Ausführungszeiten verhindern Carbon-Aware-Optimierung ohne zusätzlichen Engineering-Aufwand.
 
-|*AWS Batch auf ON_DEMAND*
+|* AWS Batch auf ON_DEMAND*
 |Batch-Workloads auf On-Demand statt SPOT verbrauchen dedizierte Kapazität statt geteilter ungenutzter.
 
 |===
@@ -105,30 +105,30 @@ EventBridge Flexible Time Windows ermöglichen diese Optimierung ohne zusätzlic
 a|[source,hcl]
 ----
 resource "aws_scheduler_schedule" "nightly_report" {
-  name = "nightly-report"
-  schedule_expression = "cron(0 22 * * ? *)"
+ name = "nightly-report"
+ schedule_expression = "cron(0 22 * * ? *)"
 
-  flexible_time_window {
-    mode                      = "FLEXIBLE"
-    maximum_window_in_minutes = 120
-  }
+ flexible_time_window {
+ mode = "FLEXIBLE"
+ maximum_window_in_minutes = 120
+ }
 
-  target {
-    arn      = aws_lambda_function.report.arn
-    role_arn = aws_iam_role.scheduler.arn
-  }
+ target {
+ arn = aws_lambda_function.report.arn
+ role_arn = aws_iam_role.scheduler.arn
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_scheduler_schedule" "nightly_report" {
-  name = "nightly-report"
-  schedule_expression = "cron(0 9 * * ? *)"
+ name = "nightly-report"
+ schedule_expression = "cron(0 9 * * ? *)"
 
-  flexible_time_window {
-    mode = "OFF"
-    # WAF-SUS-060 Warning: Peak-Zeit, kein Flex-Window
-  }
+ flexible_time_window {
+ mode = "OFF"
+ # WAF-SUS-060 Warning: Peak-Zeit, kein Flex-Window
+ }
 }
 ----
 |===
@@ -147,30 +147,30 @@ resource "aws_scheduler_schedule" "nightly_report" {
 a|[source,hcl]
 ----
 resource "aws_batch_compute_environment" "processing" {
-  compute_environment_name = "data-processing"
-  type                     = "MANAGED"
+ compute_environment_name = "data-processing"
+ type = "MANAGED"
 
-  compute_resources {
-    type                = "SPOT"
-    allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
-    min_vcpus           = 0
-    max_vcpus           = 256
-    instance_type       = ["m7g", "c7g"]
-  }
+ compute_resources {
+ type = "SPOT"
+ allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
+ min_vcpus = 0
+ max_vcpus = 256
+ instance_type = ["m7g", "c7g"]
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_batch_compute_environment" "processing" {
-  compute_environment_name = "data-processing"
-  type                     = "MANAGED"
+ compute_environment_name = "data-processing"
+ type = "MANAGED"
 
-  compute_resources {
-    type      = "ON_DEMAND"
-    min_vcpus = 4
-    max_vcpus = 64
-    # WAF-SUS-060 Warning: Batch auf On-Demand
-  }
+ compute_resources {
+ type = "ON_DEMAND"
+ min_vcpus = 4
+ max_vcpus = 64
+ # WAF-SUS-060 Warning: Batch auf On-Demand
+ }
 }
 ----
 |===
@@ -183,15 +183,15 @@ resource "aws_batch_compute_environment" "processing" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |EventBridge Scheduler oder Cron-Konfiguration mit Off-Peak-Scheduling und Flexible Windows.
 
-|*Process*
+|* Process*
 |Optional
 |Carbon-Intensity-API-Integration für dynamisches Scheduling.
 
-|*Governance*
+|* Governance*
 |Optional
 |Scheduling-Dokumentation für Major-Batch-Pipelines mit Carbon-Rationale.
 
@@ -200,15 +200,77 @@ resource "aws_batch_compute_environment" "processing" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*Green Software Foundation*|Carbon Aware Computing – Temporal Shifting; Software Carbon Intensity (SCI) – time-based carbon optimization
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change – operational energy optimization
-|*GHG Protocol*|Scope 2 – Market-based method – time-of-use carbon intensity; id: waf-sus-060.tf.aws.eventbridge-flexible-window; aws_scheduler_schedule; id: waf-sus-060.tf.aws.batch-compute-spot; aws_batch_compute_environment; id: waf-sus-060.tf.google.cloud-scheduler-timezone; google_cloud_scheduler_job
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

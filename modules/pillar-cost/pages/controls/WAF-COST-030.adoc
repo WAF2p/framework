@@ -8,7 +8,7 @@
 :description: WAF++ Cost Optimization – Ressourcendimensionierung auf Basis gemessener Auslastung, nicht hypothetischer Szenarien.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Resource Optimization | *Automatisierbar:* Mittel
+*Pillar:* Cost Optimization |*Severity:* Medium |*Kategorie:* Resource Optimization |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ Audit-Trail, der beweist, dass Ressourcen aktiv verwaltet werden – nicht verge
 |===
 |Risiko |Beschreibung
 
-|*Dauerlaufende Idle-Ressourcen*
+|* Dauerlaufende Idle-Ressourcen*
 |Dev/Test-Instanzen, die nach Projektabschluss nie abgeschaltet wurden, erzeugen monatliche Fixkosten ohne Wert.
 
-|*Strukturelle Überprovisionierung*
+|* Strukturelle Überprovisionierung*
 |Für 10x Wachstum dimensionierte Instanzen, das nie eintrat – zahlen Jahre lang den Aufschlag.
 
-|*HA ohne SLO-Basis*
+|* HA ohne SLO-Basis*
 |Multi-AZ-Deployment ohne SLO-Anforderung > single-AZ: klassische Architektonische Kostenschuld.
 
-|*Ungenutzte Reservierungen*
+|* Ungenutzte Reservierungen*
 |Reserved Instances für Workloads, die geändert oder abgeschaltet wurden, erzeugen Fixkosten.
 
 |===
@@ -92,29 +92,29 @@ Audit-Trail, der beweist, dass Ressourcen aktiv verwaltet werden – nicht verge
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+ ami = data.aws_ami.ubuntu.id
+ instance_type = "t3.medium"
 
-  tags = merge(module.mandatory_tags.tags, {
-    rightsizing-reviewed = "2025-03-01"
-    rightsizing-result   = "no-change"
-    capacity-commitment  = "on-demand"
-  })
+ tags = merge(module.mandatory_tags.tags, {
+ rightsizing-reviewed = "2025-03-01"
+ rightsizing-result = "no-change"
+ capacity-commitment = "on-demand"
+ })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
-  tags = {
-    cost-center = "fintech-platform"
-    owner       = "payments-team"
-    environment = "production"
-    workload    = "payment-service"
-    # Fehlend: rightsizing-reviewed
-    # WAF-COST-030 Violation
-  }
+ ami = data.aws_ami.ubuntu.id
+ instance_type = "t3.medium"
+ tags = {
+ cost-center = "fintech-platform"
+ owner = "payments-team"
+ environment = "production"
+ workload = "payment-service"
+ # Fehlend: rightsizing-reviewed
+ # WAF-COST-030 Violation
+ }
 }
 ----
 |===
@@ -129,20 +129,20 @@ Format: `YYYY-MM-DD` (ISO 8601). Review alle 90 Tage wiederholen und Tag-Datum a
 [source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "idle_instance" {
-  alarm_name          = "idle-instance-${aws_instance.app.id}"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 7
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = 86400
-  statistic           = "Average"
-  threshold           = 5
-  alarm_description   = "Instance appears idle (<5% CPU, 7 days). Review for shutdown."
-  alarm_actions       = [aws_sns_topic.finops_alerts.arn]
+ alarm_name = "idle-instance-${aws_instance.app.id}"
+ comparison_operator = "LessThanThreshold"
+ evaluation_periods = 7
+ metric_name = "CPUUtilization"
+ namespace = "AWS/EC2"
+ period = 86400
+ statistic = "Average"
+ threshold = 5
+ alarm_description = "Instance appears idle (<5% CPU, 7 days). Review for shutdown."
+ alarm_actions = [aws_sns_topic.finops_alerts.arn]
 
-  dimensions = {
-    InstanceId = aws_instance.app.id
-  }
+ dimensions = {
+ InstanceId = aws_instance.app.id
+ }
 }
 ----
 
@@ -152,19 +152,19 @@ resource "aws_cloudwatch_metric_alarm" "idle_instance" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform Compute-Ressourcen mit `rightsizing-reviewed`-Tag.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Idle-Detection-Alert-Konfiguration (CloudWatch/Azure Monitor/GCP Alerting).
 
-|*Process*
+|* Process*
 |Optional
 |FinOps-Review-Protokolle mit Rightsizing-Empfehlungen und Entscheidungen.
 
-|*Config*
+|* Config*
 |Optional
 |Non-Production Auto-Shutdown-Schedule-Konfiguration.
 
@@ -177,8 +177,8 @@ resource "aws_cloudwatch_metric_alarm" "idle_instance" {
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Optimize Phase – Rightsizing and Resource Optimization; Operate Phase – Continuous Resource Review
-|*Internal Governance*|Cloud Cost Governance Policy – Resource Efficiency; Engineering Excellence – No Persistent Waste
+|* FinOps Foundation* | Optimize Phase – Rightsizing and Resource Optimization; Operate Phase – Continuous Resource Review
+|* Internal Governance* | Cloud Cost Governance Policy – Resource Efficiency; Engineering Excellence – No Persistent Waste
 
 |===
 
@@ -189,8 +189,8 @@ resource "aws_cloudwatch_metric_alarm" "idle_instance" {
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Optimize Phase – Rightsizing and Resource Optimization; Operate Phase – Continuous Resource Review
-|*Internal Governance*|Cloud Cost Governance Policy – Resource Efficiency; Engineering Excellence – No Persistent Waste; id: waf-cost-030.tf.aws.ec2-rightsizing-tag-required; aws_instance; aws_launch_template; id: waf-cost-030.tf.azurerm.vm-rightsizing-tag; azurerm_virtual_machine; azurerm_linux_virtual_machine; azurerm_windows_virtual_machine; azurerm_kubernetes_cluster
+|* FinOps Foundation* | Optimize Phase – Rightsizing and Resource Optimization; Operate Phase – Continuous Resource Review
+|* Internal Governance* | Cloud Cost Governance Policy – Resource Efficiency; Engineering Excellence – No Persistent Waste; id: waf-cost-030.tf.aws.ec2-rightsizing-tag-required; aws_instance; aws_launch_template; id: waf-cost-030.tf.azurerm.vm-rightsizing-tag; azurerm_virtual_machine; azurerm_linux_virtual_machine; azurerm_windows_virtual_machine; azurerm_kubernetes_cluster
 
 |===
 

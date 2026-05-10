@@ -8,7 +8,7 @@
 :description: WAF++ Cost Optimization – Explizite Lifecycle-Policies für alle Storage- und Log-Ressourcen; kein Infinite Retention.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Retention Management | *Automatisierbar:* Hoch
+*Pillar:* Cost Optimization |*Severity:* High |*Kategorie:* Retention Management |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ Einmaliger IaC-Aufwand, dauerhafter und wachsender Einsparungseffekt.
 |===
 |Risiko |Beschreibung
 
-|*Unbegrenzte Storage-Kosten*
+|* Unbegrenzte Storage-Kosten*
 |S3-Buckets ohne Lifecycle akkumulieren Daten über Jahre; Kosten wachsen ohne Kontrolle.
 
-|*Observability-Kostendominanz*
+|* Observability-Kostendominanz*
 |CloudWatch-Default (infinite) macht Log-Kosten zur größten Kostenposition nach Compute.
 
-|*Vergessene Snapshots*
+|* Vergessene Snapshots*
 |EBS-Snapshots und RDS-Snapshots wachsen unbegrenzt, wenn kein Cleanup-Policy existiert.
 
-|*DSGVO-Risiko*
+|* DSGVO-Risiko*
 |Daten, die länger als notwendig gespeichert werden, verstoßen gegen das Prinzip der Datensparsamkeit.
 
 |===
@@ -95,41 +95,41 @@ Einmaliger IaC-Aufwand, dauerhafter und wachsender Einsparungseffekt.
 a|[source,hcl]
 ----
 resource "aws_s3_bucket_lifecycle_configuration" "data" {
-  bucket = aws_s3_bucket.data.id
+ bucket = aws_s3_bucket.data.id
 
-  rule {
-    id     = "tiering"
-    status = "Enabled"
+ rule {
+ id = "tiering"
+ status = "Enabled"
 
-    transition {
-      days          = 30
-      storage_class = "STANDARD_IA"
-    }
-    transition {
-      days          = 90
-      storage_class = "GLACIER_IR"
-    }
-    expiration {
-      days = 365
-    }
-  }
+ transition {
+ days = 30
+ storage_class = "STANDARD_IA"
+ }
+ transition {
+ days = 90
+ storage_class = "GLACIER_IR"
+ }
+ expiration {
+ days = 365
+ }
+ }
 
-  rule {
-    id     = "abort-incomplete"
-    status = "Enabled"
-    abort_incomplete_multipart_upload {
-      days_after_initiation = 3
-    }
-  }
+ rule {
+ id = "abort-incomplete"
+ status = "Enabled"
+ abort_incomplete_multipart_upload {
+ days_after_initiation = 3
+ }
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "data" {
-  bucket = "acme-application-data"
-  # Keine Lifecycle-Configuration
-  # Daten akkumulieren unbegrenzt
-  # WAF-COST-040 Violation
+ bucket = "acme-application-data"
+ # Keine Lifecycle-Configuration
+ # Daten akkumulieren unbegrenzt
+ # WAF-COST-040 Violation
 }
 ----
 |===
@@ -146,20 +146,20 @@ resource "aws_s3_bucket" "data" {
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
-  name              = "/app/production/payment"
-  retention_in_days = 30  # Hot-Tier
-  tags = merge(module.mandatory_tags.tags, {
-    log-tier = "hot"
-    log-type = "operational"
-  })
+ name = "/app/production/payment"
+ retention_in_days = 30 # Hot-Tier
+ tags = merge(module.mandatory_tags.tags, {
+ log-tier = "hot"
+ log-type = "operational"
+ })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_log_group" "app" {
-  name = "/app/production/payment"
-  # retention_in_days fehlt = unbegrenzt
-  # WAF-COST-040 Violation
+ name = "/app/production/payment"
+ # retention_in_days fehlt = unbegrenzt
+ # WAF-COST-040 Violation
 }
 ----
 |===
@@ -173,19 +173,19 @@ Empfohlen: operational=30, security-audit=365. Nie 0 oder leer lassen.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform Storage-Ressourcen mit expliziten Lifecycle-Regeln.
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform CloudWatch Log Group-Ressourcen mit `retention_in_days` != 0.
 
-|*Governance*
+|* Governance*
 |Optional
 |Retention-Strategie-Dokument (`docs/retention-strategy.yml`).
 
-|*Config*
+|* Config*
 |Optional
 |AWS Config-Report: S3-Buckets ohne Lifecycle-Policy (Ziel: 0).
 
@@ -198,9 +198,9 @@ Empfohlen: operational=30, security-audit=365. Nie 0 oder leer lassen.
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Optimize Phase – Storage Optimization and Lifecycle Management
-|*GDPR*|Art. 5(1)(e) – Storage limitation (data not kept longer than necessary); Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)
-|*Internal Governance*|Data Retention Policy – Explicit lifecycle for all data categories; Cloud Cost Governance – No infinite retention defaults
+|* FinOps Foundation* | Optimize Phase – Storage Optimization and Lifecycle Management
+|* GDPR* | Art. 5(1)(e) – Storage limitation (data not kept longer than necessary); Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)
+|* Internal Governance* | Data Retention Policy – Explicit lifecycle for all data categories; Cloud Cost Governance – No infinite retention defaults
 
 |===
 
@@ -211,9 +211,9 @@ Empfohlen: operational=30, security-audit=365. Nie 0 oder leer lassen.
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Optimize Phase – Storage Optimization and Lifecycle Management
-|*GDPR*|Art. 5(1)(e) – Storage limitation (data not kept longer than necessary); Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)
-|*Internal Governance*|Data Retention Policy – Explicit lifecycle for all data categories; Cloud Cost Governance – No infinite retention defaults; id: waf-cost-040.tf.aws.s3-lifecycle-rule-defined; aws_s3_bucket_lifecycle_configuration; id: waf-cost-040.tf.aws.cloudwatch-log-retention-not-zero; aws_cloudwatch_log_group
+|* FinOps Foundation* | Optimize Phase – Storage Optimization and Lifecycle Management
+|* GDPR* | Art. 5(1)(e) – Storage limitation (data not kept longer than necessary); Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)
+|* Internal Governance* | Data Retention Policy – Explicit lifecycle for all data categories; Cloud Cost Governance – No infinite retention defaults; id: waf-cost-040.tf.aws.s3-lifecycle-rule-defined; aws_s3_bucket_lifecycle_configuration; id: waf-cost-040.tf.aws.cloudwatch-log-retention-not-zero; aws_cloudwatch_log_group
 
 |===
 

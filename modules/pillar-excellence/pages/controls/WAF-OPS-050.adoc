@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alle Produktionsänderungen müssen durch einen definierten Change-Management-Prozess mit Risikobewertung und Approval laufen.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Change Management | *Automatisierbar:* Mittel
+*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Change Management |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ ermöglicht sowohl Geschwindigkeit als auch Sicherheit.
 |===
 |Risiko |Beschreibung
 
-|*Ungeprüfte Änderungen*
+|* Ungeprüfte Änderungen*
 |Ohne Review: Security-Konfigurationsänderungen ohne Security-Team; kein Rollback-Plan.
 
-|*Change-Kollisionen*
+|* Change-Kollisionen*
 |Mehrere Teams deployen gleichzeitig ohne Koordination; gegenseitige Störung unbekannt.
 
-|*Kritische-Perioden-Deployment*
+|* Kritische-Perioden-Deployment*
 |Release während Black Friday, Monatsende, Steuerzahlung – erhöhtes Risiko ohne Freeze.
 
-|*Compliance-Verletzung*
+|* Compliance-Verletzung*
 |SOC 2, PCI DSS, ISO 20000 fordern Change-Records mit Approval-Nachweis.
 
 |===
@@ -102,29 +102,29 @@ ermöglicht sowohl Geschwindigkeit als auch Sicherheit.
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
-  /* ... */
-  stage {
-    name = "Approval-Production"
-    action {
-      name     = "ManualApproval"
-      category = "Approval"
-      owner    = "AWS"
-      provider = "Manual"
-      version  = "1"
-      configuration = {
-        NotificationArn = aws_sns_topic.approvals.arn
-      }
-    }
-  }
-  stage { name = "Deploy-Production" /* ... */ }
+ /* ... */
+ stage {
+ name = "Approval-Production"
+ action {
+ name = "ManualApproval"
+ category = "Approval"
+ owner = "AWS"
+ provider = "Manual"
+ version = "1"
+ configuration = {
+ NotificationArn = aws_sns_topic.approvals.arn
+ }
+ }
+ }
+ stage { name = "Deploy-Production" /* ... */ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_codepipeline" "app" {
-  /* Source → Build → Deploy-Production */
-  /* Kein Approval-Gate vor Production */
-  /* WAF-OPS-050 Violation */
+ /* Source → Build → Deploy-Production */
+ /* Kein Approval-Gate vor Production */
+ /* WAF-OPS-050 Violation */
 }
 ----
 
@@ -139,19 +139,19 @@ Production-Deployment in der CodePipeline konfigurieren.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Change-Management-Policy mit Change-Kategorien, Approval-Anforderungen und Freeze-Perioden.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Branch-Protection- und Approval-Konfiguration (min. Reviewer, CODEOWNERS).
 
-|*Governance*
+|* Governance*
 |Optional
 |Change-Log mit Change-Records verknüpft zu Deployments (letzte 3 Monate).
 
-|*Config*
+|* Config*
 |Optional
 |Deployment-Freeze-Konfiguration (Environment Protection Rules oder Pipeline-Freeze-Check).
 
@@ -160,17 +160,80 @@ Production-Deployment in der CodePipeline konfigurieren.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1*|Change and deployment management; Release and deployment management
-|*ITIL 4*|Change enablement; Release management
-|*SOC 2 Type II*|CC8.1 – Change Management – Authorized Changes
-|*AWS Well-Architected Framework*|Operational Excellence Pillar – OPS 6: How do you deploy your workload?
-|*PCI DSS v4.0*|Requirement 6.5: Changes to all system components are managed securely; id: waf-ops-050.tf.aws.codepipeline-manual-approval; aws_codepipeline; id: waf-ops-050.tf.azurerm.devops-environment-approval; azuredevops_environment
+|*ISO/IEC 20000-1:2018*
+|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*Google SRE Book*
+|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*FinOps Foundation*
+|Core Module – Financial accountability; Management Layer – Cost governance
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
+
+|*NIST SP 800-53*
+|CM-1 – Configuration management policy; CM-2 – Configuration management
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
+
+|*TISAX*
+|Information security – Change management
+
+|*ANSSI SecNumCloud*
+|Domain – Change management
+
+|*BIO*
+|BIO – Veranderingenbeheer
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance; A5 – Continual improvement
+
+|*CMMC 2.0*
+|CM.L2-3.4.1 – Establish baseline configurations
+
+|*IRAP*
+|ISM – Change management
+
+|*CCCS PBMM*
+|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
+
+|*MAS TRM*
+|Ch.3 – Technology risk governance; Ch.9 – Change management
+
+|*ISMAP*
+|Operational excellence and continuous improvement
+
+|*FISC*
+|Operational measures – Change management
 
 |===
+
 
 == Verwandte Controls
 

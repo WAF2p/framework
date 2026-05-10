@@ -8,7 +8,7 @@
 :description: WAF++ Security – Container-Sicherheit: Non-Root-Ausführung, kein Privileged Mode, EKS-Secrets-Verschlüsselung, Resource-Limits.
 
 [.metadata]
-*Pillar:* Security | *Severity:* High | *Kategorie:* Container | *Automatisierbar:* Hoch
+*Pillar:* Security |*Severity:* High |*Kategorie:* Container |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -107,33 +107,33 @@ einen Denial-of-Service verursacht.
 a|[source,hcl]
 ----
 resource "aws_kms_key" "eks" {
-  description         = "EKS secrets encryption CMK"
-  enable_key_rotation = true
+ description = "EKS secrets encryption CMK"
+ enable_key_rotation = true
 }
 
 resource "aws_eks_cluster" "main" {
-  name     = "prod-cluster"
-  role_arn = aws_iam_role.eks.arn
+ name = "prod-cluster"
+ role_arn = aws_iam_role.eks.arn
 
-  encryption_config {
-    resources = ["secrets"]
-    provider {
-      key_arn = aws_kms_key.eks.arn
-    }
-  }
+ encryption_config {
+ resources = ["secrets"]
+ provider {
+ key_arn = aws_kms_key.eks.arn
+ }
+ }
 
-  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+ enabled_cluster_log_types = ["api", "audit", "authenticator"]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_eks_cluster" "main" {
-  name     = "prod-cluster"
-  role_arn = aws_iam_role.eks.arn
-  # encryption_config fehlt
-  # WAF-SEC-120 Violation: Secrets unverschlüsselt in etcd
-  # enabled_cluster_log_types fehlt
-  # WAF-SEC-120 Violation: kein Audit-Logging
+ name = "prod-cluster"
+ role_arn = aws_iam_role.eks.arn
+ # encryption_config fehlt
+ # WAF-SEC-120 Violation: Secrets unverschlüsselt in etcd
+ # enabled_cluster_log_types fehlt
+ # WAF-SEC-120 Violation: kein Audit-Logging
 }
 ----
 |===
@@ -166,98 +166,89 @@ resource "aws_eks_cluster" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
 |*ISO 27001:2022*
-|A.8.8 – Management of technical vulnerabilities; A.8.19 – Installation of software on operational systems; A.8.22 – Segregation of networks; A.8.7 – Protection against malware
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
 
 |*ISO 27017*
-|CLD.9.5 – Segregation in virtual computing environments
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
 
-|*CIS Controls v8*
-|CIS 4 – Secure Configuration of Enterprise Assets and Software; CIS 7 – Continuous Vulnerability Management; CIS 13 – Network Monitoring and Defense
-
-|*CSA STAR*
-|CCM IVS-04 – OS Hardening and Base Controls; CCM TVM-04 – Threat Detection and Response
-
-|*PCI DSS v4.0*
-|Req 2.2 – Secure configuration baselines; Req 6.4 – Develop systems using secure coding
-
-|*SOC 2 Type II*
-|CC6.6 – System hardening; CC7.1 – System monitoring
+|*ISO 27018*
+|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
 
 |*GDPR*
-|Art. 32 – Security of processing
-
-|*NIS2*
-|Art. 21(2)(c) – Network and information system security
-
-|*DORA*
-|Art. 9 – Protection and prevention
-
-|*EUCS (ENISA)*
-|OPS-08 – Operations and service management; CSC-01 – Communication security
+|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 32 – Security of processing
 
 |*BSI C5:2020*
-|OPS-12 – Hardening of operating systems; OPS-13 – Configuration management; COM-01 – Network segmentation
+|IDM-01 – Identity and access management policy; IDM-02 – Role management; IDM-03 – User lifecycle management; COM-01 – Network and service security; COM-02 – Cloud monitoring
 
-|*IT-Grundschutz*
-|SYS.1.6 – Containerisierung; APP.4.4 – Kubernetes
-
-|*TISAX*
-|Information security – System hardening and configuration
-
-|*ANSSI SecNumCloud*
-|Domain – System hardening
-
-|*BIO*
-|BIO – Hardening en configuratiebeheer
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK Cyber Essentials*
-|CE.SC – Secure configuration
-
-|*UK NCSC CAF*
-|B4 – System security
+|*EUCS (ENISA)*
+|IAM-01 – Identity and access management; IAM-02 – Access rights management; IAM-03 – Privileged access management
 
 |*NIST SP 800-53*
-|CM-2 – Baseline Configuration; CM-6 – Configuration Settings; SI-3 – Malicious Code Protection; SI-4 – System Monitoring
-
-|*NIST CSF 2.0*
-|PR.PS-01 – Configuration management practices; DE.CM-09 – Computing hardware/software is monitored
+|AC-1 – Policy and procedures; AC-2 – Account management; AC-3 – Access enforcement; AC-6 – Least privilege; IA-2 – Identification and authentication; SI-4 – Information system monitoring
 
 |*FedRAMP*
-|CM-2, CM-6, SI-3, SI-4 (Moderate/High baseline)
+|AC-1, AC-2, AC-3, AC-6, IA-2 (Moderate/High baseline)
 
 |*HIPAA*
-|§ 164.308(a)(5)(ii)(B) – Protection from malicious software
+|§ 164.308(a)(4) – Access management; § 164.312(a) – Access control; § 164.312(d) – Information system activity review
+
+|*PCI DSS v4.0*
+|Req 7 – Restrict access to cardholder data; Req 8 – Identify and authenticate access; Req 8.3 – Non-service accounts
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC6.2 – Logical access security management; CC6.6 – Secure configuration
+
+|*CSRD*
+|ESRS E1 – Climate change; ESRS G1 – Governance
+
+|*NIST CSF 2.0*
+|GV.AC – Identity management and access control; DE.CM – Configuration management
+
+|*CIS Controls v8*
+|CIS 4 – Secure Configuration; CIS 4.4 – Access control; CIS 4.5 – Least privilege
+
+|*TISAX*
+|Information security – Access rights management
+
+|*ANSSI SecNumCloud*
+|Domain – Identity and access management; Domain – Security monitoring
+
+|*BIO*
+|BIO – Identificatie en authenticatie; BIO – Toegangsbeheer
+
+|*ENS High*
+|org.3 – Políticas de acceso; op.exp.5 – Monitorización de la configuración
+
+|*UK NCSC CAF*
+|B1 – Access control; B2 – Secure configuration
 
 |*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations; SI.L2-3.14.2 – Provide protection from malicious code
-
-|*ASD Essential 8*
-|E8.4 – User application hardening; E8.6 – Operating system patching
+|AC.L2-3.1.1 – Access control policy; AC.L2-3.5.1 – Access enforcement
 
 |*IRAP*
-|ISM – System hardening
+|ISM – Identity and access management; ISM – Access control
 
 |*CCCS PBMM*
-|CM-6, SI-3 – Configuration and malware protection
+|AC-6 – Least privilege; AC-7 – Unsuccessful logon attempts
 
 |*MAS TRM*
-|Ch.13 – Cloud computing controls
+|Ch.4 – Identity and access management; Ch.8 – Security monitoring
 
 |*ISMAP*
-|Container and runtime security
+|Access control and identity management
 
 |*FISC*
-|Technical measures – System hardening
+|Operational measures – Access control
 
 |===
+
 
 == Verwandte Controls
 

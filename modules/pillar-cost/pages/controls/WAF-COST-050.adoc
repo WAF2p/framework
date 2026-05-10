@@ -8,7 +8,7 @@
 :description: WAF++ Cost Optimization – Wirtschaftliche Bewertung jeder Architekturentscheidung als primäre Prävention architektonischer Kostenschuld.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+*Pillar:* Cost Optimization |*Severity:* High |*Kategorie:* Architectural Cost Debt |*Automatisierbar:* Teilweise
 
 == Beschreibung
 
@@ -33,16 +33,16 @@ Bewertung beim einzigen Zeitpunkt, zu dem die Entscheidung noch geändert werden
 |===
 |Risiko |Beschreibung
 
-|*Architektonische Kostenschuld*
+|* Architektonische Kostenschuld*
 |Kostenstrukturen, die sich in der Architektur festsetzen, ohne je bewertet worden zu sein.
 
-|*Vendor Lock-in ohne Rechtfertigung*
+|* Vendor Lock-in ohne Rechtfertigung*
 |Proprietäre Services ohne Exit-Plan und ohne wirtschaftliche Begründung des Lock-ins.
 
-|*HA-Over-Engineering*
+|* HA-Over-Engineering*
 |Multi-AZ/Multi-Region ohne SLO-Anforderung, die dies begründet: versteckte monatliche Zusatzkosten.
 
-|*TCO-Unterschätzung*
+|* TCO-Unterschätzung*
 |FTE-Betriebsaufwand, Lizenzkosten und Exit-Kosten werden systematisch aus Evaluierungen ausgeblendet.
 
 |===
@@ -81,14 +81,14 @@ Bewertung beim einzigen Zeitpunkt, zu dem die Entscheidung noch geändert werden
 ----
 ## Cost Impact Assessment (WAF-COST-050)
 
-| Dimension            | Bewertung                          |
+| Dimension | Bewertung |
 |---------------------|------------------------------------|
-| Geschätzte TCO/Jahr | XX.XXX EUR                         |
-| Lock-in-Risiko      | X/5 – [Begründung]                 |
-| Datentransfer-Kosten | ~XXX EUR/Monat                    |
-| Betriebsaufwand     | X.X FTE/Jahr                       |
-| Exit-Kosten (est.)  | ~XX.XXX EUR                        |
-| 3-Jahres-NPV        | -XX.XXX EUR                        |
+| Geschätzte TCO/Jahr | XX.XXX EUR |
+| Lock-in-Risiko | X/5 – [Begründung] |
+| Datentransfer-Kosten | ~XXX EUR/Monat |
+| Betriebsaufwand | X.X FTE/Jahr |
+| Exit-Kosten (est.) | ~XX.XXX EUR |
+| 3-Jahres-NPV | -XX.XXX EUR |
 
 **Kostenschuld-Risiko:** Gering / Mittel / Hoch
 
@@ -139,26 +139,26 @@ Bewertung beim einzigen Zeitpunkt, zu dem die Entscheidung noch geändert werden
 a|[source,hcl]
 ----
 resource "aws_kinesis_stream" "events" {
-  name        = "payment-events"
-  shard_count = 4
+ name = "payment-events"
+ shard_count = 4
 
-  tags = merge(module.mandatory_tags.tags, {
-    lock-in-risk  = "4"
-    adr-reference = "ADR-0042"
-  })
+ tags = merge(module.mandatory_tags.tags, {
+ lock-in-risk = "4"
+ adr-reference = "ADR-0042"
+ })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_kinesis_stream" "events" {
-  name        = "payment-events"
-  shard_count = 4
-  tags = {
-    cost-center = "data-team"
-    # lock-in-risk Tag fehlt
-    # Kein Nachweis der Lock-in-Bewertung
-    # WAF-COST-050 Violation
-  }
+ name = "payment-events"
+ shard_count = 4
+ tags = {
+ cost-center = "data-team"
+ # lock-in-risk Tag fehlt
+ # Kein Nachweis der Lock-in-Bewertung
+ # WAF-COST-050 Violation
+ }
 }
 ----
 |===
@@ -172,19 +172,19 @@ Bei Score 4–5: ADR mit Architecture-Board-Genehmigung erforderlich.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Architecture*
+|* Architecture*
 |✅ Pflicht
 |ADR-Dokumente mit ausgefüllter Cost-Impact-Assessment-Sektion.
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Architecture-Board-Genehmigungen für ADRs mit Lock-in-Score >= 4.
 
-|*Architecture*
+|* Architecture*
 |Optional
 |Infracost oder Cost-Estimation-Tool-Output für Infrastrukturänderungen.
 
-|*Process*
+|* Process*
 |Optional
 |Cost-Debt-Register-Einträge verlinkt zu ADRs.
 
@@ -197,8 +197,8 @@ Bei Score 4–5: ADR mit Architecture-Board-Genehmigung erforderlich.
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Operate Phase – Architecture and Cost Governance; FinOps Principles – Everyone Takes Ownership of Their Cloud Usage
-|*Internal Governance*|Architecture Governance – Economic Impact Documentation; Cloud Cost Governance Policy – Lock-in Assessment Requirement
+|* FinOps Foundation* | Operate Phase – Architecture and Cost Governance; FinOps Principles – Everyone Takes Ownership of Their Cloud Usage
+|* Internal Governance* | Architecture Governance – Economic Impact Documentation; Cloud Cost Governance Policy – Lock-in Assessment Requirement
 
 |===
 
@@ -209,8 +209,8 @@ Bei Score 4–5: ADR mit Architecture-Board-Genehmigung erforderlich.
 |===
 |Framework |Controls
 
-|*FinOps Foundation*|Operate Phase – Architecture and Cost Governance; FinOps Principles – Everyone Takes Ownership of Their Cloud Usage
-|*Internal Governance*|Architecture Governance – Economic Impact Documentation; Cloud Cost Governance Policy – Lock-in Assessment Requirement; id: waf-cost-050.tf.any.high-lockin-resource-tagged; aws_kinesis_stream; aws_kinesis_firehose_delivery_stream; aws_redshift_cluster; aws_neptune_cluster; aws_msk_cluster; azurerm_service_bus_namespace; azurerm_eventhub_namespace; azurerm_synapse_workspace; google_spanner_instance; google_bigquery_dataset; id: waf-cost-050.tf.any.adr-cost-section-present
+|* FinOps Foundation* | Operate Phase – Architecture and Cost Governance; FinOps Principles – Everyone Takes Ownership of Their Cloud Usage
+|* Internal Governance* | Architecture Governance – Economic Impact Documentation; Cloud Cost Governance Policy – Lock-in Assessment Requirement; id: waf-cost-050.tf.any.high-lockin-resource-tagged; aws_kinesis_stream; aws_kinesis_firehose_delivery_stream; aws_redshift_cluster; aws_neptune_cluster; aws_msk_cluster; azurerm_service_bus_namespace; azurerm_eventhub_namespace; azurerm_synapse_workspace; google_spanner_instance; google_bigquery_dataset; id: waf-cost-050.tf.any.adr-cost-section-present
 
 |===
 

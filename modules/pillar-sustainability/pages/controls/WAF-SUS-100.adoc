@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – Sustainability-Schulden dokumentieren, vierteljährlich reviewen und als Governance-Risiko adressieren. CSRD-Nachweis für aktive Sustainability-Governance.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Sustainability Governance | *Automatisierbar:* Niedrig
+*Pillar:* Sustainability |*Severity:* Low |*Kategorie:* Sustainability Governance |*Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -34,16 +34,16 @@ Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adr
 |===
 |Risiko |Beschreibung
 
-|*CSRD-Governance-Lücke*
+|* CSRD-Governance-Lücke*
 |Fehlende Dokumentation bekannter Sustainability-Gaps ist ein CSRD-Governance-Finding: "keine aktive Verwaltung".
 
-|*Ungetrackte Optimierungspotenziale*
+|* Ungetrackte Optimierungspotenziale*
 |Bekannte x86-Altlasten, fehlende Lifecycle-Policies und Idle-Ressourcen bleiben unpriorisiert ohne Register.
 
-|*SBTi-Zielverfehlung*
+|* SBTi-Zielverfehlung*
 |Ohne dokumentierten Remediation-Backlog sind SBTi-Scope-3-Ziele nicht planbar oder verfolgbar.
 
-|*Engineering-Silos*
+|* Engineering-Silos*
 |Ohne zentrales Register optimiert jedes Team nach eigenem Ermessen; Cross-Team-Synergien bleiben ungenutzt.
 
 |===
@@ -107,26 +107,26 @@ Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adr
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu_arm.id
-  instance_type = "m7g.large"
-  tags = {
-    environment             = "production"
-    workload                = "payment-service"
-    owner                   = "platform-team"
-    sustainability-reviewed = "2026-01-15"
-  }
+ ami = data.aws_ami.ubuntu_arm.id
+ instance_type = "m7g.large"
+ tags = {
+ environment = "production"
+ workload = "payment-service"
+ owner = "platform-team"
+ sustainability-reviewed = "2026-01-15"
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "m4.large"
-  tags = {
-    Name = "payment-app"
-    # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
-    # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
-  }
+ ami = data.aws_ami.ubuntu.id
+ instance_type = "m4.large"
+ tags = {
+ Name = "payment-app"
+ # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
+ # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
+ }
 }
 ----
 |===
@@ -142,19 +142,19 @@ resource "aws_instance" "app" {
 ----
 # Compliant: AWS Config Rule für Log-Retention-Prüfung (Sustainability-Governance)
 resource "aws_config_config_rule" "log_retention" {
-  name        = "cloudwatch-log-group-retention-period-check"
-  description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
+ name = "cloudwatch-log-group-retention-period-check"
+ description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
 
-  source {
-    owner             = "AWS"
-    source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
-  }
-  input_parameters = jsonencode({ MinRetentionTime = "14" })
+ source {
+ owner = "AWS"
+ source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
+ }
+ input_parameters = jsonencode({ MinRetentionTime = "14" })
 
-  tags = {
-    purpose = "sustainability-governance"
-    control = "WAF-SUS-100"
-  }
+ tags = {
+ purpose = "sustainability-governance"
+ control = "WAF-SUS-100"
+ }
 }
 ----
 
@@ -164,19 +164,19 @@ resource "aws_config_config_rule" "log_retention" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Sustainability Debt Register (versioniert) mit WAF-SUS-Control-Gaps, Owner, Carbon Impact, Zieldatum.
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Quarterly Review Meeting-Protokolle mit Fortschrittsverfolgung (Items geschlossen, neu, Gesamtstatus).
 
-|*Governance*
+|* Governance*
 |Optional
 |ESG/Annual-Report-Sektion zum Sustainability-Governance-Prozess und aktiven Debt-Register.
 
-|*Process*
+|* Process*
 |Optional
 |Engineering-Backlog-Nachweis (Epics/Stories) für Sustainability-Debt-Items in Sprint-Planning.
 
@@ -185,16 +185,77 @@ resource "aws_config_config_rule" "log_retention" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS 2 – General Disclosures: Governance, strategy and management of sustainability matters; ESRS E1 – Climate Change: governance of climate-related risks and opportunities
-|*GHG Protocol*|Corporate Standard – management and governance of GHG inventory
-|*SBTi (Science Based Targets initiative)*|ICT Sector Guidance – progress tracking and governance
-|*ISO 14001*|10.3 – Continual improvement; 6.1 – Actions to address risks and opportunities; id: waf-sus-100.tf.aws.config-rule-sustainability-governance; aws_config_config_rule; id: waf-sus-100.tf.aws.tag-sustainability-reviewed; aws_instance; aws_eks_cluster; aws_ecs_cluster; id: waf-sus-100.tf.azurerm.sustainability-tag; azurerm_linux_virtual_machine; azurerm_kubernetes_cluster; azurerm_container_group
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 

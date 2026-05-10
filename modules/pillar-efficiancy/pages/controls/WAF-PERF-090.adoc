@@ -8,7 +8,7 @@
 :description: WAF++ Performance Efficiency – EBS gp3, Storage-Typen und I/O-Monitoring für Produktionssysteme konfigurieren.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Storage Performance | *Automatisierbar:* Hoch
+*Pillar:* Performance Efficiency |*Severity:* Medium |*Kategorie:* Storage Performance |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -35,13 +35,13 @@ Für Datenbanken ist der richtige Disk-Typ oft wichtiger als der Instanztyp.
 |*gp2 Burst-Erschöpfung*
 |gp2-Volumes akkumulieren I/O-Credits und verlieren sie bei anhaltender Last → plötzlicher Performance-Einbruch.
 
-|*I/O-Sättigung*
+|* I/O-Sättigung*
 |Zu wenige IOPS für Workload → Query-Latenz steigt bei normaler CPU/Network → schwer zu diagnostizieren.
 
-|*Falscher Disk-Typ*
+|* Falscher Disk-Typ*
 |Standard-HDD (pd-standard, Standard_LRS) für Datenbankvolumes → 10x höhere Latenz als SSD.
 
-|*Snapshot-I/O-Interferenz*
+|* Snapshot-I/O-Interferenz*
 |Backup-Snapshots auf gleichem Volume wie Produktions-Daten → I/O-Spikes während Backup-Fenster.
 
 |===
@@ -103,22 +103,22 @@ Für Datenbanken ist der richtige Disk-Typ oft wichtiger als der Instanztyp.
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
-  availability_zone = "eu-west-1a"
-  size              = 100
-  type              = "gp3"
-  iops              = 6000    # Explizit > Default 3000
-  throughput        = 250     # Explizit > Default 125 MB/s
-  encrypted         = true
+ availability_zone = "eu-west-1a"
+ size = 100
+ type = "gp3"
+ iops = 6000 # Explizit > Default 3000
+ throughput = 250 # Explizit > Default 125 MB/s
+ encrypted = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_ebs_volume" "data" {
-  availability_zone = "eu-west-1a"
-  size              = 100
-  type              = "gp2"
-  # Burst-basiert – WAF-PERF-090
-  # Violation
+ availability_zone = "eu-west-1a"
+ size = 100
+ type = "gp2"
+ # Burst-basiert – WAF-PERF-090
+ # Violation
 }
 ----
 |===
@@ -132,19 +132,19 @@ gp3 bietet gleiche oder bessere Performance bei 20% niedrigerem Preis als gp2.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*IaC*
+|* IaC*
 |✅ Pflicht
 |Terraform-Konfiguration mit explizitem Storage-Typ, IOPS und Throughput.
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Monitoring-Konfiguration für I/O-Alerts (Queue-Depth, Throughput, Burst-Balance).
 
-|*Process*
+|* Process*
 |Optional
 |Storage-I/O-Baseline (P95/P99 Queue-Depth und Throughput-Auslastung).
 
-|*Governance*
+|* Governance*
 |Optional
 |Storage-Tier-Richtlinien nach Workload-Typ.
 
@@ -153,16 +153,92 @@ gp3 bietet gleiche oder bessere Performance bei 20% niedrigerem Preis als gp2.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010*|Performance Efficiency – Resource Utilization; Performance Efficiency – Time Behavior
-|*AWS Well-Architected Framework*|PERF 3 – How do you select your storage solution?
-|*Azure Well-Architected Framework*|Performance Efficiency – Choose the right storage
-|*Google Cloud Architecture Framework*|Storage selection – Choose appropriate disk type; id: waf-perf-090.tf.aws.ebs-gp3-volume-type; aws_ebs_volume; aws_db_instance; aws_launch_template; id: waf-perf-090.tf.azurerm.managed-disk-premium; azurerm_managed_disk; id: waf-perf-090.tf.google.persistent-disk-ssd; google_compute_disk
+|*ISO/IEC 25010:2011*
+|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
+
+|*AWS Well-Architected Framework*
+|Performance Efficiency Pillar – Select the right resource types and sizes
+
+|*Azure Well-Architected Framework*
+|Performance Efficiency – Choose the right resources
+
+|*Google Cloud Architecture Framework*
+|Performance optimization – Right-size your instances
+
+|*TOGAF 10*
+|ADM Phase B – Business architecture; ADM Phase C – Application architecture
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
+
+|*ISO/IEC 29119*
+|4.4.3 – Test design techniques; 4.5.3 – Test execution
+
+|*ISO/IEC 12207*
+|8.2.2.3 – Design and development of software
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*CIS Controls v8*
+|CIS 8 – Continuous Vulnerability Management
+
+|*NIST SP 800-53*
+|RA-1 – Security assessment policy; RA-2 – Security assessment controls
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
+
+|*FedRAMP*
+|RA-2, RA-5 (Moderate/High baseline)
+
+|*SOC 2 Type II*
+|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
+
+|*TISAX*
+|Information security – Performance monitoring
+
+|*ANSSI SecNumCloud*
+|Domain – Performance monitoring
+
+|*BIO*
+|BIO – Prestatiedoelstellingen
+
+|*ENS High*
+|op.exp.2 – Configuración de seguridad
+
+|*UK NCSC CAF*
+|B4 – System security; B5 – System performance
+
+|*CMMC 2.0*
+|RA.L2-3.8.1 – Automated monitoring
+
+|*IRAP*
+|ISM – Performance monitoring
+
+|*CCCS PBMM*
+|RA-2 – Security assessment controls; RA-5 – Security assessments
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance
+
+|*ISMAP*
+|Performance monitoring and validation
+
+|*FISC*
+|Technical measures – Performance monitoring
 
 |===
+
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Incident response plan, runbooks, on-call rotation and post-incident reviews.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Category:* Incident Response | *Automatable:* Medium
+*Pillar:* Reliability |*Severity:* High |*Category:* Incident Response |*Automatable:* Medium
 
 == Description
 
@@ -30,16 +30,16 @@ Post-mortems prevent recurrence through structured root cause analysis.
 |===
 |Risk |Description
 
-|*Extended MTTR*
+|* Extended MTTR*
 |Without runbooks, engineers spend valuable minutes diagnosing instead of resolving.
 
-|*Knowledge Loss*
+|* Knowledge Loss*
 |Key engineer on vacation; no backup has context knowledge for critical service.
 
-|*Inconsistent Severity*
+|* Inconsistent Severity*
 |Without clear criteria, SEV1 is treated as SEV3; no appropriate escalation.
 
-|*Incident Recurrence*
+|* Incident Recurrence*
 |The same root cause causes a third incident; no post-mortem action items tracked.
 
 |===
@@ -102,28 +102,28 @@ Post-mortems prevent recurrence through structured root cause analysis.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
-    "api_errors" {
-  alarm_name = "payment-api-errors"
-  # ... metric config ...
-  alarm_actions =
-    [aws_sns_topic.oncall.arn]
-  ok_actions =
-    [aws_sns_topic.oncall.arn]
-  alarm_description = jsonencode({
-    runbook = "https://wiki/rb/payment"
-    severity = "SEV2"
-  })
+ "api_errors" {
+ alarm_name = "payment-api-errors"
+ # ... metric config ...
+ alarm_actions =
+ [aws_sns_topic.oncall.arn]
+ ok_actions =
+ [aws_sns_topic.oncall.arn]
+ alarm_description = jsonencode({
+ runbook = "https://wiki/rb/payment"
+ severity = "SEV2"
+ })
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
-    "api_errors" {
-  alarm_name = "payment-api-errors"
-  # ... metric config ...
-  # No alarm_actions –
-  # alert fires silently
-  # WAF-REL-060 Violation
+ "api_errors" {
+ alarm_name = "payment-api-errors"
+ # ... metric config ...
+ # No alarm_actions –
+ # alert fires silently
+ # WAF-REL-060 Violation
 }
 ----
 |===
@@ -137,19 +137,19 @@ Populate `alarm_description` with runbook URL and severity classification.
 |===
 |Type |Required |Description
 
-|*Governance*
+|* Governance*
 |✅ Required
 |Incident response plan with severity, escalation paths and on-call structure.
 
-|*Process*
+|* Process*
 |✅ Required
 |Post-incident review records for all SEV1/SEV2 incidents in the last 12 months.
 
-|*Config*
+|* Config*
 |Optional
 |On-call schedule in PagerDuty/OpsGenie with current rotation.
 
-|*Governance*
+|* Governance*
 |Optional
 |Runbook catalog with links to all critical alert runbooks.
 
@@ -164,15 +164,96 @@ Populate `alarm_description` with runbook URL and severity classification.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.16.1 – Management of information security incidents and improvements
-|*ITIL 4*|Incident Management; Problem Management
-|*AWS Well-Architected Framework*|OPS 11 – Respond to events
-|*BSI C5:2022*|IS-09 – Incident Management
-|*GDPR*|Article 33 – Notification of a personal data breach to the supervisory authority; id: waf-rel-060.tf.aws.sns-topic-alarm-action; aws_cloudwatch_metric_alarm; id: waf-rel-060.tf.azurerm.action-group-configured; azurerm_monitor_action_group; id: waf-rel-060.tf.google.monitoring-notification-channel; google_monitoring_alert_policy
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
+* xref:controls/WAF-REL-040.adoc[WAF-REL-040 – Backup & Recovery]
+* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* ISO/IEC 27001:2022* | A.16.1 – Management of information security incidents and improvements
+|* ITIL 4* | Incident Management; Problem Management
+|* AWS Well-Architected Framework* | OPS 11 – Respond to events
+|* BSI C5:2022* | IS-09 – Incident Management
+|* GDPR* | Article 33 – Notification of a personal data breach to the supervisory authority; id: waf-rel-060.tf.aws.sns-topic-alarm-action; aws_cloudwatch_metric_alarm; id: waf-rel-060.tf.azurerm.action-group-configured; azurerm_monitor_action_group; id: waf-rel-060.tf.google.monitoring-notification-channel; google_monitoring_alert_policy
 
 |===
 

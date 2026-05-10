@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Documented and monitored Service Level Objectives as the foundation of all reliability measures.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* Critical | *Category:* Reliability Governance | *Automatable:* Medium
+*Pillar:* Reliability |*Severity:* Critical |*Category:* Reliability Governance |*Automatable:* Medium
 
 == Description
 
@@ -33,16 +33,16 @@ political pressure – not a sustainable approach.
 |===
 |Risk |Description
 
-|*Unmeasurable Degradation*
+|* Unmeasurable Degradation*
 |Without an SLO it is unclear when a system is considered degraded; incidents are detected too late.
 
-|*Missing Error Budget*
+|* Missing Error Budget*
 |Without an error budget the operational framework for velocity-vs-stability decisions is absent.
 
-|*SLA Without Foundation*
+|* SLA Without Foundation*
 |External SLAs not based on measured SLOs are promises without evidence.
 
-|*No Escalation Thresholds*
+|* No Escalation Thresholds*
 |On-call teams cannot consistently classify severity without defined thresholds.
 
 |===
@@ -108,37 +108,37 @@ Every production workload MUST:
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
-    "slo_error_rate" {
-  alarm_name          = "slo-payment-svc"
-  comparison_operator =
-    "GreaterThanThreshold"
-  evaluation_periods  = 5
-  metric_name         = "5XXError"
-  namespace           = "AWS/ApiGateway"
-  period              = 60
-  statistic           = "Sum"
-  threshold           = 10
-  alarm_actions =
-    [aws_sns_topic.oncall.arn]
-  ok_actions =
-    [aws_sns_topic.oncall.arn]
+ "slo_error_rate" {
+ alarm_name = "slo-payment-svc"
+ comparison_operator =
+ "GreaterThanThreshold"
+ evaluation_periods = 5
+ metric_name = "5XXError"
+ namespace = "AWS/ApiGateway"
+ period = 60
+ statistic = "Sum"
+ threshold = 10
+ alarm_actions =
+ [aws_sns_topic.oncall.arn]
+ ok_actions =
+ [aws_sns_topic.oncall.arn]
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm"
-    "errors" {
-  alarm_name          = "errors"
-  comparison_operator =
-    "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 100
-  # No alarm_actions –
-  # alert fires silently
+ "errors" {
+ alarm_name = "errors"
+ comparison_operator =
+ "GreaterThanThreshold"
+ evaluation_periods = 1
+ metric_name = "Errors"
+ namespace = "AWS/Lambda"
+ period = 300
+ statistic = "Sum"
+ threshold = 100
+ # No alarm_actions –
+ # alert fires silently
 }
 ----
 |===
@@ -152,19 +152,19 @@ the on-call system (PagerDuty/OpsGenie).
 |===
 |Type |Required |Description
 
-|*Governance*
+|* Governance*
 |✅ Required
 |SLO document per workload (versioned): availability, latency, error rate, measurement window.
 
-|*Config*
+|* Config*
 |✅ Required
 |Monitoring dashboard with SLO compliance and error budget burn rate in real time.
 
-|*Governance*
+|* Governance*
 |Optional
 |SLA contract with reference to SLO document and escalation clauses.
 
-|*Process*
+|* Process*
 |Optional
 |Quarterly SLO review minutes with history of adjustments.
 
@@ -179,14 +179,95 @@ the on-call system (PagerDuty/OpsGenie).
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.17.1 – Information security continuity; A.17.2 – Redundancies
-|*ITIL 4*|Service Level Management; Service Continuity Management
-|*AWS Well-Architected Framework*|REL 1 – Manage service quotas and constraints; REL 10 – Use fault isolation to protect your workload
-|*SRE Book (Google)*|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating Toil; id: waf-rel-010.tf.aws.cloudwatch-slo-alarm; aws_cloudwatch_metric_alarm; id: waf-rel-010.tf.azurerm.monitor-metric-alert-slo; azurerm_monitor_metric_alert; id: waf-rel-010.tf.google.monitoring-alert-policy-slo; google_monitoring_alert_policy
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbook Readiness]
+* xref:controls/WAF-REL-100.adoc[WAF-REL-100 – Reliability Debt Register]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* ISO/IEC 27001:2022* | A.17.1 – Information security continuity; A.17.2 – Redundancies
+|* ITIL 4* | Service Level Management; Service Continuity Management
+|* AWS Well-Architected Framework* | REL 1 – Manage service quotas and constraints; REL 10 – Use fault isolation to protect your workload
+|* SRE Book (Google)* | Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating Toil; id: waf-rel-010.tf.aws.cloudwatch-slo-alarm; aws_cloudwatch_metric_alarm; id: waf-rel-010.tf.azurerm.monitor-metric-alert-slo; azurerm_monitor_metric_alert; id: waf-rel-010.tf.google.monitoring-alert-policy-slo; google_monitoring_alert_policy
 
 |===
 

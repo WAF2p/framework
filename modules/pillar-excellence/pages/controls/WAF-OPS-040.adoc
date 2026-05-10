@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Alerts müssen auf nutzer-sichtbaren Symptomen basieren. Jeder Page-Alert braucht eine Runbook-URL.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Alerting | *Automatisierbar:* Hoch
+*Pillar:* Operational Excellence |*Severity:* High |*Kategorie:* Alerting |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ für On-Call-Burnout und übergangene kritische Alerts.
 |===
 |Risiko |Beschreibung
 
-|*Alert-Fatigue*
+|* Alert-Fatigue*
 |Zu viele non-actionable Alerts trainieren Engineers, Alerts zu ignorieren oder zu snoozen.
 
-|*Verpasste Nutzerauswirkung*
+|* Verpasste Nutzerauswirkung*
 |Nur Infrastruktur-Metriken überwacht: Service komplett down aber kein Alert ausgelöst.
 
-|*On-Call-Burnout*
+|* On-Call-Burnout*
 |Regelmäßige 3-Uhr-Pages für nicht-actionable CPU-Alerts zerstören On-Call-Rotation.
 
-|*Fehlende Runbooks*
+|* Fehlende Runbooks*
 |Engineer geweckt um 3 Uhr ohne Runbook – Diagnose auf der Basis von Intuition.
 
 |===
@@ -101,24 +101,24 @@ für On-Call-Burnout und übergangene kritische Alerts.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
-  alarm_name    = "payment-5xx-rate"
-  metric_name   = "5XXError"
-  namespace     = "AWS/ApplicationELB"
-  alarm_description = "Payment 5xx > 10/min. Runbook: https://wiki/runbooks/5xx"
-  alarm_actions = [aws_sns_topic.oncall.arn]
-  /* ... */
+ alarm_name = "payment-5xx-rate"
+ metric_name = "5XXError"
+ namespace = "AWS/ApplicationELB"
+ alarm_description = "Payment 5xx > 10/min. Runbook: https://wiki/runbooks/5xx"
+ alarm_actions = [aws_sns_topic.oncall.arn]
+ /* ... */
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "cpu" {
-  alarm_name  = "high-cpu"
-  metric_name = "CPUUtilization"
-  namespace   = "AWS/EC2"
-  threshold   = 80
-  # Kein alarm_description mit Runbook
-  # Kein alarm_actions
-  # WAF-OPS-040 Violation
+ alarm_name = "high-cpu"
+ metric_name = "CPUUtilization"
+ namespace = "AWS/EC2"
+ threshold = 80
+ # Kein alarm_description mit Runbook
+ # Kein alarm_actions
+ # WAF-OPS-040 Violation
 }
 ----
 
@@ -131,14 +131,14 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
 ----
 # Compliant
 resource "azurerm_monitor_metric_alert" "error_rate" {
-  name                = "payment-error-rate-high"
-  resource_group_name = azurerm_resource_group.main.name
-  scopes              = [azurerm_application_insights.main.id]
-  description         = "Payment error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
-  action {
-    action_group_id = azurerm_monitor_action_group.oncall.id
-  }
-  /* criteria block ... */
+ name = "payment-error-rate-high"
+ resource_group_name = azurerm_resource_group.main.name
+ scopes = [azurerm_application_insights.main.id]
+ description = "Payment error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
+ action {
+ action_group_id = azurerm_monitor_action_group.oncall.id
+ }
+ /* criteria block ... */
 }
 ----
 
@@ -151,19 +151,19 @@ Symptom-basierte Metriken verwenden (Fehlerrate, Latenz statt CPU/Memory).
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Alert-Definitionen mit symptom-basierten Metriken und Runbook-URLs.
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |SLO-Definitionen für alle kritischen Services (Availability, Latenz, Fehlerrate-Targets).
 
-|*Process*
+|* Process*
 |Optional
 |Monatlicher Alert-Noise-Report (Pages pro Woche, Actionability-Rate).
 
-|*Config*
+|* Config*
 |Optional
 |Runbook-Index mit Coverage-Nachweis für alle paging Alerts.
 
@@ -172,16 +172,80 @@ Symptom-basierte Metriken verwenden (Fehlerrate, Latenz statt CPU/Memory).
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1*|Incident management; Monitoring, measurement, analysis, and evaluation
-|*ITIL 4*|Monitoring and event management; Incident management
-|*AWS Well-Architected Framework*|Operational Excellence Pillar – OPS 8: How do you understand the health of your operations?
-|*Google SRE Book*|Chapter 6: Monitoring Distributed Systems – Four Golden Signals; Chapter 5: Eliminating Toil; id: waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based; aws_cloudwatch_metric_alarm; id: waf-ops-040.tf.azurerm.monitor-alert-symptom; azurerm_monitor_metric_alert; id: waf-ops-040.tf.google.monitoring-alert-symptom; google_monitoring_alert_policy
+|*ISO/IEC 20000-1:2018*
+|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*Google SRE Book*
+|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*FinOps Foundation*
+|Core Module – Financial accountability; Management Layer – Cost governance
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
+
+|*NIST SP 800-53*
+|CM-1 – Configuration management policy; CM-2 – Configuration management
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
+
+|*TISAX*
+|Information security – Change management
+
+|*ANSSI SecNumCloud*
+|Domain – Change management
+
+|*BIO*
+|BIO – Veranderingenbeheer
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance; A5 – Continual improvement
+
+|*CMMC 2.0*
+|CM.L2-3.4.1 – Establish baseline configurations
+
+|*IRAP*
+|ISM – Change management
+
+|*CCCS PBMM*
+|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
+
+|*MAS TRM*
+|Ch.3 – Technology risk governance; Ch.9 – Change management
+
+|*ISMAP*
+|Operational excellence and continuous improvement
+
+|*FISC*
+|Operational measures – Change management
 
 |===
+
 
 == Verwandte Controls
 

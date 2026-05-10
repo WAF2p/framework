@@ -8,7 +8,7 @@
 :description: WAF++ Sovereign – Keep backup locations within sovereignty boundaries; define and enforce retention and restore tests.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Data Residency | *Automatable:* Medium
+*Pillar:* Sovereign |*Severity:* 🟠 High |*Category:* Data Residency |*Automatable:* Medium
 
 == Description
 
@@ -34,19 +34,19 @@ both the technical recoverability and that backup data has not ended up in non-s
 |===
 |Risk |Description
 
-|*Backup replication to US region*
+|* Backup replication to US region*
 |Automated DR replication silently routes backup data to non-approved destination regions.
 
-|*Provider-default backup storage*
+|* Provider-default backup storage*
 |Managed service backups land in provider-managed storage outside the approved jurisdiction.
 
-|*Untested restore processes*
+|* Untested restore processes*
 |RPO/RTO violation because the restore process was never practiced.
 
-|*Missing retention policy*
+|* Missing retention policy*
 |Unclear retention leads to indefinite storage of sensitive data or premature deletion.
 
-|*Cross-region copy jobs*
+|* Cross-region copy jobs*
 |Scheduled snapshot copies exfiltrate backup data to non-sovereign regions.
 
 |===
@@ -57,19 +57,19 @@ both the technical recoverability and that backup data has not ended up in non-s
 |===
 |Framework |Controls
 
-|*GDPR*
+|* GDPR*
 |Art. 5(1)(e) – Storage limitation; Art. 32 – Security of processing; Art. 44–46 – Transfers to third countries
 
-|*BSI C5:2020*
+|* BSI C5:2020*
 |OPS-04 – Data management; BCM-01 – Business continuity management
 
-|*EUCS (ENISA)*
+|* EUCS (ENISA)*
 |BCR-01 – Backup policy; DSP-04 – Data portability
 
-|*ISO 27001:2022*
+|* ISO 27001:2022*
 |A.8.13 – Information backup; A.5.29 – Information security during business disruption
 
-|*BSI C3A:2026*
+|* BSI C3A:2026*
 |Dimension 4 – Data: Backup location and residency; Dimension 6 – Supply Chain: Backup provider inventory
 
 |===
@@ -133,16 +133,16 @@ both the technical recoverability and that backup data has not ended up in non-s
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  backup_retention_period = 30
-  backup_window           = "03:00-04:00"
-  # ...
+ backup_retention_period = 30
+ backup_window = "03:00-04:00"
+ # ...
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  backup_retention_period = 0
-  # ❌ Backups disabled
+ backup_retention_period = 0
+ # ❌ Backups disabled
 }
 ----
 |===
@@ -159,17 +159,17 @@ resource "aws_db_instance" "main" {
 a|[source,hcl]
 ----
 resource "aws_dynamodb_table" "sovereign" {
-  name = "sovereign-table"
-  point_in_time_recovery {
-    enabled = true
-  }
+ name = "sovereign-table"
+ point_in_time_recovery {
+ enabled = true
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_dynamodb_table" "sovereign" {
-  name = "sovereign-table"
-  # ❌ No PITR
+ name = "sovereign-table"
+ # ❌ No PITR
 }
 ----
 |===
@@ -186,18 +186,18 @@ resource "aws_dynamodb_table" "sovereign" {
 a|[source,hcl]
 ----
 resource "azurerm_recovery_services_vault" "backup" {
-  name                = "rsv-sovereign-prod"
-  location            = "germanywestcentral"
-  resource_group_name = azurerm_resource_group.main.name
-  sku                 = "Standard"
-  soft_delete_enabled = true
+ name = "rsv-sovereign-prod"
+ location = "germanywestcentral"
+ resource_group_name = azurerm_resource_group.main.name
+ sku = "Standard"
+ soft_delete_enabled = true
 }
 ----
 a|[source,hcl]
 ----
 resource "azurerm_recovery_services_vault" "backup" {
-  name     = "rsv-prod"
-  location = "eastus"  # ❌ Non-sovereign
+ name = "rsv-prod"
+ location = "eastus" # ❌ Non-sovereign
 }
 ----
 |===
@@ -211,10 +211,10 @@ resource "azurerm_recovery_services_vault" "backup" {
 ----
 # Compliant
 resource "aws_s3_bucket_versioning" "backup" {
-  bucket = aws_s3_bucket.backup.id
-  versioning_configuration {
-    status = "Enabled"  # ✅
-  }
+ bucket = aws_s3_bucket.backup.id
+ versioning_configuration {
+ status = "Enabled" # ✅
+ }
 }
 ----
 
@@ -224,19 +224,19 @@ resource "aws_s3_bucket_versioning" "backup" {
 |===
 |Type |Required |Description
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Terraform backup resources with explicit location, retention, and PITR settings.
 
-|*Process*
+|* Process*
 |✅ Required
 |Restore test records (at least annually) with backup ID, timestamp, and achieved RTO.
 
-|*Config*
+|* Config*
 |Optional
 |Cloud console export of the active backup policy with location and retention settings.
 
-|*Logs*
+|* Logs*
 |Optional
 |Backup job logs with source and destination region.
 
@@ -252,15 +252,100 @@ resource "aws_s3_bucket_versioning" "backup" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*GDPR*|Art. 5(1)(e) – Storage limitation; Art. 32 – Security of processing (availability and resilience); Art. 44-46 – Transfers to third countries
-|*BSI C5:2020*|OPS-04 – Data management; BCM-01 – Business continuity
-|*BSI C3A:2026*|Dimension 4 – Data: Backup location and residency; Dimension 6 – Supply Chain: Backup provider inventory
-|*EUCS (ENISA)*|BCR-01 – Backup policy; DSP-04 – Data portability
-|*ISO 27001:2022*|A.8.13 – Information backup; A.5.29 – Information security during disruption; id: waf-sov-030.tf.aws.db-instance-backup-retention; aws_db_instance; id: waf-sov-030.tf.aws.rds-cluster-backup-retention; aws_rds_cluster; id: waf-sov-030.tf.aws.dynamodb-pitr-enabled; aws_dynamodb_table; id: waf-sov-030.tf.aws.backup-vault-in-approved-region; aws_backup_plan; id: waf-sov-030.tf.azurerm.recovery-vault-location; azurerm_recovery_services_vault; id: waf-sov-030.tf.aws.s3-versioning-enabled; aws_s3_bucket_versioning
+|*DSGVO*
+|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+
+|*BSI C5:2020*
+|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+
+|*EUCS (ENISA)*
+|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+
+|*ISO 27001:2022*
+|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+
+|*ISO 27017*
+|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+
+|*ISO 27018*
+|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+
+|*BSI C3A:2026*
+|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
+
+|*GAIA-X*
+|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
+
+|*NIST SP 800-53*
+|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
+
+|*FedRAMP*
+|SC-1, SC-7, SC-8 (High baseline)
+
+|*TISAX*
+|Information security – Data protection; Prototype protection – Sensitive data handling
+
+|*ANSSI SecNumCloud*
+|Domain – Data protection; Domain – Cloud security
+
+|*BIO*
+|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
+
+|*ENS High*
+|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
+
+|*UK NCSC CAF*
+|B3 – Understanding data; B4 – System security
+
+|*CMMC 2.0*
+|SC.L2-3.13.16 – Protect CUI confidentiality at rest
+
+|*IRAP*
+|ISM – Data protection; ISM – Cloud security
+
+|*CCCS PBMM*
+|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+
+|*MAS TRM*
+|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
+
+|*ISMAP*
+|Data sovereignty and cloud security
+
+|*FISC*
+|Technical measures – Data protection
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
+* xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning]
+* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
+* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan & Portability]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* GDPR* | Art. 5(1)(e) – Storage limitation; Art. 32 – Security of processing (availability and resilience); Art. 44-46 – Transfers to third countries
+|* BSI C5:2020* | OPS-04 – Data management; BCM-01 – Business continuity
+|* BSI C3A:2026* | Dimension 4 – Data: Backup location and residency; Dimension 6 – Supply Chain: Backup provider inventory
+|* EUCS (ENISA)* | BCR-01 – Backup policy; DSP-04 – Data portability
+|* ISO 27001:2022* | A.8.13 – Information backup; A.5.29 – Information security during disruption; id: waf-sov-030.tf.aws.db-instance-backup-retention; aws_db_instance; id: waf-sov-030.tf.aws.rds-cluster-backup-retention; aws_rds_cluster; id: waf-sov-030.tf.aws.dynamodb-pitr-enabled; aws_dynamodb_table; id: waf-sov-030.tf.aws.backup-vault-in-approved-region; aws_backup_plan; id: waf-sov-030.tf.azurerm.recovery-vault-location; azurerm_recovery_services_vault; id: waf-sov-030.tf.aws.s3-versioning-enabled; aws_s3_bucket_versioning
 
 |===
 

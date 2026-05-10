@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Runbooks für alle bekannten Fehlerfälle sind pflicht; alle paging Alerts müssen Runbook-URLs enthalten.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Dokumentation | *Automatisierbar:* Niedrig
+*Pillar:* Operational Excellence |*Severity:* Medium |*Kategorie:* Dokumentation |*Automatisierbar:* Niedrig
 
 == Beschreibung
 
@@ -31,16 +31,16 @@ Incidents 40–60% schneller.
 |===
 |Risiko |Beschreibung
 
-|*Wissenssilo*
+|* Wissenssilo*
 |Kritisches Betriebswissen in einzelnen Köpfen: Urlaub oder Kündigung → Betrieb gefährdet.
 
-|*Verlängerte MTTR*
+|* Verlängerte MTTR*
 |Ohne Runbook: Diagnose und Behebung auf Intuition – Stunden statt Minuten.
 
-|*Veraltete Informationen*
+|* Veraltete Informationen*
 |Runbooks die nicht aktualisiert werden: falsche Schritte können Incident verschlimmern.
 
-|*On-Call-Unfähigkeit*
+|* On-Call-Unfähigkeit*
 |Junior-Engineers können ohne Runbooks keine selbstständigen On-Call-Shifts übernehmen.
 
 |===
@@ -102,21 +102,21 @@ Incidents 40–60% schneller.
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
-  alarm_name    = "payment-5xx-rate"
-  alarm_description = "5xx Rate hoch. " +
-    "Runbook: https://wiki/payment/5xx-errors"
-  alarm_actions = [aws_sns_topic.oncall.arn]
-  /* ... */
+ alarm_name = "payment-5xx-rate"
+ alarm_description = "5xx Rate hoch. " +
+ "Runbook: https://wiki/payment/5xx-errors"
+ alarm_actions = [aws_sns_topic.oncall.arn]
+ /* ... */
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_cloudwatch_metric_alarm" "errors" {
-  alarm_name    = "payment-5xx-rate"
-  alarm_description = "High error rate"
-  # Kein Runbook-URL
-  # WAF-OPS-060 Violation
-  alarm_actions = [aws_sns_topic.oncall.arn]
+ alarm_name = "payment-5xx-rate"
+ alarm_description = "High error rate"
+ # Kein Runbook-URL
+ # WAF-OPS-060 Violation
+ alarm_actions = [aws_sns_topic.oncall.arn]
 }
 ----
 
@@ -129,10 +129,10 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
 ----
 # Compliant
 - alert: HighErrorRate
-  expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
-  annotations:
-    runbook_url: "https://wiki/runbooks/payment-errors"
-    # WAF-OPS-060 compliant
+ expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
+ annotations:
+ runbook_url: "https://wiki/runbooks/payment-errors"
+ # WAF-OPS-060 compliant
 ----
 
 *Remediation:* `alarm_description` mit Runbook-URL versehen. Prometheus-Alerts
@@ -144,19 +144,19 @@ mit `runbook_url: "https://..."` Annotation erweitern.
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Runbook-Repository mit Versionsverlauf und Letzte-Überprüfung-Datum.
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |Runbook-Coverage-Report: Anzahl Services mit Runbooks vs. Gesamt.
 
-|*Config*
+|* Config*
 |Optional
 |Alert-Konfiguration mit Runbook-URL-Annotation.
 
-|*Process*
+|* Process*
 |Optional
 |Quarterly-Review-Protokoll oder JIRA-Tickets für Runbook-Review-Aufgaben.
 
@@ -165,16 +165,80 @@ mit `runbook_url: "https://..."` Annotation erweitern.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1*|Knowledge management; Incident management
-|*ITIL 4*|Knowledge management; Incident management
-|*AWS Well-Architected Framework*|Operational Excellence Pillar – OPS 3: How do you understand your operations?
-|*SOC 2 Type II*|CC9.1 – Risk Mitigation Activities; id: waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation; aws_cloudwatch_metric_alarm; id: waf-ops-060.tf.aws.prometheus-alert-runbook-label; name: payment-service; alert: HighErrorRate; name: payment-service; alert: HighErrorRate; aws_prometheus_rule_group_namespace
+|*ISO/IEC 20000-1:2018*
+|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*Google SRE Book*
+|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*FinOps Foundation*
+|Core Module – Financial accountability; Management Layer – Cost governance
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
+
+|*NIST SP 800-53*
+|CM-1 – Configuration management policy; CM-2 – Configuration management
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
+
+|*TISAX*
+|Information security – Change management
+
+|*ANSSI SecNumCloud*
+|Domain – Change management
+
+|*BIO*
+|BIO – Veranderingenbeheer
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance; A5 – Continual improvement
+
+|*CMMC 2.0*
+|CM.L2-3.4.1 – Establish baseline configurations
+
+|*IRAP*
+|ISM – Change management
+
+|*CCCS PBMM*
+|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
+
+|*MAS TRM*
+|Ch.3 – Technology risk governance; Ch.9 – Change management
+
+|*ISMAP*
+|Operational excellence and continuous improvement
+
+|*FISC*
+|Operational measures – Change management
 
 |===
+
 
 == Verwandte Controls
 

@@ -8,7 +8,7 @@
 :description: WAF++ Operational Excellence – Produktionsinfrastruktur wird kontinuierlich mit der IaC-Definition verglichen. Drift wird automatisch erkannt und nach definierten SLAs behoben.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Kategorie:* Configuration Management | *Automatisierbar:* Hoch
+*Pillar:* Operational Excellence |*Severity:* High |*Kategorie:* Configuration Management |*Automatisierbar:* Hoch
 
 == Beschreibung
 
@@ -30,16 +30,16 @@ Drift ist die Lücke zwischen dem was man denkt zu haben und dem was man tatsäc
 |===
 |Risiko |Beschreibung
 
-|*Stille Security-Verschlechterung*
+|* Stille Security-Verschlechterung*
 |Security-Group-Regeln manuell geöffnet für Debugging – bleibt offen; IaC weiß es nicht.
 
-|*Debugging-Änderungen permanent*
+|* Debugging-Änderungen permanent*
 |"Temporäre" Konsolen-Änderung wird vergessen und zur permanenten, nicht-dokumentierten Konfiguration.
 
-|*DR-Versagen*
+|* DR-Versagen*
 |Disaster-Recovery aus IaC scheitert weil tatsächliche Konfiguration von IaC abweicht.
 
-|*Audit-Versagen*
+|* Audit-Versagen*
 |Infrastruktur entspricht nicht dem genehmigten Design; Compliance-Nachweis nicht möglich.
 
 |===
@@ -101,16 +101,16 @@ Drift ist die Lücke zwischen dem was man denkt zu haben und dem was man tatsäc
 a|[source,hcl]
 ----
 resource "aws_config_configuration_recorder" "main" {
-  name     = "default"
-  role_arn = aws_iam_role.config.arn
-  recording_group {
-    all_supported = true
-    include_global_resource_types = true
-  }
+ name = "default"
+ role_arn = aws_iam_role.config.arn
+ recording_group {
+ all_supported = true
+ include_global_resource_types = true
+ }
 }
 resource "aws_config_delivery_channel" "main" {
-  name           = "default"
-  s3_bucket_name = aws_s3_bucket.config.bucket
+ name = "default"
+ s3_bucket_name = aws_s3_bucket.config.bucket
 }
 ----
 a|[source,hcl]
@@ -129,11 +129,11 @@ a|[source,hcl]
 ----
 # Compliant
 resource "aws_cloudtrail" "main" {
-  name                       = "production-trail"
-  s3_bucket_name             = aws_s3_bucket.cloudtrail.id
-  is_multi_region_trail      = true   # Pflicht
-  enable_log_file_validation = true   # Pflicht
-  include_global_service_events = true
+ name = "production-trail"
+ s3_bucket_name = aws_s3_bucket.cloudtrail.id
+ is_multi_region_trail = true # Pflicht
+ enable_log_file_validation = true # Pflicht
+ include_global_service_events = true
 }
 ----
 
@@ -146,19 +146,19 @@ CloudTrail mit `is_multi_region_trail = true` und `enable_log_file_validation = 
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Config*
+|* Config*
 |✅ Pflicht
 |Automatische Drift-Detection-Konfiguration (EventBridge Schedule, AWS Config Recorder).
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Drift-SLA-Policy mit Schweregrad-Klassifikation und Remediation-Fristen.
 
-|*Governance*
+|* Governance*
 |Optional
 |Drift-Log der letzten 90 Tage mit Erkennungszeit, Schweregrad und Resolutionszeit.
 
-|*IaC*
+|* IaC*
 |Optional
 |SCP oder IAM-Permission-Boundary die Console-Änderungen an sensiblen Ressourcen verhindert.
 
@@ -167,17 +167,80 @@ CloudTrail mit `is_multi_region_trail = true` und `enable_log_file_validation = 
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1*|Configuration management
-|*ITIL 4*|Service configuration management
-|*SOC 2 Type II*|CC8.1 – Change Management – Authorized Changes
-|*PCI DSS v4.0*|Requirement 12.3.2: Perform targeted risk analyses
-|*BSI C5:2020*|BCM-04 Configuration Management; id: waf-ops-090.tf.aws.config-rule-enabled; aws_config_configuration_recorder; id: waf-ops-090.tf.aws.cloudtrail-enabled; aws_cloudtrail; id: waf-ops-090.tf.azurerm.policy-assignment-drift; azurerm_subscription_policy_assignment
+|*ISO/IEC 20000-1:2018*
+|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
+
+|*DORA*
+|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*Google SRE Book*
+|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*FinOps Foundation*
+|Core Module – Financial accountability; Management Layer – Cost governance
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
+
+|*NIST SP 800-53*
+|CM-1 – Configuration management policy; CM-2 – Configuration management
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
+
+|*TISAX*
+|Information security – Change management
+
+|*ANSSI SecNumCloud*
+|Domain – Change management
+
+|*BIO*
+|BIO – Veranderingenbeheer
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance; A5 – Continual improvement
+
+|*CMMC 2.0*
+|CM.L2-3.4.1 – Establish baseline configurations
+
+|*IRAP*
+|ISM – Change management
+
+|*CCCS PBMM*
+|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
+
+|*MAS TRM*
+|Ch.3 – Technology risk governance; Ch.9 – Change management
+
+|*ISMAP*
+|Operational excellence and continuous improvement
+
+|*FISC*
+|Operational measures – Change management
 
 |===
+
 
 == Verwandte Controls
 

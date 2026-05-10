@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Health check endpoints, Readiness/Liveness probes and load balancer configuration.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Category:* Health Monitoring | *Automatable:* High
+*Pillar:* Reliability |*Severity:* High |*Category:* Health Monitoring |*Automatable:* High
 
 == Description
 
@@ -32,16 +32,16 @@ that are often too tolerant (30s interval, no path validation).
 |===
 |Risk |Description
 
-|*Traffic to Faulty Instances*
+|* Traffic to Faulty Instances*
 |Without health check, LB continues routing requests to instances returning errors.
 
-|*Deadlock Undetected*
+|* Deadlock Undetected*
 |Without liveness probe, a deadlocked process runs forever and blocks resources.
 
-|*Premature Traffic*
+|* Premature Traffic*
 |Without readiness probe, an uninitialized pod receives traffic and produces errors.
 
-|*Default Timeout Too Tolerant*
+|* Default Timeout Too Tolerant*
 |Cloud provider defaults are often 30s interval and 3 failures – too long for fast recovery.
 
 |===
@@ -105,32 +105,32 @@ All services MUST:
 a|[source,hcl]
 ----
 resource "aws_lb_target_group" "api" {
-  name     = "payment-api-tg"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
+ name = "payment-api-tg"
+ port = 8080
+ protocol = "HTTP"
+ vpc_id = var.vpc_id
 
-  health_check {
-    enabled           = true
-    path              = "/health/ready"
-    interval          = 15
-    timeout           = 5
-    healthy_threshold = 2
-    unhealthy_threshold = 3
-    matcher           = "200"
-  }
+ health_check {
+ enabled = true
+ path = "/health/ready"
+ interval = 15
+ timeout = 5
+ healthy_threshold = 2
+ unhealthy_threshold = 3
+ matcher = "200"
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_lb_target_group" "api" {
-  name     = "payment-api-tg"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
-  # No health_check block –
-  # cloud defaults are used
-  # WAF-REL-020 Violation
+ name = "payment-api-tg"
+ port = 8080
+ protocol = "HTTP"
+ vpc_id = var.vpc_id
+ # No health_check block –
+ # cloud defaults are used
+ # WAF-REL-020 Violation
 }
 ----
 |===
@@ -144,15 +144,15 @@ resource "aws_lb_target_group" "api" {
 |===
 |Type |Required |Description
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Terraform or Kubernetes manifests with readiness and liveness probe configuration.
 
-|*Config*
+|* Config*
 |✅ Required
 |Load balancer health check configuration with explicit path and thresholds.
 
-|*Process*
+|* Process*
 |Optional
 |Test results: health check failure simulated and documented in staging.
 
@@ -167,14 +167,95 @@ resource "aws_lb_target_group" "api" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.17.2 – Redundancies
-|*AWS Well-Architected Framework*|REL 6 – Monitor workload resources; REL 12 – Test reliability
-|*ITIL 4*|Availability Management; Event Management
-|*CNCF Cloud Native Security*|Runtime Security – Health and Readiness; id: waf-rel-020.tf.aws.alb-target-group-health-check; aws_lb_target_group; id: waf-rel-020.tf.azurerm.lb-probe; azurerm_lb_probe; azurerm_application_gateway; id: waf-rel-020.tf.google.compute-health-check; google_compute_health_check; google_compute_backend_service
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
+* xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]
+* xref:controls/WAF-REL-050.adoc[WAF-REL-050 – Circuit Breaker & Timeout]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* ISO/IEC 27001:2022* | A.17.2 – Redundancies
+|* AWS Well-Architected Framework* | REL 6 – Monitor workload resources; REL 12 – Test reliability
+|* ITIL 4* | Availability Management; Event Management
+|* CNCF Cloud Native Security* | Runtime Security – Health and Readiness; id: waf-rel-020.tf.aws.alb-target-group-health-check; aws_lb_target_group; id: waf-rel-020.tf.azurerm.lb-probe; azurerm_lb_probe; azurerm_application_gateway; id: waf-rel-020.tf.google.compute-health-check; google_compute_health_check; google_compute_backend_service
 
 |===
 

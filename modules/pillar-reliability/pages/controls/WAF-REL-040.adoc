@@ -8,7 +8,7 @@
 :description: WAF++ Reliability – Automated backups, PITR and demonstrably tested recovery procedures.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* Critical | *Category:* Backup Recovery | *Automatable:* High
+*Pillar:* Reliability |*Severity:* Critical |*Category:* Backup Recovery |*Automatable:* High
 
 == Description
 
@@ -30,16 +30,16 @@ instructions, missing keys or non-existent target infrastructure.
 |===
 |Risk |Description
 
-|*Ransomware*
+|* Ransomware*
 |Backup in the same account as production data is encrypted simultaneously.
 
-|*Accidental Deletion*
+|* Accidental Deletion*
 |Without sufficient retention, data first noticed as missing after days cannot be recovered.
 
-|*Untested Restore*
+|* Untested Restore*
 |Recovery procedure fails in an emergency at manual steps that were never documented.
 
-|*RPO Violation*
+|* RPO Violation*
 |Backup interval too large: data created between two backups is lost.
 
 |===
@@ -102,25 +102,25 @@ instructions, missing keys or non-existent target infrastructure.
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  identifier    = "payment-db-prod"
-  engine        = "postgres"
-  instance_class = "db.t3.medium"
-  backup_retention_period = 14
-  backup_window = "02:00-03:00"
-  deletion_protection = true
-  copy_tags_to_snapshot = true
+ identifier = "payment-db-prod"
+ engine = "postgres"
+ instance_class = "db.t3.medium"
+ backup_retention_period = 14
+ backup_window = "02:00-03:00"
+ deletion_protection = true
+ copy_tags_to_snapshot = true
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_db_instance" "main" {
-  identifier    = "payment-db-prod"
-  engine        = "postgres"
-  instance_class = "db.t3.medium"
-  backup_retention_period = 1
-  # WAF-REL-040 Violation
-  deletion_protection = false
-  # WAF-REL-040 Violation
+ identifier = "payment-db-prod"
+ engine = "postgres"
+ instance_class = "db.t3.medium"
+ backup_retention_period = 1
+ # WAF-REL-040 Violation
+ deletion_protection = false
+ # WAF-REL-040 Violation
 }
 ----
 |===
@@ -134,19 +134,19 @@ on `aws_db_instance`.
 |===
 |Type |Required |Description
 
-|*IaC*
+|* IaC*
 |✅ Required
 |Terraform with backup configuration: retention, PITR, cross-account storage.
 
-|*Process*
+|* Process*
 |✅ Required
 |Quarterly restore test report: RTO achieved, data integrity validated, signature.
 
-|*Governance*
+|* Governance*
 |Optional
 |RTO/RPO document per workload, reviewed annually.
 
-|*Config*
+|* Config*
 |Optional
 |Backup monitoring alerts for job failures and aged-out backups.
 
@@ -161,14 +161,95 @@ on `aws_db_instance`.
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*|A.8.13 – Information backup; A.17.1 – Information security continuity
-|*GDPR*|Article 32 – Security of processing (data availability); Article 5(1)(f) – Integrity and confidentiality
-|*AWS Well-Architected Framework*|REL 9 – Back up data; REL 14 – Plan for disaster recovery
-|*BSI C5:2022*|RB-01 – Availability and Redundancy; RB-04 – Data Backup and Recovery; id: waf-rel-040.tf.aws.rds-backup-retention; aws_db_instance; aws_rds_cluster; id: waf-rel-040.tf.aws.s3-versioning; aws_s3_bucket_versioning; id: waf-rel-040.tf.azurerm.postgresql-backup; azurerm_postgresql_flexible_server; azurerm_mysql_flexible_server; id: waf-rel-040.tf.google.sql-backup-config; google_sql_database_instance
+|*ISO/IEC 27001:2022*
+|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+
+|*ITIL 4*
+|SVS – Service value system; DP – Design principle; OV – Operation value chain
+
+|*AWS Well-Architected Framework*
+|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+
+|*SRE Book (Google)*
+|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
+
+|*CNCF Cloud Native Security*
+|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
+
+|*BSI C5:2022*
+|SIM-01 – Security incident management; SIM-02 – Security information and event management
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
+
+|*NIST SP 800-161*
+|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
+
+|*DORA*
+|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
+
+|*COBIT 2019*
+|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
+
+|*TISAX*
+|Information security – Incident response
+
+|*ANSSI SecNumCloud*
+|Domain – Incident response; Domain – Business continuity
+
+|*BIO*
+|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
+
+|*ENS High*
+|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
+
+|*UK NCSC CAF*
+|D1 – Response and recovery planning; D2 – Lessons learned
+
+|*CMMC 2.0*
+|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
+
+|*IRAP*
+|ISM – Incident management; ISM – Business continuity
+
+|*CCCS PBMM*
+|IR-4 – Incident handling; IR-8 – Incident response plan
+
+|*MAS TRM*
+|Ch.10 – Security incident management; Ch.11 – Business continuity
+
+|*ISMAP*
+|Reliability and incident management
+
+|*FISC*
+|Operational measures – Incident response
+
+|===
+
+
+== Related Controls
+
+* xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]
+* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbooks]
+* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+
+
+== Regulatorisches Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|* ISO/IEC 27001:2022* | A.8.13 – Information backup; A.17.1 – Information security continuity
+|* GDPR* | Article 32 – Security of processing (data availability); Article 5(1)(f) – Integrity and confidentiality
+|* AWS Well-Architected Framework* | REL 9 – Back up data; REL 14 – Plan for disaster recovery
+|* BSI C5:2022* | RB-01 – Availability and Redundancy; RB-04 – Data Backup and Recovery; id: waf-rel-040.tf.aws.rds-backup-retention; aws_db_instance; aws_rds_cluster; id: waf-rel-040.tf.aws.s3-versioning; aws_s3_bucket_versioning; id: waf-rel-040.tf.azurerm.postgresql-backup; azurerm_postgresql_flexible_server; azurerm_mysql_flexible_server; id: waf-rel-040.tf.google.sql-backup-config; google_sql_database_instance
 
 |===
 

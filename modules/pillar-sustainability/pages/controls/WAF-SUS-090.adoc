@@ -8,7 +8,7 @@
 :description: WAF++ Sustainability – CSRD-konforme ESG-Berichterstattung: Cloud-IT-Emissionen als Scope-3-Kategorie-11, automatisierte Datenerfassung, ESRS E1-6 und GHG Protocol Mapping.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* ESG Reporting | *Automatisierbar:* Mittel
+*Pillar:* Sustainability |*Severity:* Medium |*Kategorie:* ESG Reporting |*Automatisierbar:* Mittel
 
 == Beschreibung
 
@@ -33,16 +33,16 @@ einzige Weg zu konsistenten, audit-fähigen Daten — manuelle Jahres-Prozesse p
 |===
 |Risiko |Beschreibung
 
-|*CSRD-Bußgeld*
+|* CSRD-Bußgeld*
 |Fehlende oder unvollständige Nachhaltigkeitsberichte für in-scope Unternehmen können zu empfindlichen Bußgeldern führen.
 
-|*ESG-Audit-Finding*
+|* ESG-Audit-Finding*
 |Fehlende IT-Emissionsdaten sind bei ersten CSRD-Prüfungsrunden typische Audit-Findings mit Nachbesserungspflicht.
 
-|*Greenwashing-Haftung*
+|* Greenwashing-Haftung*
 |Nachhaltigkeitsversprechen ohne Datenunterbau sind nach CSRD und EU Green Claims Directive ein Haftungsrisiko.
 
-|*SBTi-Zielgefährdung*
+|* SBTi-Zielgefährdung*
 |Scope-3-Reduktionsziele können ohne Cloud-IT-Emissionsdaten nicht glaubwürdig verfolgt oder belegt werden.
 
 |===
@@ -106,29 +106,29 @@ einzige Weg zu konsistenten, audit-fähigen Daten — manuelle Jahres-Prozesse p
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "esg_data" {
-  bucket = "acme-esg-carbon-exports"
-  tags = {
-    purpose     = "esg-reporting"
-    owner       = "sustainability-team"
-    environment = "production"
-    workload    = "esg-reporting"
-  }
+ bucket = "acme-esg-carbon-exports"
+ tags = {
+ purpose = "esg-reporting"
+ owner = "sustainability-team"
+ environment = "production"
+ workload = "esg-reporting"
+ }
 }
 resource "aws_s3_bucket_lifecycle_configuration" "esg" {
-  bucket = aws_s3_bucket.esg_data.id
-  rule {
-    id     = "csrd-7year"
-    status = "Enabled"
-    expiration { days = 2555 }
-  }
+ bucket = aws_s3_bucket.esg_data.id
+ rule {
+ id = "csrd-7year"
+ status = "Enabled"
+ expiration { days = 2555 }
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_s3_bucket" "esg_data" {
-  bucket = "esg-exports-bucket"
-  # WAF-SUS-090 Warning: kein purpose-Tag,
-  # keine Lifecycle-Policy, kein 7-Jahres-Retention
+ bucket = "esg-exports-bucket"
+ # WAF-SUS-090 Warning: kein purpose-Tag,
+ # keine Lifecycle-Policy, kein 7-Jahres-Retention
 }
 ----
 |===
@@ -147,29 +147,29 @@ resource "aws_s3_bucket" "esg_data" {
 a|[source,hcl]
 ----
 resource "aws_budgets_budget" "sustainability" {
-  name         = "sustainability-proxy"
-  budget_type  = "COST"
-  limit_amount = "500"
-  limit_unit   = "USD"
-  time_unit    = "MONTHLY"
-  notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 80
-    threshold_type             = "PERCENTAGE"
-    notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.sustainability_email]
-  }
+ name = "sustainability-proxy"
+ budget_type = "COST"
+ limit_amount = "500"
+ limit_unit = "USD"
+ time_unit = "MONTHLY"
+ notification {
+ comparison_operator = "GREATER_THAN"
+ threshold = 80
+ threshold_type = "PERCENTAGE"
+ notification_type = "ACTUAL"
+ subscriber_email_addresses = [var.sustainability_email]
+ }
 }
 ----
 a|[source,hcl]
 ----
 resource "aws_budgets_budget" "main" {
-  name         = "monthly-budget"
-  budget_type  = "COST"
-  limit_amount = "1000"
-  limit_unit   = "USD"
-  time_unit    = "MONTHLY"
-  # WAF-SUS-090 Violation: keine Notifications
+ name = "monthly-budget"
+ budget_type = "COST"
+ limit_amount = "1000"
+ limit_unit = "USD"
+ time_unit = "MONTHLY"
+ # WAF-SUS-090 Violation: keine Notifications
 }
 ----
 |===
@@ -182,23 +182,23 @@ resource "aws_budgets_budget" "main" {
 |===
 |Typ |Pflicht |Beschreibung
 
-|*Governance*
+|* Governance*
 |✅ Pflicht
 |CSRD-Scoping-Assessment (in scope / out of scope / ab welchem Jahr).
 
-|*Process*
+|* Process*
 |✅ Pflicht
 |Emissions-Datenerfassungs-Prozess: Quellen, Methodik, Frequenz, verantwortlicher Owner.
 
-|*Config*
+|* Config*
 |Optional
 |Automatisierter Cloud-Carbon-Export (S3 für AWS, BigQuery für GCP, Power BI für Azure).
 
-|*Governance*
+|* Governance*
 |Optional
 |ESRS E1 / GHG Protocol Scope 3 Report-Sektion mit IT-Emissionen und Methodik.
 
-|*Governance*
+|* Governance*
 |Optional
 |SBTi-Commitment-Brief oder internes Emissionsreduktionsziel-Dokument.
 
@@ -207,16 +207,77 @@ resource "aws_budgets_budget" "main" {
 
 == Regulatorisches Mapping
 
+== Regulatorisches Mapping
+
 [cols="1,2"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*|ESRS E1 – Climate Change; ESRS E1-6 – Gross Scope 1, 2, and 3 GHG emissions and total GHG emissions; ESRS 2 – General Disclosures: data collection and reporting processes
-|*GHG Protocol*|Corporate Standard – Scope 3 Category 11; Scope 2 Guidance – market-based and location-based methods
-|*SBTi (Science Based Targets initiative)*|ICT Sector Guidance – target setting and tracking; Near-term corporate targets – annual progress reporting
-|*ISO 14001*|9.1 – Monitoring, measurement, analysis and evaluation; 9.3 – Management review – including environmental performance; id: waf-sus-090.tf.aws.cost-explorer-export-s3; aws_s3_bucket; id: waf-sus-090.tf.aws.budgets-sustainability-alert; aws_budgets_budget; id: waf-sus-090.tf.azurerm.cost-management-export; azurerm_cost_management_export_resource_group_cost; azurerm_subscription_cost_management_export
+|*EU CSRD (Corporate Sustainability Reporting Directive)*
+|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+
+|*GHG Protocol (Corporate Accounting and Reporting Standard)*
+|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+
+|*Green Software Foundation (GSF)*
+|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+
+|*SBTi (Science Based Targets initiative)*
+|Target setting methodology; Validation and verification; Corporate target standards
+
+|*ISO 14001:2015*
+|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
+
+|*ISO 14064-1:2018*
+|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
+
+|*GDPR*
+|Art. 28 – Processor obligations; Art. 32 – Security of processing
+
+|*CSRD*
+|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
+
+|*NIST SP 800-53*
+|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
+
+|*NIST CSF 2.0*
+|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
+
+|*TISAX*
+|Information security – Sustainability; Prototype protection – Environmental protection
+
+|*ANSSI SecNumCloud*
+|Domain – Environmental impact
+
+|*BIO*
+|BIO – Milieueffecten
+
+|*ENS High*
+|op.exp.9 – Gestión del impacto ambiental
+
+|*UK NCSC CAF*
+|B6 – Environmental impact
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Automated audit logging
+
+|*IRAP*
+|ISM – Environmental monitoring
+
+|*CCCS PBMM*
+|AU-2 – Audit events
+
+|*MAS TRM*
+|Ch.12 – Outsourcing risk management
+
+|*ISMAP*
+|Sustainability and environmental impact
+
+|*FISC*
+|Operational measures – Environmental impact
 
 |===
+
 
 == Verwandte Controls
 
