@@ -1,18 +1,238 @@
 = WAF-AGN-090 – Cost & Performance Monitoring
-:page-navtitle: AGN-090
 :page-toc: right
-:description: WAF++ – Control AGN-090: Cost & Performance Monitoring.
+:control-id: WAF-AGN-090
+:pillar: agentic
+:severity: medium
+:category: cost-performance
+:automated: high
+:description: WAF++ Agentic – Agent operations must be economic and performant. Token usage and budget alerts must be monitored.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* Medium | *Category:* Cost & Performance | *Automatable:* High
 
 == Description
 
-Agent operations must be economic and performant.
+Agent operations must be economic and performant. Token usage and compute costs must be monitored. Budget alerts must be configured to prevent cost overruns. Model selection must be optimized for cost-performance tradeoffs. Efficient caching and context management must be implemented.
+
+== Rationale
+
+Agent costs can spiral quickly without proper monitoring:
+
+*Budget overruns:* LLM API costs can exceed budgets quickly without caps and alerts.
+
+*Wasted resources:* Inefficient prompting and context management waste tokens.
+
+*Model misselection:* Using expensive models for simple tasks increases costs unnecessarily.
+
+*No visibility:* Without metrics, cannot identify optimization opportunities.
+
+*Performance degradation:* Latency issues may go undetected without monitoring.
 
 == Requirements
 
-* Monitoring of tokens and compute
-* Budget alerts
-* Efficient model selection
+* Token usage (input, output, total) must be tracked with daily aggregation
+* Budget alerts must be configured at 50%, 75%, 90%, and 100% of budget
+* Model selection must be optimized for cost-performance tradeoff
+* Caching must be implemented to reduce redundant API calls
+* Performance metrics (latency, error rates) must be monitored
 
-== Severity: Medium
+== Implementation Guidance
 
-== Automatable: High
+. *Set up cost budgets:* Configure AWS Cost Explorer or similar budgeting
+. *Create alerts at thresholds:* Set SNS notifications at budget percentages
+. *Optimize model selection:* Match model capabilities to task complexity
+. *Implement caching layer:* Use Redis/ElastiCache or DynamoDB for responses
+. *Monitor token efficiency:* Track tokens per successful outcome
+
+== Maturity Levels
+
+[cols="1,2,3"]
+|===
+|Level |Name |Criteria
+
+|*1*
+|No Monitoring
+|No cost tracking. No budget alerts. No performance monitoring.
+
+|*2*
+|Basic Logging
+|Manual cost tracking. Simple alerts.
+
+|*3*
+|Full Monitoring
+|Automated token tracking. Budget alerts configured. Performance dashboards.
+
+|*4*
+|Optimization Enabled
+|Automated model selection based on task. Intelligent caching.
+
+|*5*
+|Predictive Optimization
+|AI predicts optimal model and caching strategies.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-090.tf.aws.token-monitoring-configured
+*Checks:* Agent token usage is monitored and alerts configured.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "token_usage" {
+  alarm_name          = "agent-token-spike"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "InputTokenCount"
+  namespace           = "AWS/Bedrock"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 50000
+  unit                = "Count"
+}
+
+resource "aws_cloudwatch_dashboard" "agent_dashboard" {
+  dashboard_name = "agent-metrics"
+  # Dashboard configured with token metrics
+}
+----
+|No token monitoring configured
+|===
+
+=== waf-agn-090.tf.aws.budget-alerts-configured
+*Checks:* Budget alerts configured for agent costs.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_budgets_budget" "agent_budget" {
+  budget_name = "agent-monthly-budget"
+  budget_type = "COST"
+  limit_amount = "500"
+  limit_unit = "USD"
+  time_unit = "MONTHLY"
+
+  notification {
+    notification_type = "ACTUAL"
+    comparison_operator = "GREATER_THAN"
+    threshold = 50
+    threshold_type = "PERCENTAGE"
+    subscriber_email_addresses = ["team-ops@example.com"]
+  }
+}
+----
+
+*Remediation:* Configure token monitoring for input, output, and total tokens. Set up budget alerts at multiple thresholds. Implement model optimization and caching.
+
+== Evidence
+
+[cols="1,1,2"]
+|===
+|Type |Required |Description
+
+|*IaC*
+|✅ Required
+|Budget configuration, metric alarms, dashboard definitions.
+
+|*Config*
+|✅ Required
+|Budget thresholds, alert channels, cache configuration.
+
+|*Process*
+|✅ Required
+|Cost analysis reports, budget review records, optimization plans.
+
+|*Governance*
+|✅ Required
+|Cost management policy defining requirements and approval processes.
+
+|===
+
+== Related Controls
+
+* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
+* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
+
+== Regulatory Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*ISO 27001:2022*
+|A.8.2 – Privileged access rights; A.12.1 – Control of operational software
+
+|*NIST SP 800-53*
+|SC-5 – Resource availability; SC-39 – Process isolation
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.AE – Anomalies and events
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 10 – Monitor and detect threats
+
+|*TISAX*
+|Information security – Monitoring and logging
+
+|*ANSSI SecNumCloud*
+|Domain – Logging and monitoring
+
+|*BIO*
+|BIO – Logboekhouding en monitoring
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|SC-5, SC-39 (Moderate baseline)
+
+|*CMMC 2.0*
+|SC.L2-3.8.1 – Limit information system use
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Logging and monitoring
+
+|*CCCS PBMM*
+|SC-5 – Resource availability
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Monitoring and logging controls
+
+|*FISC*
+|Technical measures – Logging and monitoring
+
+|*AWS Well-Architected Framework*
+|Financial Accountability Pillar – Cost optimization; Reliability Pillar – Resource management
+
+|*Google Cloud Architecture Framework*
+|Cost Management – Budgets and alerts; Performance – Optimization
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*CSA STAR*
+|CCM Logging and Monitoring
+
+|*CIS Controls v8*
+|CIS 10 – Data Accuracy
+
+|===

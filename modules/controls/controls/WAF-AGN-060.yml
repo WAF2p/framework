@@ -1,0 +1,228 @@
+# ID: WAF-AGN-060
+id: WAF-AGN-060
+pillar: agentic
+severity: medium
+type:
+  - governance
+  - configuration
+description: |
+  Many agents must be coordinated. Agent orchestration MUST use coordinator/manager patterns or mesh architectures. Event-based communication MUST be configured for agent messaging. Failure recovery and agent health monitoring MUST be in place.
+regulatory_mapping:
+  - framework: 'ISO 27001:2022'
+    controls:
+      - 'A.8.1 – Information security roles and responsibilities'
+      - 'A.8.2 – Privileged access rights'
+  - framework: 'ISO 27017'
+    controls:
+      - 'CLD.9.5 – Segregation in virtual computing environments'
+  - framework: 'CIS Controls v8'
+    controls:
+      - 'CIS 13 – Content Filtering'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC4.1 – Monitoring activities'
+      - 'CC7.1 – Infrastructure and software monitoring'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'AU-2 – Event logging'
+      - 'AU-6 – Audit review and analysis'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'DE.CM – Continuous monitoring'
+      - 'DE.DP – Data protection'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 32 – Security of processing'
+      - 'Art. 5(1)(f) – Integrity and confidentiality'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 10 – Monitor and detect threats'
+  - framework: 'CSA STAR'
+    controls:
+      - 'CCM Logging and Monitoring'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'OPS-01 – Operational monitoring'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Monitoring and logging'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Logging and monitoring'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Logboekhouding en monitoring'
+  - framework: 'ENS High'
+    controls:
+      - 'op.exp.6 – Gestión de cambios'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'A4 – Policy and assurance'
+  - framework: 'FedRAMP'
+    controls:
+      - 'AU-2, AU-6 (Moderate baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'AU.L2-3.8.1 – Flow audit logs to central log management'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ORP.1 – Informationstechnisch-related Angriffsschutz'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Logging and monitoring'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'AU-2, AU-6 – Logging and audit'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.9 – Change management'
+  - framework: 'ISMAP'
+    controls:
+      - 'Monitoring and logging controls'
+  - framework: 'FISC'
+    controls:
+      - 'Technical measures – Logging and monitoring'
+checks:
+  - id: waf-agn-060.tf.aws.coordinator-agent-configured
+    engine: terraform
+    automated: true
+    title: 'Multi-agent systems must have coordinator/manager configured'
+    provider: aws
+    description: 'Multi-agent AWS Bedrock systems must have a coordinator agent that manages worker agents. The coordinator must route tasks, aggregate results, and handle failures.'
+    expected: 'true'
+    remediation: 'Design a coordinator agent pattern where one agent orchestrates multiple specialized agents. Use AWS Step Functions or Lambda to manage the coordination flow. Define clear task delegation and result aggregation.\n'
+    example:
+      compliant: |
+        # Coordinator agent manages worker agents
+        resource "aws_bedrockagent" "coordinator" {
+          agent_name = "agent-coordinator"
+          # Manages multiple worker agents
+        }
+
+        resource "aws_bedrockagent" "worker_analysis" {
+          agent_name = "analysis-worker"
+          # Works under coordinator direction
+        }
+
+        resource "aws_bedrockagent" "worker_research" {
+          agent_name = "research-worker"
+          # Works under coordinator direction
+        }
+
+        # Coordination via Step Functions or Lambda
+        resource "aws_lambda_function" "agent_coordinator" {
+          function_name = "agent-coordinator-function"
+          # Coordinates agent communication
+        }
+      non_compliant: |
+        # No coordinator defined
+        # WAF-AGN-060 Violation
+      # Agents operate independently without coordination
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_bedrockagent
+        - aws_lambda_function
+        - aws_sfn_state_machine
+    assertions:
+      - attribute: 'agent_name'
+        op: 'not_empty'
+        message: 'Coordinator agent must be configured for multi-agent systems.'
+    on_fail: violation
+  - id: waf-agn-060.tf.aws.event-based-communication
+    engine: terraform
+    automated: true
+    title: 'Agent communication must use event-based messaging'
+    provider: aws
+    description: 'Agents must communicate via event-based channels (SNS, SQS, EventBridge) rather than direct HTTP calls. This ensures decoupling, resilience, and auditability of agent interactions.'
+    expected: 'true'
+    remediation: 'Configure SNS topics, SQS queues, and EventBridge rules for agent communication. Agents publish messages to channels and subscribe to relevant events. Avoid direct agent-to-agent HTTP endpoints.\n'
+    example:
+      compliant: |
+        resource "aws_sns_topic" "agent_events" {
+          name = "agent-events"
+        }
+
+        resource "aws_sqs_queue" "agent_queue" {
+          name = "agent-messages"
+        }
+
+        resource "aws_sns_topic_subscription" "agent_subscription" {
+          topic_arn = aws_sns_topic.agent_events.arn
+          protocol  = "sqs"
+          endpoint  = aws_sqs_queue.agent_queue.arn
+        }
+
+        resource "aws_bedrockagent" "event_agent" {
+          agent_name = "event-based-agent"
+          # Listens to SNS/SQS for events
+        }
+      non_compliant: |
+        resource "aws_bedrockagent" "direct-agent" {
+          agent_name = "direct-rpc-agent"
+          # Direct HTTP calls to other agents
+          # WAF-AGN-060 Violation
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_sns_topic
+        - aws_sqs_queue
+        - aws_bedrockagent
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Event-based communication (SNS/SQS/EventBridge) must be configured.'
+    on_fail: violation
+  - id: waf-agn-060.tf.aws.failure-recovery-configured
+    engine: terraform
+    automated: true
+    title: 'Multi-agent systems must have failure recovery configured'
+    provider: aws
+    description: 'Multi-agent systems must have automated failure recovery. Failed agents must be restarted, messages requeued, and alerts raised. Dead letter queues must be configured for failed messages.'
+    expected: 'true'
+    remediation: 'Configure CloudWatch Alarms for agent health monitoring. Set up Lambda retry policies and dead letter queues for failed message processing. Implement agent health checks with automatic restart.\n'
+    example:
+      compliant: |
+        resource "aws_sqs_queue" "dead_letter_queue" {
+          name = "agent-dead-letter"
+        }
+
+        resource "aws_sqs_queue" "main_queue" {
+          name = "agent-messages"
+          redrive_policy = jsonencode({
+            deadLetterTargetArn = aws_sqs_queue.dead_letter_queue.arn
+            maxReceiveCount       = 3
+          })
+        }
+
+        resource "aws_cloudwatch_metric_alarm" "agent_health" {
+          alarm_name          = "agent-health-alarm"
+          comparison_operator = "LessThanThreshold"
+          evaluation_periods  = 3
+          metric_name         = "Invocations"
+          namespace           = "AWS/Lambda"
+          period              = 300
+          statistic           = "Sum"
+          threshold           = 1
+          alarm_description   = "Agent failure detected"
+        }
+      non_compliant: |
+        resource "aws_sqs_queue" "no_redrive" {
+          name = "messages-no-recovery"
+          # No dead letter queue configured
+          # WAF-AGN-060 Violation
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_sqs_queue
+        - aws_cloudwatch_metric_alarm
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Failure recovery (dead letter queue, alarms) must be configured.'
+    on_fail: violation

@@ -2,7 +2,7 @@
 :page-toc: right
 :description: WAF++ – Core principles of the Agentic pillar.
 
-== 5 Principles of Agentic Architecture
+== 7 Core Principles of Agentic Architecture
 
 === 1. Agent Identity First
 
@@ -13,33 +13,274 @@ Every agent must be identifiable, authenticatable, and traceable.
 Agent ID → Auth → Audit Log
 ----
 
+*Unique Identifier*: Each agent has a unique, stable ID that persists across sessions
+*Authentication*: Agents authenticate via IAM roles, service accounts, or API keys
+*Audit Trail*: All agent interactions are logged with full context
+
 === 2. Tool Use Governance
 
 Not every agent should be able to use every tool. Tool use must be:
 
-* Approved
-* Logged
-* Limited (sandboxing, rate limits)
+* *Approved*: Only explicitly allowed tools can be used
+* *Logged*: Every tool call is recorded with input, output, and timestamp
+* *Limited*: Rate limits and sandboxing prevent abuse
+
+[source,adoc]
+----
+Tool Schema → Approved List → Rate Limit → Audit Log
+----
 
 === 3. Reasoning Transparency
 
 Decisions must be traceable – not a black box.
 
+*Chain of Thought*: Every reasoning step must be captured
+*Decision Logging*: All decisions logged with context and rationale
+*Traceability*: Ability to trace from outcome back to decision process
+
+[source,adoc]
+----
+Prompt → Reasoning → Tool Calls → Decision → Logged
+----
+
 === 4. Human-in-the-Loop by Design
 
 Sensitive decisions require human oversight.
 
-=== 5. Agent Debt Tracking
+*Approval Requirements*: Clear criteria for when human approval is needed
+*Escalation Pathways*: Mechanisms to escalate to humans when needed
+*Emergency Override*: Ability to intervene in case of malfunction
+
+[source,adoc]
+----
+Decision → Risk Assessment → Human-in-the-Loop (if needed)
+----
+
+=== 5. Safety & Guardrails
+
+Fail-safe, alignment, and verification must be in place.
+
+*Content Filters*: Block inappropriate or harmful content
+*Action Boundaries*: Limit what agents can do
+*Alignment Checks*: Ensure goals align with organizational values
+*Fail-Safe Mechanisms*: Automatic shutdown or fallback on failure
+
+[source,adoc]
+----
+Guardrail → Alignment Check → Action Boundary → Success/Fail-safe
+----
+
+=== 6. Memory & State Consistency
+
+Memories and states must be managed consistently.
+
+*Versioned Memory*: Memory changes tracked with version IDs
+*State Persistence*: State stored durably, not just in memory
+*Consistent State*: Same state view across all operations
+*Audit Trail*: State modifications logged
+
+[source,adoc]
+----
+State Write → Version Tag → Persistent Store → Audit Log
+----
+
+=== 7. Agent Debt Transparency
 
 Limitations, knowledge gaps, and technical debt must be visible.
 
+*Known Limitations*: Document all known agent weaknesses
+*Impact Assessment*: Evaluate impact of each limitation
+*Improvement Plan*: Concrete steps to address each limitation
+*Regular Review*: Quarterly reviews of agent debt register
+
+[source,adoc]
+----
+Limitation → Impact → Priority → Improvement Plan → Review
+----
+
 == 3 Architectural Patterns
 
-=== Single Agent
+=== Single Agent Architecture
+
 Simple agent with clearly defined scope.
 
-=== Swarm
+[cols="1,2"]
+|===
+|Pros |Cons
+
+|*Simplicity*
+Easy to understand and debug
+|*Limited complexity*
+Single agent has finite capabilities
+
+|*Fast implementation*
+Quick to deploy
+|*Single point of failure*
+Agent failure affects all operations
+
+|*Low coordination*
+No need for complex orchestration
+|*Scalability limits*
+Cannot leverage parallel processing
+
+|===
+
+Recommended for: Simple tasks, experimentation, early-stage projects
+
+=== Swarm Architecture
+
 Many homogeneous agents with shared goal.
 
-=== Mesh
+[cols="1,2"]
+|===
+|Pros |Cons
+
+|*Scalability*
+Can handle large workloads by adding agents
+|*Coordination complexity*
+Need orchestrator to manage agents
+
+|*Parallelization*
+Multiple agents work simultaneously
+|*Homogeneity*
+All agents have same capabilities
+
+|*Fault isolation*
+Failure of one agent doesn't affect others
+|*Monitoring complexity*
+Must monitor many agents
+
+|===
+
+Recommended for: Parallel processing, batch operations, scalable workloads
+
+=== Mesh Architecture
+
 Heterogeneous agents with specialized capabilities.
+
+[cols="1,2"]
+|===
+|Pros |Cons
+
+|*Flexibility*
+Each agent specialized for its domain
+|*High complexity*
+Complex orchestration and communication
+
+|*Expertise*
+Best agent for each task
+|*Governance challenges*
+Many different agents to manage
+
+|*Resilience*
+Specialized agents handle edge cases
+|*Integration overhead*
+Connecting different agent types
+
+|===
+
+Recommended for: Complex workflows, multi-domain operations, advanced use cases
+
+=== Coordinator Pattern (Recommended Default)
+
+A coordinator/manager agent delegates to specialized worker agents.
+
+[cols="1,2"]
+|===
+|Pros |Cons
+
+|*Best of both*
+Combines specialization with central control
+|*Orchestrator complexity*
+Coordinator must be robust
+
+|*Clear boundaries*
+Each agent has defined responsibilities
+|*Single coordinator risk*
+Coordinator failure affects all
+
+|*Manageable scale*
+Easier than full mesh, more powerful than swarm
+|*Coordination overhead*
+Agent communication adds latency
+
+|===
+
+Recommended for: Most production scenarios as a balanced approach
+
+== Decision Framework: Choosing Your Pattern
+
+[cols="1,2,2,2"]
+|===
+|Factor |Single Agent |Swarm |Mesh/Coordinator
+
+|*Workload complexity*
+|Simple, single-domain
+|Parallelizable, uniform
+|Complex, multi-domain
+
+|*Scale requirements*
+|Low to moderate
+|High (many agents needed)
+|Medium to high
+
+|*Need specialization*
+|No
+|No (homogeneous)
+|Yes (different expertise)
+
+|*Coordination needs*
+|None
+|Basic (load balancing)
+|High (orchestration)
+
+|*Recommended for production?*
+|Only simple cases
+|Yes, with orchestration
+|Yes, with proper design
+
+|===
+
+== Implementation Principles
+
+=== 1. Start Simple
+
+Begin with single agent or small swarm. Full mesh architectures add significant complexity that may not be justified initially.
+
+=== 2. Define Boundaries Early
+
+Before implementing, define:
+* Which tools each agent type can use
+* What actions require human approval
+* What data each agent can access
+
+=== 3. Build for Observability
+
+Design with logging and tracing from day one. Agentic systems are complex and debugging without observability is nearly impossible.
+
+=== 4. Assume Failure
+
+Design with fail-safe mechanisms:
+* Agent health monitoring
+* Automatic restart on failure
+* Fallback to human intervention
+* Circuit breakers for cascading failures
+
+=== 5. Iterate Incrementally
+
+Adopt agentic capabilities incrementally:
+1. Start with single agent for simple tasks
+2. Add orchestration as complexity grows
+3. Implement advanced patterns only when needed
+
+== Summary
+
+The seven core principles provide a foundation for responsible agentic development:
+
+1. **Identity First** - Know your agents
+2. **Tool Governance** - Limit what they can do
+3. **Reasoning Transparency** - Understand how they decide
+4. **Human-in-the-Loop** - Keep humans in control
+5. **Safety & Guardrails** - Prevent harmful behavior
+6. **Memory Consistency** - Maintain state reliably
+7. **Agent Debt Transparency** - Know and address limitations
