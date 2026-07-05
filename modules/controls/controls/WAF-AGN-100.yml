@@ -1,0 +1,211 @@
+# ID: WAF-AGN-100
+id: WAF-AGN-100
+pillar: agentic
+severity: low
+type:
+  - governance
+  - documentation
+description: |
+  Known agent limitations must be documented in an Agent Debt Register. Limitations include: knowledge cutoff, tool availability, accuracy limitations, edge cases, and failure modes. The register must be reviewed quarterly with improvement plans.
+regulatory_mapping:
+  - framework: 'ISO 27001:2022'
+    controls:
+      - 'A.8.1 – Information security roles and responsibilities'
+      - 'A.8.2 – Privileged access rights'
+  - framework: 'ISO 27017'
+    controls:
+      - 'CLD.9.5 – Segregation in virtual computing environments'
+  - framework: 'CIS Controls v8'
+    controls:
+      - 'CIS 13 – Content Filtering'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC4.1 – Monitoring activities'
+      - 'CC7.1 – Infrastructure and software monitoring'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'RA-5 – Vulnerability scanning'
+      - 'SI-4 – Information system monitoring'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'DE.CM – Continuous monitoring'
+      - 'DE.AE – Anomalies and events'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 32 – Security of processing'
+      - 'Art. 5(1)(f) – Integrity and confidentiality'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 6.4 – Secure development lifecycle'
+      - 'Req 6.5 – Secure coding practices'
+  - framework: 'CSA STAR'
+    controls:
+      - 'CCM Logging and Monitoring'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'OPS-01 – Operational monitoring'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Monitoring and logging'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Logging and monitoring'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Logboekhouding en monitoring'
+  - framework: 'ENS High'
+    controls:
+      - 'op.exp.6 – Gestión de cambios'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'A4 – Policy and assurance'
+  - framework: 'FedRAMP'
+    controls:
+      - 'RA-5, SI-4 (Moderate baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'RA.L2-3.8.1 – Vulnerability scanning'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ORP.1 – Organisation'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Logging and monitoring'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'RA-5 – Vulnerability scanning'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.9 – Change management'
+  - framework: 'ISMAP'
+    controls:
+      - 'Monitoring and logging controls'
+  - framework: 'FISC'
+    controls:
+      - 'Technical measures – Logging and monitoring'
+checks:
+  - id: waf-agn-100.tf.agent-debt-register-exists
+    engine: config
+    automated: false
+    title: 'Agent Debt Register must be maintained'
+    provider: multi
+    description: 'A documented Agent Debt Register must exist listing all known agent limitations. Register must include: limitation description, impact assessment, priority, target resolution date, and responsible party.'
+    expected: 'true'
+    remediation: 'Create an Agent Debt Register (document, database, or repository) documenting all known limitations: knowledge cutoff date, tool availability gaps, accuracy limitations for specific domains, edge cases not handled, and failure modes.\n'
+    example:
+      compliant: |
+        # Agent Debt Register Example:
+        # | Limitation | Impact | Priority | Target Date | Owner |
+        # | Knowledge cutoff: 2024-10 | Missed recent events | Medium | 2026-Q2 | Data Team |
+        # | No access to internal APIs | Limited functionality | High | 2026-Q1 | Platform Team |
+        # | 10% error rate on financial queries | High risk | Critical | 2025-Q4 | ML Team |
+        #
+        # Register reviewed quarterly with improvement plans
+      non_compliant: |
+        # No Agent Debt Register maintained
+        # WAF-AGN-100 Violation
+        # Unknown limitations
+
+    scope:
+      block_type: config
+      resource_types:
+        - document
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Agent Debt Register must be maintained.'
+    on_fail: violation
+  - id: waf-agn-100.tf.knowledge-cutoff-documented
+    engine: config
+    automated: false
+    title: 'Knowledge cutoff date must be documented'
+    provider: multi
+    description: 'The agent knowledge cutoff date must be documented and visible to users. Agents should not respond as if they have knowledge beyond their cutoff date.'
+    expected: 'true'
+    remediation: 'Document and display knowledge cutoff date in agent configuration and responses. Configure agent to acknowledge cutoff date when asked about recent events. Update cutoff date when model is upgraded.\n'
+    example:
+      compliant: |
+        # Agent configuration includes:
+        # - Knowledge cutoff: October 2024
+        # - Displayed in agent description
+        # - Acknowledged in responses about recent events
+      non_compliant: |
+        # Knowledge cutoff not documented
+        # WAF-AGN-100 Violation
+
+    scope:
+      block_type: config
+      resource_types:
+        - document
+    assertions:
+      - attribute: 'knowledge_cutoff'
+        op: 'not_empty'
+        message: 'Knowledge cutoff date must be documented.'
+    on_fail: violation
+  - id: waf-agn-100.tf.limitation-review-scheduled
+    engine: config
+    automated: false
+    title: 'Agent limitations must be reviewed quarterly'
+    provider: multi
+    description: 'Agent limitations and the Debt Register must be reviewed quarterly. Review must include: new limitations discovered, improved capabilities, removed limitations, and updated priorities.'
+    expected: 'true'
+    remediation: 'Schedule quarterly reviews of Agent Debt Register. Document review dates and outcomes. Update priorities based on new discoveries and model improvements. Close limitations when resolved.\n'
+    example:
+      compliant: |
+        # Quarterly review scheduled:
+        # - Last review: 2025-10-01
+        # - Next review: 2026-01-01
+        # - Review outcomes documented in register
+        #
+        # Limitation updates:
+        # - [X] Knowledge cutoff updated to 2024-10
+        # - [O] Internal API integration (priority: Medium)
+      non_compliant: |
+        # No quarterly review schedule
+        # WAF-AGN-100 Violation
+        # Limitations not tracked
+
+    scope:
+      block_type: config
+      resource_types:
+        - document
+    assertions:
+      - attribute: 'last_review_date'
+        op: 'not_empty'
+        message: 'Quarterly review must be scheduled and documented.'
+    on_fail: violation
+  - id: waf-agn-100.tf.improvement-plan-maintained
+    engine: config
+    automated: false
+    title: 'Improvement plan must be maintained for agent debt'
+    provider: multi
+    description: 'For each agent limitation, an improvement plan must be maintained with concrete steps, responsible parties, and estimated timeline.'
+    expected: 'true'
+    remediation: 'Maintain improvement plans for each limitation in the Debt Register. Plans should include: technical approach, dependencies, estimated effort, and success criteria. Link plans to development backlogs and track progress.\n'
+    example:
+      compliant: |
+        # Improvement Plan Example:
+        # Limitation: No access to payment processing APIs
+        # Impact: Cannot verify payment status
+        # Priority: High
+        # Improvement Plan:
+        #   1. Integrate Stripe API (est. 2 weeks)
+        #   2. Add Braintree support (est. 3 weeks)
+        #   3. Update agent knowledge base
+        #   4. Testing and validation
+        # Responsible: Payment Integration Team
+        # Target: 2026-Q2
+      non_compliant: |
+        # No improvement plans documented
+        # WAF-AGN-100 Violation
+        # Limitations not actionable
+
+    scope:
+      block_type: config
+      resource_types:
+        - document
+    assertions:
+      - attribute: 'improvement_plans'
+        op: 'attribute_exists'
+        message: 'Improvement plans must be maintained for agent debt.'
+    on_fail: violation

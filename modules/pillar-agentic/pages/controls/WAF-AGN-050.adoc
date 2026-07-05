@@ -1,19 +1,274 @@
 = WAF-AGN-050 – Safety & Guardrails
-:page-navtitle: AGN-050
 :page-toc: right
-:description: WAF++ – Control AGN-050: Safety & Guardrails.
+:control-id: WAF-AGN-050
+:pillar: agentic
+:severity: high
+:category: safety-guardrails
+:automated: partial
+:description: WAF++ Agentic – Fail-safe, alignment, and verification must be in place. Guardrails must be configured.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* High | *Category:* Safety & Guardrails | *Automatable:* Partial
 
 == Description
 
-Fail-safe, alignment, and verification must be in place.
+Fail-safe, alignment, and verification must be in place. Content filters must be configured to block inappropriate content. Action boundaries must prevent agents from performing unauthorized actions. Human-in-the-loop must be configured for sensitive decisions. Guardrails must align with organizational values.
+
+== Rationale
+
+Agents without guardrails pose significant risks:
+
+*Content violations:* Agents may generate harmful, offensive, or inappropriate content violating policies or laws.
+
+*Unauthorized actions:* Agents may perform actions outside their scope (financial transactions, data modifications, system changes).
+
+*Alignment drift:* Over time, agent behavior may drift from intended values and goals.
+
+*Regulatory non-compliance:* Many regulations require controls on automated decision-making, especially high-risk decisions.
+
+== Threat Context
+
+[cols="1,3"]
+|===
+|Risk |Description
+
+|*Harmful content*
+|Agents generating hate speech, violence, sexual content, or other prohibited material.
+
+|*Unauthorized access*
+|Agents accessing data or systems they should not have access to.
+
+|*Financial loss*
+|Agents making unauthorized financial transactions or decisions.
+
+|*Reputational damage*
+|Agent behavior damaging organization's reputation or brand.
+
+|===
 
 == Requirements
 
-* Content filters
-* Action boundaries
-* Human-in-the-loop for sensitive decisions
-* Fail-safe mechanisms
+* Content filters must block inappropriate content
+* Action boundaries must restrict agents to approved actions
+* Human-in-the-loop required for sensitive decisions
+* Guardrails must align with organizational values
+* Fail-safe mechanisms must prevent harm if guardrails fail
 
-== Severity: High
+== Implementation Guidance
 
-== Automatable: Partial
+. *Configure content filters:* Set up guardrails with content policies (hate, violence, sexual, PII)
+. *Define action boundaries:* Use IAM roles with least-privilege permissions
+. *Implement human review:* Configure human-in-the-loop for sensitive decision types
+. *Set up fail-safes:* Configure automatic halts, alerts, and fallback responses
+. *Regular alignment testing:* Periodically test agent behavior against organizational values
+
+== Maturity Levels
+
+[cols="1,2,3"]
+|===
+|Level |Name |Criteria
+
+|*1*
+|No Guardrails
+|No content filters. No action boundaries. No human review.
+
+|*2*
+|Basic Filters
+|Some content filtering. Basic action scope definition.
+
+|*3*
+|Full Guardrails
+|Comprehensive content filters. Strict action boundaries. Human review for sensitive cases.
+
+|*4*
+|Automated Compliance
+|Guardrails automatically enforced. Real-time policy updates.
+
+|*5*
+|Predictive Guardrails
+|AI models predict and prevent potential violations before they occur.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-050.tf.aws.content-filters-enabled
+*Checks:* AWS Bedrock guardrails are configured for agents.
+
+[cols="1,1"]
+|===
+|Compliant |Non-Compliant
+
+a|[source,hcl]
+----
+resource "aws_bedrock_guardrail" "organizational_guardrail" {
+  name = "organizational-guardrail"
+
+  blocked_input_messages = [{
+    text = "hate-speech"
+  }]
+
+  blocked_output_messages = [{
+    text = "hate-speech"
+  }]
+}
+
+resource "aws_bedrockagent" "filtered_agent" {
+  agent_name = "content-filtered-agent"
+
+  guardrail_configuration {
+    guardrail_arn = aws_bedrock_guardrail.organizational_guardrail.arn
+    guardrail_version = "DRAFT"
+  }
+}
+----
+|No guardrail configured
+|===
+
+=== waf-agn-050.tf.aws.action-boundaries-configured
+*Checks:* IAM roles with least-privilege permissions configured for agents.
+
+[source,hcl]
+----
+# Compliant
+resource "aws_iam_role" "agent_role" {
+  name = "agent-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "bedrock.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "agent_limits" {
+  name = "agent-limits"
+  role = aws_iam_role.agent_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["s3:GetObject", "s3:ListBucket"]
+      Resource = ["arn:aws:s3:::allowed-bucket/*"]
+    }]
+  })
+}
+----
+
+*Remediation:* Configure guardrails with content filtering. Define strict IAM policies for agent actions. Implement human-in-the-loop for sensitive decisions.
+
+== Evidence
+
+[cols="1,1,2"]
+|===
+|Type |Required |Description
+
+|*IaC*
+|✅ Required
+|Guardrail configuration, IAM policies, human-in-the-loop setup.
+
+|*Config*
+|✅ Required
+|Content filter policies, action scope definitions, approval workflows.
+
+|*Process*
+|✅ Required
+|Guardrail test reports, human review logs, incident reports.
+
+|*Governance*
+|✅ Required
+|Safety policy defining guardrail requirements and organizational values.
+
+|===
+
+== Related Controls
+
+* xref:controls/WAF-AGN-010.adoc[WAF-AGN-010 – Agent Identity & Authentication]
+* xref:controls/WAF-AGN-020.adoc[WAF-AGN-020 – Tool Use Governance]
+* xref:controls/WAF-AGN-080.adoc[WAF-AGN-080 – Human-in-the-Loop]
+
+== Regulatory Mapping
+
+[cols="1,2"]
+|===
+|Framework |Controls
+
+|*ISO 27001:2022*
+|A.8.2 – Privileged access rights; A.8.3 – Information access restriction; A.13.1.1 – Control of information in sessions
+
+|*NIST SP 800-53*
+|SI-4 – Information system monitoring; SI-5 – Malicious code protection
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.DP – Data protection
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+
+|*TISAX*
+|Information security – Monitoring and logging
+
+|*ANSSI SecNumCloud*
+|Domain – Security monitoring
+
+|*BIO*
+|BIO – Monitoring en beveiliging
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios; op.sec.7 – Protección contra malware
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|SI-4, SI-5 (Moderate baseline)
+
+|*CMMC 2.0*
+|SI.L2-3.8.1 – Limit information system use
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Content filtering and protection
+
+|*CCCS PBMM*
+|SI-4 – Security monitoring
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Security monitoring controls
+
+|*FISC*
+|Technical measures – Security monitoring
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Threat detection; Security Pillar – Incident response
+
+|*Google Cloud Architecture Framework*
+|Security – Content filtering and protection
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC6.1 – Logical access security
+
+|*CSA STAR*
+|CCM Security Incident Management; CCM Logging and Monitoring
+
+|*CIS Controls v8*
+|CIS 13 – Content Filtering
+
+|===
