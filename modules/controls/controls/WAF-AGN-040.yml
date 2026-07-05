@@ -1,0 +1,225 @@
+# ID: WAF-AGN-040
+id: WAF-AGN-040
+pillar: agentic
+severity: high
+type:
+  - governance
+  - configuration
+description: |
+  Memories and states must be managed consistently. Agent memory MUST be versioned and versioned memory stores MUST be used. State persistence MUST be configured to prevent data loss. Memory and state changes MUST be audited for compliance.
+regulatory_mapping:
+  - framework: 'ISO 27001:2022'
+    controls:
+      - 'A.8.1 – Information security roles and responsibilities'
+      - 'A.8.2 – Privileged access rights'
+      - 'A.8.23 – Data leakage prevention'
+  - framework: 'ISO 27017'
+    controls:
+      - 'CLD.9.5 – Segregation in virtual computing environments'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC4.1 – Monitoring activities'
+      - 'CC7.1 – Infrastructure and software monitoring'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'SC-28 – Storage protection'
+      - 'SC-39 – Process isolation'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'DE.CM – Continuous monitoring'
+      - 'DE.DP – Data protection'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 32 – Security of processing'
+      - 'Art. 25 – Data protection by design'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 4 – Encryption of cardholder data'
+      - 'Req 8 – Identify and authenticate access'
+  - framework: 'CSA STAR'
+    controls:
+      - 'CCM Data Security and Privacy'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'IDM-01 – Identity and access management policy'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Data protection'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Data protection'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Gegevensbeveiliging'
+  - framework: 'ENS High'
+    controls:
+      - 'op.dat.5 – Protección de los datos'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'B3 – Storage and processing'
+  - framework: 'FedRAMP'
+    controls:
+      - 'SC-28, SC-39 (Moderate baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'SC.L2-3.8.1 –Protect data at rest'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ORP.5 – Informationstechnisch-related Schutz'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Data protection'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'SC-28 – Storage protection'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.4 – Data management'
+  - framework: 'ISMAP'
+    controls:
+      - 'Data protection controls'
+  - framework: 'FISC'
+    controls:
+      - 'Technical measures – Data protection'
+checks:
+  - id: waf-agn-040.tf.aws.memory-versioning-enabled
+    engine: terraform
+    automated: true
+    title: 'Agent memory must be versioned'
+    provider: aws
+    description: 'AWS Bedrock agent memory (sessions, context) must be versioned using DynamoDB versioned tables or S3 versioned buckets. Memory changes must be tracked with timestamps and version IDs.'
+    expected: 'true'
+    remediation: 'Configure versioning on DynamoDB tables or S3 buckets used for agent memory. Use AWS SDK to track memory version IDs with each agent interaction.\n'
+    example:
+      compliant: |
+        resource "aws_dynamodb_table" "agent_memory" {
+          name         = "agent-memory"
+          billing_mode = "PAY_PER_REQUEST"
+          hash_key     = "session_id"
+
+          attribute {
+            name = "session_id"
+            type = "S"
+          }
+
+          attribute {
+            name = "version"
+            type = "S"
+          }
+
+          global_secondary_index {
+            name = "version-index"
+            hash_key = "session_id"
+            range_key = "version"
+          }
+
+          # Versioning enabled via application logic
+        }
+      non_compliant: |
+        resource "aws_dynamodb_table" "agent-memory" {
+          name         = "agent-memory"
+          billing_mode = "PAY_PER_REQUEST"
+          # No versioning tracking
+          # WAF-AGN-040 Violation
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_dynamodb_table
+        - aws_s3_bucket
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Memory table must have versioning configuration.'
+    on_fail: violation
+  - id: waf-agn-040.tf.aws.state-persistence-enabled
+    engine: terraform
+    automated: true
+    title: 'Agent state must be persistently stored'
+    provider: aws
+    description: 'Agent state (conversation history, context, preferences) must be persistently stored in DynamoDB, S3, or RDS. In-memory state (Redis/ElastiCache) must have replication and automatic backup configured.'
+    expected: 'true'
+    remediation: 'Configure persistent storage for agent state. Use DynamoDB tables with point-in-time recovery enabled, or S3 buckets with versioning. Configure backup policies for all state storage.\n'
+    example:
+      compliant: |
+        resource "aws_dynamodb_table" "agent_state" {
+          name         = "agent-state"
+          billing_mode = "PAY_PER_REQUEST"
+          hash_key     = "agent_id"
+
+          attribute {
+            name = "agent_id"
+            type = "S"
+          }
+
+          point_in_time_recovery {
+            enabled = true
+          }
+
+          ttl {
+            attribute_name = "expires_at"
+            enabled        = true
+          }
+        }
+      non_compliant: |
+        resource "aws_dynamodb_table" "no_persistence" {
+          name         = "temp-state"
+          billing_mode = "PAY_PER_REQUEST"
+          # No point-in-time recovery
+          # WAF-AGN-040 Violation
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_dynamodb_table
+        - aws_s3_bucket
+        - aws_rds_cluster
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'State storage must have persistence configured.'
+    on_fail: violation
+  - id: waf-agn-040.tf.aws.memory-audit-logging
+    engine: terraform
+    automated: true
+    title: 'Memory and state changes must be audited'
+    provider: aws
+    description: 'All memory and state modifications must be logged to CloudWatch Logs or CloudTrail. Logs must include agent ID, operation type (read/write/delete), timestamp, and data modified.'
+    expected: 'true'
+    remediation: 'Configure CloudWatch Logs or CloudTrail to capture memory/state changes. Use Lambda triggers on DynamoDB streams to log all modifications with full audit trail.\n'
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "memory_audit" {
+          name = "/aws/bedrock/memory-audit"
+        }
+
+        resource "aws_lambda_function" "memory_audit_log" {
+          function_name = "memory-audit-log"
+          # Triggers on DynamoDB stream
+          # Logs all modifications
+        }
+
+        resource "aws_dynamodb_table" "agent_memory" {
+          # With stream enabled for audit
+          stream_enabled = true
+          stream_view_type = "NEW_AND_OLD_IMAGES"
+        }
+      non_compliant: |
+        resource "aws_dynamodb_table" "no_audit" {
+          name = "agent-memory"
+          # No stream enabled, no audit logging
+          # WAF-AGN-040 Violation
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_dynamodb_table
+        - aws_cloudwatch_log_group
+    assertions:
+      - attribute: 'stream_enabled'
+        op: 'is_true'
+        message: 'Memory table must have stream enabled for audit logging.'
+    on_fail: violation

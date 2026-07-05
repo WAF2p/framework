@@ -2,7 +2,7 @@
 :page-toc: right
 :description: WAF++ – Grundprinzipien der Agentic-Säule.
 
-== 5 Prinzipien der Agentic-Architektur
+== 7 Grundprinzipien der Agentic-Architektur
 
 === 1. Agent-Identity First
 
@@ -13,33 +13,277 @@ Jeder Agent muss identifizierbar, authentifizierbar und nachvollziehbar sein.
 Agenten-ID → Auth → Audit-Log
 ----
 
+*Eindeutige ID*: Jeder Agent hat eine eindeutige, stabile ID, die über Sitzungen hinweg bestehen bleibt
+*Authentifizierung*: Agenten authentifizieren sich über IAM-Rollen, Service-Accounts oder API-Schlüssel
+*Audit-Trail*: Alle Agenten-Interaktionen werden mit vollem Kontext protokolliert
+
 === 2. Tool Use Governance
 
 Nicht jeder Agent darf jedes Werkzeug nutzen. Werkzeugnutzung muss:
 
-* Genehmigt sein
-* Protokolliert sein
-* Begrenzt sein (Sandboxing, Rate Limits)
+* *Genehmigt sein*: Nur explizit erlaubte Werkzeuge können verwendet werden
+* *Protokolliert sein*: Jeder Tool-Call wird mit Input, Output und Timestamp aufgezeichnet
+* *Begrenzt sein*: Rate Limits und Sandboxing verhindern Missbrauch
+
+[source,adoc]
+----
+Tool-Schema → Genehmigte Liste → Rate Limit → Audit-Log
+----
 
 === 3. Reasoning Transparency
 
 Entscheidungen müssen nachvollziehbar sein – nicht als Black Box.
 
+*Chain of Thought*: Jeder Begründungsschritt muss erfasst werden
+*Entscheidungsprotokollierung*: Alle Entscheidungen mit Kontext und Begründung protokollieren
+*Nachvollziehbarkeit*: Möglichkeit, vom Ergebnis zurück zum Entscheidungsprozess zu verfolgen
+
+[source,adoc]
+----
+Prompt → Begründung → Tool-Calls → Entscheidung → Protokolliert
+----
+
 === 4. Human-in-the-Loop by Design
 
 Sensible Entscheidungen erfordern menschliche Oversight.
 
-=== 5. Agent Debt Tracking
+*Anforderungen für Genehmigung*: Klare Kriterien, wann menschliche Genehmigung erforderlich ist
+*Escalation-Pfade*: Mechanismen zum Escalate an Menschen bei Bedarf
+*Not-Aus-Mechanismus*: Möglichkeit zur Intervention bei Fehlfunktionen
+
+[source,adoc]
+----
+Entscheidung → Risiko-Bewertung → Human-in-the-Loop (falls erforderlich)
+----
+
+=== 5. Safety & Guardrails
+
+Fail-Safe, Alignment und Verifikation müssen in place sein.
+
+*Content-Filter*: Unangemessene oder schädliche Inhalte blockieren
+*Aktions-Boundaries*: Agenten auf genehmigte Aktionen beschränken
+*Alignment-Checks*: Sicherstellen, dass Ziele mit organisatorischen Werten übereinstimmen
+*Fail-Safe-Mechanismen*: Automatisches Herunterfahren oder Fallback bei Versagen
+
+[source,adoc]
+----
+Guardrail → Alignment-Check → Aktions-Boundaries → Erfolg/Fail-Safe
+----
+
+=== 6. Memory & State Consistency
+
+Erinnerungen und Zustände müssen konsistent verwaltet werden.
+
+*Versionierter Memory*: Memory-Änderungen werden mit Versions-IDs verfolgt
+*State Persistence*: State dauerhaft gespeichert, nicht nur im Speicher
+*Konsistenter State*: Gleiche State-Sicht über alle Operationen hinweg
+*Audit-Trail*: State-Änderungen protokollieren
+
+[source,adoc]
+----
+State Write → Versions-Tag → Persistenter Store → Audit-Log
+----
+
+=== 7. Agent Debt Transparency
 
 Limitationen, Wissenslücken und technische Schulden müssen sichtbar sein.
 
+*Bekannte Limitationen*: Alle bekannten Agenten-Schwächen dokumentieren
+*Impact-Bewertung*: Auswirkung jeder Limitation evaluieren
+*Verbesserungsplan*: Konkrete Schritte zur Behebung jeder Limitation
+*Regelmäßige Reviews*: Vierteljährliche Reviews des Agent Debt Registers
+
+[source,adoc]
+----
+Limitation → Impact → Priorität → Verbesserungsplan → Review
+----
+
 == 3 Architektur-Patterns
 
-=== Single Agent
+=== Single Agent Architecture
+
 Einfacher Agent mit klar definiertem Scope.
 
-=== Swarm
+[cols="1,2"]
+|===
+|Vorteile |Nachteile
+
+|*Einfachheit*
+Einfach zu verstehen und debuggen
+|*Eingeschränkte Komplexität*
+Einzelner Agent hat endliche Fähigkeiten
+
+|*Schnelle Implementierung*
+Schnell bereitzustellen
+|*Single Point of Failure*
+Agenten-Ausfall beeinträchtigt alle Operationen
+
+|*Geringe Koordination*
+Keine komplexe Orchestrierung erforderlich
+|*Skalierbarkeitsgrenzen*
+Kann parallele Verarbeitung nicht nutzen
+
+|===
+
+Empfohlen für: Einfache Aufgaben, Experimente, frühe Projekte
+
+=== Swarm Architecture
+
 Viele homogene Agenten mit gemeinsamem Ziel.
 
-=== Mesh
+[cols="1,2"]
+|===
+|Vorteile |Nachteile
+
+|*Skalierbarkeit*
+Kann große Workloads durch Hinzufügen von Agenten bewältigen
+|*Koordinationskomplexität*
+Orchestrierer zur Verwaltung der Agenten erforderlich
+
+|*Parallelisierung*
+Mehrere Agenten arbeiten gleichzeitig
+|*Homogenität*
+Alle Agenten haben gleiche Fähigkeiten
+
+|*Fehlertrennung*
+Ausfall eines Agenten beeinträchtigt andere nicht
+|*Überwachungskomplexität*
+Viele Agenten müssen überwacht werden
+
+|===
+
+Empfohlen für: Paralleler Processing, Batch-Operationen, skalierbare Workloads
+
+=== Mesh Architecture
+
 Heterogene Agenten mit spezialisierten Fähigkeiten.
+
+[cols="1,2"]
+|===
+|Vorteile |Nachteile
+
+|*Flexibilität*
+Jeder Agent ist auf sein Domäne spezialisiert
+|*Hohe Komplexität*
+Komplexe Orchestrierung und Kommunikation
+
+|*Expertise*
+Bester Agent für jede Aufgabe
+|*Governance-Herausforderungen*
+Viele verschiedene Agenten zu verwalten
+
+|*Resilienz*
+Spezialisierte Agenten bearbeiten Edge Cases
+|*Integrationsaufwand*
+Verbindung unterschiedlicher Agententypen
+
+|===
+
+Empfohlen für: Komplexe Workflows, Multi-Domänen-Operationen, fortgeschrittene Use Cases
+
+=== Coordinator Pattern (Empfohlenes Standardpattern)
+
+Ein Coordinator/Manager-Agent delegiert an spezialisierte Worker-Agenten.
+
+[cols="1,2"]
+|===
+|Vorteile |Nachteile
+
+|*Bestes aus beidem*
+Kombiniert Spezialisierung mit zentraler Kontrolle
+|*Orchestrator-Komplexität*
+Coordinator muss robust sein
+
+|*Klare Grenzen*
+Jeder Agent hat definierte Verantwortlichkeiten
+|*Single Coordinator-Risiko*
+Coordinator-Ausfall beeinträchtigt alles
+
+|*Verwaltbarer Skalierung*
+Einfacher als voller Mesh, leistungsfähiger als Swarm
+|*Koordinationsaufwand*
+Agenten-Kommunikung fügt Latenz hinzu
+
+|===
+
+Empfohlen für: Die meisten Production-Szenarien als ausgewogener Ansatz
+
+== Entscheidungsrahmen: Auswahl des Patterns
+
+[cols="1,2,2,2"]
+|===
+|Faktor |Single Agent |Swarm |Mesh/Coordinator
+
+|*Workload-Komplexität*
+|Einfach, einzelne Domäne
+|Parallelisierbar, homogen
+|Komplex, multi-Domäne
+
+|*Skalierbarkeitsanforderungen*
+|Niedrig bis moderat
+|Hoch (viele Agenten erforderlich)
+|Mittel bis hoch
+
+|*Spezialisierungsbedarf*
+|Nein
+|Nein (homogen)
+|Ja (verschiedene Expertisen)
+
+|*Koordinationsbedarf*
+|Keine
+|Basic (Load-Balancing)
+|Hoch (Orchestrierung)
+
+|*Empfohlen für Production?*
+|Nur einfache Fälle
+|Ja, mit Orchestrierung
+|Ja, mit richtigem Design
+
+|===
+
+== Implementierungsprinzipien
+
+=== 1. Einfach beginnen
+
+Mit single Agent oder kleiner Swarm beginnen. Volle Mesh-Architekturen fügen signifikante Komplexität hinzu, die anfänglich möglicherweise nicht gerechtfertigt ist.
+
+=== 2. Grenzen früh definieren
+
+Vor der Implementierung definieren:
+
+* Welche Tools jeder Agenten-Typ nutzen darf
+* Welche Aktionen menschliche Genehmigung erfordern
+* Welche Daten jeder Agent erreichen darf
+
+=== 3. Für Observabilität bauen
+
+Vom ersten Tag an mit Logging und Tracing entwerfen. Agentic-Systeme sind komplex und Debugging ohne Observabilität ist nahezu unmöglich.
+
+=== 4. Ausfall annehmen
+
+Mit Fail-Safe-Mechanismen entwerfen:
+
+* Agenten-Health-Monitoring
+* Automatischer Neustart bei Ausfall
+* Fallback zu menschlicher Intervention
+* Circuit Breaker für kaskadierende Ausfälle
+
+=== 5. Inkrementell iterieren
+
+Agentic-Fähigkeiten inkrementell einführen:
+
+1. Mit single Agent für einfache Aufgaben beginnen
+2. Orchestrierung hinzufügen, wenn Komplexität wächst
+3. Erweiterte Pattern nur bei Bedarf implementieren
+
+== Zusammenfassung
+
+Die sieben Grundprinzipien liefern eine Grundlage für verantwortungsvolles agentic Development:
+
+1. **Identity First** - Kennen Sie Ihre Agenten
+2. **Tool Governance** - Beschränken Sie, was sie tun dürfen
+3. **Reasoning Transparency** - Verstehen Sie, wie sie entscheiden
+4. **Human-in-the-Loop** - Halten Sie Menschen in der Kontrolle
+5. **Safety & Guardrails** - Verhindern Sie schädliches Verhalten
+6. **Memory Consistency** - Verwalten Sie State zuverlässig
+7. **Agent Debt Transparency** - Kannte und beheben Sie Limitationen

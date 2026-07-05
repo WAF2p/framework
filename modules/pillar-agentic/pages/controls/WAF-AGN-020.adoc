@@ -17,3 +17,226 @@ Nicht jeder Agent darf jedes Werkzeug nutzen. Werkzeugnutzung muss genehmigt, pr
 == Severity: High
 
 == Automatisierbar: High
+
+== Rationale
+
+Nicht jeder Agent sollte jedes Werkzeug nutzen dürfen. Unkontrollierte Werkzeugnutzung birgt erhebliche Risiken:
+
+*Unautorisierte Aktionen:* Agenten können Aktionen ausführen, für die sie keine Berechtigung haben (Finanztransaktionen, Datenmodifikationen, Systemänderungen).
+
+*Ressourcenerschöpfung:* Unbegrenzte Werkzeugnutzung kann zu unerwarteten Kosten und Ressourcenerschöpfung führen.
+
+*Compliance-Lücken:* Regulatorische Rahmenwerke erfordern Kontrolle über automatisierte Aktionen.
+
+*Sicherheitsrisiken:* Agenten können sensible Daten oder Systeme erreichen, auf die sie nicht zugreifen sollten.
+
+== Anforderungen
+
+* Werkzeug-Whitelist/Denylist muss definiert sein
+* Genehmigungsprozess für neue Werkzeuge muss etabliert sein
+* Alle Tool-Use-Ereignisse müssen mit Kontext protokolliert werden
+* Rate Limiting muss pro Agent konfiguriert sein
+* Werkzeug-Schemas müssen spezifisch und nicht wildcard-basiert sein
+
+== Implementierungshinweise
+
+. *Werkzeug-Schemas definieren:* Spezifische, genehmigte Werkzeuge in der Agenten-Konfiguration definieren
+. *Protokollierung konfigurieren:* Alle Werkzeug-Interaktionen mit vollständigem Kontext loggen
+. *Rate Limiting setzen:* IAM-Policies oder API Gateway für Limits konfigurieren
+. *Audit-Trail etablieren:* Werkzeugnutzung in zentralem Audit-System protokollieren
+. *Genehmigungsprozess dokumentieren:* Verfahren für neue Werkzeug-Anfragen festlegen
+
+== Maturity Levels
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Keine Governance
+|Alle Agenten können alle Werkzeuge nutzen. Keine Protokollierung.
+
+|*2*
+|Basis-Protokollierung
+|Einige Werkzeuge werden geloggt. Keine expliziten Limits.
+
+|*3*
+|Vollständige Governance
+|Explizite Werkzeug-Schemas. Volle Protokollierung. Rate Limiting.
+
+|*4*
+|Automatisierte Compliance
+|Werkzeug-Nutzung wird automatisch überwacht. Echtzeit-Policy-Updates.
+
+|*5*
+|Predictive Governance
+|AI-Modelle bevorstehende Missbrauchsmuster vorhersagen.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-020.tf.aws.tool-whitelist-configured
+*Prüft:* AWS Bedrock Agenten haben Werkzeug-Whitelist konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_bedrockagent" "agent" {
+  agent_name = "approved-agent"
+
+  agent_resources = [{
+    model_arn = aws_bedrockfoundationmodel.claude.arn
+  }]
+
+  # Explicit tool definitions
+  action_groups = [{
+    action_group_name = "allowed-actions"
+    action_group_executor = {
+      lambda = aws_lambda_function.actions.arn
+    }
+  }]
+}
+----
+|Keine Werkzeug-Spezifikation
+|===
+
+=== waf-agn-020.tf.google.vertex-tool-schemas
+*Prüft:* Google Vertex AI Agenten haben spezifische Werkzeug-Schemas.
+
+[source,hcl]
+----
+# Compliant
+resource "google_vertex_ai_agent" "agent" {
+  display_name = "tool-governed-agent"
+  description  = "Agent with specific tool schemas"
+}
+----
+|Wildcard-basierte Werkzeugdefinitionen
+|===
+
+=== waf-agn-020.tf.azure.ai-tool-access
+*Prüft:* Azure AI Agenten haben eingeschränkten Werkzeugzugriff.
+
+[source,hcl]
+----
+# Compliant
+resource "azurerm_cognitive_deployment" "agent" {
+  name                 = "governed-agent"
+  cognitive_account_id = azurerm_cognitive_account.main.id
+
+  # Limited tool access via IAM
+}
+----
+|Unbeschränkter Werkzeugzugriff
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|Werkzeug-Schema-Definitionen, IAM-Policies, Tool-Zugriffskonfiguration.
+
+|*Konfig*
+|✅ Erforderlich
+|Tool-Whitelist, Rate Limit-Einstellungen, Logging-Konfiguration.
+
+|*Prozess*
+|✅ Erforderlich
+|Werkzeug-Genehmigungs-Dokumentation, Audit-Protokolle, Limit-Überwachung.
+
+|*Governance*
+|✅ Erforderlich
+|Tool Use Governance Policy, die Anforderungen definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-010.adoc[WAF-AGN-010 – Agent Identity & Authentication]
+* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.2 – Privileged access rights; A.8.3 – Information access restriction
+
+|*NIST SP 800-53*
+|AC-2 – Account Management; AC-6 – Separation of duties
+
+|*NIST CSF 2.0*
+|PR.AA-01 – Identities and credentials are managed; PR.IP-01 – Business context
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 7 – Restrict access by business need to know; Req 8 – Identify and authenticate access
+
+|*TISAX*
+|Information security – Access control requirements
+
+|*ANSSI SecNumCloud*
+|Domain – Access control
+
+|*BIO*
+|BIO – Logische toegangsbeveiliging (logical access control)
+
+|*ENS High*
+|op.acc.5 – Mecanismo de autenticación; op.acc.7 – Gestión de privilegios
+
+|*UK NCSC CAF*
+|B2 – Identity and access control
+
+|*FedRAMP*
+|AC-2, AC-6 (Moderate baseline)
+
+|*CMMC 2.0*
+|AC.L2-3.1.1 – Limit system access to authorized users
+
+|*IT-Grundschutz*
+|ORP.4 – Identitäts- und Berechtigungsmanagement
+
+|*IRAP*
+|ISM – Access control
+
+|*CCCS PBMM*
+|AC-2 – Account and authenticator management
+
+|*MAS TRM*
+|Ch.6 – Access control
+
+|*ISMAP*
+|Access control controls
+
+|*FISC*
+|Technical measures – Access control
+
+|*DORA*
+|Art. 9 – Protection and prevention
+
+|*EUCS (ENISA)*
+|IAM-01 – Identity and access management
+
+|*BSI C5:2020*
+|IDM-01 – Identity and access management policy
+
+|*SOC 2 Type II*
+|CC6.1 – Logical and physical access controls
+
+|*CSA STAR*
+|CCM IAM-01 – Identity and Access Management Policy
+
+|===

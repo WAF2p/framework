@@ -245,3 +245,87 @@ checks:
         message: 'Key Vault soft_delete_retention_days must be >= 14.'
         expected: 14
     on_fail: violation
+  - id: waf-sov-050.tf.stackit.key-rotation-enabled
+    engine: terraform
+    automated: true
+    title: 'StackIT secret manager keys must have automatic rotation enabled'
+    provider: stackit
+    description: 'StackIT Secret Manager secrets must have rotation policies configured. Automatic key rotation limits the impact of key compromise.'
+    expected: 'true'
+    remediation: 'Configure rotation policies on all StackIT Secret Manager resources with enable_key_rotation = true.\n'
+    example:
+      compliant: |
+        resource "stackit_secret_manager" "sovereign" {
+          project_id = stackit_project.main.id
+          name       = "sovereign-secrets"
+          rotation {
+            enabled = true
+            interval_days = 90
+          }
+        }
+
+      non_compliant: |
+        resource "stackit_secret_manager" "secrets" {
+          project_id = stackit_project.main.id
+          name       = "secrets"
+          # No rotation configured
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_secret_manager
+    assertions:
+      - attribute: 'rotation.enabled'
+        op: 'is_true'
+        message: 'StackIT Secret Manager must have rotation.enabled = true.'
+    on_fail: violation
+  - id: waf-sov-050.tf.ovh.key-rotation-enabled
+    engine: terraform
+    automated: true
+    title: 'OVH secret manager keys must have rotation configured'
+    provider: ovh
+    description: 'OVH secret manager secrets must have rotation policies configured for sovereign compliance.'
+    expected: 'true'
+    remediation: 'Configure rotation policies on all OVH secret manager resources.\n'
+    example:
+      compliant: |
+        # OVH secret manager with rotation enabled
+
+      non_compliant: |
+        # No rotation policy configured
+
+    scope:
+      block_type: resource
+      resource_types:
+        - ovh_secret_manager_secret
+    assertions:
+      - attribute: 'rotation'
+        op: 'block_exists'
+        message: 'OVH secret manager must have rotation policy configured.'
+    on_fail: violation
+  - id: waf-sov-050.tf.hcloud.key-rotation-enabled
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud secret store keys must have rotation configured'
+    provider: hcloud
+    description: 'Hetzner Cloud secret manager must have rotation policies configured for sovereign compliance.'
+    expected: 'true'
+    remediation: 'Configure rotation policies on all Hetzner Cloud secret resources.\n'
+    example:
+      compliant: |
+        # Hetzner Cloud secret store with rotation enabled
+
+      non_compliant: |
+        # No rotation policy configured
+
+    scope:
+      block_type: resource
+      resource_types:
+        - hcloud_server
+    assertions:
+      - attribute: 'labels'
+        op: 'key_exists'
+        key: 'rotation-enabled'
+        message: 'Hetzner Cloud secrets must have rotation policy configured (add rotation-enabled label).'
+    on_fail: warning

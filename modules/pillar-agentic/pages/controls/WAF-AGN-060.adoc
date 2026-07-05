@@ -1,18 +1,296 @@
 = WAF-AGN-060 – Multi-Agent Orchestration
-:page-navtitle: AGN-060
 :page-toc: right
-:description: WAF++ – Control AGN-060: Multi-Agent Orchestration.
+:control-id: WAF-AGN-060
+:pillar: agentic
+:severity: medium
+:category: orchestration
+:automated: medium
+:description: WAF++ Agentic – Viele Agenten müssen koordiniert werden. Orchestrierung muss effektiv sein.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* Medium | *Category:* Orchestration | *Automatisierbar:* Medium
 
 == Beschreibung
 
-Viele Agenten müssen koordiniert werden.
+Viele Agenten müssen koordiniert werden. Agent-Orchestrierung muss Coordinator/Manager-Pattern oder Mesh-Architekturen verwenden. Event-basierte Kommunikation muss für Agenten-Messaging konfiguriert sein. Failure Recovery und Agent-Health-Monitoring müssen in place sein.
+
+== Begründung
+
+Unkoordinierte Multi-Agent-Systeme erzeugen mehrere Probleme:
+
+*Redundante Arbeit:* Mehrere Agenten arbeiten an derselben Aufgabe ohne Koordination und verschwenden Ressourcen.
+
+*Konfliktakte:* Agenten können widersprüchliche Aktionen ohne Koordination ausführen.
+
+*Performance-Probleme:* Fehlendes Lastbalancing führt dazu, dass einige Agenten überlastet sind, während andere untätig sind.
+
+*Versagens-Propagierung:* Wenn ein Agent ausfällt, können abhängige Agenten ohne Recovery ebenfalls ausfallen.
+
+*Keine Sichtbarkeit:* Es ist schwer, die Gesamtsystemgesundheit ohne Orchestrierung zu überwachen.
 
 == Anforderungen
 
-* Coordinator- oder Mesh-Architektur
-* Event-basierte Kommunikation
-* Failure Recovery
+* Coordinator/Manager-Pattern muss für Agent-Orchestrierung verwendet werden
+* Event-basierte Kommunikation (SNS, SQS, EventBridge) muss konfiguriert sein
+* Failure Recovery-Mechanismen müssen in place sein
+* Agent-Health-Monitoring muss konfiguriert sein
+* Dead Letter Queues müssen für gescheiterte Nachrichten konfiguriert sein
 
-== Severity: Medium
+== Implementierungshinweise
 
-== Automatisierbar: Medium
+. *Coordinator-Pattern entwerfen:* Ein Manager-Agent delegiert Aufgaben an spezialisierte Worker
+. *Event-Kanäle verwenden:* SNS-Themen, SQS-Warteschlangen und EventBridge-Regeln konfigurieren
+. *Retry-Logik implementieren:* Nachrichten-Retries mit exponentiellem Backoff konfigurieren
+. *Dead Letter Queues einrichten:* DLQ für Nachrichten konfigurieren, die wiederholt fehlschlagen
+. *Agent-Health überwachen:* Alarms für Agenten-Ausfälle und Latenz-Spikes konfigurieren
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Keine Orchestrierung
+|Agenten operieren unabhängig ohne Koordination. Kein Failover.
+
+|*2*
+|Manuelle Koordination
+|Einige manuelle Orchestrierung über externe Systeme.
+
+|*3*
+|Event-basierte Koordination
+|Agenten kommunizieren über Events. Basic Failover konfiguriert.
+
+|*4*
+|Automatisierte Orchestrierung
+|Dynamische Task-Zuweisung. Automatisches Failover und Skalierung.
+
+|*5*
+|Selbstheilendes System
+|Orchestrierer lernt aus Versagen und verbessert sich automatisch.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-060.tf.aws.coordinator-agent-configured
+*Prüft:* Multi-Agent-Systeme haben Coordinator/Manager konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_bedrockagent" "coordinator" {
+  agent_name = "agent-coordinator"
+  # Verwaltet mehrere Worker-Agenten
+}
+
+resource "aws_bedrockagent" "worker_analysis" {
+  agent_name = "analysis-worker"
+  # Arbeitet unter Coordinator-Anleitung
+}
+
+resource "aws_bedrockagent" "worker_research" {
+  agent_name = "research-worker"
+  # Arbeitet unter Coordinator-Anleitung
+}
+
+resource "aws_lambda_function" "agent_coordinator" {
+  function_name = "agent-coordinator-function"
+  # Koordiniert Agenten-Kommunikation
+}
+----
+|Kein Coordinator definiert
+|===
+
+=== waf-agn-060.tf.aws.event-based-communication
+*Prüft:* Agenten-Kommunikation verwendet event-basiertes Messaging (SNS, SQS, EventBridge).
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_sns_topic" "agent_events" {
+  name = "agent-events"
+}
+
+resource "aws_sqs_queue" "agent_queue" {
+  name = "agent-messages"
+}
+
+resource "aws_sns_topic_subscription" "agent_subscription" {
+  topic_arn = aws_sns_topic.agent_events.arn
+  protocol  = "sqs"
+  endpoint  = aws_sqs_queue.agent_queue.arn
+}
+
+resource "aws_bedrockagent" "event_agent" {
+  agent_name = "event-based-agent"
+}
+----
+|Keine Event-Kommunikation
+|===
+
+=== waf-agn-060.tf.google.event-bridge
+*Prüft:* Google Cloud hat Event-Basierende Kommunikation konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_pubsub_topic" "agent_events" {
+  name = "agent-events"
+}
+
+resource "google_pubsub_subscription" "agent_subscription" {
+  name  = "agent-subscription"
+  topic = google_pubsub_topic.agent_events.name
+}
+----
+|Keine Pub/Sub-Konfiguration
+|===
+
+=== waf-agn-060.tf.azure.event-grid
+*Prüft:* Azure hat Event Grid für Agenten-Kommunikation konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_event_grid_topic" "agent_events" {
+  name                = "agent-events"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+}
+
+resource "azurerm_event_grid_subscription" "agent_subscription" {
+  name                 = "agent-subscription"
+  event_subscription_id = "agent-subscription"
+  resource_group_name  = azurerm_resource_group.main.name
+  topic_name          = azurerm_event_grid_topic.agent_events.name
+
+  webhook_endpoint {
+    url = azurerm_function_app.main.default_hostname
+  }
+}
+----
+|Kein Event Grid konfiguriert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|Coordinator-Agent-Konfiguration, Event-Channel-Setup, DLQ-Konfiguration.
+
+|*Konfig*
+|✅ Erforderlich
+|Queue-Konfigurationen, Retry-Policies, Alarm-Schwellenwerte.
+
+|*Prozess*
+|✅ Erforderlich
+|Orchestrierungs-Runbook, Failover-Testberichte, Health-Monitoring-Dashboards.
+
+|*Governance*
+|✅ Erforderlich
+|Multi-Agent Orchestration Policy, die Koordinationsanforderungen definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
+* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+
+|*NIST SP 800-53*
+|AU-2 – Event logging; AU-6 – Audit review and analysis
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.DP – Data protection
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 10 – Monitor and detect threats
+
+|*TISAX*
+|Information security – Monitoring and logging
+
+|*ANSSI SecNumCloud*
+|Domain – Logging und monitoring
+
+|*BIO*
+|BIO – Logboekhouding en monitoring
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|AU-2, AU-6 (Moderate baseline)
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Flow audit logs to central log management
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Logging and monitoring
+
+|*CCCS PBMM*
+|AU-2, AU-6 – Logging and audit
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Monitoring and logging controls
+
+|*FISC*
+|Technical measures – Logging and monitoring
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Logging and monitoring; Reliability Pillar – Failure management
+
+|*Google Cloud Architecture Framework*
+|Reliability – Failure management; Security – Monitoring
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*CSA STAR*
+|CCM Logging and Monitoring
+
+|*CIS Controls v8*
+|CIS 13 – Content Filtering
+
+|===

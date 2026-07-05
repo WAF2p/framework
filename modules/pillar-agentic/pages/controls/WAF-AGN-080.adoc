@@ -5,14 +5,244 @@
 
 == Beschreibung
 
-Menschliche Genehmigung bei sensiblen Entscheidungen.
+Menschliche Genehmigung ist für sensible Entscheidungen erforderlich. Human-in-the-Loop-Workflows müssen für kritische Aktionen definiert sein. Approval-Workflows müssen mit Zeitstempeln und Identität des Genehmigers auditierbar sein. Notausstiegs-Mechanismen müssen existieren.
 
 == Anforderungen
 
-* Approval-Workflow für sensible Aktionen
-* Timestamped human decisions
-* Audit-Trail
+* HIL für sensible Entscheidungstypen
+* Audit-Trail mit vollem Kontext
+* Notfall-Interventionsmechanismus
 
 == Severity: High
 
 == Automatisierbar: Low–Medium
+
+== Rationale
+
+Ohne menschliche Kontrolle bei sensiblen Entscheidungen bestehen erhebliche Risiken:
+
+*Fehlentscheidungen:* Agenten können sensible Entscheidungen ohne menschliche Überprüfung treffen, die erhebliche Konsequenzen haben.
+
+*Compliance-Lücken:* Viele regulatorische Frameworks erfordern menschliche Überprüfung bei automatisierten Entscheidungen über Personen.
+
+*Vertrauensverlust:* Stakeholder vertrauen Systemen weniger, wenn sensible Entscheidungen ohne menschliche Beteiligung getroffen werden.
+
+*Fehlende Korrekturmöglichkeiten:* Ohne HIL gibt es keine Möglichkeit, fehlerhafte Agenten-Entscheidungen manuell zu korrigieren.
+
+== Anforderungen
+
+* Menschliche Zustimmung ist für sensible Entscheidungstypen erforderlich
+* Audit-Trail muss vollständigen Kontext mit Zeitstempel enthalten
+* Not-Aus-Mechanismus muss für direkte menschliche Eingriffe existieren
+* Approval-Workflows müssen festgelegte Genehmiger haben
+* HIL muss für Finanz-, Rechts- oder personenbezogene Daten-Entscheidungen konfiguriert sein
+
+== Implementierungshinweise
+
+. *HIL-Workflows konfigurieren:* approval-Workflow in Bedrock oder äquivalentem Tool definieren
+. *Audit-Logging implementieren:* Genehmigungs-Events mit vollem Kontext loggen
+. *Not-Aus-Mechanismus definieren:* Klare Verfahren für menschliche Intervention festlegen
+. *Genehmiger zuweisen:* Für jede Entscheidungsklasse feste Genehmiger definieren
+. *HIL-Kategorien dokumentieren:* Liste sensibler Entscheidungstypen mit Kriterien pflegen
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Kein HIL
+|Keine menschliche Überprüfung. Kein Approval-Workflow.
+
+|*2*
+|Basis-HIL
+|Manuelle Genehmigung bei einigen Entscheidungen. Keine standardisierte Prozesse.
+
+|*3*
+|Vollständiges HIL
+|Genehmigungs-Workflows für sensible Entscheidungen. Audit-Trail mit Kontext.
+
+|*4*
+|Optimierter HIL
+|Automatisierte Entscheidungsklassifizierung. Intelligente Escalation.
+
+|*5*
+|Adaptive HIL
+|AI-Modelle vorhersagen, wann menschliche Eingriffe erforderlich sind.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-080.tf.aws.hil-configured
+*Prüft:* Human-in-the-Loop Workflow für sensible Entscheidungen ist konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_bedrock_agent" "sensitive_agent" {
+  agent_name = "sensitive-decision-agent"
+
+  human_condition {
+    type = "APPROVAL"
+
+    approval_config {
+      required = true
+      notification_arn = aws_sns_topic.approval.arn
+    }
+  }
+}
+
+resource "aws_sns_topic" "approval" {
+  name = "agent-approval-topic"
+}
+----
+|Kein HIL konfiguriert
+|===
+
+=== waf-agn-080.tf.google.hil-workflow
+*Prüft:* Google Cloud Hat HIL-Workflow für sensible Entscheidungen.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_vertex_ai_agent" "agent" {
+  display_name = "agent-with-hil"
+  # HIL workflow konfiguriert
+}
+----
+|Kein HIL Workflow
+|===
+
+=== waf-agn-080.tf.azure.hil
+*Prüft:* Azure hat HIL-Workflow für sensible Entscheidungen.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_cognitive_deployment" "agent" {
+  name                 = "agent-with-hil"
+  cognitive_account_id = azurerm_cognitive_account.main.id
+
+  # HIL workflow konfiguriert
+}
+----
+|Kein HIL konfiguriert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|HIL-Workflow-Konfiguration, Approval-Systeme, Audit-Log-Setup.
+
+|*Konfig*
+|✅ Erforderlich
+|Approval-Workflow-Einstellungen, Genehmiger-Listen, Audit-Logging.
+
+|*Prozess*
+|✅ Erforderlich
+|HIL-Runbook, Approval-Protokolle, Not-Interventions-Verfahren.
+
+|*Governance*
+|✅ Erforderlich
+|Human-in-the-Loop Policy, die Anforderungen definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-010.adoc[WAF-AGN-010 – Agent Identity & Authentication]
+* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.2 – Privileged access rights; A.13.1.1 – Control of information in sessions
+
+|*NIST SP 800-53*
+|AU-2 – Event logging; AC-2 – Account Management
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; PR.AA-01 – Identities and credentials
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 22 – Automated individual decision-making
+
+|*PCI DSS v4.0*
+|Req 7 – Restrict access by business need to know; Req 8 – Identify and authenticate access
+
+|*TISAX*
+|Information security – Access control requirements
+
+|*ANSSI SecNumCloud*
+|Domain – Access control
+
+|*BIO*
+|BIO – Logische toegangsbeveiliging (logical access control)
+
+|*ENS High*
+|op.acc.5 – Mecanismo de autenticación; op.acc.7 – Gestión de privilegios
+
+|*UK NCSC CAF*
+|B2 – Identity and access control
+
+|*FedRAMP*
+|AC-2, AU-2 (Moderate baseline)
+
+|*CMMC 2.0*
+|AC.L2-3.1.1 – Limit system access to authorized users
+
+|*IT-Grundschutz*
+|ORP.4 – Identitäts- und Berechtigungsmanagement
+
+|*IRAP*
+|ISM – Access control
+
+|*CCCS PBMM*
+|AC-2 – Account and authenticator management
+
+|*MAS TRM*
+|Ch.6 – Access control
+
+|*ISMAP*
+|Access control controls
+
+|*FISC*
+|Technical measures – Access control
+
+|*DORA*
+|Art. 9 – Protection and prevention
+
+|*EUCS (ENISA)*
+|IAM-01 – Identity and access management
+
+|*BSI C5:2020*
+|IDM-01 – Identity and access management policy
+
+|*SOC 2 Type II*
+|CC6.1 – Logical and physical access controls; CC6.2 – Provisioning and removal of access
+
+|*CSA STAR*
+|CCM IAM-01 – Identity and Access Management Policy
+
+|===
