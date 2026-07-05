@@ -5,14 +5,282 @@
 
 == Beschreibung
 
-Erinnerungen und Zustände müssen konsistent verwaltet werden.
+Erinnerungen und Zustände müssen konsistent verwaltet werden. Agenten-Memory muss versioniert sein und versionierte Memory-Stores müssen verwendet werden. State-Persistence muss so konfiguriert sein, dass Datenverlust verhindert wird. Memory-Änderungen müssen auditiert werden.
 
 == Anforderungen
 
-* Konsistente Speicherung von Agenten-Memory
-* Verschlüsselung sensibler Daten
-* Timestamps für alle Memory-Operationen
+* Versionierter Memory-Speicher
+* Persistenter State-Speicher mit Backups
+* Audit-Logging für Memory-Änderungen
 
 == Severity: High
 
 == Automatisierbar: High
+
+== Rationale
+
+Inkonsistente Speicherung von Agenten-Memory und State birgt erhebliche Risiken:
+
+*Datenverlust:* Ohne Persistenz können wichtige Kontextinformationen bei Systemausfällen verloren gehen.
+
+*Unvorhersehbares Verhalten:* Agenten können bei Wiederaufnahme inkonsistente Zustände haben, was zu Fehlentscheidungen führt.
+
+*Compliance-Lücken:* Regulatorische Rahmenwerke erfordern nachvollziehbare Datenverwaltung.
+
+*Debugging-Schwierigkeiten:* Fehler bei Memory-Operationen sind schwer zu diagnostizieren, wenn keine Logs vorliegen.
+
+== Anforderungen
+
+* Memory Storage muss versioniert sein
+* Persistent State Storage mit Backups muss konfiguriert sein
+* Audit-Logging für Memory-Änderungen muss aktiviert sein
+* Memory-Versionen müssen nachvollziehbar sein
+* State-Änderungen müssen protokolliert werden
+
+== Implementierungshinweise
+
+. *Versionierten Speicher konfigurieren:* DynamoDB-Tabellen mit Versionierung oder S3 mit Versionierung verwenden
+. *Backup-Strategie implementieren:* Point-in-Time-Recovery aktivieren
+. *Audit-Logging einrichten:* Streams oder Trigger für Audit-Logs konfigurieren
+. *State-Schema definieren:* Konsistentes Schema für State-Daten verwenden
+. *Monitoring einrichten:* Alarms für Memory-Operationen und -Fehler
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Kein Memory
+|Keine Memory-Verwaltung. Keine State-Persistence.
+
+|*2*
+|Basis-Speicherung
+|Einfacher Speicher ohne Versionierung. Keine Backups.
+
+|*3*
+|Versionierter Memory
+|Versionierte Memory-Speicher. Persistenter State mit Backups.
+
+|*4*
+|Automatisierte Verwaltung
+|Memory-Verwaltung wird automatisch durchgeführt. Echtzeit-Backups.
+
+|*5*
+|Predictive Memory
+|AI-Modelle vorhersagen Memory-Optimierungsbedarf.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-040.tf.aws.memory-versioned
+*Prüft:* AWS Memory Storage ist versioniert konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_s3_bucket" "agent_memory" {
+  bucket = "agent-memory-bucket"
+
+  versioning {
+    enabled = true
+  }
+}
+
+resource "aws_dynamodb_table" "agent_state" {
+  name         = "agent-state"
+  billing_mode = "PAY_PER_REQUEST"
+
+  attribute {
+    name = "agent_id"
+    type = "S"
+  }
+
+  billing_mode = "PAY_PER_REQUEST"
+}
+----
+|Keine Versionierung konfiguriert
+|===
+
+=== waf-agn-040.tf.aws.point-in-time-recovery
+*Prüft:* AWS DynamoDB Point-in-Time-Recovery ist aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_dynamodb_table" "state" {
+  name         = "agent-state"
+  billing_mode = "PAY_PER_REQUEST"
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  attribute {
+    name = "agent_id"
+    type = "S"
+  }
+}
+----
+|Kein Point-in-Time-Recovery
+|===
+
+=== waf-agn-040.tf.google.bucket-versioning
+*Prüft:* Google Cloud Storage Buckets haben Versionierung aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_storage_bucket" "agent_memory" {
+  name     = "agent-memory-bucket"
+  location = "US"
+
+  versioning {
+    enabled = true
+  }
+}
+----
+|Keine Versionierung
+|===
+
+=== waf-agn-040.tf.azure.blob-versioning
+*Prüft:* Azure Blob Storage hat Versionierung aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_storage_account" "agent_storage" {
+  name                     = "agentstorage"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  blob_properties {
+    versioning_enabled = true
+  }
+}
+----
+|Keine Versionierung aktiviert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|Memory-Storage-Konfiguration, Versionierungseinstellungen, Backup-Konfiguration.
+
+|*Konfig*
+|✅ Erforderlich
+|Storage-Klassen, Retention-Policy, Audit-Logging-Einstellungen.
+
+|*Prozess*
+|✅ Erforderlich
+|Memory-Verwaltungsberichte, Backup-Testergebnisse, Audit-Protokolle.
+
+|*Governance*
+|✅ Erforderlich
+|Memory & State Management Policy, die Anforderungen definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
+* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
+* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+
+|*NIST SP 800-53*
+|AU-2 – Event logging; AU-3 – Event content; SC-39 – Process isolation
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.DP – Data protection
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 10 – Monitor and detect threats
+
+|*TISAX*
+|Information security – Data management
+
+|*ANSSI SecNumCloud*
+|Domain – Data protection
+
+|*BIO*
+|BIO – Gegevensbeheer (data management)
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|AU-2, AU-3, SC-39 (Moderate baseline)
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Flow audit logs to central log management
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Data protection
+
+|*CCCS PBMM*
+|AU-2, AU-3 – Logging and audit
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Data protection controls
+
+|*FISC*
+|Technical measures – Data protection
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Data protection; Reliability Pillar – Backup
+
+|*Google Cloud Architecture Framework*
+|Security – Data protection; Reliability – Backup
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*CSA STAR*
+|CCM Logging and Monitoring
+
+|===

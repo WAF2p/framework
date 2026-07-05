@@ -1,18 +1,260 @@
 = WAF-AGN-030 – Reasoning Transparency
-:page-navtitle: AGN-030
 :page-toc: right
-:description: WAF++ – Control AGN-030: Reasoning Transparency.
+:control-id: WAF-AGN-030
+:pillar: agentic
+:severity: medium
+:category: reasoning-transparency
+:automated: medium
+:description: WAF++ Agentic – Entscheidungen müssen nachvollziehbar sein – nicht als Black Box.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* Medium | *Category:* Reasoning Transparency | *Automatisierbar:* Medium
 
 == Beschreibung
 
-Entscheidungen müssen nachvollziehbar sein – nicht als Black Box.
+Agenten-Entscheidungen müssen nachvollziehbar sein – nicht als Black Box. Jeder Entscheidungsschritt muss geloggt werden, einschließlich Chain of Thought, Begründung und Entscheidungsergebnis. Audit-Logs müssen den vollständigen Kontext der Agenten-Entscheidungsfindung für Compliance und Debugging bewahren.
+
+== Begründung
+
+Black-Box-Entscheidungen erzeugen erhebliche operative und Compliance-Risiken:
+
+*Schwieriges Debugging:* Wenn Agenten falsche Entscheidungen treffen, ist es ohne Begründungs-Logs unmöglich, die Ursache zu verstehen und die Wurzel zu beheben.
+
+*Compliance-Lücken:* Regulatorische Rahmenwerke erfordern Erklärbarkeit für automatisierte Entscheidungen, insbesondere solche, die Personen betreffen.
+
+*Vertrauensprobleme:* Stakeholder können Agenten-Entscheidungen nicht vertrauen, wenn sie nicht verstehen, wie diese getroffen wurden.
+
+*Verpasste Lern-Chancen:* Ohne Begründungs-Logs können Organisationen nicht aus Agenten-Entscheidungen lernen, um Systeme zu verbessern.
 
 == Anforderungen
 
-* Chain of Thought dokumentieren
-* Jeder Entscheidungsschritt muss geloggt werden
-* Audit-Trail für alle Agenten-Entscheidungen
+* Chain of Thought muss in den Logs erfasst werden
+* Jeder Entscheidungsschritt muss mit Timestamp und Kontext aufgezeichnet werden
+* Input-Prompt, Modell-Antwort und Begründungspfad müssen geloggt werden
+* Audit-Trail muss unveränderlich und sicher sein
+* Logs müssen Abfragen nach Agenten-ID, Session-ID und Zeitbereich unterstützen
 
-== Severity: Medium
+== Implementierungshinweise
 
-== Automatisierbar: Medium
+. *Inference-Logging aktivieren:* Logging des Cloud-Anbieters für Agenten-Inference konfigurieren (Bedrock, Vertex AI, Azure OpenAI)
+. *Begründungs-Metadaten erfassen:* Begründungs-Tokens, Tool-Call-Details und Entscheidungsparameter einbeziehen
+. *Log-Aggregation einrichten:* Logs an zentrales System für Analyse weiterleiten
+. *Dashboards erstellen:* Monitoring-Dashboards für Begründungsmuster und Anomalien aufbauen
+. *Log-Retention implementieren:* Retention-Richtlinien basierend auf Compliance-Anforderungen definieren
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Black Box
+|Agenten-Entscheidungen werden nicht geloggt. Keine Sichtbarkeit in den Begründungsprozess.
+
+|*2*
+|Basis-Response-Logging
+|Input-Prompts und Output-Antworten werden geloggt. Keine Begründungsdetails.
+
+|*3*
+|Vollständiger Begründungstracing
+|Chain of Thought, Tool-Calls und Entscheidungslogik werden alle geloggt.
+
+|*4*
+|Analyse-fähig
+|Logs ermöglichen Post-Mortem-Analyse und Mustererkennung.
+
+|*5*
+|Predictive Reasoning
+|Log-Analyse wird verwendet, um Denkfehler vorherzusagen und zu verhindern.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-030.tf.aws.bedrock-agent-logging-enabled
+*Prüft:* AWS Bedrock Inference-Logging ist für Agenten aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "agent_reasoning" {
+  name = "/aws/bedrock/inference-logs/reasoning"
+}
+
+resource "aws_bedrockagent" "reasoning_agent" {
+  agent_name = "reasoning-enabled-agent"
+}
+----
+|Keine Logging-Konfiguration
+|===
+
+=== waf-agn-030.tf.aws.tracing-enabled
+*Prüft:* Distributed Tracing ist für Agenten-Operationen aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_lambda_function" "agent_handler" {
+  function_name = "agent-handler"
+  environment {
+    variables = {
+      AWS_XRAY_TRACING_NAME = "agent-service"
+    }
+  }
+}
+----
+|Kein Tracing aktiviert
+|===
+
+=== waf-agn-030.tf.google.vertex-tracing
+*Prüft:* Google Vertex AI Agenten haben Tracing konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_vertex_ai_agent" "traced_agent" {
+  display_name = "traced-agent"
+  # Tracing über Cloud Trace
+}
+----
+|Kein Tracing konfiguriert
+|===
+
+=== waf-agn-030.tf.azure.ai-tracing
+*Prüft:* Azure AI Agenten haben Application Insights konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_application_insights" "agent_ai" {
+  name                = "agent-insights"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_cognitive_deployment" "agent" {
+  name                 = "traced-agent"
+  application_insights_enabled = true
+}
+----
+|Kein Application Insights konfiguriert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|CloudWatch Log Groups, X-Ray-Konfiguration, Tracing-SDK-Setup.
+
+|*Konfig*
+|✅ Erforderlich
+|Logging-Level, Sampling-Raten, Log-Retention-Einstellungen.
+
+|*Prozess*
+|✅ Erforderlich
+|Begründungs-Log-Analysebericht, Tracing-Dashboards.
+
+|*Governance*
+|Optional
+|Reasoning Transparency Policy, die Anforderungen definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-040.adoc[WAF-AGN-040 – Memory & State Management]
+* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
+* xref:controls/WAF-AGN-080.adoc[WAF-AGN-080 – Human-in-the-Loop]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+
+|*NIST SP 800-53*
+|AU-2 – Event logging; AU-3 – Event content; AU-12 – Audit generation
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.DP – Data protection
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 22 – Automated individual decision-making
+
+|*PCI DSS v4.0*
+|Req 6.4 – Secure development lifecycle; Req 10 – Monitor and detect threats
+
+|*TISAX*
+|Information security – Monitoring and logging
+
+|*ANSSI SecNumCloud*
+|Domain – Logging und monitoring
+
+|*BIO*
+|BIO – Logboekhouding en monitoring
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|AU-2, AU-3, AU-12 (Moderate baseline)
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Flow audit logs to central log management
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Logging and monitoring
+
+|*CCCS PBMM*
+|AU-2, AU-3 – Logging and audit
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Monitoring and logging controls
+
+|*FISC*
+|Technical measures – Logging and monitoring
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Logging and monitoring
+
+|*Google Cloud Architecture Framework*
+|Operations – Monitoring and logging
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring; OPS-02 – Operational control
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*CSA STAR*
+|CCM Logging and Monitoring
+
+|===

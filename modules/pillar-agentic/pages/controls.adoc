@@ -3,44 +3,232 @@
 :page-toc: right
 :description: WAF++ – Die 10 messbaren Controls der Agentic-Säule.
 
-Die Agentic-Säule wird durch 10 messbare Controls operationalisiert.
+Die Agentic-Säule wird durch 10 messbare Controls operationalisiert, die den sicheren, complianten und effektiven Einsatz autonomer KI-Agenten sicherstellen.
 
 == WAF-AGN-010 Agent Identity & Authentication
 
-Agenten müssen authentifiziert und adressierbar sein.
+Agenten müssen authentifiziert und adressierbar sein. Jeder Agent muss eine eindeutige, stabile ID haben. Authentifizierung über IAM-Rollen, API-Schlüssel oder Zertifikate ist verpflichtend. Alle Agenten-Interaktionen müssen in einem Audit-Trail für Sicherheit und Compliance protokolliert werden.
+
+[cols="1,2"]
+|===
+|Severity: High |Automatisierbar: High
+
+|*Key Requirements:*
+* Eindeutige und stabile Agenten-ID
+* Authentifizierung über Token oder Zertifikat
+* Audit-Log für alle Agenten-Interaktionen
+
+|*Implementation:* Agenten-Identifikatoren in AWS Bedrock, Google Vertex AI oder Azure AI konfigurieren. IAM-Rollen oder Service-Accounts verwenden. CloudWatch Logs oder äquivalentes Monitoring aktivieren.
+|===
 
 == WAF-AGN-020 Tool Use Governance
 
-Nicht jeder Agent darf jedes Werkzeug nutzen. Werkzeugnutzung muss genehmigt, protokolliert und begrenzt sein.
+Nicht jeder Agent darf jedes Werkzeug nutzen. Werkzeugnutzung muss genehmigt, protokolliert und begrenzt sein. Agenten müssen explizite Werkzeugdefinitionen mit genehmigten Listen haben. Alle Tool-Aufrufe müssen mit Kontext protokolliert und Rate Limits müssen konfiguriert sein.
+
+[cols="1,2"]
+|===
+|Severity: High |Automatisierbar: High
+
+|*Key Requirements:*
+* Explizite Werkzeugdefinitionen (keine Wildcards)
+* Tool-Call-Protokollierung mit vollem Kontext
+* Rate Limiting zur Missbrauchsvorbeugung
+
+|*Implementation:* Werkzeug-Schemata mit spezifisch erlaubten Werkzeugen definieren. Protokollierung für alle Tool-Interaktionen konfigurieren. Rate Limits über IAM-Policies oder API Gateway festlegen.
+|===
 
 == WAF-AGN-030 Reasoning Transparency
 
-Entscheidungen müssen nachvollziehbar sein – nicht als Black Box.
+Entscheidungen müssen nachvollziehbar sein – nicht als Black Box. Jeder Entscheidungsschritt muss geloggt werden, einschließlich Chain of Thought, Begründung und Entscheidungsergebnis. Audit-Logs müssen den vollständigen Kontext für Compliance und Debugging bewahren.
+
+[cols="1,2"]
+|===
+|Severity: Medium |Automatisierbar: Medium
+
+|*Key Requirements:*
+* Chain of Thought in den Logs erfasst
+* Jeder Entscheidungsschritt mit Timestamp geloggt
+* Input/Output und Begründungspfad aufgezeichnet
+
+|*Implementation:* Inference-Logging in Cloud-Provider-Tools aktivieren. X-Ray-Tracing konfigurieren. Agenten-Code mit Tracing-SDKs instrumentieren.
+|===
 
 == WAF-AGN-040 Memory & State Management
 
-Erinnerungen und Zustände müssen konsistent verwaltet werden.
+Erinnerungen und Zustände müssen konsistent verwaltet werden. Agenten-Memory muss versioniert sein und versionierte Memory-Stores müssen verwendet werden. State-Persistence muss so konfiguriert sein, dass Datenverlust verhindert wird. Memory-Änderungen müssen auditiert werden.
+
+[cols="1,2"]
+|===
+|Severity: High |Automatisierbar: High
+
+|*Key Requirements:*
+* Versionierter Memory-Speicher
+* Persistenter State-Speicher mit Backups
+* Audit-Logging für Memory-Änderungen
+
+|*Implementation:* DynamoDB-Tabellen mit Versionierung oder S3 mit Versionierung konfigurieren. Point-in-Time-Recovery aktivieren. Audit-Logging über Streams oder Trigger einrichten.
+|===
 
 == WAF-AGN-050 Safety & Guardrails
 
-Fail-Safe, Alignment und Verifikation müssen in place sein.
+Fail-Safe, Alignment und Verifikation müssen in place sein. Content-Filter müssen unangemessene Inhalte blockieren. Aktions-Boundaries müssen verhindern, dass Agenten unautorisierte Aktionen ausführen. Human-in-the-Loop muss für sensible Entscheidungen konfiguriert sein.
+
+[cols="1,2"]
+|===
+|Severity: High |Automatisierbar: Partial
+
+|*Key Requirements:*
+* Content-Filter für schädliche Inhalte
+* Aktions-Boundaries via IAM Least Privilege
+* Human-in-the-Loop für sensible Entscheidungen
+
+|*Implementation:* Bedrock Guardrails mit Content-Policies konfigurieren. Strikte IAM-Policies definieren. HIL für Finanz-, Rechts- oder personenbezogene Daten-Entscheidungen implementieren.
+|===
 
 == WAF-AGN-060 Multi-Agent Orchestration
 
-Viele Agenten müssen koordiniert werden.
+Viele Agenten müssen koordiniert werden. Agent-Orchestrierung muss Coordinator/Manager-Pattern oder Mesh-Architekturen verwenden. Event-basierte Kommunikation muss konfiguriert sein. Failure Recovery und Agent-Health-Monitoring müssen in place sein.
+
+[cols="1,2"]
+|===
+|Severity: Medium |Automatisierbar: Medium
+
+|*Key Requirements:*
+* Coordinator/Manager-Agent-Pattern
+* Event-basierte Kommunikation (SNS, SQS, EventBridge)
+* Failure Recovery mit Dead Letter Queues
+
+|*Implementation:* Coordinator-Agent entwerfen, der an spezialisierte Worker delegiert. SNS-Themen und SQS-Warteschlangen konfigurieren. DLQs und CloudWatch-Alarms einrichten.
+|===
 
 == WAF-AGN-070 Agent Observability
 
-Agentenaktivitäten müssen sichtbar und messbar sein.
+Agentenaktivitäten müssen sichtbar und messbar sein. Telemetrie muss für alle Agenten einschließlich Tokens, Latenz, GPU-Utilisierung und Entscheidungsmetriken gesammelt werden. Metrics müssen in ein Monitoring-System eingespeist werden. Distributed Tracing muss Agenten-Operationen end-to-end verknüpfen.
+
+[cols="1,2"]
+|===
+|Severity: Medium |Automatisierbar: High
+
+|*Key Requirements:*
+* Token-Usage-Metrics (Input, Output, Total)
+* Latenz-Tracking mit Anomalie-Alarms
+* Distributed Tracing (X-Ray/OpenTelemetry)
+
+|*Implementation:* CloudWatch-Metrics für Tokens und Latenz konfigurieren. X-Ray-Tracing aktivieren. Dashboards für Agent-Health-Monitoring erstellen.
+|===
 
 == WAF-AGN-080 Human-in-the-Loop
 
-Menschliche Genehmigung bei sensiblen Entscheidungen.
+Menschliche Genehmigung ist für sensible Entscheidungen erforderlich. Human-in-the-Loop-Workflows müssen für kritische Aktionen definiert sein. Approval-Workflows müssen mit Zeitstempeln und Identität des Genehmigers auditierbar sein. Notausstiegs-Mechanismen müssen existieren.
+
+[cols="1,2"]
+|===
+|Severity: High |Automatisierbar: Low–Medium
+
+|*Key Requirements:*
+* HIL für sensible Entscheidungstypen
+* Audit-Trail mit vollem Kontext
+* Notfall-Interventionsmechanismus
+
+|*Implementation:* HIL-Workflows in Bedrock konfigurieren. Audit-Logging für Genehmigungen implementieren. Not-Aus-Mechanismen mit klaren Verfahren definieren.
+|===
 
 == WAF-AGN-090 Cost & Performance Monitoring
 
-Agenten-Operationen müssen ökonomisch und performant sein.
+Agenten-Operationen müssen ökonomisch und performant sein. Token-Usage und Compute-Kosten müssen überwacht werden. Budget-Alerts müssen konfiguriert sein, um Kostenüberschreitungen zu verhindern. Modellauswahl muss für Kosten-Performance-Tradeoffs optimiert sein.
+
+[cols="1,2"]
+|===
+|Severity: Medium |Automatisierbar: High
+
+|*Key Requirements:*
+* Token-Usage-Tracking mit täglicher Aggregation
+* Budget-Alerts bei 50%, 75%, 90%, 100% Schwellenwerten
+* Caching zur Reduzierung redundanter API-Aufrufe
+
+|*Implementation:* AWS Cost Explorer Budgets konfigurieren. SNS-Alerts bei Budgetprozenten setzen. Caching-Layer für wiederholte Abfragen implementieren. Modellauswahl nach Aufgabenkomplexität optimieren.
+|===
 
 == WAF-AGN-100 Agent Debt Register
 
-Known Limitations müssen dokumentiert sein.
+Bekannte Agenten-Limitationen müssen dokumentiert sein. Limitationen umfassen: Wissens-Cutoff, Tool-Availability, Genauigkeits-Limitationen, Edge Cases und Failure Modes. Das Register muss vierteljährlich mit Verbesserungsplänen überprüft werden.
+
+[cols="1,2"]
+|===
+|Severity: Low |Automatisierbar: Partial
+
+|*Key Requirements:*
+* Agent Debt Register mit Dokumentation aller Limitationen
+* Jede Limitation mit Impact, Priorität, Target-Datum, Owner
+* Vierteljährliche Reviews mit Verbesserungsplänen
+
+|*Implementation:* Dokument oder Repository für Agent Debt Register erstellen. Limitationen nach Typ kategorisieren. Ownership und Prioritäten zuweisen. Vierteljährliche Reviews planen.
+|===
+
+== Control Summary
+
+[cols="1,2,2,1,1"]
+|===
+|Control ID |Titel |Kategorie |Severity |Automatisierbar
+
+|xref:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+|Agent Identity & Authentication
+|Agent Identity
+|High
+|High
+
+|xref:controls/WAF-AGN-020.adoc[WAF-AGN-020]
+|Tool Use Governance
+|Tool Governance
+|High
+|High
+
+|xref:controls/WAF-AGN-030.adoc[WAF-AGN-030]
+|Reasoning Transparency
+|Reasoning Transparency
+|Medium
+|Medium
+
+|xref:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+|Memory & State Management
+|Memory & State
+|High
+|High
+
+|xref:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+|Safety & Guardrails
+|Safety & Guardrails
+|High
+|Partial
+
+|xref:controls/WAF-AGN-060.adoc[WAF-AGN-060]
+|Multi-Agent Orchestration
+|Orchestration
+|Medium
+|Medium
+
+|xref:controls/WAF-AGN-070.adoc[WAF-AGN-070]
+|Agent Observability
+|Observability
+|Medium
+|High
+
+|xref:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+|Human-in-the-Loop
+|Human-in-the-Loop
+|High
+|Low–Medium
+
+|xref:controls/WAF-AGN-090.adoc[WAF-AGN-090]
+|Cost & Performance Monitoring
+|Cost & Performance
+|Medium
+|High
+
+|xref:controls/WAF-AGN-100.adoc[WAF-AGN-100]
+|Agent Debt Register
+|Agent Debt
+|Low
+|Partial
+
+|===

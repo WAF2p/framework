@@ -1,0 +1,192 @@
+# ID: WAF-AGN-030
+id: WAF-AGN-030
+pillar: agentic
+severity: medium
+type:
+  - governance
+  - configuration
+description: |
+  Agenten-Entscheidungen müssen nachvollziehbar sein – keine Black Box. Jeder Entscheidungsschritt MUSS protokolliert werden, einschließlich Chain of Thought, Begründung und Entscheidungsergebnis. Audit-Trails MÜSSEN den vollständigen Kontext der agenten-gestützten Entscheidungsfindung für Compliance und Debugging bewahren.
+regulatory_mapping:
+  - framework: 'ISO 27001:2022'
+    controls:
+      - 'A.8.1 – Information security roles and responsibilities'
+      - 'A.8.2 – Privileged access rights'
+  - framework: 'ISO 27017'
+    controls:
+      - 'CLD.9.5 – Segregation in virtual computing environments'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC4.1 – Monitoring activities'
+      - 'CC7.1 – Infrastructure and software monitoring'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'AU-2 – Event logging'
+      - 'AU-3 – Event content'
+      - 'AU-12 – Audit generation'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'DE.CM – Continuous monitoring'
+      - 'DE.DP – Data protection'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 32 – Security of processing'
+      - 'Art. 5(1)(f) – Integrity and confidentiality'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 6.4 – Secure development lifecycle'
+      - 'Req 10 – Monitor and detect threats'
+  - framework: 'CSA STAR'
+    controls:
+      - 'CCM Logging and Monitoring'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'OPS-01 – Operational monitoring'
+      - 'OPS-02 – Operational control'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Monitoring and logging'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Logging and monitoring'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Logboekhouding en monitoring'
+  - framework: 'ENS High'
+    controls:
+      - 'op.exp.6 – Gestión de cambios'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'A4 – Policy and assurance'
+  - framework: 'FedRAMP'
+    controls:
+      - 'AU-2, AU-3, AU-12 (Moderate baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'AU.L2-3.8.1 – Flow audit logs to central log management'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ORP.1 – Organisation'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Logging and monitoring'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'AU-2, AU-3 – Logging and audit'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.9 – Change management'
+  - framework: 'ISMAP'
+    controls:
+      - 'Monitoring and logging controls'
+  - framework: 'FISC'
+    controls:
+      - 'Technical measures – Logging and monitoring'
+checks:
+  - id: waf-agn-030.tf.aws.bedrock-agent-logging-enabled
+    engine: terraform
+    automated: true
+    title: 'AWS-Bedrock-Agenten-Reasoning muss protokolliert werden'
+    provider: aws
+    description: 'AWS-Bedrock-Agenten müssen Inference-Logging aktiviert haben, um Chain of Thought, Begründungsschritte und Entscheidungsergebnisse zu erfassen. Die Logs müssen Prompt, Modellantwort und Metadaten enthalten.'
+    expected: 'true'
+    remediation: 'Aktivieren Sie Inference-Logging in der AWS-Bedrock-Konsole oder über die API. Konfigurieren Sie eine CloudWatch-Log-Gruppe für Agenten-Inference-Logs. Setzen Sie die Log-Stufe auf INCLUDE_INFERENCES für die vollständige Chain of Thought.\n'
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "agent_reasoning" {
+          name = "/aws/bedrock/inference-logs/reasoning"
+        }
+
+        resource "aws_bedrockagent" "reasoning_agent" {
+          agent_name = "reasoning-enabled-agent"
+          # Logging über CloudWatch-Konfiguration aktiviert
+        }
+      non_compliant: |
+        resource "aws_bedrockagent" "no_reasoning_log" {
+          agent_name = "black-box-agent"
+          # Kein Reasoning-Logging konfiguriert
+          # WAF-AGN-030 Verstoß
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_bedrockagent
+        - aws_cloudwatch_log_group
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Agenten-Reasoning-Logging muss konfiguriert sein.'
+    on_fail: violation
+  - id: waf-agn-030.tf.google.vertex-agent-logging-enabled
+    engine: terraform
+    automated: true
+    title: 'Google-Vertex-AI-Agenten-Reasoning muss protokolliert werden'
+    provider: google
+    description: 'Google-Vertex-AI-Agenten müssen Debugging- und Reasoning-Logs aktiviert haben. Die Logs müssen Chain of Thought, Tool-Calls und Entscheidungspfade erfassen.'
+    expected: 'true'
+    remediation: 'Aktivieren Sie Cloud Logging für Vertex AI. Konfigurieren Sie Log-Include-Muster, um das Agenten-Reasoning zu erfassen. Setzen Sie die Log-Stufe auf DEBUG für volle Sichtbarkeit.\n'
+    example:
+      compliant: |
+        resource "google_logging_project_sink" "vertex_reasoning" {
+          name = "vertex-reasoning-logs"
+          destination = "logging.googleapis.com/projects/${data.google_project.project.id}/logs/vertex-ai-reasoning"
+          filter = "resource.type=vertex_ai.custom_model OR resource.type=vertex_ai.endpoint"
+        }
+
+        resource "google_vertex_ai_agent" "logging_agent" {
+          display_name = "reasoning-logged"
+        }
+      non_compliant: |
+        resource "google_vertex_ai_agent" "no_logging" {
+          display_name = "black-box"
+          # Kein Reasoning-Logging
+          # WAF-AGN-030 Verstoß
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - google_vertex_ai_agent
+        - google_logging_project_sink
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Agenten-Reasoning-Logging muss konfiguriert sein.'
+    on_fail: violation
+  - id: waf-agn-030.tf.aws.tracing-enabled
+    engine: terraform
+    automated: true
+    title: 'Distributed Tracing muss für Agenten aktiviert sein'
+    provider: aws
+    description: 'Agenten-Operationen müssen mittels AWS X-Ray oder ähnlichem Distributed Tracing nachvollzogen werden. Traces müssen Agenten-ID, Operationstyp, Latenz und Entscheidungspunkte enthalten.'
+    expected: 'true'
+    remediation: 'Aktivieren Sie X-Ray-Tracing für Bedrock-Agenten-Aufrufe. Verwenden Sie das AWS SDK mit aktiviertem Tracing (Umgebungsvariable AWS_XRAY_TRACING_NAME). Instrumentieren Sie Agenten-Code mit dem X-Ray SDK.\n'
+    example:
+      compliant: |
+        resource "aws_lambda_function" "agent_handler" {
+          function_name = "agent-handler"
+          # Tracing über Umgebungsvariable aktiviert
+          environment {
+            variables = {
+              AWS_XRAY_TRACING_NAME = "agent-service"
+            }
+          }
+        }
+      non_compliant: |
+        resource "aws_lambda_function" "untraced" {
+          function_name = "untraced-agent"
+          # Kein X-Ray-Tracing aktiviert
+          # WAF-AGN-030 Verstoß
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_lambda_function
+        - aws_bedrockagent
+    assertions:
+      - attribute: 'environment.variables.AWS_XRAY_TRACING_NAME'
+        op: 'not_empty'
+        message: 'Distributed Tracing muss über X-Ray aktiviert sein.'
+    on_fail: violation

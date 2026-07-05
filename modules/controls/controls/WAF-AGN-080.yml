@@ -1,0 +1,266 @@
+# ID: WAF-AGN-080
+id: WAF-AGN-080
+pillar: agentic
+severity: high
+type:
+  - governance
+  - configuration
+description: |
+  Für sensible Entscheidungen MUSS eine menschliche Genehmigung erforderlich sein. Human-in-the-Loop-Workflows müssen für kritische Aktionen definiert sein. Genehmigungsworkflows müssen mit Zeitstempeln und Identität des Genehmigers auditierbar sein. Notausstiegs-Mechanismen müssen für Eingriffe in Notsituationen vorhanden sein.
+regulatory_mapping:
+  - framework: 'ISO 27001:2022'
+    controls:
+      - 'A.8.2 – Privileged access rights'
+      - 'A.8.3 – Information access restriction'
+      - 'A.13.1.1 – Control of information in sessions'
+  - framework: 'ISO 27017'
+    controls:
+      - 'CLD.9.5 – Segregation in virtual computing environments'
+  - framework: 'CIS Controls v8'
+    controls:
+      - 'CIS 5 – Account Management'
+      - 'CIS 6 – Access Control Management'
+  - framework: 'SOC 2 Type II'
+    controls:
+      - 'CC4.1 – Monitoring activities'
+      - 'CC6.1 – Logical access security'
+  - framework: 'NIST SP 800-53'
+    controls:
+      - 'AC-2 – Account Management'
+      - 'AC-6 – Least Privilege'
+      - 'AU-2 – Event logging'
+  - framework: 'NIST CSF 2.0'
+    controls:
+      - 'PR.AA-01 – Identities and credentials are managed'
+      - 'DE.CM – Continuous monitoring'
+  - framework: 'GDPR'
+    controls:
+      - 'Art. 32 – Security of processing'
+      - 'Art. 22 – Automated individual decision-making'
+      - 'Art. 5(1)(f) – Integrity and confidentiality'
+  - framework: 'PCI DSS v4.0'
+    controls:
+      - 'Req 7 – Restrict access by business need to know'
+      - 'Req 8 – Identify and authenticate access'
+  - framework: 'CSA STAR'
+    controls:
+      - 'CCM IAM-09 – User Access Authorization'
+      - 'CCM Logging and Monitoring'
+  - framework: 'BSI C5:2020'
+    controls:
+      - 'IDM-01 – Identity and access management policy'
+      - 'OPS-01 – Operational monitoring'
+  - framework: 'TISAX'
+    controls:
+      - 'Information security – Monitoring and logging'
+      - 'Information security – Access rights management'
+  - framework: 'ANSSI SecNumCloud'
+    controls:
+      - 'Domain – Access management'
+      - 'Domain – Logging and monitoring'
+  - framework: 'BIO'
+    controls:
+      - 'BIO – Logboekhouding en monitoring'
+      - 'BIO – Toegangsrechten en autorisatiebeheer'
+  - framework: 'ENS High'
+    controls:
+      - 'op.acc.4 – Proceso de gestión de derechos de acceso'
+      - 'op.exp.6 – Gestión de cambios'
+  - framework: 'UK NCSC CAF'
+    controls:
+      - 'B2.a – Identity verification and authorisation'
+      - 'A4 – Policy and assurance'
+  - framework: 'FedRAMP'
+    controls:
+      - 'AC-2, AC-6, AU-2 (Moderate baseline)'
+  - framework: 'CMMC 2.0'
+    controls:
+      - 'AC.L2-3.1.1 – Limit system access to authorized users'
+      - 'AU.L2-3.8.1 – Flow audit logs to central log management'
+  - framework: 'IT-Grundschutz'
+    controls:
+      - 'ORP.4 – Identitäts- und Berechtigungsmanagement'
+      - 'ORP.1 – Organisation'
+  - framework: 'IRAP'
+    controls:
+      - 'ISM – Access control – Privileged access'
+      - 'ISM – Logging and monitoring'
+  - framework: 'CCCS PBMM'
+    controls:
+      - 'AC-2, AC-6 – Account and authenticator management'
+      - 'AU-2 – Logging and audit'
+  - framework: 'MAS TRM'
+    controls:
+      - 'Ch.6 – Access control'
+      - 'Ch.9 – Change management'
+  - framework: 'ISMAP'
+    controls:
+      - 'Access control and monitoring controls'
+  - framework: 'FISC'
+    controls:
+      - 'Technical measures – Access control and monitoring'
+checks:
+  - id: waf-agn-080.tf.aws.human-in-the-loop-approved-decisions
+    engine: terraform
+    automated: true
+    title: 'Human-in-the-Loop muss für sensible Entscheidungen konfiguriert sein'
+    provider: aws
+    description: 'Für Hochrisiko-Agenten-Entscheidungen (Finanztransaktionen, rechtliche Entscheidungen, Änderungen personenbezogener Daten) MUSS eine menschliche Genehmigung erforderlich sein. Der Genehmigungsworkflow muss Identität des Genehmigers, Zeitstempel und Begründung der Entscheidung erfassen.'
+    expected: 'true'
+    remediation: 'Konfigurieren Sie AWS-Bedrock-Human-in-the-Loop für sensible Entscheidungstypen. Definieren Sie Scopes, die eine menschliche Prüfung erfordern. Konfigurieren Sie Genehmigungskanäle (E-Mail, Slack, individuelles UI). Speichern Sie Genehmigungsaufzeichnungen im Audit-Log.\n'
+    example:
+      compliant: |
+        resource "aws_bedrock_guardrail" "sensitive_actions" {
+          name = "sensitive-actions-guardrail"
+
+          sensitive_information_policy {
+            medical_information = {
+              detect_masked = true
+            }
+            pii_entity_type = {
+              detect_masked = true
+            }
+            financial_information = {
+              detect_masked = true
+            }
+          }
+
+          inappropriate_content_policy {
+            hate = {
+              detect_masked = true
+            }
+            sexual = {
+              detect_masked = true
+            }
+            violent = {
+              detect_masked = true
+            }
+            mix = {
+              detect_masked = true
+            }
+          }
+        }
+
+        resource "aws_bedrockagent" "hitable_agent" {
+          agent_name = "sensitive-agent"
+
+          guardrail_configuration {
+            guardrail_arn = aws_bedrock_guardrail.sensitive_actions.arn
+            guardrail_version = "DRAFT"
+          }
+
+          human_interaction_configuration {
+            human_interpretation_prompt = "Prüfen Sie die Agenten-Entscheidung vor Ausführung"
+            human_interpretation_timeout = 7200
+            human_interpretation_output_context_name = "human_approval"
+          }
+        }
+      non_compliant: |
+        resource "aws_bedrockagent" "fully_automated" {
+          agent_name = "no-human-in-loop"
+          # Kein Human-in-the-Loop für sensible Aktionen
+          # WAF-AGN-080 Verstoß
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_bedrock_guardrail
+        - aws_bedrockagent
+    assertions:
+      - attribute: 'human_interaction_configuration'
+        op: 'attribute_exists'
+        message: 'Human-in-the-Loop muss für sensible Entscheidungen konfiguriert sein.'
+    on_fail: violation
+  - id: waf-agn-080.tf.aws.approval-audit-logging
+    engine: terraform
+    automated: true
+    title: 'Menschliche Genehmigungen müssen mit vollem Kontext auditiert werden'
+    provider: aws
+    description: 'Alle menschlichen Genehmigungen müssen mit Zeitstempel, Identität des Genehmigers, Entscheidungstyp, Input-Kontext und Genehmigungs-/Ablehnungsentscheidung protokolliert werden. Logs müssen unveränderlich und getrennt von Agenten-Logs gespeichert werden.'
+    expected: 'true'
+    remediation: 'Konfigurieren Sie CloudWatch Logs für Genehmigungsereignisse mit vollständigen Metadaten. Verwenden Sie CloudTrail für API-Level-Genehmigungsverfolgung. Implementieren Sie Log-Verschlüsselung und Zugriffskontrollen für Audit-Integrität.\n'
+    example:
+      compliant: |
+        resource "aws_cloudwatch_log_group" "approval_audit" {
+          name = "/aws/bedrock/approval-audit"
+          kms_key_id = aws_kms_key.log_encryption.arn
+          retention_in_days = 365
+        }
+
+        resource "aws_cloudwatch_log_metric_filter" "approvals" {
+          name = "approval-metric"
+
+          log_group_name = aws_cloudwatch_log_group.approval_audit.name
+
+          pattern = "{ $.event_type = \"human_approval\" }"
+
+          metric_transformations {
+            metric_name      = "HumanApprovals"
+            metric_namespace = "AuditMetrics"
+            metric_value     = "1"
+          }
+        }
+      non_compliant: |
+        # Kein Genehmigungs-Audit-Logging
+        # WAF-AGN-080 Verstoß
+        # Menschliche Entscheidungen nicht auditierbar
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_cloudwatch_log_group
+        - aws_cloudwatch_log_metric_filter
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Genehmigungs-Audit-Logging muss konfiguriert sein.'
+    on_fail: violation
+  - id: waf-agn-080.tf.aws.emergency-escape-hatch
+    engine: terraform
+    automated: true
+    title: 'Notausstiegs-Mechanismus muss für Agenten-Eingriffe vorhanden sein'
+    provider: aws
+    description: 'Es muss einen Notausstiegs-Mechanismus für sofortiges menschliches Eingreifen geben. Dies kann ein Stop-Button, ein Override-Befehl oder ein Notabschaltmechanismus über Konsole oder API sein.'
+    expected: 'true'
+    remediation: 'Konfigurieren Sie einen Notstop-Mechanismus, der über AWS-Konsole, CLI oder API erreichbar ist. Definieren Sie Verfahren für Notfalleingriffe. Dokumentieren Sie Zugriff und Aktivierungsverfahren für den Notausstieg.\n'
+    example:
+      compliant: |
+        resource "aws_iam_policy" "emergency_stop" {
+          name = "emergency-stop-policy"
+
+          policy = jsonencode({
+            Version = "2012-10-17"
+            Statement = [{
+              Effect = "Allow"
+              Action = [
+                "bedrock:StopInferenceResource",
+                "lambda:StopFunction",
+                "ecs:StopTask"
+              ]
+              Resource = [
+                "arn:aws:bedrock:*:*:inference-resource/*",
+                "arn:aws:lambda:*:*:function:*-emergency-stop"
+              ]
+            }]
+          })
+        }
+
+        resource "aws_sns_topic" "emergency_alerts" {
+          name = "emergency-agent-alerts"
+        }
+      non_compliant: |
+        # Kein Notausstiegs-Mechanismus
+        # WAF-AGN-080 Verstoß
+        # Kein Eingreifen in Notfällen möglich
+
+    scope:
+      block_type: resource
+      resource_types:
+        - aws_iam_policy
+        - aws_sns_topic
+    assertions:
+      - attribute: 'name'
+        op: 'not_empty'
+        message: 'Notausstiegs-Mechanismus muss konfiguriert sein.'
+    on_fail: violation

@@ -1,18 +1,272 @@
 = WAF-AGN-010 – Agent Identity & Authentication
-:page-navtitle: AGN-010
 :page-toc: right
-:description: WAF++ – Control AGN-010: Agent Identity & Authentication.
+:control-id: WAF-AGN-010
+:pillar: agentic
+:severity: high
+:category: agent-identity
+:automated: high
+:description: WAF++ Agentic – Jeder Agent muss identifizierbar, authentifizierbar und nachvollziehbar sein.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* High | *Category:* Agent Identity | *Automatisierbar:* High
 
 == Beschreibung
 
-Jeder Agent muss identifizierbar, authentifizierbar und nachvollziehbar sein.
+Jeder Agent muss identifizierbar, authentifizierbar und nachvollziehbar sein. Agenten müssen eindeutige, stabile IDs haben. Die Authentifizierung über Token oder Zertifikate ist für alle Agenten-Kommunikationen verpflichtend. Alle Agenten-Interaktionen müssen in einem Audit-Trail für Sicherheit und Compliance geloggt werden.
+
+== Begründung
+
+Agenten, die ohne Identität oder Authentifizierung betrieben werden, setzen erhebliche Sicherheitsrisiken frei. Nicht identifizierbare Agenten machen es unmöglich, böswillige Aktivitäten zurückzuverfolgen, Zugriffe zu widerrufen oder forensische Untersuchungen durchzuführen. Audit-Logs sind für die Einhaltung von Sicherheitsrahmenwerken und für das Verständnis von Agentenverhalten essenziell.
+
+Key Risiken ohne ordentliche Agenten-Identität:
+
+[cols="1,3"]
+|===
+|Risk |Beschreibung
+
+|*Nicht erkannte Kompromittierung*
+|Böswillige Agenten können nicht identifiziert oder auf ihre Quelle zurückverfolgt werden.
+
+|*Accountability-Lücke*
+|Wenn Agenten Entscheidungen treffen oder Vorfälle verursachen, gibt es keine Möglichkeit, festzustellen, welcher Agent oder welches Team verantwortlich ist.
+
+|*Compliance-Verstoß*
+|Regulatorische Rahmenwerke erfordern Audit-Logs für automatisierte Systeme; nicht identifizierbare Agenten führen zu Non-Compliance.
+
+|*Fehlende Zugangskontrolle*
+|Ohne Authentifizierung gibt es keine Möglichkeit, den Least-Privilege-Zugriff für Agenten durchzusetzen.
+
+|===
 
 == Anforderungen
 
-* Agenten-ID ist unique und stabil
-* Authentifizierung über Token oder Zertifikate
-* Audit-Log für alle Agenten-Interaktionen
+* Agenten-ID muss eindeutig und stabil über den gesamten Agenten-Lebenszyklus hinweg sein
+* Authentifizierung über IAM-Rollen, API-Schlüssel oder Zertifikate für alle Agenten-Kommunikationen
+* Audit-Log muss alle Agenten-Interaktionen erfassen (Input, Output, Tool-Calls, Entscheidungen)
+* Agenten-Interaktionen müssen Timestamp, Agenten-ID und Ergebnisstatus enthalten
+* Zugangskontrollen müssen pro Agenten-ID durchgesetzt werden
 
-== Severity: High
+== Implementierungshinweise
 
-== Automatisierbar: High
+. *Eindeutige Identifikatoren zuweisen:* Agenten-Name/ID in der Plattform konfigurieren (Bedrock, Vertex AI, Azure AI)
+. *Authentifizierung konfigurieren:* IAM-Rollen, Service-Accounts oder API-Schlüssel für Agenten-Zugriff verwenden
+. *Audit-Logging aktivieren:* CloudWatch Logs, Cloud Logging oder Application Insights konfigurieren
+. *Agenten-Inventar dokumentieren:* Register aller Agenten mit ihren IDs und Konfigurationen pflegen
+. *Mit SIEM integrieren:* Agenten-Logs an zentrales Security Information System weiterleiten
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Keine Identität
+|Agenten operieren anonym oder mit flüchtigen IDs. Keine Authentifizierung erforderlich.
+
+|*2*
+|Basis-Identifikation
+|Agenten haben Namen, aber keine konsistente ID über Sitzungen hinweg. Einfache Authentifizierung.
+
+|*3*
+|Vollständige Identität & Authentifizierung
+|Stabile Agenten-IDs mit IAM/Service-Account-Authentifizierung. Alle Interaktionen geloggt.
+
+|*4*
+|Automatisierter Audit-Trail
+|Logs werden automatisch an SIEM weitergeleitet. Anomalie-Erkennung auf Agentenverhalten.
+
+|*5*
+|Intelligente Überwachung
+|Verhaltens-Baselining für Agenten. Automatische Erkennung von Identitätsanomalien.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-010.tf.aws.bedrock-agent-id-defined
+*Prüft:* AWS Bedrock Agenten haben eindeutige Identifikatoren und Authentifizierung konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_bedrockagent" "customer_support_agent" {
+  agent_name = "customer-support-agent"
+  description = "Agent für Kundenanfragen"
+
+  agent_resources = [{
+    model_arn = aws_bedrockfoundationmodel.claude.arn
+  }]
+}
+----
+|Kein Agent definiert – unauthentifizierter Zugriff
+|===
+
+=== waf-agn-010.tf.google.vertex-agent-id-defined
+*Prüft:* Google Vertex AI Agenten haben eindeutige Identifikatoren konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_vertex_ai_agent" "fraud_detection" {
+  display_name = "fraud-detection-agent"
+  description  = "Agent für Betrugserkennung"
+}
+----
+|Kein Agent definiert – unauthentifizierter Zugriff
+|===
+
+=== waf-agn-010.tf.azure.ai-agent-id-defined
+*Prüft:* Azure AI Agenten haben eindeutige Identifikatoren konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_cognitive_deployment" "agent" {
+  name                       = "customer-service-agent"
+  cognitive_account_id       = azurerm_cognitive_account.main.id
+  model_name                 = "gpt-4"
+  format                     = "OpenAI"
+}
+----
+|Kein Agent definiert – unauthentifizierter Zugriff
+|===
+
+=== waf-agn-010.audit.agent-interactions-logged
+*Prüft:* Agenten-Interaktionen werden in Audit-Trail geloggt.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+# Agenten-Logs sind konfiguriert und fließen zum Audit-System
+# CloudWatch Log Group: /aws/bedrock/*
+# Cloud Logging: vertex-ai-agent-logs
+# Application Insights: agent-interaction-data
+----
+|Kein Audit-Logging konfiguriert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|Agenten-Konfigurationsdateien mit eindeutigen Identifikatoren (aws_bedrockagent, google_vertex_ai_agent).
+
+|*Konfig*
+|✅ Erforderlich
+|IAM-Rollen-Bindings, Service-Account-Konfiguration, API-Schlüssel-Setup.
+
+|*Prozess*
+|✅ Erforderlich
+|Agenten-Inventar-Register mit eindeutigen IDs und Authentifizierungsdetails.
+
+|*Governance*
+|Optional
+|Agenten-Identitätsmanagement-Policy, die Anforderungen dokumentiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
+* xref:controls/WAF-AGN-080.adoc[WAF-AGN-080 – Human-in-the-Loop]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.2 – Privilegierte Zugriffsrechte; A.8.5 – Sichere Authentifizierung; A.5.17 – Authentifizierungsinformation
+
+|*NIST SP 800-53*
+|AC-2 – Kontoverwaltung; IA-2 – Identifikation und Authentifizierung
+
+|*NIST CSF 2.0*
+|PR.AA-01 – Identitäten und Credentials werden verwaltet; PR.AA-03 – Benutzer, Dienste und Hardware werden authentifiziert
+
+|*GDPR*
+|Art. 32 – Sicherheit der Verarbeitung; Art. 5(1)(f) – Integrität und Vertraulichkeit
+
+|*PCI DSS v4.0*
+|Req 7 – Zugriff nach Geschäftsbedürfnis beschränken; Req 8 – Zugriff identifizieren und authentifizieren
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Identität und Zugriffsverwaltung
+
+|*Google Cloud Architecture Framework*
+|Identität und Zugriffsverwaltung – Agenten-Sicherheit
+
+|*TISAX*
+|Informationssicherheit – Anforderungen an Identitäts- und Zugriffsverwaltung
+
+|*ANSSI SecNumCloud*
+|Domain – Identitäts- und Zugriffsverwaltung
+
+|*BIO*
+|BIO – Logische toegangsbeveiliging (logische Zugangssicherung)
+
+|*ENS High*
+|op.acc.5 – Mecanismo de autenticación; op.acc.7 – Gestión de privilegios
+
+|*UK NCSC CAF*
+|B2 – Identität und Zugriffskontrolle
+
+|*FedRAMP*
+|AC-2, IA-2 (Moderate/High Baseline)
+
+|*CMMC 2.0*
+|AC.L2-3.1.1 – Systemzugriff auf autorisierte Nutzer beschränken; IA.L2-3.5.3 – Multifaktor-Authentifizierung
+
+|*IT-Grundschutz*
+|ORP.4 – Identitäts- und Berechtigungsmanagement
+
+|*IRAP*
+|ISM – Identifikation und Authentifizierung
+
+|*CCCS PBMM*
+|AC-2, IA-2 – Konten- und Authenticator-Verwaltung
+
+|*MAS TRM*
+|Ch.6 – Zugriffskontrolle
+
+|*ISMAP*
+|Identitäts- und Zugriffsverwaltungs-Controls
+
+|*FISC*
+|Technische Maßnahmen – Benutzer-Authentifizierung und Zugriffskontrolle
+
+|*DORA*
+|Art. 9 – Schutz und Prävention
+
+|*EUCS (ENISA)*
+|IAM-01 – Identitäts- und Zugriffsverwaltung; IAM-02 – Authentifizierungscontrols
+
+|*BSI C5:2020*
+|IDM-01 – Identitäts- und Zugriffsverwaltungspolicy; IDM-02 – Authentifizierung von Benutzern
+
+|*SOC 2 Type II*
+|CC6.1 – Logische und physische Zugriffskontrollen; CC6.2 – Bereitstellung und Entzug von Zugriffen
+
+|*CSA STAR*
+|CCM IAM-01 – Identitäts- und Zugriffsverwaltungspolicy; CCM IAM-02 – Starke Passwortrichtlinie
+
+|===

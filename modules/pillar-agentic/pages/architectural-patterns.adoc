@@ -2,14 +2,14 @@
 :page-toc: right
 :description: WAF++ – Typische Architektur-Patterns für Agentic-Systeme.
 
-== Ein-Agenten-Architektur
+== Single Agent Architecture
 
-Ein einzelner Agent mit klarer Verantwortung.
+Einzelner Agent mit klarer Verantwortung.
 
 *Vorteile*: Einfachheit, schnelle Implementierung
 *Nachteile*: Eingeschränkte Komplexität
 
-== Multi-Agenten-Orchestrierung
+== Multi-Agent Orchestration
 
 Coordinator/Manager steuert Worker-Agenten.
 
@@ -30,3 +30,161 @@ Menschliche Genehmigung bei sensiblen Entscheidungen.
 == Empfehlung für Start
 
 Beginnen Sie mit Single Agent oder kleiner Swarm. Erst spät ist ein full Mesh sinnvoll.
+
+== Empfohlenes Standard-Pattern: Coordinator/Manager
+
+Das Coordinator/Manager-Pattern bietet einen ausgewogenen Ansatz für die meisten Production-Szenarien:
+
+* *Zentrale Kontrolle*: Ein Manager-Agent koordiniert alle Worker-Agenten
+* *Spezialisierung*: Jeder Worker ist auf einen spezifischen Bereich spezialisiert
+* *Skalierbarkeit*: Neue Worker können leicht hinzugefügt werden
+* *Fehlertrennung*: Ausfall eines Workers beeinträchtigt andere nicht
+* *Verwaltbarkeit*: Einfacher zu verwalten als volle Mesh-Architektur
+
+=== Coordinator-Pattern Architektur
+
+[cols="1,2"]
+|===
+|Komponente |Beschreibung
+
+|*Coordinator/Manager*
+|Zentrale Entscheidungskomponente. Delegiert Aufgaben an Worker.
+
+|*Worker-Agenten*
+|Spezialisierte Agenten, die spezifische Tasks ausführen.
+
+|*Event-Bus*
+|Kommunikationskanal zwischen Coordinator und Worker (SNS, SQS, Pub/Sub).
+
+|*Shared State*
+|Persistenter Speicher für Koordinations- und Worker-Status.
+
+|*Monitoring*
+|Observability-System für alle Agenten-Operationen.
+
+|===
+
+=== Coordinator-Muster Implementierung
+
+[cols="1,2"]
+|===
+|Best Practice |Beschreibung
+
+|*Klare Trennung*
+|Coordinator hat keine Domain-Logik. Er delegiert nur.
+
+|*Idempotenz*
+|Worker-Aktionen sind idempotent für Retry-Fähigkeit.
+
+|*Heartbeat*
+|Worker senden periodisch Heartbeats zur Health-Überwachung.
+
+|*Fail-Safe*
+|Coordinator erkennt Worker-Ausfall und delegiert tasks neu.
+
+|*Rate Limiting*
+|Coordinator施加_limits auf Worker-Aufrufe, um Missbrauch zu verhindern.
+
+|===
+
+== Pattern-Auswahl-Entscheidungsrahmen
+
+[cols="1,2,2,2,2"]
+|===
+|Faktor |Single Agent |Swarm |Mesh |Coordinator
+
+|*Workload-Komplexität*
+|Einfach, einzelne Domäne
+|Parallelisierbar, homogen
+|Komplex, multi-Domäne
+|Komplex, multi-Domäne
+
+|*Skalierbarkeitsanforderungen*
+|Niedrig bis moderat
+|Hoch (viele Agenten erforderlich)
+|Hoch (viele Agenten erforderlich)
+|Hoch (viele Agenten erforderlich)
+
+|*Koordinationsbedarf*
+|Keine
+|Basic (Load-Balancing)
+|Hoch (Orchestrierung)
+|Hoch (Orchestrierung)
+
+|*Implementierungsaufwand*
+|Niedrig
+|Middle
+|Hoch
+|Middle
+
+|*Empfohlen für Production?*
+|Nur einfache Use Cases
+|Ja, mit Orchestrierung
+|Nur bei extremen Anforderungen
+|Ja, als Standardansatz
+
+|===
+
+== Implementierungsrichtlinien
+
+=== 1. Start einfach
+
+Beginnen Sie mit einem einzelnen Agenten für einfache Aufgaben. Erweitere erst, wenn Komplexität es erfordert.
+
+### Empfohlener Start:
+- Einfacher Customer-Support-Agent
+- Einzelner Data-Analysis-Agent
+- Single Task-Orchestrierung
+
+=== 2. Orchestrierung hinzufügen
+
+Fügen Sie Orchestrierung hinzu, wenn:
+- Multiple Agenten benötigt werden
+- Task-Delegation erforderlich ist
+- Result-Aggregation notwendig ist
+
+### Orchestrierungsmuster:
+- Coordinator/Manager Pattern (empfohlen)
+- Event-basierte Kommunikation
+- Message Queues für Entkopplung
+
+=== 3. Mesh-Architektur spät einführen
+
+Full Mesh-Architekturen erfordern:
+- Hohe Komplexität in Orchestrierung
+- Umfassende Governance
+- Expertenwissen in Multi-Agent-Systemen
+
+### Mesh-Nutzen:
+- Nur wenn extreme Flexibilität erforderlich ist
+- Nur mit starkem Governance-Frame
+- Nur mit ausgereifter Observabilität
+
+=== 4. Sicherheit von Anfang an
+
+Designen Sie mit Sicherheit von Tag eins:
+
+- Identitätsverwaltung für alle Agenten
+- Werkzeug-Governance für alle
+- Human-in-the-Loop für sensible Entscheidungen
+- Fail-Safe-Mechanismen für alle Agenten
+
+=== 5. Observabilität als First-Class
+
+Observabilität ist nicht optional:
+
+- Logging für alle Agenten-Aktionen
+- Tracing über alle Agenten hinweg
+- Metrics für Performance und Kosten
+- Dashboards für Monitoring und Alerting
+
+== Zusammenfassung
+
+Die richtige Architektur-Pattern-Auswahl ist entscheidend für den Erfolg agentic Systeme:
+
+1. **Single Agent** - Für einfache, einzelne Use Cases
+2. **Swarm** - Für skalierbare, parallele Workloads
+3. **Mesh** - Für komplexe, multi-Domänen-Workflows
+4. **Coordinator** - Für ausgewogene Production-Implementierungen (empfohlen)
+
+Starten Sie einfach, bauen Sie Orchestrierung inkrementell auf, und führen Sie komplexe Pattern nur ein, wenn sie wirklich benötigt werden.

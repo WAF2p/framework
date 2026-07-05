@@ -1,18 +1,293 @@
 = WAF-AGN-070 – Agent Observability
-:page-navtitle: AGN-070
 :page-toc: right
-:description: WAF++ – Control AGN-070: Agent Observability.
+:control-id: WAF-AGN-070
+:pillar: agentic
+:severity: medium
+:category: observability
+:automated: high
+:description: WAF++ Agentic – Agentenaktivitäten müssen sichtbar und messbar sein. Telemetrie, Metrics und Tracing müssen konfiguriert sein.
+
+[.metadata]
+*Pillar:* Agentic | *Severity:* Medium | *Category:* Observability | *Automatisierbar:* High
 
 == Beschreibung
 
-Agentenaktivitäten müssen sichtbar und messbar sein.
+Agentenaktivitäten müssen sichtbar und messbar sein. Telemetrie muss für alle Agenten einschließlich Tokens, Latenz, GPU-Utilisierung und Entscheidungsmetriken gesammelt werden. Metrics müssen in ein Monitoring-System eingespeist werden. Distributed Tracing muss Agenten-Operationen end-to-end verknüpfen.
+
+== Begründung
+
+Ohne Observabilität werden Agenten-Operationen zu einem Black Box:
+
+*Performance-Probleme:* Latenz-Spikes, Token-Verschwendung oder Modell-Degradation können nicht erkannt werden.
+
+*Budgetüberschreitungen:* Keine Sichtbarkeit in Token-Verbrauch führt zu unerwarteten Kosten.
+
+*Schwieriges Debugging:* Wurzelursachen von Agenten-Ausfällen können ohne Logs nicht identifiziert werden.
+
+*Compliance-Lücken:* Viele Frameworks erfordern Monitoring automatisierter Systeme.
+
+*Verpasste Optimierungschancen:* Verbesserungsbereiche können ohne Metrics nicht identifiziert werden.
 
 == Anforderungen
 
-* Telemetrie für alle Agenten
-* Metrics: Tokens, Latenz, GPU-Utilisierung
-* Distributed Tracing
+* Token-Usage-Metrics (Input, Output, Total) müssen gesammelt werden
+* Latenz-Metrics müssen verfolgt und bei Anomalien alarmiert werden
+* GPU/CPU-Utilisierung muss für compute-intensive Agenten überwacht werden
+* Fehlerquoten und Fehlerarten müssen verfolgt werden
+* Distributed Tracing muss Operationen end-to-end verknüpfen
 
-== Severity: Medium
+== Implementierungshinweise
 
-== Automatisierbar: High
+. *Metrics-Sammlung einrichten:* CloudWatch, Prometheus oder Drittanbieter-Monitoring konfigurieren
+. *Dashboards erstellen:* Agent-Health-Dashboards für Monitoring-Teams bauen
+. *Alerts konfigurieren:* Alarms für ungewöhnliche Muster (hohe Latenz, hohe Fehler)
+. *Tracing implementieren:* X-Ray oder OpenTelemetry für Request-Tracking verwenden
+. *Baseline-Metrics dokumentieren:* Normalbereiche für Vergleich etablieren
+
+== Reifegradstufen
+
+[cols="1,2,3"]
+|===
+|Level |Name |Kriterien
+
+|*1*
+|Keine Observabilität
+|Keine Metrics. Kein Logging. Keine Sichtbarkeit in Agenten-Operationen.
+
+|*2*
+|Basis-Logging
+|Basic Request/Response-Logging. Minimale Metrics.
+
+|*3*
+|Vollständige Telemetrie
+|Token-Metrics, Latenz, Fehler werden alle gesammelt. Dashboards konfiguriert.
+
+|*4*
+|Proaktives Monitoring
+|Alerts bei Anomalien. Automatische Skalierung basierend auf Last.
+
+|*5*
+|Predictive Observability
+|AI-Modelle vorhersagen Probleme, bevor sie auftreten.
+
+|===
+
+== Terraform Checks
+
+=== waf-agn-070.tf.aws.metrics-configured
+*Prüft:* Agenten-Metrics sind konfiguriert (Tokens, Latenz, GPU-Utilisierung).
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_cloudwatch_metric_alarm" "agent_latency" {
+  alarm_name          = "agent-latency-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "Latency"
+  namespace           = "AWS/Bedrock"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 5000
+  unit                = "Milliseconds"
+}
+
+resource "aws_cloudwatch_metric_alarm" "agent_tokens" {
+  alarm_name          = "agent-token-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "TokenCount"
+  namespace           = "AWS/Bedrock"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 100000
+  unit                = "Count"
+}
+----
+|Keine Metrics-Alarms konfiguriert
+|===
+
+=== waf-agn-070.tf.aws.distributed-tracing-enabled
+*Prüft:* Distributed Tracing (X-Ray) ist für Agenten-Operationen aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "aws_lambda_function" "agent_traced" {
+  function_name = "agent-traced"
+  environment {
+    variables = {
+      AWS_XRAY_TRACING_NAME = "agent-service"
+    }
+  }
+}
+----
+|Kein Tracing aktiviert
+|===
+
+=== waf-agn-070.tf.google.tracing-enabled
+*Prüft:* Google Cloud Trace ist für Agenten-Operationen aktiviert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "google_cloud_run_service" "agent" {
+  name     = "agent-service"
+  location = "us-central1"
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/project/agent"
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+----
+|Kein Trace konfiguriert
+|===
+
+=== waf-agn-070.tf.azure.app-insights
+*Prüft:* Azure Application Insights ist für Agenten konfiguriert.
+
+[cols="1,1"]
+|===
+|Compliant |Nicht compliant
+
+a|[source,hcl]
+----
+resource "azurerm_application_insights" "agent_ai" {
+  name                = "agent-insights"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  workspace_id        = azurerm_log_analytics_workspace.main.id
+}
+
+resource "azurerm_cognitive_deployment" "agent" {
+  name                 = "traced-agent"
+  application_insights_enabled = true
+}
+----
+|Kein Application Insights konfiguriert
+|===
+
+== Evidenz
+
+[cols="1,1,2"]
+|===
+|Typ |Erforderlich |Beschreibung
+
+|*IaC*
+|✅ Erforderlich
+|CloudWatch Alarms, X-Ray-Konfiguration, Metric-Definitionen.
+
+|*Konfig*
+|✅ Erforderlich
+|Monitoring-Dashboards, Alert-Schwellenwerte, Sampling-Raten.
+
+|*Prozess*
+|✅ Erforderlich
+|Metric-Analyseberichte, Alert-Response-Runbooks, Performance-Baselines.
+
+|*Governance*
+|✅ Erforderlich
+|Observability-Policy, die Anforderungen und Monitoring-Standards definiert.
+
+|===
+
+== Verwandte Controls
+
+* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
+* xref:controls/WAF-AGN-040.adoc[WAF-AGN-040 – Memory & State Management]
+* xref:controls/WAF-AGN-090.adoc[WAF-AGN-090 – Cost & Performance Monitoring]
+
+== Regulatorische Zuordnung
+
+[cols="1,2"]
+|===
+|Rahmenwerk |Controls
+
+|*ISO 27001:2022*
+|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+
+|*NIST SP 800-53*
+|AU-2 – Event logging; AU-3 – Event content; SI-4 – Information system monitoring
+
+|*NIST CSF 2.0*
+|DE.CM – Continuous monitoring; DE.DP – Data protection
+
+|*GDPR*
+|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+
+|*PCI DSS v4.0*
+|Req 10 – Monitor and detect threats
+
+|*TISAX*
+|Information security – Monitoring and logging
+
+|*ANSSI SecNumCloud*
+|Domain – Logging und monitoring
+
+|*BIO*
+|BIO – Logboekhouding en monitoring
+
+|*ENS High*
+|op.exp.6 – Gestión de cambios
+
+|*UK NCSC CAF*
+|A4 – Policy and assurance
+
+|*FedRAMP*
+|AU-2, AU-3, SI-4 (Moderate baseline)
+
+|*CMMC 2.0*
+|AU.L2-3.8.1 – Flow audit logs to central log management
+
+|*IT-Grundschutz*
+|ORP.1 – Informationstechnisch-related Angriffsschutz
+
+|*IRAP*
+|ISM – Logging and monitoring
+
+|*CCCS PBMM*
+|AU-2, AU-3 – Logging and audit
+
+|*MAS TRM*
+|Ch.9 – Change management
+
+|*ISMAP*
+|Monitoring and logging controls
+
+|*FISC*
+|Technical measures – Logging and monitoring
+
+|*AWS Well-Architected Framework*
+|Security Pillar – Logging and monitoring; Reliability Pillar – Monitoring
+
+|*Google Cloud Architecture Framework*
+|Reliability – Monitoring; Security – Monitoring
+
+|*BSI C5:2020*
+|OPS-01 – Operational monitoring
+
+|*SOC 2 Type II*
+|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+
+|*CSA STAR*
+|CCM Logging and Monitoring
+
+|===
