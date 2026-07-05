@@ -6,7 +6,7 @@ type:
   - governance
   - configuration
 description: |
-  Nicht jeder Agent sollte jedes Werkzeug nutzen können. Die Werkzeugnutzung muss genehmigt, protokolliert und begrenzt sein. Agenten MÜSSEN explizite Werkzeugdefinitionen mit genehmigten Listen besitzen. Alle Tool-Calls MÜSSEN mit Kontext, Input, Output und Zeitstempel protokolliert werden. Rate Limits und Sandboxing MÜSSEN angewendet werden, um Missbrauch zu verhindern.
+  Not every agent should be able to use every tool. Tool use must be approved, logged, and limited. Agents MUST have explicit tool definitions with approved lists. All tool calls MUST be logged with context, input, output, and timestamp. Rate limits and sandboxing MUST be applied to prevent abuse.
 regulatory_mapping:
   - framework: 'ISO 27001:2022'
     controls:
@@ -100,11 +100,11 @@ checks:
   - id: waf-agn-020.tf.aws.bedrock-agent-tools-approved
     engine: terraform
     automated: true
-    title: 'AWS-Bedrock-Agenten müssen genehmigte Werkzeugdefinitionen besitzen'
+    title: 'AWS Bedrock agents must have approved tool definitions'
     provider: aws
-    description: 'AWS-Bedrock-Agenten müssen explizite Werkzeugdefinitionen in ihrem Tool-Schema besitzen. Wildcard- oder uneingeschränkte Werkzeuge sind untersagt. Alle Werkzeuge müssen aus einer genehmigten Liste stammen.'
+    description: 'AWS Bedrock agents must have explicit tool definitions in their tool schema. Wildcard or unrestricted tools are prohibited. All tools must be from an approved list.'
     expected: 'true'
-    remediation: "Definieren Sie explizite Werkzeuge im tool_schema der aws_bedrockagent-Ressource. Verwenden Sie den 'tools'-Block, um jedes erlaubte Werkzeug mit Namen, Beschreibung und Input-Schema festzulegen. Verwenden Sie keine Wildcard-Definitionen.\n"
+    remediation: "Define explicit tools in the aws_bedrockagent resource tool_schema. Use the 'tools' block to specify each allowed tool with name, description, and input schema. Do not use wildcard definitions.\n"
     example:
       compliant: |
         resource "aws_bedrockagent" "support_agent" {
@@ -113,7 +113,7 @@ checks:
           tool_schema {
             tools = [{
               name = "lookup_customer"
-              description = "Kunde anhand E-Mail suchen"
+              description = "Look up customer by email"
               input_schema = jsonencode({
                 type = "object"
                 properties = {
@@ -123,7 +123,7 @@ checks:
               })
             }, {
               name = "check_order_status"
-              description = "Bestellstatus prüfen"
+              description = "Check order status"
               input_schema = jsonencode({
                 type = "object"
                 properties = {
@@ -141,8 +141,8 @@ checks:
           tool_schema {
             tools = [{
               name = "*"
-              description = "Alle Werkzeuge erlauben"
-              # WAF-AGN-020 Verstoß: Wildcard-Werkzeugdefinition
+              description = "Allow all tools"
+              # WAF-AGN-020 Violation: wildcard tool definition
             }]
           }
         }
@@ -154,20 +154,20 @@ checks:
     assertions:
       - attribute: 'tool_schema.tools'
         op: 'attribute_exists'
-        message: 'Agent muss explizite Werkzeugdefinitionen besitzen.'
+        message: 'Agent must have explicit tool definitions.'
       - attribute: 'tool_schema.tools'
         op: 'not_contains_pattern'
-        message: 'Werkzeuge dürfen keine Wildcard-Namen wie "*" verwenden. Definieren Sie nur spezifische Werkzeuge.'
+        message: 'Tools must not use wildcard names like "*". Define specific tools only.'
         pattern: '"name":\\s*"\*"'
     on_fail: violation
   - id: waf-agn-020.tf.google.vertex-agent-tools-approved
     engine: terraform
     automated: true
-    title: 'Google-Vertex-AI-Agenten müssen genehmigte Werkzeugdefinitionen besitzen'
+    title: 'Google Vertex AI agents must have approved tool definitions'
     provider: google
-    description: 'Google-Vertex-AI-Agenten müssen explizite Tool-Funktionsdeklarationen besitzen. Alle Werkzeuge müssen vorab genehmigte Funktionen mit definierten Schemas referenzieren.'
+    description: 'Google Vertex AI agents must have explicit tool function declarations. All tools must reference pre-approved functions with defined schemas.'
     expected: 'true'
-    remediation: 'Definieren Sie function_declarations in der vertex_ai_agent-Konfiguration mit spezifischen Funktionsnamen, Beschreibungen und Parameter-Schemas. Verwenden Sie keine generischen oder Wildcard-Funktionsdefinitionen.\n'
+    remediation: 'Define function_declarations in the vertex_ai_agent configuration with specific function names, descriptions, and parameter schemas. Do not use generic or wildcard function definitions.\n'
     example:
       compliant: |
         resource "google_vertex_ai_agent" "data_analyst" {
@@ -175,13 +175,13 @@ checks:
 
           function_declarations = [{
             name = "query_database"
-            description = "Analytische Datenbank abfragen"
+            description = "Query the analytics database"
             parameters = {
               type = "OBJECT"
               properties = {
                 query = {
                   type = "STRING"
-                  description = "Auszuführende SQL-Abfrage"
+                  description = "SQL query to execute"
                 }
               }
               required = ["query"]
@@ -194,8 +194,8 @@ checks:
 
           function_declarations = [{
             name = "any_function"
-            description = "Jede Funktion erlaubt"
-            # WAF-AGN-020 Verstoß: zu permissiv
+            description = "Any function allowed"
+            # WAF-AGN-020 Violation: too permissive
           }]
         }
 
@@ -206,16 +206,16 @@ checks:
     assertions:
       - attribute: 'function_declarations'
         op: 'not_empty'
-        message: 'Agent muss explizite Funktionsdeklarationen besitzen.'
+        message: 'Agent must have explicit function declarations.'
     on_fail: violation
   - id: waf-agn-020.tf.aws.tool-call-logging-enabled
     engine: terraform
     automated: true
-    title: 'AWS-Bedrock-Tool-Calls müssen protokolliert werden'
+    title: 'AWS Bedrock tool calls must be logged'
     provider: aws
-    description: 'Alle von AWS-Bedrock-Agenten ausgeführten Tool-Calls MÜSSEN in CloudWatch Logs mit Zeitstempel, Agenten-ID, Werkzeugname, Input, Output und Dauer protokolliert werden.'
+    description: 'All tool calls made by AWS Bedrock agents MUST be logged to CloudWatch Logs with timestamp, agent ID, tool name, input, output, and duration.'
     expected: 'true'
-    remediation: "Konfigurieren Sie CloudWatch-Logging für Bedrock-Agenten. Aktivieren Sie 'Inference logs' in der Bedrock-Konsole oder über die API. Erstellen Sie eine Log-Gruppe unter /aws/bedrock/inference-logs.\n"
+    remediation: "Configure CloudWatch logging for Bedrock agents. Enable 'Inference logs' in the Bedrock console or via API. Create a log group at /aws/bedrock/inference-logs.\n"
     example:
       compliant: |
         resource "aws_cloudwatch_log_group" "bedrock_logs" {
@@ -224,13 +224,13 @@ checks:
 
         resource "aws_bedrockagent" "agent" {
           agent_name = "loggable-agent"
-          # Tool-Call-Logging über CloudWatch aktiviert
+          # Tool call logging enabled via CloudWatch
         }
       non_compliant: |
         resource "aws_bedrockagent" "no_logging" {
           agent_name = "no-logging-agent"
-          # Keine CloudWatch-Log-Gruppe konfiguriert
-          # WAF-AGN-020 Verstoß: kein Tool-Call-Logging
+          # No CloudWatch log group configured
+          # WAF-AGN-020 Violation: no tool call logging
         }
 
     scope:
@@ -241,16 +241,16 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Tool-Call-Logging muss mit einer Log-Gruppe konfiguriert sein.'
+        message: 'Tool call logging must be configured with a log group.'
     on_fail: violation
   - id: waf-agn-020.tf.aws.tool-rate-limits-configured
     engine: terraform
     automated: true
-    title: 'Tool-Call-Rate-Limits müssen für Agenten konfiguriert sein'
+    title: 'Tool call rate limits must be configured for agents'
     provider: aws
-    description: 'Agenten MÜSSEN Rate Limiting konfiguriert haben, um Missbrauch zu verhindern. Maximale Tokens pro Minute und Requests pro Minute sollten definiert sein.'
+    description: 'Agents MUST have rate limiting configured to prevent abuse. Maximum tokens per minute and requests per minute should be defined.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie Rate Limits in der Bedrock-Agenten-Konfiguration. Verwenden Sie das AWS SDK oder die Konsole, um maxTokensPerMinute und maxRequestsPerMinute für jeden Agenten festzulegen.\n'
+    remediation: 'Configure rate limits in the Bedrock agent configuration. Use AWS SDK or Console to set maxTokensPerMinute and maxRequestsPerMinute for each agent.\n'
     example:
       compliant: |
         resource "aws_bedrockagent" "rate_limited_agent" {
@@ -260,14 +260,14 @@ checks:
 
           instruction = "You are a helpful assistant."
 
-          # Rate Limiting über IAM-Policy oder externen Service
-          # Werkzeuge sollten über API Gateway o. Ä. rate-limited werden
+          # Rate limiting via IAM policy or external service
+          # Tools should be rate-limited via API Gateway or similar
         }
       non_compliant: |
         resource "aws_bedrockagent" "unlimited" {
           agent_name = "unlimited-agent"
-          # Kein Rate Limiting konfiguriert
-          # WAF-AGN-020 Verstoß
+          # No rate limiting configured
+          # WAF-AGN-020 Violation
         }
 
     scope:
@@ -277,5 +277,5 @@ checks:
     assertions:
       - attribute: 'agent_name'
         op: 'not_empty'
-        message: 'Agent muss eine Rate-Limiting-Konfiguration besitzen.'
+        message: 'Agent must have rate limiting configuration.'
     on_fail: violation

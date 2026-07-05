@@ -6,7 +6,7 @@ type:
   - governance
   - configuration
 description: |
-  Jeder Agent muss identifizierbar, authentifizierbar und nachvollziehbar sein. Agenten MÜSSEN eindeutige, stabile IDs besitzen. Die Authentifizierung über Token oder Zertifikate ist für alle Agenten-Kommunikationen verpflichtend. Alle Agenten-Interaktionen MÜSSEN in einem Audit-Trail für Sicherheit und Compliance protokolliert werden.
+  Every agent must be identifiable, authenticatable, and traceable. Agents MUST have unique, stable IDs. Authentication via token or certificate is mandatory for all agent communications. All agent interactions MUST be logged in an audit trail for security and compliance.
 regulatory_mapping:
   - framework: 'ISO 27001:2022'
     controls:
@@ -100,29 +100,29 @@ checks:
   - id: waf-agn-010.tf.aws.bedrock-agent-id-defined
     engine: terraform
     automated: true
-    title: 'AWS-Bedrock-Agenten müssen eindeutige Identifikatoren und Authentifizierung besitzen'
+    title: 'AWS Bedrock agents must have unique identifiers and authentication'
     provider: aws
-    description: 'AWS-Bedrock-Agenten müssen eine eindeutige, stabile agent_id sowie Authentifizierung über IAM-Rollen oder API-Schlüssel besitzen. Alle Agenten-Interaktionen müssen über CloudWatch protokolliert werden.'
+    description: 'AWS Bedrock agents must have a unique, stable agent_id and authentication via IAM roles or API keys. All agent interactions must be logged via CloudWatch.'
     expected: 'true'
-    remediation: 'Definieren Sie eine aws_bedrockagent-Ressource mit einer eindeutigen agent_id und verknüpfen Sie sie mit einer IAM-Rolle zur Authentifizierung. Aktivieren Sie CloudWatch-Logging für Agenten-Interaktionen.\n'
+    remediation: 'Define an aws_bedrockagent resource with a unique agent_id and associate it with an IAM role for authentication. Enable CloudWatch logging for agent interactions.\n'
     example:
       compliant: |
         resource "aws_bedrockagent" "customer_support_agent" {
           agent_name = "customer-support-agent"
-          description = "Agent für Kundensupport-Anfragen"
+          description = "Agent for customer support inquiries"
           agent_resources = [{
             model_arn = aws_bedrock_foundation_model.claude.arn
           }]
-          # Eindeutige agent_id wird automatisch zugewiesen
-          # Authentifizierung über IAM-Rolle
+          # Unique agent_id automatically assigned
+          # Authentication via IAM role
         }
         resource "aws_cloudwatch_log_group" "agent_logs" {
           name = "/aws/bedrock/customer-support-agent"
         }
       non_compliant: |
-        # Kein Agent definiert – unauthentifizierter Agenten-Zugriff
-        # WAF-AGN-010 Verstoß
-        # Agenten ohne ID und Authentifizierung sind nicht erlaubt
+        # No agent defined – unauthenticated agent access
+        # WAF-AGN-010 Violation
+        # Agents without IDs and authentication are not permitted
 
     scope:
       block_type: resource
@@ -131,26 +131,26 @@ checks:
     assertions:
       - attribute: 'agent_name'
         op: 'not_empty'
-        message: 'Agent muss einen eindeutigen Namen/Identifikator besitzen.'
+        message: 'Agent must have a unique name/identifier.'
       - attribute: 'agent_resources'
         op: 'attribute_exists'
-        message: 'Agent muss Ressourcen konfiguriert haben.'
+        message: 'Agent must have resources configured.'
     on_fail: violation
   - id: waf-agn-010.tf.google.vertex-agent-id-defined
     engine: terraform
     automated: true
-    title: 'Google-Vertex-AI-Agenten müssen eindeutige Identifikatoren und Authentifizierung besitzen'
+    title: 'Google Vertex AI agents must have unique identifiers and authentication'
     provider: google
-    description: 'Google-Vertex-AI-Agenten müssen eine eindeutige agent_id und Authentifizierung über IAM-Service-Accounts besitzen. Alle Interaktionen müssen über Cloud Logging protokolliert werden.'
+    description: 'Google Vertex AI agents must have unique agent_id and authentication via IAM service accounts. All interactions must be logged via Cloud Logging.'
     expected: 'true'
-    remediation: 'Definieren Sie eine google_vertex_ai_agent-Ressource mit eindeutigem Identifikator und Service-Account-Authentifizierung. Konfigurieren Sie Cloud Logging für Agenten-Interaktionen.\n'
+    remediation: 'Define a vertex_ai_agent resource with unique identifier and service account authentication. Configure Cloud Logging for agent interactions.\n'
     example:
       compliant: |
         resource "google_vertex_ai_agent" "fraud_detection" {
           display_name = "fraud-detection-agent"
-          description  = "Agent für Betrugserkennung"
-          # Eindeutige agent_id wird automatisch zugewiesen
-          # Authentifizierung über Service-Account
+          description  = "Agent for fraud detection"
+          # Unique agent_id automatically assigned
+          # Authentication via service account
         }
         resource "google_logging_project_sink" "agent_logs" {
           name = "agent-logs"
@@ -158,8 +158,8 @@ checks:
           filter = "resource.type=vertex_ai_agent"
         }
       non_compliant: |
-        # Kein Agent definiert – unauthentifizierter Zugriff
-        # WAF-AGN-010 Verstoß
+        # No agent defined – unauthenticated access
+        # WAF-AGN-010 Violation
 
     scope:
       block_type: resource
@@ -168,16 +168,16 @@ checks:
     assertions:
       - attribute: 'display_name'
         op: 'not_empty'
-        message: 'Agent muss einen Anzeigenamen/Identifikator besitzen.'
+        message: 'Agent must have a display name/identifier.'
     on_fail: violation
   - id: waf-agn-010.tf.azure.ai-agent-id-defined
     engine: terraform
     automated: true
-    title: 'Azure-AI-Agenten müssen eindeutige Identifikatoren und Authentifizierung besitzen'
+    title: 'Azure AI agents must have unique identifiers and authentication'
     provider: azurerm
-    description: 'Azure-AI-Agenten müssen eine eindeutige agent_id und Authentifizierung über Azure AD oder Managed Identity besitzen. Alle Interaktionen müssen über Application Insights protokolliert werden.'
+    description: 'Azure AI agents must have unique agent_id and authentication via Azure AD or Managed Identity. All interactions must be logged via Application Insights.'
     expected: 'true'
-    remediation: 'Definieren Sie eine azure_ai_agent-Ressource mit eindeutigem Identifikator und Managed-Identity-Authentifizierung. Konfigurieren Sie Application Insights für das Logging.\n'
+    remediation: 'Define an azure_ai_agent resource with unique identifier and Managed Identity authentication. Configure Application Insights for logging.\n'
     example:
       compliant: |
         resource "azurerm_cognitive_deployment" "agent" {
@@ -185,7 +185,7 @@ checks:
           cognitive_account_id       = azurerm_cognitive_account.main.id
           model_name                 = "gpt-4"
           format                     = "OpenAI"
-          # Authentifizierung über Managed Identity
+          # Authentication via Managed Identity
         }
         resource "azurerm_application_insights" "agent_ai" {
           name                = "agent-insights"
@@ -194,8 +194,8 @@ checks:
           workspace_id        = azurerm_log_analytics_workspace.main.id
         }
       non_compliant: |
-        # Kein Agent definiert – unauthentifizierter Zugriff
-        # WAF-AGN-010 Verstoß
+        # No agent defined – unauthenticated access
+        # WAF-AGN-010 Violation
 
     scope:
       block_type: resource
@@ -204,25 +204,25 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Agent muss einen eindeutigen Namen/Identifikator besitzen.'
+        message: 'Agent must have a unique name/identifier.'
     on_fail: violation
   - id: waf-agn-010.audit.agent-interactions-logged
     engine: config
     automated: true
-    title: 'Agenten-Interaktionen müssen im Audit-Trail protokolliert werden'
+    title: 'Agent interactions must be logged in audit trail'
     provider: multi
-    description: 'Alle Agenten-Interaktionen (Input, Output, Tool-Calls, Entscheidungen) müssen in einem Audit-Trail protokolliert werden. Die Logs müssen Zeitstempel, Agenten-ID, Benutzer-ID (falls zutreffend) und Ergebnis enthalten.'
+    description: 'All agent interactions (input, output, tool calls, decisions) must be logged to an audit trail. Logs must include timestamp, agent ID, user ID (if applicable), and result.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie Logging für alle Agenten-Plattformen (Bedrock, Vertex AI, Azure OpenAI), um Logs an ein zentrales Audit-System (CloudWatch, Cloud Logging, Application Insights) zu senden.\n'
+    remediation: 'Configure logging for all agent platforms (Bedrock, Vertex AI, Azure OpenAI) to send logs to a centralized audit system (CloudWatch, Cloud Logging, Application Insights).\n'
     example:
       compliant: |
-        # Agenten-Logs sind konfiguriert und fließen in das Audit-System
-        # CloudWatch-Log-Gruppe: /aws/bedrock/*
+        # Agent logs are configured and flowing to audit system
+        # CloudWatch log group: /aws/bedrock/*
         # Cloud Logging: vertex-ai-agent-logs
         # Application Insights: agent-interaction-data
       non_compliant: |
-        # Kein Audit-Logging konfiguriert
-        # WAF-AGN-010 Verstoß
+        # No audit logging configured
+        # WAF-AGN-010 Violation
 
     scope:
       block_type: resource
@@ -233,5 +233,5 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Audit-Logging muss konfiguriert sein.'
+        message: 'Audit logging must be configured.'
     on_fail: violation

@@ -215,3 +215,95 @@ checks:
         message: 'S3 bucket versioning must be Enabled for backup/sovereign data stores.'
         expected: 'Enabled'
     on_fail: warning
+  - id: waf-sov-030.tf.stackit.backup-retention
+    engine: terraform
+    automated: true
+    title: 'StackIT database instances must have backup retention enabled'
+    provider: stackit
+    description: 'StackIT MySQL, Redis, OpenSearch instances must have backup retention configured. Backups must remain within approved sovereign regions.'
+    expected: 'true'
+    remediation: 'Configure backup_retention_period on all StackIT database resources and ensure backups are stored in approved sovereign regions (eu-central-1, eu-west-1).\n'
+    example:
+      compliant: |
+        resource "stackit_mysql_instance" "main" {
+          project_id     = stackit_project.main.id
+          name           = "sovereign-mysql"
+          backup_retention_period = 14
+          # backups stored in eu-central-1
+        }
+
+      non_compliant: |
+        resource "stackit_mysql_instance" "main" {
+          project_id = stackit_project.main.id
+          name       = "mysql"
+          # No backup retention configured
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_mysql_instance
+        - stackit_redis_instance
+        - stackit_opensearch_instance
+    assertions:
+      - attribute: 'backup_retention_period'
+        op: 'attribute_exists'
+        message: "StackIT database instance is missing backup_retention_period."
+      - attribute: 'backup_retention_period'
+        op: 'greater_than_or_equal'
+        message: 'StackIT backup_retention_period must be >= 7 days.'
+        expected: 7
+    on_fail: violation
+  - id: waf-sov-030.tf.ovh.backup-location-sovereign
+    engine: terraform
+    automated: true
+    title: 'OVH backups must remain in sovereign regions'
+    provider: ovh
+    description: 'OVH cloud backups, VPS snapshots, and dedicated server backups must not be exported outside approved sovereign regions (DE, EU).'
+    expected: 'true'
+    remediation: 'Configure OVH backup policies to restrict backup locations to sovereign regions and prevent cross-border data transfers.\n'
+    example:
+      compliant: |
+        # OVH backups configured to stay within DE-FRA and EU-CY regions
+        # No export to non-sovereign regions like US-CA, SG, etc.
+
+      non_compliant: |
+        # Backup exported to US region - GDPR violation
+
+    scope:
+      block_type: resource
+      resource_types:
+        - ovh_cloud_project
+        - ovh_vps
+        - ovh_dedicated_server
+    assertions:
+      - attribute: 'backup_location'
+        op: 'in_variable'
+        message: 'OVH backup location must be in approved sovereign regions only.'
+    on_fail: violation
+  - id: waf-sov-030.tf.hcloud.backup-location-sovereign
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud backups must remain in sovereign regions'
+    provider: hcloud
+    description: 'Hetzner Cloud server backups, volume snapshots, and image exports must not be exported outside approved sovereign regions (DE, FI).'
+    expected: 'true'
+    remediation: 'Configure Hetzner Cloud backup and snapshot policies to restrict locations to sovereign regions and prevent cross-border data transfers.\n'
+    example:
+      compliant: |
+        # Hetzner backups configured to stay within fsn1 (DE) and hel1 (FI) regions
+
+      non_compliant: |
+        # Backup exported to non-sovereign region
+
+    scope:
+      block_type: resource
+      resource_types:
+        - hcloud_server
+        - hcloud_volume
+        - hcloud_image
+    assertions:
+      - attribute: 'location'
+        op: 'in_variable'
+        message: 'Hetzner Cloud backup location must be in approved sovereign regions only.'
+    on_fail: violation

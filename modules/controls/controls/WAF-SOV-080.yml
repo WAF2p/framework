@@ -162,3 +162,126 @@ checks:
         message: 'Module source references an unapproved public GitHub repository without registry validation.'
         pattern: '^github\\.com/(?!hashicorp/).*\\.git$'
     on_fail: warning
+  - id: waf-sov-080.tf.stackit.required-provider-version
+    engine: terraform
+    automated: true
+    title: 'StackIT provider must have pinned version constraint'
+    provider: stackit
+    description: 'The StackIT (SchwarzIT) Terraform provider must have a version constraint pinned to prevent silent upgrades.'
+    expected: 'true'
+    remediation: 'Add version constraint to the StackIT provider in required_providers block.\n'
+    example:
+      compliant: |
+        terraform {
+          required_version = ">= 1.6.0"
+          required_providers {
+            stackit = {
+              source  = "SchwarzIT/stackit"
+              version = "~> 2.0"
+            }
+          }
+        }
+
+      non_compliant: |
+        terraform {
+          required_providers {
+            stackit = {
+              source = "SchwarzIT/stackit"
+              # No version constraint
+            }
+          }
+        }
+
+    scope:
+      block_type: terraform
+    assertions:
+      - attribute: 'version'
+        op: 'attribute_exists'
+        message: 'StackIT provider must have version constraint pinned.'
+      - attribute: 'version'
+        op: 'not_matches'
+        message: 'StackIT provider version constraint is too broad.'
+        pattern: '^>= 0\\.0\\.0$'
+    on_fail: violation
+  - id: waf-sov-080.tf.ovh.required-provider-version
+    engine: terraform
+    automated: true
+    title: 'OVH provider must have pinned version constraint'
+    provider: ovh
+    description: 'The OVH Terraform provider must have a version constraint pinned to prevent silent upgrades.'
+    expected: 'true'
+    remediation: 'Add version constraint to the OVH provider in required_providers block.\n'
+    example:
+      compliant: |
+        terraform {
+          required_version = ">= 1.6.0"
+          required_providers {
+            ovh = {
+              source  = "ovh/ovh"
+              version = "~> 1.0"
+            }
+          }
+        }
+
+      non_compliant: |
+        terraform {
+          required_providers {
+            ovh = {
+              source = "ovh/ovh"
+              # No version constraint
+            }
+          }
+        }
+
+    scope:
+      block_type: terraform
+    assertions:
+      - attribute: 'version'
+        op: 'attribute_exists'
+        message: 'OVH provider must have version constraint pinned.'
+      - attribute: 'version'
+        op: 'not_matches'
+        message: 'OVH provider version constraint is too broad.'
+        pattern: '^>= 0\\.0\\.0$'
+    on_fail: violation
+  - id: waf-sov-080.tf.hcloud.required-provider-version
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud provider must have pinned version constraint'
+    provider: hcloud
+    description: 'The Hetzner Cloud Terraform provider must have a version constraint pinned to prevent silent upgrades.'
+    expected: 'true'
+    remediation: 'Add version constraint to the Hetzner Cloud provider in required_providers block.\n'
+    example:
+      compliant: |
+        terraform {
+          required_version = ">= 1.6.0"
+          required_providers {
+            hcloud = {
+              source  = "hetznercloud/hcloud"
+              version = "~> 1.0"
+            }
+          }
+        }
+
+      non_compliant: |
+        terraform {
+          required_providers {
+            hcloud = {
+              source = "hetznercloud/hcloud"
+              # No version constraint
+            }
+          }
+        }
+
+    scope:
+      block_type: terraform
+    assertions:
+      - attribute: 'version'
+        op: 'attribute_exists'
+        message: 'Hetzner Cloud provider must have version constraint pinned.'
+      - attribute: 'version'
+        op: 'not_matches'
+        message: 'Hetzner Cloud provider version constraint is too broad.'
+        pattern: '^>= 0\\.0\\.0$'
+    on_fail: violation

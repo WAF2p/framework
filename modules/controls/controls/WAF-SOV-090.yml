@@ -164,3 +164,95 @@ checks:
         op: 'not_equals_with_sibling'
         message: 'Azure NSG has outbound rule allowing traffic to any destination (*).'
     on_fail: warning
+  - id: waf-sov-090.tf.stackit.network-no-unrestricted-egress
+    engine: terraform
+    automated: true
+    title: 'StackIT networks must not allow unrestricted egress'
+    provider: stackit
+    description: 'StackIT networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.'
+    expected: 'true'
+    remediation: 'Replace wildcard egress rules with specific CIDR ranges in StackIT network configurations.\n'
+    example:
+      compliant: |
+        resource "stackit_network" "main" {
+          project_id = stackit_project.main.id
+          name       = "sovereign-network"
+          cidr       = "10.0.0.0/16"
+          # Egress controlled via firewall rules
+        }
+
+      non_compliant: |
+        resource "stackit_network" "main" {
+          project_id = stackit_project.main.id
+          name       = "network"
+          # Unrestricted egress rules
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_network
+    assertions:
+      - attribute: 'egress'
+        op: 'not_equals'
+        message: 'StackIT network has unrestricted egress. Define specific CIDR ranges.'
+        expected: '0.0.0.0/0'
+    on_fail: warning
+  - id: waf-sov-090.tf.ovh.network-no-unrestricted-egress
+    engine: terraform
+    automated: true
+    title: 'OVH networks must not allow unrestricted egress'
+    provider: ovh
+    description: 'OVH cloud networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.'
+    expected: 'true'
+    remediation: 'Replace wildcard egress rules with specific CIDR ranges in OVH network configurations.\n'
+    example:
+      compliant: |
+        # OVH networks with restricted egress defined
+
+      non_compliant: |
+        # OVH networks with unrestricted egress
+
+    scope:
+      block_type: resource
+      resource_types:
+        - ovh_cloud_project_network_private
+    assertions:
+      - attribute: 'egress'
+        op: 'not_equals'
+        message: 'OVH network has unrestricted egress. Define specific CIDR ranges.'
+        expected: '0.0.0.0/0'
+    on_fail: warning
+  - id: waf-sov-090.tf.hcloud.network-no-unrestricted-egress
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud networks must not allow unrestricted egress'
+    provider: hcloud
+    description: 'Hetzner Cloud networks must not have unrestricted egress rules. Define specific destination CIDR ranges.'
+    expected: 'true'
+    remediation: 'Replace wildcard egress rules with specific CIDR ranges in Hetzner Cloud network configurations.\n'
+    example:
+      compliant: |
+        resource "hcloud_network" "main" {
+          name       = "sovereign-network"
+          ip_range   = "10.0.0.0/16"
+          # Egress controlled through firewall rules
+        }
+
+      non_compliant: |
+        resource "hcloud_network" "main" {
+          name       = "network"
+          ip_range   = "10.0.0.0/16"
+          # Unrestricted egress rules
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - hcloud_network
+    assertions:
+      - attribute: 'ip_range'
+        op: 'not_equals'
+        message: 'Hetzner Cloud network has unrestricted egress. Define specific CIDR ranges.'
+        expected: '0.0.0.0/0'
+    on_fail: warning

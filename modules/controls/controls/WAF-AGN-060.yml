@@ -6,7 +6,7 @@ type:
   - governance
   - configuration
 description: |
-  Viele Agenten müssen koordiniert werden. Die Agenten-Orchestrierung MUSS Coordinator/Manager-Patterns oder Mesh-Architekturen verwenden. Event-basierte Kommunikation MUSS für Agenten-Messaging konfiguriert sein. Failure Recovery und Agenten-Health-Monitoring MÜSSEN vorhanden sein.
+  Many agents must be coordinated. Agent orchestration MUST use coordinator/manager patterns or mesh architectures. Event-based communication MUST be configured for agent messaging. Failure recovery and agent health monitoring MUST be in place.
 regulatory_mapping:
   - framework: 'ISO 27001:2022'
     controls:
@@ -86,38 +86,38 @@ checks:
   - id: waf-agn-060.tf.aws.coordinator-agent-configured
     engine: terraform
     automated: true
-    title: 'Multi-Agent-Systeme müssen einen Coordinator/Manager konfiguriert haben'
+    title: 'Multi-agent systems must have coordinator/manager configured'
     provider: aws
-    description: 'Multi-Agent-AWS-Bedrock-Systeme müssen einen Coordinator-Agenten besitzen, der Worker-Agenten verwaltet. Der Coordinator muss Aufgaben routen, Ergebnisse aggregieren und Fehler behandeln.'
+    description: 'Multi-agent AWS Bedrock systems must have a coordinator agent that manages worker agents. The coordinator must route tasks, aggregate results, and handle failures.'
     expected: 'true'
-    remediation: 'Entwerfen Sie ein Coordinator-Agenten-Pattern, bei dem ein Agent mehrere spezialisierte Agenten orchestriert. Verwenden Sie AWS Step Functions oder Lambda, um den Koordinationsfluss zu steuern. Definieren Sie klare Aufgabendelegation und Ergebnisaggregation.\n'
+    remediation: 'Design a coordinator agent pattern where one agent orchestrates multiple specialized agents. Use AWS Step Functions or Lambda to manage the coordination flow. Define clear task delegation and result aggregation.\n'
     example:
       compliant: |
-        # Coordinator-Agent verwaltet Worker-Agenten
+        # Coordinator agent manages worker agents
         resource "aws_bedrockagent" "coordinator" {
           agent_name = "agent-coordinator"
-          # Verwaltet mehrere Worker-Agenten
+          # Manages multiple worker agents
         }
 
         resource "aws_bedrockagent" "worker_analysis" {
           agent_name = "analysis-worker"
-          # Arbeitet unter Anleitung des Coordinators
+          # Works under coordinator direction
         }
 
         resource "aws_bedrockagent" "worker_research" {
           agent_name = "research-worker"
-          # Arbeitet unter Anleitung des Coordinators
+          # Works under coordinator direction
         }
 
-        # Koordination über Step Functions oder Lambda
+        # Coordination via Step Functions or Lambda
         resource "aws_lambda_function" "agent_coordinator" {
           function_name = "agent-coordinator-function"
-          # Koordiniert Agenten-Kommunikation
+          # Coordinates agent communication
         }
       non_compliant: |
-        # Kein Coordinator definiert
-        # WAF-AGN-060 Verstoß
-        # Agenten operieren unkoordiniert
+        # No coordinator defined
+        # WAF-AGN-060 Violation
+      # Agents operate independently without coordination
 
     scope:
       block_type: resource
@@ -128,16 +128,16 @@ checks:
     assertions:
       - attribute: 'agent_name'
         op: 'not_empty'
-        message: 'Coordinator-Agent muss für Multi-Agent-Systeme konfiguriert sein.'
+        message: 'Coordinator agent must be configured for multi-agent systems.'
     on_fail: violation
   - id: waf-agn-060.tf.aws.event-based-communication
     engine: terraform
     automated: true
-    title: 'Agenten-Kommunikation muss event-basiertes Messaging verwenden'
+    title: 'Agent communication must use event-based messaging'
     provider: aws
-    description: 'Agenten müssen über event-basierte Kanäle (SNS, SQS, EventBridge) kommunizieren, anstatt direkte HTTP-Aufrufe zu verwenden. Dies gewährleistet Entkopplung, Resilienz und Auditierbarkeit von Agenten-Interaktionen.'
+    description: 'Agents must communicate via event-based channels (SNS, SQS, EventBridge) rather than direct HTTP calls. This ensures decoupling, resilience, and auditability of agent interactions.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie SNS-Themen, SQS-Warteschlangen und EventBridge-Regeln für die Agenten-Kommunikation. Agenten veröffentlichen Nachrichten auf Kanälen und abonnieren relevante Ereignisse. Vermeiden Sie direkte Agent-zu-Agent-HTTP-Endpunkte.\n'
+    remediation: 'Configure SNS topics, SQS queues, and EventBridge rules for agent communication. Agents publish messages to channels and subscribe to relevant events. Avoid direct agent-to-agent HTTP endpoints.\n'
     example:
       compliant: |
         resource "aws_sns_topic" "agent_events" {
@@ -156,13 +156,13 @@ checks:
 
         resource "aws_bedrockagent" "event_agent" {
           agent_name = "event-based-agent"
-          # Lauscht auf SNS/SQS-Ereignisse
+          # Listens to SNS/SQS for events
         }
       non_compliant: |
         resource "aws_bedrockagent" "direct-agent" {
           agent_name = "direct-rpc-agent"
-          # Direkte HTTP-Aufrufe an andere Agenten
-          # WAF-AGN-060 Verstoß
+          # Direct HTTP calls to other agents
+          # WAF-AGN-060 Violation
         }
 
     scope:
@@ -174,16 +174,16 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Event-basierte Kommunikation (SNS/SQS/EventBridge) muss konfiguriert sein.'
+        message: 'Event-based communication (SNS/SQS/EventBridge) must be configured.'
     on_fail: violation
   - id: waf-agn-060.tf.aws.failure-recovery-configured
     engine: terraform
     automated: true
-    title: 'Multi-Agent-Systeme müssen Failure Recovery konfiguriert haben'
+    title: 'Multi-agent systems must have failure recovery configured'
     provider: aws
-    description: 'Multi-Agent-Systeme müssen automatisiertes Failure Recovery besitzen. Fehlgeschlagene Agenten müssen neu gestartet, Nachrichten neu eingereiht und Alerts ausgelöst werden. Dead-Letter-Queues müssen für fehlgeschlagene Nachrichten konfiguriert sein.'
+    description: 'Multi-agent systems must have automated failure recovery. Failed agents must be restarted, messages requeued, and alerts raised. Dead letter queues must be configured for failed messages.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie CloudWatch-Alarms für Agenten-Health-Monitoring. Richten Sie Lambda-Retry-Policies und Dead-Letter-Queues für fehlgeschlagene Nachrichtenverarbeitung ein. Implementieren Sie Agenten-Health-Checks mit automatischem Neustart.\n'
+    remediation: 'Configure CloudWatch Alarms for agent health monitoring. Set up Lambda retry policies and dead letter queues for failed message processing. Implement agent health checks with automatic restart.\n'
     example:
       compliant: |
         resource "aws_sqs_queue" "dead_letter_queue" {
@@ -207,13 +207,13 @@ checks:
           period              = 300
           statistic           = "Sum"
           threshold           = 1
-          alarm_description   = "Agentenfehler erkannt"
+          alarm_description   = "Agent failure detected"
         }
       non_compliant: |
         resource "aws_sqs_queue" "no_redrive" {
           name = "messages-no-recovery"
-          # Keine Dead-Letter-Queue konfiguriert
-          # WAF-AGN-060 Verstoß
+          # No dead letter queue configured
+          # WAF-AGN-060 Violation
         }
 
     scope:
@@ -224,5 +224,5 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Failure Recovery (Dead-Letter-Queue, Alarms) muss konfiguriert sein.'
+        message: 'Failure recovery (dead letter queue, alarms) must be configured.'
     on_fail: violation

@@ -31,6 +31,7 @@ checks:
     remediation: 'Use the shared mandatory-tags module to generate the complete tag map. Add module "tags" { source = "../../modules/mandatory-tags"; cost_center = ...; owner = ...; environment = ...; workload = ...; } Then set tags = module.tags.tags on every resource.\n'
     example:
       compliant: |
+        # AWS
         module "tags" {
           source      = "../../modules/mandatory-tags"
           cost_center = "fintech-platform"
@@ -43,7 +44,47 @@ checks:
           instance_type = "t3.medium"
           tags          = module.tags.tags
         }
-        
+
+        # Azure
+        resource "azurerm_virtual_machine" "app" {
+          name                = "payment-app-vm"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = "germanywestcentral"
+          tags = merge(module.tags.tags, {
+            Name = "payment-app-vm"
+          })
+        }
+
+        # StackIT (SchwarzIT)
+        resource "stackit_load_balancer" "app" {
+          project_id = stackit_project.main.id
+          name       = "payment-app-lb"
+          tags = merge(module.tags.tags, {
+            Name = "payment-app-lb"
+          })
+        }
+
+        # OVH
+        resource "ovh_cloud_project_instance" "app" {
+          project_id = ovh_cloud_project.main.id
+          name       = "payment-app-vm"
+          flavor     = "b2-7"
+          image      = "Ubuntu 22.04"
+          tags = merge(module.tags.tags, {
+            Name = "payment-app-vm"
+          })
+        }
+
+        # Hetzner Cloud
+        resource "hcloud_server" "app" {
+          name        = "payment-app-server"
+          server_type = "cx22"
+          location    = "fsn1"
+          labels = merge(module.tags.tags, {
+            Name = "payment-app-server"
+          })
+        }
+
       non_compliant: |
         resource "aws_instance" "app" {
           ami           = data.aws_ami.ubuntu.id
@@ -67,6 +108,25 @@ checks:
         - aws_elasticache_cluster
         - aws_s3_bucket
         - aws_cloudwatch_log_group
+        - stackit_project
+        - stackit_container_registry
+        - stackit_mysql_instance
+        - stackit_opensearch_instance
+        - stackit_redis_instance
+        - stackit_secret_manager
+        - stackit_load_balancer
+        - stackit_network
+        - stackit_dns_zone
+        - stackit_log_service
+        - ovh_cloud_project
+        - ovh_vps
+        - ovh_dedicated_server
+        - ovh_ip_loadbalancing
+        - hcloud_server
+        - hcloud_volume
+        - hcloud_network
+        - hcloud_load_balancer
+        - hcloud_dns_record
     assertions:
       - attribute: 'tags'
         op: 'key_exists'
@@ -122,6 +182,19 @@ checks:
         - azurerm_storage_account
         - azurerm_sql_database
         - azurerm_kubernetes_cluster
+        - stackit_project
+        - stackit_container_registry
+        - stackit_mysql_instance
+        - stackit_opensearch_instance
+        - stackit_redis_instance
+        - stackit_secret_manager
+        - ovh_cloud_project
+        - ovh_vps
+        - ovh_dedicated_server
+        - hcloud_server
+        - hcloud_volume
+        - hcloud_network
+        - hcloud_load_balancer
     assertions:
       - attribute: 'tags'
         op: 'key_exists'

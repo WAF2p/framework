@@ -6,7 +6,7 @@ type:
   - governance
   - configuration
 description: |
-  Agenten-Aktivitäten müssen sichtbar und messbar sein. Für alle Agenten MUSS Telemetrie erfasst werden, einschließlich Tokens, Latenz, GPU-Auslastung und Entscheidungsmetriken. Metriken MÜSSEN in ein Monitoring-System eingespeist werden. Distributed Tracing MUSS Agenten-Operationen end-to-end verknüpfen.
+  Agent activities must be visible and measurable. Telemetry MUST be collected for all agents including tokens, latency, GPU utilization, and decision metrics. Metrics MUST be ingested into a monitoring system. Distributed tracing MUST link agent operations end-to-end.
 regulatory_mapping:
   - framework: 'ISO 27001:2022'
     controls:
@@ -87,11 +87,11 @@ checks:
   - id: waf-agn-070.tf.aws.metrics-configured
     engine: terraform
     automated: true
-    title: 'Agenten-Metriken müssen konfiguriert sein (Tokens, Latenz, GPU)'
+    title: 'Agent metrics must be configured (tokens, latency, GPU)'
     provider: aws
-    description: 'Agenten-Telemetrie muss Token-Anzahl, Inference-Latenz, GPU-Auslastung und Fehlerraten umfassen. Metriken müssen zu CloudWatch oder einem Drittanbieter-Monitoring-System exportiert werden.'
+    description: 'Agent telemetry must include token counts, inference latency, GPU utilization, and error rates. Metrics must be exported to CloudWatch or a third-party monitoring system.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie den Bedrock-Metrik-Export zu CloudWatch. Verwenden Sie CloudWatch Insights, um Agenten-Metriken abzufragen. Richten Sie Dashboards für Token-Usage, Latenz und Fehlerraten ein. Konfigurieren Sie Alarms für Anomalien.\n'
+    remediation: 'Configure Bedrock metrics export to CloudWatch. Use CloudWatch Insights to query agent metrics. Set up dashboards for token usage, latency, and error rates. Configure alarms for anomalies.\n'
     example:
       compliant: |
         resource "aws_cloudwatch_metric_alarm" "agent_latency" {
@@ -104,7 +104,7 @@ checks:
           statistic           = "Average"
           threshold           = 5000
           unit                = "Milliseconds"
-          alarm_description   = "Agenten-Latenz überschreitet 5 Sekunden"
+          alarm_description   = "Agent latency exceeds 5 seconds"
         }
 
         resource "aws_cloudwatch_metric_alarm" "agent_tokens" {
@@ -117,12 +117,12 @@ checks:
           statistic           = "Sum"
           threshold           = 100000
           unit                = "Count"
-          alarm_description   = "Agenten-Token-Verbrauch überschreitet Limit"
+          alarm_description   = "Agent token usage exceeds limit"
         }
       non_compliant: |
-        # Keine Metriken konfiguriert
-        # WAF-AGN-070 Verstoß
-        # Keine Sichtbarkeit der Agenten-Performance
+        # No metrics configured
+        # WAF-AGN-070 Violation
+        # No visibility into agent performance
 
     scope:
       block_type: resource
@@ -132,16 +132,16 @@ checks:
     assertions:
       - attribute: 'alarm_name'
         op: 'not_empty'
-        message: 'Metrik-Alarms müssen für Agenten-Monitoring konfiguriert sein.'
+        message: 'Metrics alarms must be configured for agent monitoring.'
     on_fail: violation
   - id: waf-agn-070.tf.aws.distributed-tracing-enabled
     engine: terraform
     automated: true
-    title: 'Distributed Tracing muss für Agenten-Operationen aktiviert sein'
+    title: 'Distributed tracing must be enabled for agent operations'
     provider: aws
-    description: 'Agenten-Operationen müssen mittels AWS X-Ray nachvollzogen werden. Traces müssen Agenten-ID, Operationstyp, Latenz, Input/Output-Größe und Entscheidungspfad enthalten. X-Ray muss mit CloudWatch Logs für den vollständigen Kontext verknüpft sein.'
+    description: 'Agent operations must be traced using AWS X-Ray. Traces must include agent ID, operation type, latency, input/output size, and decision path. X-Ray must link to CloudWatch Logs for full context.'
     expected: 'true'
-    remediation: 'Aktivieren Sie X-Ray-Tracing für Bedrock-Aufrufe. Verwenden Sie das AWS SDK mit X-Ray-Integration. Instrumentieren Sie Agenten-Code mit dem X-Ray SDK für benutzerdefinierte Segmente. Konfigurieren Sie Trace-Sampling.\n'
+    remediation: 'Enable X-Ray tracing for Bedrock invocations. Use AWS SDK with X-Ray integration. Instrument agent code with X-Ray SDK for custom segments. Configure trace sampling.\n'
     example:
       compliant: |
         resource "aws_lambda_function" "agent_traced" {
@@ -160,8 +160,8 @@ checks:
       non_compliant: |
         resource "aws_lambda_function" "agent_untraced" {
           function_name = "agent-untraced"
-          # Kein X-Ray-Tracing
-          # WAF-AGN-070 Verstoß
+          # No X-Ray tracing
+          # WAF-AGN-070 Violation
         }
 
     scope:
@@ -172,16 +172,16 @@ checks:
     assertions:
       - attribute: 'environment.variables.AWS_XRAY_TRACING_NAME'
         op: 'not_empty'
-        message: 'Distributed Tracing (X-Ray) muss aktiviert sein.'
+        message: 'Distributed tracing (X-Ray) must be enabled.'
     on_fail: violation
   - id: waf-agn-070.tf.aws.log-integration-configured
     engine: terraform
     automated: true
-    title: 'Agenten-Logs müssen mit dem Monitoring-System integriert sein'
+    title: 'Agent logs must be integrated with monitoring system'
     provider: aws
-    description: 'Agenten-Logs müssen in ein zentrales Monitoring-System integriert sein. Logs müssen Agenten-ID, Sitzungs-ID, Zeitstempel, Operationstyp, Input/Output-Größe und Ergebnisstatus enthalten.'
+    description: 'Agent logs must be integrated with a centralized monitoring system. Logs must include agent ID, session ID, timestamp, operation type, input/output size, and result status.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie CloudWatch Logs Insights-Abfragen für Agenten-Log-Analysen. Richten Sie Dashboards ein, die Agenten-Health, Fehlerraten und Performance-Trends anzeigen. Konfigurieren Sie Alarms für Fehlermuster.\n'
+    remediation: 'Configure CloudWatch Logs Insights queries for agent log analysis. Set up dashboards showing agent health, error rates, and performance trends. Configure alarms for error patterns.\n'
     example:
       compliant: |
         resource "aws_cloudwatch_log_group" "agent_logs" {
@@ -206,8 +206,8 @@ checks:
       non_compliant: |
         resource "aws_cloudwatch_log_group" "agent_logs" {
           name = "/aws/bedrock/agent-logs"
-          # Kein Metrik-Filter konfiguriert
-          # WAF-AGN-070 Verstoß
+          # No metric filter configured
+          # WAF-AGN-070 Violation
         }
 
     scope:
@@ -218,5 +218,5 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Log-Integration mit Monitoring muss konfiguriert sein.'
+        message: 'Log integration with monitoring must be configured.'
     on_fail: violation

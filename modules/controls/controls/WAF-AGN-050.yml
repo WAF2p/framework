@@ -6,7 +6,7 @@ type:
   - governance
   - configuration
 description: |
-  Fail-Safe-, Alignment- und Verifikationsmechanismen MÜSSEN vorhanden sein. Content-Filter MÜSSEN so konfiguriert sein, dass unangemessene Inhalte blockiert werden. Aktions-Boundaries MÜSSEN verhindern, dass Agenten nicht autorisierte Aktionen ausführen. Human-in-the-Loop MUSS für sensible Entscheidungen konfiguriert sein. Guardrails MÜSSEN mit den Unternehmenswerten übereinstimmen.
+  Fail-safe, alignment, and verification mechanisms MUST be in place. Content filters MUST be configured to block inappropriate content. Action boundaries MUST prevent agents from performing unauthorized actions. Human-in-the-loop MUST be configured for sensitive decisions. Guardrails MUST align with organizational values.
 regulatory_mapping:
   - framework: 'ISO 27001:2022'
     controls:
@@ -90,11 +90,11 @@ checks:
   - id: waf-agn-050.tf.aws.content-filters-enabled
     engine: terraform
     automated: true
-    title: 'AWS-Bedrock-Agenten müssen Content-Filter konfiguriert haben'
+    title: 'AWS Bedrock agents must have content filters configured'
     provider: aws
-    description: 'AWS-Bedrock-Agenten müssen Content-Filtering über Guardrails aktiviert haben. Filter müssen schädliche, beleidigende oder unangemessene Inhalte gemäß Unternehmensrichtlinie blockieren.'
+    description: 'AWS Bedrock agents must have content filtering enabled via guardrails. Filters must block harmful, offensive, or inappropriate content according to organizational policy.'
     expected: 'true'
-    remediation: 'Erstellen und konfigurieren Sie AWS-Bedrock-Guardrails mit Content-Filtering. Definieren Sie Content-Policies für Hassrede, Gewalt, sexuelle Inhalte und schädliche Aktivitäten. Wenden Sie Guardrails auf alle Agenten an.\n'
+    remediation: 'Create and configure AWS Bedrock guardrails with content filtering. Define content policies for hate speech, violence, sexual content, and harmful activity. Apply guardrails to all agents.\n'
     example:
       compliant: |
         resource "aws_bedrock_guardrail" "organizational_guardrail" {
@@ -108,7 +108,7 @@ checks:
             text = "hate-speech"
           }]
 
-          # Content-Filter konfiguriert
+          # Content filters configured
         }
 
         resource "aws_bedrockagent" "filtered_agent" {
@@ -122,8 +122,8 @@ checks:
       non_compliant: |
         resource "aws_bedrockagent" "unfiltered" {
           agent_name = "no-content-filter"
-          # Kein Guardrail konfiguriert
-          # WAF-AGN-050 Verstoß
+          # No guardrail configured
+          # WAF-AGN-050 Violation
         }
 
     scope:
@@ -134,16 +134,16 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Content-Filter (Guardrails) müssen konfiguriert sein.'
+        message: 'Content filters (guardrails) must be configured.'
     on_fail: violation
   - id: waf-agn-050.tf.aws.action-boundaries-configured
     engine: terraform
     automated: true
-    title: 'Agenten-Aktions-Boundaries müssen konfiguriert sein'
+    title: 'Agent action boundaries must be configured'
     provider: aws
-    description: 'Agenten müssen Aktions-Boundaries über IAM-Rollen und Tool-Schemas definiert haben. Agenten dürfen keine Aktionen außerhalb ihres Scopes ausführen. Maximale Token-Limits und Output-Längen müssen konfiguriert sein.'
+    description: 'Agents must have action boundaries defined via IAM roles and tool schemas. Agents must not be able to perform actions outside their scope. Maximum token limits and output lengths must be configured.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie IAM-Rollen mit Least-Privilege-Berechtigungen für Agenten-Aktionen. Definieren Sie strikte Tool-Schemas, die einschränken, welche Werkzeuge Agenten nutzen dürfen. Setzen Sie Output-Token-Limits und Input-Längenbeschränkungen in der Agenten-Konfiguration.\n'
+    remediation: 'Configure IAM roles with least-privilege permissions for agent actions. Define strict tool schemas limiting what tools agents can use. Set output token limits and input length constraints in agent configuration.\n'
     example:
       compliant: |
         resource "aws_iam_role" "agent_role" {
@@ -182,8 +182,8 @@ checks:
       non_compliant: |
         resource "aws_iam_role" "unlimited_role" {
           name = "unlimited-agent-role"
-          # Keine Policy-Beschränkungen
-          # WAF-AGN-050 Verstoß
+          # No policy restrictions
+          # WAF-AGN-050 Violation
         }
 
     scope:
@@ -194,32 +194,32 @@ checks:
     assertions:
       - attribute: 'name'
         op: 'not_empty'
-        message: 'Aktions-Boundaries (IAM-Policies) müssen konfiguriert sein.'
+        message: 'Action boundaries (IAM policies) must be configured.'
     on_fail: violation
   - id: waf-agn-050.tf.aws.human-in-the-loop-configured
     engine: terraform
     automated: true
-    title: 'Human-in-the-Loop muss für sensible Entscheidungen konfiguriert sein'
+    title: 'Human-in-the-loop must be configured for sensitive decisions'
     provider: aws
-    description: 'Für Hochrisiko-Agenten-Entscheidungen (finanziell, rechtlich, personenbezogene Daten) MUSS eine menschliche Genehmigung erforderlich sein. Der Human-in-the-Loop-Workflow muss über AWS Bedrock oder ein externes Genehmigungssystem konfiguriert sein.'
+    description: 'For high-risk agent decisions (financial, legal, personal data), human approval MUST be required. The human-in-the-loop workflow must be configured via AWS Bedrock or external approval system.'
     expected: 'true'
-    remediation: 'Konfigurieren Sie Human-in-the-Loop-Genehmigungsworkflows für sensible Agenten-Aktionen. Verwenden Sie die Genehmigungsfunktion von AWS Bedrock oder integrieren Sie ein externes Genehmigungssystem (ServiceNow, Jira, individuell). Definieren Sie Entscheidungstypen, die eine menschliche Prüfung erfordern.\n'
+    remediation: 'Configure human-in-the-loop approval workflows for sensitive agent actions. Use AWS Bedrock’s approval feature or integrate with an external approval system (ServiceNow, Jira, custom). Define decision types requiring human review.\n'
     example:
       compliant: |
         resource "aws_bedrockagent" "hitable_agent" {
           agent_name = "human-in-loop-agent"
 
           human_interaction_configuration {
-            human_interpretation_prompt = "Prüfen Sie die Agenten-Entscheidung auf Korrektheit"
+            human_interpretation_prompt = "Review agent decision for accuracy"
             human_interpretation_timeout = 3600
             human_interpretation_output_context_name = "approval"
           }
         }
       non_compliant: |
-        resource "aws_bedrockagent" "no_human" {
+        resource "aws_bedrockagent" "no_huawei" {
           agent_name = "fully-automated-agent"
-          # Kein Human-in-the-Loop für sensible Entscheidungen
-          # WAF-AGN-050 Verstoß
+          # No human-in-the-loop for sensitive decisions
+          # WAF-AGN-050 Violation
         }
 
     scope:
@@ -229,5 +229,5 @@ checks:
     assertions:
       - attribute: 'agent_name'
         op: 'not_empty'
-        message: 'Human-in-the-Loop muss für sensible Entscheidungen konfiguriert sein.'
+        message: 'Human-in-the-loop must be configured for sensitive decisions.'
     on_fail: violation

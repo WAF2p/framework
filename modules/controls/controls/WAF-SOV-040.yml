@@ -183,3 +183,83 @@ checks:
         op: 'attribute_exists'
         message: 'Audit/security log group should be encrypted with a customer-managed KMS key.'
     on_fail: warning
+  - id: waf-sov-040.tf.stackit.logging-region-sovereign
+    engine: terraform
+    automated: true
+    title: 'StackIT logging must be stored in sovereign regions'
+    provider: stackit
+    description: 'StackIT log service instances must have data stored in approved sovereign regions only (eu-central-1, eu-west-1).'
+    expected: 'true'
+    remediation: 'Configure StackIT log service to store logs in approved sovereign regions and enable log export restrictions.\n'
+    example:
+      compliant: |
+        resource "stackit_log_service" "main" {
+          project_id = stackit_project.main.id
+          name       = "sovereign-logs"
+          # Data stored in eu-central-1 by default
+        }
+
+      non_compliant: |
+        resource "stackit_log_service" "main" {
+          project_id = stackit_project.main.id
+          name       = "logs"
+          # Data exported to non-sovereign region
+        }
+
+    scope:
+      block_type: resource
+      resource_types:
+        - stackit_log_service
+    assertions:
+      - attribute: 'region'
+        op: 'in_variable'
+        message: 'StackIT log service must be in approved sovereign regions only.'
+    on_fail: violation
+  - id: waf-sov-040.tf.ovh.logging-region-sovereign
+    engine: terraform
+    automated: true
+    title: 'OVH logging must be stored in sovereign regions'
+    provider: ovh
+    description: 'OVH logging services must store logs in approved sovereign regions only (DE-FRA, DE-EDE, EU-CY).'
+    expected: 'true'
+    remediation: 'Configure OVH logging services to store logs in approved sovereign regions.\n'
+    example:
+      compliant: |
+        # OVH logging configured to stay within DE-FRA and EU-CY regions
+
+      non_compliant: |
+        # Logs exported to non-sovereign region
+
+    scope:
+      block_type: resource
+      resource_types:
+        - ovh_cloud_project
+    assertions:
+      - attribute: 'region'
+        op: 'in_variable'
+        message: 'OVH logging must be in approved sovereign regions only.'
+    on_fail: violation
+  - id: waf-sov-040.tf.hcloud.logging-region-sovereign
+    engine: terraform
+    automated: true
+    title: 'Hetzner Cloud logging must be stored in sovereign regions'
+    provider: hcloud
+    description: 'Hetzner Cloud monitoring and logging must be stored in approved sovereign regions only (fsn1, nbg1, hel1).'
+    expected: 'true'
+    remediation: 'Configure Hetzner Cloud monitoring to store logs in approved sovereign regions.\n'
+    example:
+      compliant: |
+        # Hetzner monitoring configured to stay within fsn1 and hel1 regions
+
+      non_compliant: |
+        # Logs exported to non-sovereign region
+
+    scope:
+      block_type: resource
+      resource_types:
+        - hcloud_server
+    assertions:
+      - attribute: 'location'
+        op: 'in_variable'
+        message: 'Hetzner Cloud logging must be in approved sovereign regions only.'
+    on_fail: violation
