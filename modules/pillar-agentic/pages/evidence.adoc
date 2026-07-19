@@ -1,18 +1,135 @@
 = Agentic – Evidence & Audit
-:page-navtitle: Evidence & Audit
 :page-toc: right
-:description: WAF++ – Evidence requirements for agentic architectures.
+:toclevels: 3
+:description: WAF++ Agentic – Evidence requirements for audits, evidence formats, retention periods, and common audit findings with WAF++ remediation approaches.
 
-== Audit Requirements
+== Overview: Evidence in the Agentic Context
 
-* Agent logs: Every decision must be traceable
-* Tool-use logs: Every tool use must be logged
-* Human-in-the-loop: Approvals must be documented
-* Safety audits: Regular review of guardrails
+Evidence is the *proof* that an Agentic control is not only documented but actually implemented and effective. WAF++ distinguishes two classes:
 
-== Evidence Sources
+* *Required Evidence*: Must exist for every control; absence is an audit finding
+* *Optional Evidence*: Recommended for higher maturity levels and regulated environments
 
-* Agent telemetry
-* API logs
-* Human approvals (timestamped)
-* Safety-check results
+Evidence should ideally be *generated automatically* — by the WAF++ Checker, Terraform outputs, agent tracing systems, CloudWatch exports, or SIEM reports.
+
+== Evidence Types for Agentic Systems
+
+[cols="1,3,2"]
+|===
+|Evidence Type |Description |Typical Sources
+
+|*Agent Telemetry* |Token consumption, latency, error rates, GPU/CPU utilization |CloudWatch, Prometheus, Application Insights
+|*Approval Logs* |Human-in-the-loop decisions with timestamp and approver identity |Workflow system, SIEM
+|*Safety Checks* |Guardrail test results and alignment checks |Bedrock Guardrails, Vertex AI Safety, Azure Content Filters
+|*Model Cards* |Documented model capabilities, limitations, and usage risks |ML model registry, wiki
+|*Reasoning Traces* |Recordings of chain-of-thought, tool calls, and decision paths |Object storage, tracing backend
+|===
+
+== Evidence Table: All WAF-AGN Controls
+
+[cols="1,2,2"]
+|===
+|Control |Required Evidence |Format
+
+|WAF-AGN-010 |Agent inventory; stable IDs; auth bindings; interaction audit logs |HCL, JSON logs, Markdown register
+|WAF-AGN-020 |Tool whitelist/schemas; IAM policies; tool-use audit logs with context |HCL, JSON/SIEM export
+|WAF-AGN-030 |Inference logging; chain-of-thought; tool-call details; trace analysis |Terraform, JSON export, dashboard
+|WAF-AGN-040 |Versioned memory storage; backup/PITR; audit logs of state changes |HCL, backup test reports
+|WAF-AGN-050 |Guardrail configuration; content-filter policies; action boundaries; HIL workflows |HCL, policy files, test reports
+|WAF-AGN-060 |Coordinator agent; event channels; retry/DLQ; health monitoring dashboards |HCL, Terraform export, runbook
+|WAF-AGN-070 |Token/latency/error metrics; X-Ray/OpenTelemetry tracing; alerting |HCL, dashboard JSON, metric export
+|WAF-AGN-080 |HIL workflow; approver lists; complete approval audit logs |HCL, JSON/SIEM, runbook
+|WAF-AGN-090 |Budget/alarm configuration; cost analysis; cache configuration |HCL, spreadsheet, review record
+|WAF-AGN-100 |Agent Debt Register with limitation, impact, owner, target date; review minutes |Markdown/database export, PDF
+|===
+
+== Evidence Retention Periods
+
+[cols="2,1,1,2"]
+|===
+|Evidence Type |Minimum Retention |Requirement |Recommendation
+
+|Agent Interaction Logs |1 year |SOC 2, ISO 27001, DORA |1 year hot, 3 years cold (Glacier)
+|Reasoning Traces |1 year |SOC 2, GDPR Art. 22 |Object storage with versioning
+|Tool-Use Audit Logs |1 year |SOC 2 CC7, ISO 27001 A.8.2 |SIEM archive with immutable storage
+|Human-in-the-Loop Approvals |3 years |ISO 27001 A.8.2, GDPR |Workflow platform or Git
+|Agent Telemetry |90 days |SOC 2 CC4/CC7 |Monitoring with downsampling
+|Guardrail Test Reports |1 year |ISO 27001 A.5.36, NIST CSF |S3 archive with lifecycle policy
+|Agent Debt Register |3 years |ISO 27001 A.5.33, DORA |Git or ITSM
+|Model Cards |Lifetime + 3 years |EU AI Act, ISO 27001 |ML registry with versioning
+|===
+
+== Audit Preparation Checklist
+
+=== Before the Audit (4–6 Weeks Out)
+
+* [ ] Run the WAF++ Checker against all Agentic IaC and address findings
+* [ ] Verify completeness of agent interaction logs (agent ID, timestamp, outcome)
+* [ ] Review tool-use logs from the last 90 days for approval and compliance
+* [ ] Generate guardrail test reports for the last 90 days and document outliers
+* [ ] Verify HIL approvals include full context and valid approvers
+* [ ] Check the Agent Debt Register for currency and closed improvement plans
+
+=== Evidence Collection
+
+* [ ] Export Terraform code and document the commit hash
+* [ ] Export WAF++ Checker report as PDF
+* [ ] Export agent logs for the audit period as JSON/CSV
+* [ ] Archive reasoning traces for critical decisions
+* [ ] Extract tool-use audit logs from SIEM or object storage
+* [ ] Create HIL approval export for sensitive decisions
+* [ ] Compile guardrail test and alignment-check results
+
+=== Common Auditor Questions and WAF++ Answers
+
+[cols="2,3"]
+|===
+|Auditor Question |WAF++ Evidence
+
+|"How do you ensure every agent is uniquely identifiable?" |Agent inventory (WAF-AGN-010); Terraform IDs; IAM/service account bindings
+|"How do you prevent unauthorized tool use?" |Tool whitelist and IAM policies (WAF-AGN-020); tool-use audit logs; WAF++ Checker gate
+|"How do you explain agent decisions?" |Reasoning traces with chain-of-thought (WAF-AGN-030); immutable audit trail
+|"How do you protect memory and state?" |Versioned storage, backups, point-in-time recovery (WAF-AGN-040)
+|"How do you ensure human review of sensitive decisions?" |HIL workflow with audit trail (WAF-AGN-080); approver lists and emergency intervention
+|===
+
+== Generate Evidence from wafpass
+
+The WAF++ Checker (`wafpass`) can export evidence directly for audits:
+
+[source,bash]
+----
+# Check all Agentic controls and generate a PDF report
+wafpass check \
+  --pillar agentic \
+  --path ./infrastructure \
+  --format pdf \
+  --output audit-evidence/wafpass-agentic-$(date +%Y%m%d).pdf
+
+# Export reasoning traces as machine-readable evidence
+wafpass check \
+  --pillar agentic \
+  --control WAF-AGN-030 \
+  --path ./infrastructure \
+  --format json \
+  --output audit-evidence/agentic-reasoning-$(date +%Y%m%d).json
+
+# Check a single control
+wafpass check \
+  --control WAF-AGN-050 \
+  --path ./infrastructure \
+  --format github-annotations
+----
+
+== Common Audit Findings and WAF++ Remediations
+
+[cols="2,1,3"]
+|===
+|Audit Finding |Control |WAF++ Remediation
+
+|Agents without unique identity or auth |WAF-AGN-010 |Stable IDs in Terraform; IAM/service account bindings; inventory register
+|Unrestricted tool use |WAF-AGN-020 |Tool whitelist and schemas; IAM policies; tool-use logging
+|Decisions not traceable |WAF-AGN-030 |Inference logging; chain-of-thought traces; immutable storage
+|No human approval for critical actions |WAF-AGN-080 |HIL workflow; approval audit trail; emergency intervention procedure
+|Missing Agent Debt Register |WAF-AGN-100 |Quarterly reviews; issue-tracking integration; improvement plans
+|===
