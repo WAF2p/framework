@@ -2,9 +2,9 @@
 
 [![Build Status](https://github.com/WAF2p/waf2p.github.io/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/WAF2p/waf2p.github.io/actions/workflows/jekyll-gh-pages.yml)
 
-Dies ist die Antora-Dokumentationskomponente für das **WAF++** (Well-Architected Framework++) Projekt - ein community-geführtes, cloud-agnostisches Framework für sichere und nachhaltige Cloud-Architekturen.
+Dies ist die Antora-Dokumentationskomponente für das **WAF++** (Well-Architected Framework++) Projekt – ein community-geführtes, cloud-agnostisches Framework für souveräne, sichere und nachhaltige Cloud-Architekturen.
 
-Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1.0/ eingebunden.
+Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1.0.1-de/ eingebunden.
 
 ---
 
@@ -12,14 +12,27 @@ Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1
 
 ### Wo finde ich die Dokumentationsdateien?
 
-Alle Dokumentationsinhalte befinden sich im Verzeichnis:
+Die Inhalte sind modular nach Säulen organisiert:
+
 ```
-modules/ROOT/pages/
+modules/
+├── ROOT/pages/                 # Rahmeninhalt: Startseite, Roadmap, Ressourcen
+├── pillar-security/pages/      # Security-Säule
+├── pillar-cost/pages/          # Cost-Optimization-Säule
+├── pillar-efficiancy/pages/    # Performance-Efficiency-Säule
+├── pillar-reliability/pages/   # Reliability-Säule
+├── pillar-excellence/pages/    # Operational-Excellence-Säule
+├── pillar-sustainability/pages/# Sustainability-Säule
+├── pillar-sovereign/pages/     # Sovereign-Säule
+├── pillar-agentic/pages/       # Agentic-Säule
+└── controls/pages/             # Maschinenlesbarer Controls-Katalog
 ```
+
+Jede Säule hat ihre eigene Navigation (`nav.adoc`) und Seiten (`pages/`).
 
 ### Wie bearbeite ich Inhalte?
 
-1. **Datei öffnen**: Öffne die entsprechende `.adoc`-Datei in `modules/ROOT/pages/`
+1. **Datei öffnen**: Öffne die entsprechende `.adoc`-Datei im passenden Modul unter `modules/<modul>/pages/`
 2. **Bearbeiten**: Nutze AsciiDoc-Syntax (ähnlich wie Markdown)
 3. **Speichern**: Speichere die Änderungen
 4. **Commit**: Erstelle einen Commit mit aussagekräftiger Beschreibung
@@ -45,7 +58,7 @@ image::bilder/diagramm.png[Beschreibung]
 
 ### Vorschau der Änderungen
 
-Die Vorschau erfolgt über die Website-Repository-Build. Alternativ kannst du AsciiDoc-Editoren nutzen:
+Die Vorschau erfolgt über den Build des Website-Repositories. Alternativ kannst du AsciiDoc-Editoren nutzen:
 - Online: https://asciidoclive.com/
 - VS Code: Extension "AsciiDoc" installieren
 
@@ -59,22 +72,43 @@ Detaillierte technische Informationen findest du in der Datei `AGENTS.md` in die
 
 ### Antora-Komponentenstruktur
 
-Dieses Repository ist als **Antora-Komponente** strukturiert:
+Dieses Repository ist als **Antora-Dokumentationskomponente** strukturiert:
 
 ```
 framework/
-├── antora.yml                    # Komponentendeskriptor (name: wafpp, version: 1.0)
+├── antora.yml                    # Komponentendeskriptor
 ├── modules/
-│   └── ROOT/
-│       ├── nav.adoc              # Navigationsstruktur
-│       └── pages/                # Alle Dokumentationsseiten (.adoc)
-│           ├── index.adoc        # Hauptseite
-│           ├── architektur/      # Architektur-Seiten
-│           ├── best-practises/   # Best Practices
-│           ├── governance-community/
-│           ├── pillars/          # 7 Säulen (Security, Costs, etc.)
-│           ├── roadmap/
-│           └── resources/
+│   ├── ROOT/
+│   │   ├── nav.adoc              # Top-Level-Navigation
+│   │   └── pages/                # Rahmeninhalt
+│   ├── pillar-security/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-cost/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-efficiancy/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-reliability/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-excellence/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-sustainability/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-sovereign/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-agentic/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   └── controls/
+│       ├── nav.adoc
+│       ├── pages/
+│       └── controls/             # YAML-Controls
 └── AGENTS.md                     # Entwickler-Guidelines
 ```
 
@@ -85,23 +119,34 @@ Die Dokumentation wird **nicht direkt** in diesem Repository gebaut, sondern:
 1. Das **Website-Repository** (`waf2p.github.io`) nutzt Antora
 2. Antora liest dieses Repository als **Content-Quelle**
 3. Antora generiert HTML und integriert es in die Jekyll-Website
-4. Ausgabe erfolgt unter: `https://waf2p.dev/docs/wafpp/1.0/`
+4. Ausgabe erfolgt unter: `https://waf2p.dev/docs/wafpp/1.0.1-de/`
 
 ### Antora-Komponentenkonfiguration
 
 Die `antora.yml`-Datei definiert diese Komponente:
 
 ```yaml
-name: wafpp                # Komponenten-Name (wird Teil der URL)
-version: '1.0'             # Version (wird Teil der URL)
-title: WAF++ Framework     # Anzeigename
-start_page: ROOT:index.adoc  # Startseite
+name: wafpp
+version: '1.0.1-de'
+display_version: '1.0.1 (Deutsch)'
+prerelease: false
+title: WAF++
+start_page: ROOT:index.adoc
 nav:
-  - modules/ROOT/nav.adoc  # Navigationsdatei
+  - modules/ROOT/nav.adoc
+  - modules/pillar-security/nav.adoc
+  - modules/pillar-cost/nav.adoc
+  - modules/pillar-efficiancy/nav.adoc
+  - modules/pillar-reliability/nav.adoc
+  - modules/pillar-excellence/nav.adoc
+  - modules/pillar-sustainability/nav.adoc
+  - modules/pillar-sovereign/nav.adoc
+  - modules/pillar-agentic/nav.adoc
+  - modules/controls/nav.adoc
 ```
 
-**URL-Struktur**: `/docs/<name>/<version>/<page-path>`  
-**Beispiel**: `/docs/wafpp/1.0/pillars/security.html`
+**URL-Struktur**: `/docs/<name>/<version>/<module>/<page-path>`  
+**Beispiel**: `/docs/wafpp/1.0.1-de/pillar-security/index.html`
 
 ### Build-Prozess
 
@@ -109,24 +154,25 @@ Der Build erfolgt im **Website-Repository**:
 
 ```bash
 # Im Website-Repository
-task docs:build:local   # Baut Dokumentation aus lokalem Framework-Repo
-task docs:build         # Baut Dokumentation aus GitHub
-task site:build         # Baut komplette Site (Jekyll + Antora)
+npx antora antora-playbook-local.yml   # Lokale Quellen
+task docs:build:local                  # Taskfile-Shortcut
+task site:build                        # Komplette Site
 ```
 
-Die Antora-Playbooks im Website-Repository (`antora-playbook.yml`, `antora-playbook-local.yml`) referenzieren dieses Repository als Content-Quelle.
+Die Antora-Playbooks im Website-Repository referenzieren dieses Repository als Content-Quelle.
 
 ### Cross-References und Links
 
-Interne Links zwischen Seiten nutzen die `xref:`-Syntax:
+Interne Links zwischen Seiten nutzen die `xref:`-Syntax. Innerhalb desselben Moduls ohne Modul-Präfix, zwischen Modulen mit Modul-Präfix:
 
 ```asciidoc
-xref:pillars/security.adoc[Security-Säule]
-xref:index.adoc[Zurück zur Hauptseite]
-xref:architektur/index.adoc#abschnitt[Spezifischer Abschnitt]
+xref:index.adoc[Startseite im aktuellen Modul]
+xref:pillar-security:controls.adoc[Security-Controls]
+xref:pillar-agentic:index.adoc[Agentic-Säule]
+xref:controls:catalog.adoc[Controls-Katalog]
 ```
 
-**Wichtig**: Keine relativen Pfade wie `../` verwenden - Antora löst xrefs automatisch auf.
+**Wichtig**: Keine relativen Pfade wie `../` verwenden – Antora löst `xref:` automatisch auf.
 
 ### Validierung
 
@@ -140,7 +186,7 @@ gem install asciidoctor
 asciidoctor -o /dev/null modules/ROOT/pages/index.adoc
 
 # Validierung aller Dateien
-find modules/ROOT/pages -name "*.adoc" -exec asciidoctor -o /dev/null {} \;
+find modules -name "*.adoc" -exec asciidoctor -o /dev/null {} \;
 ```
 
 ### GitHub Actions Integration
@@ -158,14 +204,14 @@ Workflow-Datei: `.github/workflows/jekyll-gh-pages.yml` im Website-Repository
 
 Nach erfolgreichem Deployment:
 
-- **Hauptseite**: https://waf2p.dev/docs/wafpp/1.0/
-- **Beispiel-Seite**: https://waf2p.dev/docs/wafpp/1.0/pillars/security.html
+- **Hauptseite**: https://waf2p.dev/docs/wafpp/1.0.1-de/
+- **Beispiel-Seite**: https://waf2p.dev/docs/wafpp/1.0.1-de/pillar-security/index.html
 
 ### Entwickler-Guidelines
 
 Detaillierte technische Standards und Best Practices findest du in:
-- **`AGENTS.md`** in diesem Repository - Antora-spezifische Guidelines
-- **`AGENTS.md`** im Website-Repository - Gesamtarchitektur und Build-Prozess
+- **`AGENTS.md`** in diesem Repository – Antora-spezifische Guidelines
+- **`AGENTS.md`** im Website-Repository – Gesamtarchitektur und Build-Prozess
 
 ---
 
@@ -175,31 +221,44 @@ Detaillierte technische Standards und Best Practices findest du in:
 framework/
 ├── antora.yml                              # Antora-Komponentendeskriptor
 ├── modules/
-│   └── ROOT/
-│       ├── nav.adoc                        # Hauptnavigation
-│       └── pages/
-│           ├── index.adoc                  # Hauptseite
-│           ├── architektur/
-│           │   └── index.adoc
-│           ├── best-practises/
-│           │   └── index.adoc
-│           ├── governance-community/
-│           │   └── index.adoc
-│           ├── pillars/
-│           │   ├── costs.adoc
-│           │   ├── efficiency.adoc
-│           │   ├── excellence.adoc
-│           │   ├── governance.adoc
-│           │   ├── index.adoc
-│           │   ├── reliability.adoc
-│           │   ├── security.adoc
-│           │   └── sustainability.adoc
-│           ├── roadmap/
-│           │   ├── 2026.adoc
-│           │   └── index.adoc
-│           └── resources/
-│               ├── index.adoc
-│               └── wording.adoc
+│   ├── ROOT/
+│   │   ├── nav.adoc                        # Top-Level-Navigation
+│   │   └── pages/
+│   │       ├── index.adoc                  # Hauptseite
+│   │       ├── pillars/
+│   │       │   └── index.adoc              # Landingpage der 8 Säulen
+│   │       ├── architecture/
+│   │       ├── governance-community/
+│   │       ├── roadmap/
+│   │       └── resources/
+│   ├── pillar-security/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-cost/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-efficiancy/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-reliability/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-excellence/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-sustainability/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-sovereign/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   ├── pillar-agentic/
+│   │   ├── nav.adoc
+│   │   └── pages/
+│   └── controls/
+│       ├── nav.adoc
+│       ├── pages/
+│       └── controls/                       # YAML-Controls
 ├── AGENTS.md                               # Entwickler-Guidelines
 └── README.md                               # Diese Datei
 ```
