@@ -253,11 +253,16 @@ checks:
       │           │        │              │
       │           │        │              └── Kebab-case, max 40 Zeichen
       │           │        └─────────────── aws | azurerm | google | any | manual
-      │           └──────────────────────── terraform | manual | api
+      │           └──────────────────────── terraform | config | manual | api
       └──────────────────────────────────── z.B. waf-sov-010 (lowercase)
 ----
 
 Beispiel: `waf-cost-010.tf.aws.compute-mandatory-tags`
+
+[NOTE]
+====
+Die Engine wird in Check-IDs oft abgekürzt: `tf` für `terraform`, `config`, `manual` und `api` bleiben wortgleich.
+====
 
 === engine
 
@@ -268,11 +273,32 @@ Beispiel: `waf-cost-010.tf.aws.compute-mandatory-tags`
 | `terraform`
 | Check wird gegen HCL2-Terraform-Dateien ausgeführt (wafpass)
 
+| `config`
+| Check wertet statische Konfiguration, Dokumentation oder deklarative Policies aus (z.B. ADRs, Register, Tagging-Standards)
+
 | `manual`
 | Manueller Review erforderlich; `automated: false` ist immer gesetzt
 
 | `api`
 | Prüfung erfordert Live-Abfrage der Cloud-API (wafpass unterstützt dies noch nicht)
+|===
+
+=== on_fail
+
+Definiert die Schwere eines fehlgeschlagenen Checks. Erlaubte Werte:
+
+[cols="1,4", options="header"]
+|===
+| Wert | Bedeutung
+
+| `violation`
+| Harte Anforderung (MUST/SHALL). Verhindert Deployment; muss vor Go-Live behoben werden.
+
+| `finding`
+| Pflicht-Anforderung mit SLA (SHOULD). Muss innerhalb eines definierten Zeitraums behoben werden.
+
+| `advisory`
+| Empfehlung/Best Practice. Sollte umgesetzt werden, blockiert Deployment aber nicht.
 |===
 
 === scope
