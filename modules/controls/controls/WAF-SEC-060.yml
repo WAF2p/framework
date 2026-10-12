@@ -11,6 +11,50 @@ pillar: security
 severity: critical
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  All secrets, API keys, passwords, database credentials, and certificates MUST be stored in a dedicated secrets management solution (AWS Secrets Manager or...
+threat:
+  - 'Sensitive data is exposed if storage or transport lacks strong encryption.'
+  - 'Compromised keys or weak key rotation extend the blast radius of a breach.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-060.adoc'
+  related_controls: []
+
 description: |
   All secrets, API keys, passwords, database credentials, and certificates MUST be stored in a dedicated secrets management solution (AWS Secrets Manager or HashiCorp Vault). Secrets MUST NOT be hardcoded in IaC code, Terraform variable files, environment variables in task definitions, source code, or CI/CD pipeline configuration. Secrets Manager secrets MUST be encrypted with customer-managed KMS keys. Automatic rotation MUST be configured for all long-lived credentials where the target service supports it.
 regulatory_mapping:
@@ -197,4 +241,68 @@ checks:
       - attribute: 'kms_key_id'
         op: 'attribute_exists'
         message: 'Secrets Manager secret MUST be encrypted with a customer-managed KMS key (kms_key_id must be set).'
+    on_fail: violation
+
+  - id: waf-sec-060.tf.azurerm.key-vault-secret-expiration
+    engine: terraform
+    automated: true
+    title: 'Azure Key Vault secrets must have an expiration date'
+    provider: azurerm
+    description: 'All azurerm_key_vault_secret resources storing workload secrets must have expiration_date set to enforce rotation and lifecycle.'
+    expected: 'true'
+    remediation: |
+      Set expiration_date on every azurerm_key_vault_secret resource and establish a rotation workflow that refreshes the secret before expiration.
+    example:
+      compliant: |
+        resource "azurerm_key_vault_secret" "db_password" {
+          name         = "db-password"
+          value        = var.db_password
+          key_vault_id = azurerm_key_vault.main.id
+          expiration_date = "2026-01-01T00:00:00Z"
+        }
+      non_compliant: |
+        resource "azurerm_key_vault_secret" "db_password" {
+          name         = "db-password"
+          value        = var.db_password
+          key_vault_id = azurerm_key_vault.main.id
+          # expiration_date not set
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_key_vault_secret
+    assertions:
+      - attribute: 'expiration_date'
+        op: 'attribute_exists'
+        message: 'Key Vault secret must have an expiration_date for lifecycle management.'
+    on_fail: violation
+
+  - id: waf-sec-060.tf.google.secret-manager-exists
+    engine: terraform
+    automated: true
+    title: 'Google Secret Manager secrets must be defined for workload secrets'
+    provider: google
+    description: 'All workload secrets must be stored in google_secret_manager_secret resources rather than plain text or local state.'
+    expected: 'true'
+    remediation: |
+      Create google_secret_manager_secret resources for all sensitive configuration values. Reference secret versions via data sources rather than storing values in Terraform state.
+    example:
+      compliant: |
+        resource "google_secret_manager_secret" "db_password" {
+          secret_id = "db-password"
+          replication {
+            auto {}
+          }
+        }
+      non_compliant: |
+        # Secret value stored in plain text or Terraform variable
+        # Use google_secret_manager_secret instead
+    scope:
+      block_type: resource
+      resource_types:
+        - google_secret_manager_secret
+    assertions:
+      - attribute: 'secret_id'
+        op: 'attribute_exists'
+        message: 'Workload secrets must be stored in Google Secret Manager.'
     on_fail: violation

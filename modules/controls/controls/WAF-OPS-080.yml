@@ -13,6 +13,51 @@ severity: medium
 type:
   - governance
   - configuration
+
+category: 'deployment-automation'
+rationale: |
+  Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable...
+threat:
+  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
+  - 'Audit and certification evidence is harder to produce when the control is missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-080.adoc'
+  related_controls: []
+
 description: |
   Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable fast rollback. New features with significant user impact MUST be gated behind feature flags to allow controlled rollout and instant kill-switch capability. Deployments MUST be reversible without a new deployment for at least 24 hours after release.
 regulatory_mapping:

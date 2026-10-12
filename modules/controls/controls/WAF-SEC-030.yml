@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  All data stores containing sensitive or classified data MUST be encrypted at rest using customer-managed keys (CMK) stored in AWS KMS.
+threat:
+  - 'Sensitive data is exposed if storage or transport lacks strong encryption.'
+  - 'Compromised keys or weak key rotation extend the blast radius of a breach.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-030.adoc'
+  related_controls: []
+
 description: |
   All data stores containing sensitive or classified data MUST be encrypted at rest using customer-managed keys (CMK) stored in AWS KMS. Automatic key rotation MUST be enabled for all CMKs. Encryption using only provider-managed keys (SSE-S3/AES256) is NOT sufficient for sensitive, PII, financial, or regulated data. KMS key deletion windows MUST be set to a minimum of 7 days. KMS key policies MUST restrict access to explicitly authorized principals only.
 regulatory_mapping:
@@ -202,4 +246,155 @@ checks:
         op: 'greater_than_or_equal'
         message: 'KMS key deletion window must be at least 7 days to allow recovery from accidental deletion.'
         expected: 7
+    on_fail: violation
+
+  - id: waf-sec-030.tf.azurerm.key-vault-key-expiration
+    engine: terraform
+    automated: true
+    title: 'Azure Key Vault keys used for encryption must have an expiration date'
+    provider: azurerm
+    description: 'All azurerm_key_vault_key resources that protect sensitive data must have expiration_date set to enforce key lifecycle and rotation.'
+    expected: 'true'
+    remediation: |
+      Set expiration_date on every azurerm_key_vault_key resource used for workload encryption. Establish a key rotation process that refreshes keys before expiration.
+    example:
+      compliant: |
+        resource "azurerm_key_vault_key" "app" {
+          name         = "app-encryption-key"
+          key_vault_id = azurerm_key_vault.main.id
+          key_type     = "RSA"
+          key_size     = 2048
+          expiration_date = "2026-01-01T00:00:00Z"
+        }
+      non_compliant: |
+        resource "azurerm_key_vault_key" "app" {
+          name         = "app-encryption-key"
+          key_vault_id = azurerm_key_vault.main.id
+          key_type     = "RSA"
+          key_size     = 2048
+          # expiration_date not set
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_key_vault_key
+    assertions:
+      - attribute: 'expiration_date'
+        op: 'attribute_exists'
+        message: 'Key Vault key must have an expiration_date for lifecycle management.'
+    on_fail: violation
+
+  - id: waf-sec-030.tf.azurerm.key-vault-purge-protection
+    engine: terraform
+    automated: true
+    title: 'Azure Key Vault must have purge protection and soft delete enabled'
+    provider: azurerm
+    description: 'All azurerm_key_vault resources must have purge_protection_enabled = true and soft_delete_retention_days >= 7 to protect against accidental or malicious key destruction.'
+    expected: 'true'
+    remediation: |
+      Set purge_protection_enabled = true and soft_delete_retention_days to at least 7 on every azurerm_key_vault resource that stores workload keys.
+    example:
+      compliant: |
+        resource "azurerm_key_vault" "main" {
+          name                        = "workload-keyvault"
+          location                    = azurerm_resource_group.main.location
+          resource_group_name         = azurerm_resource_group.main.name
+          tenant_id                   = data.azurerm_client_config.current.tenant_id
+          sku_name                    = "standard"
+          soft_delete_retention_days  = 7
+          purge_protection_enabled    = true
+        }
+      non_compliant: |
+        resource "azurerm_key_vault" "main" {
+          name                        = "workload-keyvault"
+          location                    = azurerm_resource_group.main.location
+          resource_group_name         = azurerm_resource_group.main.name
+          tenant_id                   = data.azurerm_client_config.current.tenant_id
+          sku_name                    = "standard"
+          # purge_protection_enabled defaults to false
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_key_vault
+    assertions:
+      - attribute: 'purge_protection_enabled'
+        op: 'is_true'
+        message: 'Key Vault purge protection must be enabled.'
+      - attribute: 'soft_delete_retention_days'
+        op: 'greater_than_or_equal'
+        expected: 7
+        message: 'Key Vault soft delete retention must be at least 7 days.'
+    on_fail: violation
+
+  - id: waf-sec-030.tf.google.sql-cmek-encryption
+    engine: terraform
+    automated: true
+    title: 'Cloud SQL instances must be encrypted with a customer-managed key'
+    provider: google
+    description: 'All google_sql_database_instance resources must reference a customer-managed encryption key via encryption_key_name.'
+    expected: 'true'
+    remediation: |
+      Set encryption_key_name to a Cloud KMS key for every google_sql_database_instance that stores sensitive or regulated data.
+    example:
+      compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "app-db"
+          database_version = "POSTGRES_15"
+          region           = "europe-west3"
+          settings {
+            tier = "db-custom-2-7680"
+            encryption_key_name = google_kms_crypto_key.db_key.id
+          }
+        }
+      non_compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "app-db"
+          database_version = "POSTGRES_15"
+          region           = "europe-west3"
+          settings {
+            tier = "db-custom-2-7680"
+            # encryption_key_name not set – uses Google-managed key
+          }
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_sql_database_instance
+    assertions:
+      - attribute: 'settings.encryption_key_name'
+        op: 'attribute_exists'
+        message: 'Cloud SQL instance must use a customer-managed encryption key (CMEK).'
+    on_fail: violation
+
+  - id: waf-sec-030.tf.google.kms-key-rotation
+    engine: terraform
+    automated: true
+    title: 'Cloud KMS keys must have a rotation period configured'
+    provider: google
+    description: 'All google_kms_crypto_key resources must have rotation_period set to enforce regular key rotation.'
+    expected: 'true'
+    remediation: |
+      Set rotation_period (e.g., "7776000s" for 90 days) on every google_kms_crypto_key resource used for workload encryption.
+    example:
+      compliant: |
+        resource "google_kms_crypto_key" "app" {
+          name            = "app-key"
+          key_ring        = google_kms_key_ring.app.id
+          rotation_period = "7776000s"
+        }
+      non_compliant: |
+        resource "google_kms_crypto_key" "app" {
+          name     = "app-key"
+          key_ring = google_kms_key_ring.app.id
+          # rotation_period not set
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_kms_crypto_key
+    assertions:
+      - attribute: 'rotation_period'
+        op: 'attribute_exists'
+        message: 'Cloud KMS key must have a rotation_period configured.'
     on_fail: violation

@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and global service event inclusion.
+threat:
+  - 'Security incidents go undetected without centralised, tamper-proof audit logs.'
+  - 'Forensic investigations are delayed or inconclusive when logs are missing.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-080.adoc'
+  related_controls: []
+
 description: |
   AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and global service event inclusion. GuardDuty MUST be enabled in all active AWS regions. AWS Security Hub or an equivalent SIEM MUST be enabled to aggregate and correlate security findings centrally. CloudTrail logs MUST be stored in a dedicated S3 bucket with server-side encryption and MFA delete enabled. Alerts MUST be configured for critical Security Hub findings and GuardDuty HIGH/CRITICAL severity findings. All security alerts MUST route to an on-call escalation channel with a defined response SLA.
 regulatory_mapping:

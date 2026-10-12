@@ -11,6 +11,50 @@ pillar: sovereign
 severity: medium
 type:
   - governance
+
+category: 'logging-monitoring'
+rationale: |
+  An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services, third-party SaaS tools, CI/CD platforms, observability...
+threat:
+  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
+  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-sovereign/pages/controls/WAF-SOV-080.adoc'
+  related_controls: []
+
 description: |
   An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services, third-party SaaS tools, CI/CD platforms, observability providers, and data processors. Changes to this inventory MUST be version-controlled, reviewed, and approved. Provider version constraints in Terraform MUST be pinned to prevent silent upgrades. Module sources MUST reference approved registries with version-locked references.
 regulatory_mapping:

@@ -13,6 +13,51 @@ severity: medium
 type:
   - configuration
   - governance
+
+category: 'container-security'
+rationale: |
+  All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a 'rightsizing-reviewed' tag with the date of the...
+threat:
+  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
+  - 'Audit and certification evidence is harder to produce when the control is missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-030.adoc'
+  related_controls: []
+
 description: |
   All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a 'rightsizing-reviewed' tag with the date of the last review (ISO 8601, YYYY-MM-DD). Reviews must be performed at least every 90 days. Resources tagged with a review date older than 90 days are considered non-compliant. Idle detection must be configured for all compute workloads (CPU utilization < 5% over 7 days triggers an alert).
 regulatory_mapping:

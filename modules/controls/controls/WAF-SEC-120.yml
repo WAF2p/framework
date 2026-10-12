@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  Container workloads MUST run as non-root users (UID != 0) with explicit user and group IDs set in Dockerfile or Kubernetes security context.
+threat:
+  - 'Internet-facing resources or open management ports become direct attack vectors.'
+  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-120.adoc'
+  related_controls: []
+
 description: |
   Container workloads MUST run as non-root users (UID != 0) with explicit user and group IDs set in Dockerfile or Kubernetes security context. Privileged container mode MUST be disabled for all production workloads. Container images MUST originate from registries with image scanning enabled (ECR or equivalent) and MUST NOT be pulled directly from unauthenticated public registries at runtime. EKS clusters MUST have the API server endpoint restricted; public access MUST be disabled or limited to known CIDR ranges. Container runtime security monitoring MUST be implemented to detect and alert on anomalous container behaviors at runtime.
 regulatory_mapping:
@@ -213,4 +257,102 @@ checks:
       - attribute: 'image_scanning_configuration'
         op: 'attribute_exists'
         message: 'ECR repository must have image_scanning_configuration defined to ensure all pushed images are scanned for vulnerabilities.'
+    on_fail: violation
+
+  - id: waf-sec-120.tf.azurerm.aks-private-cluster
+    engine: terraform
+    automated: true
+    title: 'Azure Kubernetes Service clusters must use private cluster mode'
+    provider: azurerm
+    description: 'All azurerm_kubernetes_cluster resources must have private_cluster_enabled = true and public_network_access_enabled = false to limit API server exposure.'
+    expected: 'true'
+    remediation: |
+      Enable private_cluster_enabled and set public_network_access_enabled = false on every AKS cluster. Connect to the API server via private endpoints or Azure Bastion.
+    example:
+      compliant: |
+        resource "azurerm_kubernetes_cluster" "app" {
+          name                = "app-aks"
+          location            = azurerm_resource_group.main.location
+          resource_group_name = azurerm_resource_group.main.name
+          dns_prefix          = "app-aks"
+          private_cluster_enabled = true
+          public_network_access_enabled = false
+          default_node_pool {
+            name       = "default"
+            node_count = 2
+            vm_size    = "Standard_D2s_v3"
+          }
+          identity {
+            type = "SystemAssigned"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_kubernetes_cluster" "app" {
+          name                = "app-aks"
+          location            = azurerm_resource_group.main.location
+          resource_group_name = azurerm_resource_group.main.name
+          dns_prefix          = "app-aks"
+          # private_cluster_enabled defaults to false
+          default_node_pool {
+            name       = "default"
+            node_count = 2
+            vm_size    = "Standard_D2s_v3"
+          }
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_kubernetes_cluster
+    assertions:
+      - attribute: 'private_cluster_enabled'
+        op: 'is_true'
+        message: 'AKS cluster must have private cluster mode enabled.'
+      - attribute: 'public_network_access_enabled'
+        op: 'is_false'
+        message: 'AKS cluster must disable public network access to the API server.'
+    on_fail: violation
+
+  - id: waf-sec-120.tf.google.gke-private-cluster
+    engine: terraform
+    automated: true
+    title: 'Google Kubernetes Engine clusters must use private nodes'
+    provider: google
+    description: 'All google_container_cluster resources must have private_cluster_config.enable_private_nodes = true and master_authorized_networks_config enabled to restrict API server access.'
+    expected: 'true'
+    remediation: |
+      Configure private_cluster_config with enable_private_nodes = true and define master_authorized_networks_config with trusted CIDRs on every GKE cluster.
+    example:
+      compliant: |
+        resource "google_container_cluster" "app" {
+          name     = "app-gke"
+          location = "europe-west3"
+          private_cluster_config {
+            enable_private_nodes    = true
+            enable_private_endpoint = false
+            master_ipv4_cidr_block  = "172.16.0.0/28"
+          }
+          master_authorized_networks_config {
+            cidr_blocks {
+              cidr_block   = "10.0.0.0/8"
+              display_name = "internal-network"
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_container_cluster" "app" {
+          name     = "app-gke"
+          location = "europe-west3"
+          # private_cluster_config not set – nodes have public IPs by default
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_container_cluster
+    assertions:
+      - attribute: 'private_cluster_config.enable_private_nodes'
+        op: 'is_true'
+        message: 'GKE cluster must use private nodes.'
+      - attribute: 'master_authorized_networks_config'
+        op: 'attribute_exists'
+        message: 'GKE cluster must restrict master authorized networks.'
     on_fail: violation

@@ -11,6 +11,51 @@ pillar: sovereign
 severity: high
 type:
   - network
+
+category: 'identity-access'
+rationale: |
+  Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy.
+threat:
+  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
+  - 'Audit and certification evidence is harder to produce when the control is missing.'
+implementation_guidance:
+  - 'Define the requirement in workload documentation.'
+  - 'Implement the control in the relevant tooling or process.'
+  - 'Validate compliance through automated tests or peer review.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-sovereign/pages/controls/WAF-SOV-090.adoc'
+  related_controls: []
+
 description: |
   Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy. Security groups must not permit unrestricted egress (0.0.0.0/0) without explicit justification. VPC endpoints MUST be used for access to cloud provider APIs to keep traffic on the sovereign network. Data exfiltration detection MUST be established to alert on anomalous outbound data volumes or unexpected destinations.
 regulatory_mapping:

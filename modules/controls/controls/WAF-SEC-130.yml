@@ -13,6 +13,51 @@ severity: high
 type:
   - configuration
   - governance
+
+category: 'identity-access'
+rationale: |
+  All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters) MUST carry a 'data-class' tag indicating the sensitivity level...
+threat:
+  - 'Sensitive data is exposed if storage or transport lacks strong encryption.'
+  - 'Compromised keys or weak key rotation extend the blast radius of a breach.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-130.adoc'
+  related_controls: []
+
 description: |
   All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters) MUST carry a 'data-class' tag indicating the sensitivity level (e.g., public, internal, confidential, pii, health, financial). Resources classified as 'pii', 'health', or 'financial' MUST be encrypted with a customer-managed KMS key (CMK). Database instances MUST have publicly_accessible set to false. S3 buckets MUST have public access blocked via aws_s3_bucket_public_access_block with all four block settings enabled. No data store containing personal data under GDPR scope MUST be directly reachable from the internet.
 regulatory_mapping:
@@ -350,4 +395,249 @@ checks:
       - attribute: 'restrict_public_buckets'
         op: 'is_true'
         message: 'S3 public access block: restrict_public_buckets must be true.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.azurerm.data-class-tag
+    engine: terraform
+    automated: true
+    title: 'Azure data-storing resources must carry a data-class tag'
+    provider: azurerm
+    description: 'All Azure resources that store or process data (azurerm_storage_account, azurerm_mssql_database, azurerm_postgresql_server, azurerm_key_vault) must carry a data-class tag with a value from the approved taxonomy.'
+    expected: 'true'
+    remediation: |
+      Add a 'data-class' tag to all data-storing Azure resources. Use values from the approved classification taxonomy (e.g., 'public', 'internal', 'confidential', 'pii').
+    example:
+      compliant: |
+        resource "azurerm_storage_account" "app" {
+          name                     = "appstorage"
+          resource_group_name      = azurerm_resource_group.main.name
+          location                 = azurerm_resource_group.main.location
+          account_tier             = "Standard"
+          account_replication_type = "GRS"
+          tags = {
+            data-class = "confidential"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_storage_account" "app" {
+          name                     = "appstorage"
+          resource_group_name      = azurerm_resource_group.main.name
+          location                 = azurerm_resource_group.main.location
+          account_tier             = "Standard"
+          account_replication_type = "GRS"
+          # data-class tag missing
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_storage_account
+        - azurerm_mssql_database
+        - azurerm_postgresql_server
+        - azurerm_key_vault
+    assertions:
+      - attribute: 'tags.data-class'
+        op: 'attribute_exists'
+        message: 'Azure data-storing resource must carry a data-class tag.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.azurerm.sql-no-public-network
+    engine: terraform
+    automated: true
+    title: 'Azure SQL and PostgreSQL servers must disallow public network access'
+    provider: azurerm
+    description: 'All azurerm_mssql_server and azurerm_postgresql_server resources must set public_network_access_enabled = false.'
+    expected: 'true'
+    remediation: |
+      Set public_network_access_enabled = false on every Azure SQL and PostgreSQL server. Connect via private endpoints or VNet service endpoints.
+    example:
+      compliant: |
+        resource "azurerm_mssql_server" "app" {
+          name                         = "app-sql"
+          resource_group_name          = azurerm_resource_group.main.name
+          location                     = azurerm_resource_group.main.location
+          version                      = "12.0"
+          administrator_login          = "sqladmin"
+          administrator_login_password = var.sql_password
+          public_network_access_enabled = false
+        }
+      non_compliant: |
+        resource "azurerm_mssql_server" "app" {
+          name                         = "app-sql"
+          resource_group_name          = azurerm_resource_group.main.name
+          location                     = azurerm_resource_group.main.location
+          version                      = "12.0"
+          administrator_login          = "sqladmin"
+          administrator_login_password = var.sql_password
+          # public_network_access_enabled defaults to true
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_mssql_server
+        - azurerm_postgresql_server
+    assertions:
+      - attribute: 'public_network_access_enabled'
+        op: 'is_false'
+        message: 'Azure SQL/PostgreSQL server must disable public network access.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.azurerm.storage-no-public-blob
+    engine: terraform
+    automated: true
+    title: 'Azure Storage accounts must disallow public blob access'
+    provider: azurerm
+    description: 'All azurerm_storage_account resources must set allow_nested_items_to_public_access = false (or allow_blob_public_access = false depending on provider version) to prevent anonymous blob access.'
+    expected: 'true'
+    remediation: |
+      Set allow_nested_items_to_public_access = false on every azurerm_storage_account resource. Review existing containers and blobs for public access and remove it.
+    example:
+      compliant: |
+        resource "azurerm_storage_account" "app" {
+          name                             = "appstorage"
+          resource_group_name              = azurerm_resource_group.main.name
+          location                         = azurerm_resource_group.main.location
+          account_tier                     = "Standard"
+          account_replication_type           = "GRS"
+          allow_nested_items_to_public_access = false
+        }
+      non_compliant: |
+        resource "azurerm_storage_account" "app" {
+          name                             = "appstorage"
+          resource_group_name              = azurerm_resource_group.main.name
+          location                         = azurerm_resource_group.main.location
+          account_tier                     = "Standard"
+          account_replication_type         = "GRS"
+          # allow_nested_items_to_public_access defaults to true
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_storage_account
+    assertions:
+      - attribute: 'allow_nested_items_to_public_access'
+        op: 'is_false'
+        message: 'Azure Storage account must disallow public blob access.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.google.data-class-label
+    engine: terraform
+    automated: true
+    title: 'GCP data-storing resources must carry a data-class label'
+    provider: google
+    description: 'All GCP resources that store or process data (google_storage_bucket, google_sql_database_instance, google_secret_manager_secret, google_kms_crypto_key) must carry a data-class label.'
+    expected: 'true'
+    remediation: |
+      Add a 'data-class' label to all GCP data-storing resources. Use values from the approved classification taxonomy.
+    example:
+      compliant: |
+        resource "google_storage_bucket" "app" {
+          name          = "app-bucket"
+          location      = "EU"
+          force_destroy = false
+          labels = {
+            data-class = "confidential"
+          }
+        }
+      non_compliant: |
+        resource "google_storage_bucket" "app" {
+          name          = "app-bucket"
+          location      = "EU"
+          force_destroy = false
+          # data-class label missing
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_storage_bucket
+        - google_sql_database_instance
+        - google_secret_manager_secret
+        - google_kms_crypto_key
+    assertions:
+      - attribute: 'labels.data-class'
+        op: 'attribute_exists'
+        message: 'GCP data-storing resource must carry a data-class label.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.google.sql-no-public-ip
+    engine: terraform
+    automated: true
+    title: 'Google Cloud SQL instances must not have a public IP address'
+    provider: google
+    description: 'All google_sql_database_instance resources must set settings.ip_configuration.ipv4_enabled = false to prevent public internet access.'
+    expected: 'true'
+    remediation: |
+      Set ipv4_enabled = false in the ip_configuration block of every Cloud SQL instance. Connect via private IP or Cloud SQL Proxy.
+    example:
+      compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "app-db"
+          database_version = "POSTGRES_15"
+          region           = "europe-west3"
+          settings {
+            tier = "db-custom-2-7680"
+            ip_configuration {
+              ipv4_enabled    = false
+              private_network = google_compute_network.main.id
+            }
+          }
+        }
+      non_compliant: |
+        resource "google_sql_database_instance" "main" {
+          name             = "app-db"
+          database_version = "POSTGRES_15"
+          region           = "europe-west3"
+          settings {
+            tier = "db-custom-2-7680"
+            ip_configuration {
+              # ipv4_enabled defaults to true
+            }
+          }
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_sql_database_instance
+    assertions:
+      - attribute: 'settings.ip_configuration.ipv4_enabled'
+        op: 'is_false'
+        message: 'Cloud SQL instance must disable public IPv4 access.'
+    on_fail: violation
+
+  - id: waf-sec-130.tf.google.storage-public-access-prevention
+    engine: terraform
+    automated: true
+    title: 'Google Cloud Storage buckets must enforce public access prevention'
+    provider: google
+    description: 'All google_storage_bucket resources must set public_access_prevention = "enforced" and enable uniform_bucket_level_access to prevent anonymous access via ACLs.'
+    expected: 'true'
+    remediation: |
+      Set public_access_prevention = "enforced" and uniform_bucket_level_access = true on every google_storage_bucket resource.
+    example:
+      compliant: |
+        resource "google_storage_bucket" "app" {
+          name          = "app-bucket"
+          location      = "EU"
+          force_destroy = false
+          uniform_bucket_level_access = true
+          public_access_prevention    = "enforced"
+        }
+      non_compliant: |
+        resource "google_storage_bucket" "app" {
+          name          = "app-bucket"
+          location      = "EU"
+          force_destroy = false
+          # public_access_prevention defaults to "inherited"
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_storage_bucket
+    assertions:
+      - attribute: 'public_access_prevention'
+        op: 'equals'
+        expected: 'enforced'
+        message: 'Cloud Storage bucket must enforce public access prevention.'
+      - attribute: 'uniform_bucket_level_access'
+        op: 'is_true'
+        message: 'Cloud Storage bucket must use uniform bucket-level access.'
     on_fail: violation

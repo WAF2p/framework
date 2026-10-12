@@ -13,6 +13,51 @@ severity: high
 type:
   - configuration
   - governance
+
+category: 'logging-monitoring'
+rationale: |
+  All relational and document databases used in production MUST have a documented performance baseline including query execution times, I/O throughput, and...
+threat:
+  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
+  - 'Audit and certification evidence is harder to produce when the control is missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-040.adoc'
+  related_controls: []
+
 description: |
   All relational and document databases used in production MUST have a documented performance baseline including query execution times, I/O throughput, and connection pool utilization. An index strategy MUST be defined and maintained for all tables with significant read/write loads. Slow query logging MUST be enabled and reviewed regularly. Database performance insights or equivalent monitoring MUST be active on all production database instances. Missing indexes on frequently queried columns in high-traffic tables are treated as violations.
 regulatory_mapping:

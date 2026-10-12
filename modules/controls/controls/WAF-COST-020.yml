@@ -11,6 +11,50 @@ pillar: cost
 severity: high
 type:
   - governance
+
+category: 'logging-monitoring'
+rationale: |
+  Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project.
+threat:
+  - 'Uncontrolled cloud spend erodes budget and project viability.'
+  - 'High lock-in or debt decisions are made without financial impact visibility.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-020.adoc'
+  related_controls: []
+
 description: |
   Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project. Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload owner and FinOps team. Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
 regulatory_mapping:

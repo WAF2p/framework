@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  All network communication between clients and services, and between internal services, MUST use TLS 1.2 or higher.
+threat:
+  - 'Sensitive data is exposed if storage or transport lacks strong encryption.'
+  - 'Compromised keys or weak key rotation extend the blast radius of a breach.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-040.adoc'
+  related_controls: []
+
 description: |
   All network communication between clients and services, and between internal services, MUST use TLS 1.2 or higher. HTTP listeners on application load balancers MUST either redirect to HTTPS or be prohibited. CloudFront distributions MUST enforce a minimum TLS policy of TLSv1.2. Internal service-to-service communication within VPCs MUST be encrypted. Expired, self-signed, or untrusted TLS certificates MUST NOT be used in production environments.
 regulatory_mapping:
@@ -213,4 +257,122 @@ checks:
       - attribute: 'viewer_certificate'
         op: 'attribute_exists'
         message: 'CloudFront distribution must have an explicit viewer_certificate block configured.'
+    on_fail: violation
+
+  - id: waf-sec-040.tf.azurerm.web-app-min-tls
+    engine: terraform
+    automated: true
+    title: 'Azure App Service and Function Apps must enforce TLS 1.2'
+    provider: azurerm
+    description: 'All azurerm_linux_web_app, azurerm_windows_web_app, azurerm_linux_function_app, and azurerm_windows_function_app resources must set site_config.minimum_tls_version to "1.2".'
+    expected: 'true'
+    remediation: |
+      Set minimum_tls_version = "1.2" in the site_config block of every App Service and Function App resource.
+    example:
+      compliant: |
+        resource "azurerm_linux_web_app" "app" {
+          name                = "app-service"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          service_plan_id     = azurerm_service_plan.app.id
+          site_config {
+            minimum_tls_version = "1.2"
+            ftps_state          = "Disabled"
+          }
+        }
+      non_compliant: |
+        resource "azurerm_linux_web_app" "app" {
+          name                = "app-service"
+          resource_group_name = azurerm_resource_group.main.name
+          location            = azurerm_resource_group.main.location
+          service_plan_id     = azurerm_service_plan.app.id
+          site_config {
+            # minimum_tls_version defaults to "1.0" on older APIs
+          }
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_linux_web_app
+        - azurerm_windows_web_app
+        - azurerm_linux_function_app
+        - azurerm_windows_function_app
+    assertions:
+      - attribute: 'site_config.minimum_tls_version'
+        op: 'equals'
+        expected: '1.2'
+        message: 'App Service / Function App must enforce TLS 1.2 minimum.'
+    on_fail: violation
+
+  - id: waf-sec-040.tf.azurerm.cdn-no-http
+    engine: terraform
+    automated: true
+    title: 'Azure CDN endpoints must not allow plain HTTP delivery'
+    provider: azurerm
+    description: 'All azurerm_cdn_endpoint resources must set is_http_allowed to false so content is only served over HTTPS.'
+    expected: 'true'
+    remediation: |
+      Set is_http_allowed = false on every azurerm_cdn_endpoint resource. Configure HTTPS delivery and a valid custom domain certificate if needed.
+    example:
+      compliant: |
+        resource "azurerm_cdn_endpoint" "app" {
+          name                      = "app-cdn"
+          profile_name              = azurerm_cdn_profile.app.name
+          location                  = azurerm_resource_group.main.location
+          resource_group_name       = azurerm_resource_group.main.name
+          is_http_allowed           = false
+          origin_host_header        = azurerm_storage_account.app.primary_web_host
+        }
+      non_compliant: |
+        resource "azurerm_cdn_endpoint" "app" {
+          name                      = "app-cdn"
+          profile_name              = azurerm_cdn_profile.app.name
+          location                  = azurerm_resource_group.main.location
+          resource_group_name       = azurerm_resource_group.main.name
+          # is_http_allowed defaults to true
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_cdn_endpoint
+    assertions:
+      - attribute: 'is_http_allowed'
+        op: 'is_false'
+        message: 'CDN endpoint must not allow plain HTTP delivery.'
+    on_fail: violation
+
+  - id: waf-sec-040.tf.google.ssl-policy-tls-1-2
+    engine: terraform
+    automated: true
+    title: 'Google Cloud SSL policies must enforce TLS 1.2 or higher'
+    provider: google
+    description: 'All google_compute_ssl_policy resources must set min_tls_version to "TLS_1_2" or "TLS_1_3".'
+    expected: 'true'
+    remediation: |
+      Set min_tls_version = "TLS_1_2" (or "TLS_1_3") on every google_compute_ssl_policy resource.
+    example:
+      compliant: |
+        resource "google_compute_ssl_policy" "app" {
+          name            = "app-ssl-policy"
+          profile         = "CUSTOM"
+          min_tls_version = "TLS_1_2"
+          custom_features = ["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]
+        }
+      non_compliant: |
+        resource "google_compute_ssl_policy" "app" {
+          name            = "app-ssl-policy"
+          profile         = "COMPATIBLE"
+          # min_tls_version defaults to TLS_1_0 in COMPATIBLE profile
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - google_compute_ssl_policy
+    assertions:
+      - attribute: 'min_tls_version'
+        op: 'in'
+        expected:
+          - TLS_1_2
+          - TLS_1_3
+        message: 'SSL policy must enforce TLS 1.2 or higher.'
     on_fail: violation
