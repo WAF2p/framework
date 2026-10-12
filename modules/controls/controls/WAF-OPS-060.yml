@@ -13,6 +13,51 @@ severity: medium
 type:
   - governance
   - configuration
+
+category: 'identity-access'
+rationale: |
+  Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths.
+threat:
+  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
+  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-060.adoc'
+  related_controls: []
+
 description: |
   Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths. Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all on-call engineers without authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link to the relevant runbook section.
 regulatory_mapping:

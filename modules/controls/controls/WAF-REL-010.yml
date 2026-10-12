@@ -13,6 +13,51 @@ severity: critical
 type:
   - governance
   - configuration
+
+category: 'logging-monitoring'
+rationale: |
+  Every production workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements (SLAs).
+threat:
+  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
+  - 'Audit and certification evidence is harder to produce when the control is missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-010.adoc'
+  related_controls: []
+
 description: |
   Every production workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements (SLAs). SLOs must define availability, latency, error rate, and throughput targets with explicit measurement windows. SLAs must reference SLOs and define consequences of non-compliance. Both documents must be version-controlled, reviewed quarterly, and linked to monitoring dashboards with automated alerting when error budgets are consumed.
 regulatory_mapping:

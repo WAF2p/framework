@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'identity-access'
+rationale: |
+  Container workloads MUST run as non-root users (UID != 0) with explicit user and group IDs set in Dockerfile or Kubernetes security context.
+threat:
+  - 'Internet-facing resources or open management ports become direct attack vectors.'
+  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-120.adoc'
+  related_controls: []
+
 description: |
   Container workloads MUST run as non-root users (UID != 0) with explicit user and group IDs set in Dockerfile or Kubernetes security context. Privileged container mode MUST be disabled for all production workloads. Container images MUST originate from registries with image scanning enabled (ECR or equivalent) and MUST NOT be pulled directly from unauthenticated public registries at runtime. EKS clusters MUST have the API server endpoint restricted; public access MUST be disabled or limited to known CIDR ranges. Container runtime security monitoring MUST be implemented to detect and alert on anomalous container behaviors at runtime.
 regulatory_mapping:

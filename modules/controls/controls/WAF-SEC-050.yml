@@ -11,6 +11,50 @@ pillar: security
 severity: high
 type:
   - configuration
+
+category: 'network-security'
+rationale: |
+  All compute resources MUST be placed in private subnets unless they explicitly serve public traffic.
+threat:
+  - 'Internet-facing resources or open management ports become direct attack vectors.'
+  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+implementation_guidance:
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-050.adoc'
+  related_controls: []
+
 description: |
   All compute resources MUST be placed in private subnets unless they explicitly serve public traffic. Security groups MUST NOT allow unrestricted ingress from 0.0.0.0/0 or ::/0 on administrative ports (SSH port 22, RDP port 3389). Egress MUST be restricted to required destinations; unrestricted egress (0.0.0.0/0 on all ports) is prohibited for workloads handling sensitive data. Network ACLs (NACLs) and security groups MUST be used in combination for defense-in-depth. VPC resources MUST be logically segmented by workload tier (public, private, data).
 regulatory_mapping:

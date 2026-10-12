@@ -11,6 +11,50 @@ pillar: sovereign
 severity: critical
 type:
   - governance
+
+category: 'encryption-key-management'
+rationale: |
+  For all data classes, the key ownership model MUST be explicitly defined and technically enforced: Provider-Managed Keys (PMK), Customer-Managed Keys (CMK),...
+threat:
+  - 'Sensitive data is exposed if storage or transport lacks strong encryption.'
+  - 'Compromised keys or weak key rotation extend the blast radius of a breach.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-sovereign/pages/controls/WAF-SOV-050.adoc'
+  related_controls: []
+
 description: |
   For all data classes, the key ownership model MUST be explicitly defined and technically enforced: Provider-Managed Keys (PMK), Customer-Managed Keys (CMK), Bring Your Own Key (BYOK), or Hold Your Own Key (HYOK). Key rotation and deletion MUST be governed by documented procedures. All data at rest MUST be encrypted; encryption with default provider-managed keys requires explicit approval for sensitive data classes.
 regulatory_mapping:

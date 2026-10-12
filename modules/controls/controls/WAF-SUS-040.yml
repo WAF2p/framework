@@ -13,6 +13,51 @@ severity: high
 type:
   - configuration
   - governance
+
+category: 'logging-monitoring'
+rationale: |
+  All cloud compute resources MUST be continuously monitored for utilization.
+threat:
+  - 'Security incidents go undetected without centralised, tamper-proof audit logs.'
+  - 'Forensic investigations are delayed or inconclusive when logs are missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-040.adoc'
+  related_controls: []
+
 description: |
   All cloud compute resources MUST be continuously monitored for utilization. Resources with CPU utilization below 5% for 14 consecutive days MUST be flagged as idle and subject to a stop/terminate review. Non-production environments MUST have scheduled shutdown policies (evenings and weekends). Autoscaling groups MUST be configured for all stateless compute workloads to eliminate idle capacity during off-peak hours. EC2 instances with persistent idle state MUST be converted to spot instances, reserved capacity, or terminated.
 regulatory_mapping:

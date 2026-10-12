@@ -15,6 +15,51 @@ type:
   - configuration
   - network
   - governance
+
+category: 'identity-access'
+rationale: |
+  VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary internet egress costs.
+threat:
+  - 'Internet-facing resources or open management ports become direct attack vectors.'
+  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+implementation_guidance:
+  - 'Document the requirement in a version-controlled policy or standard.'
+  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+maturity_levels:
+  level_1:
+    description: 'Ad hoc – control not consistently applied'
+    criteria:
+      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+  level_2:
+    description: 'Standardised – policy defined and communicated'
+    criteria:
+      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+  level_3:
+    description: 'Integrated – automated validation in CI/CD'
+    criteria:
+      - 'Terraform checks run automatically on pull requests and report results.'
+  level_4:
+    description: 'Auditable – metrics and exceptions tracked'
+    criteria:
+      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+  level_5:
+    description: 'Optimised – continuous improvement based on data'
+    criteria:
+      - 'Control effectiveness is measured and iteratively improved.'
+evidence:
+  required:
+    - kind: 'iac'
+      description: 'Terraform configuration implementing the control.'
+    - kind: 'governance'
+      description: 'Policy, ADR, or standard documenting the requirement.'
+  optional:
+    - kind: 'config'
+      description: 'Cloud console or API output confirming runtime state.'
+references:
+  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-090.adoc'
+  related_controls: []
+
 description: |
   VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary internet egress costs. Public IP addresses on internal compute resources (that do not serve public traffic) are prohibited. CDN MUST be configured for all publicly accessible static assets. An egress cost budget alert MUST exist. Cross-region data transfer MUST be minimized and documented when necessary.
 regulatory_mapping:
