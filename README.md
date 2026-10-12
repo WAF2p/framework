@@ -4,7 +4,7 @@
 
 Dies ist die Antora-Dokumentationskomponente für das **WAF++** (Well-Architected Framework++) Projekt – ein community-geführtes, cloud-agnostisches Framework für souveräne, sichere und nachhaltige Cloud-Architekturen.
 
-Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1.0.1-de/ eingebunden.
+Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1.0.2-de/ eingebunden.
 
 ---
 
@@ -119,7 +119,7 @@ Die Dokumentation wird **nicht direkt** in diesem Repository gebaut, sondern:
 1. Das **Website-Repository** (`waf2p.github.io`) nutzt Antora
 2. Antora liest dieses Repository als **Content-Quelle**
 3. Antora generiert HTML und integriert es in die Jekyll-Website
-4. Ausgabe erfolgt unter: `https://waf2p.dev/docs/wafpp/1.0.1-de/`
+4. Ausgabe erfolgt unter: `https://waf2p.dev/docs/wafpp/1.0.2-de/`
 
 ### Antora-Komponentenkonfiguration
 
@@ -127,8 +127,8 @@ Die `antora.yml`-Datei definiert diese Komponente:
 
 ```yaml
 name: wafpp
-version: '1.0.1-de'
-display_version: '1.0.1 (Deutsch)'
+version: '1.0.2-de'
+display_version: '1.0.2 (Deutsch)'
 prerelease: false
 title: WAF++
 start_page: ROOT:index.adoc
@@ -146,7 +146,7 @@ nav:
 ```
 
 **URL-Struktur**: `/docs/<name>/<version>/<module>/<page-path>`  
-**Beispiel**: `/docs/wafpp/1.0.1-de/pillar-security/index.html`
+**Beispiel**: `/docs/wafpp/1.0.2-de/pillar-security/index.html`
 
 ### Build-Prozess
 
@@ -204,8 +204,8 @@ Workflow-Datei: `.github/workflows/jekyll-gh-pages.yml` im Website-Repository
 
 Nach erfolgreichem Deployment:
 
-- **Hauptseite**: https://waf2p.dev/docs/wafpp/1.0.1-de/
-- **Beispiel-Seite**: https://waf2p.dev/docs/wafpp/1.0.1-de/pillar-security/index.html
+- **Hauptseite**: https://waf2p.dev/docs/wafpp/1.0.2-de/
+- **Beispiel-Seite**: https://waf2p.dev/docs/wafpp/1.0.2-de/pillar-security/index.html
 
 ### Entwickler-Guidelines
 
