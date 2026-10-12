@@ -242,3 +242,67 @@ checks:
         op: 'attribute_exists'
         message: 'Secrets Manager secret MUST be encrypted with a customer-managed KMS key (kms_key_id must be set).'
     on_fail: violation
+
+  - id: waf-sec-060.tf.azurerm.key-vault-secret-expiration
+    engine: terraform
+    automated: true
+    title: 'Azure Key Vault secrets must have an expiration date'
+    provider: azurerm
+    description: 'All azurerm_key_vault_secret resources storing workload secrets must have expiration_date set to enforce rotation and lifecycle.'
+    expected: 'true'
+    remediation: |
+      Set expiration_date on every azurerm_key_vault_secret resource and establish a rotation workflow that refreshes the secret before expiration.
+    example:
+      compliant: |
+        resource "azurerm_key_vault_secret" "db_password" {
+          name         = "db-password"
+          value        = var.db_password
+          key_vault_id = azurerm_key_vault.main.id
+          expiration_date = "2026-01-01T00:00:00Z"
+        }
+      non_compliant: |
+        resource "azurerm_key_vault_secret" "db_password" {
+          name         = "db-password"
+          value        = var.db_password
+          key_vault_id = azurerm_key_vault.main.id
+          # expiration_date not set
+        }
+    scope:
+      block_type: resource
+      resource_types:
+        - azurerm_key_vault_secret
+    assertions:
+      - attribute: 'expiration_date'
+        op: 'attribute_exists'
+        message: 'Key Vault secret must have an expiration_date for lifecycle management.'
+    on_fail: violation
+
+  - id: waf-sec-060.tf.google.secret-manager-exists
+    engine: terraform
+    automated: true
+    title: 'Google Secret Manager secrets must be defined for workload secrets'
+    provider: google
+    description: 'All workload secrets must be stored in google_secret_manager_secret resources rather than plain text or local state.'
+    expected: 'true'
+    remediation: |
+      Create google_secret_manager_secret resources for all sensitive configuration values. Reference secret versions via data sources rather than storing values in Terraform state.
+    example:
+      compliant: |
+        resource "google_secret_manager_secret" "db_password" {
+          secret_id = "db-password"
+          replication {
+            auto {}
+          }
+        }
+      non_compliant: |
+        # Secret value stored in plain text or Terraform variable
+        # Use google_secret_manager_secret instead
+    scope:
+      block_type: resource
+      resource_types:
+        - google_secret_manager_secret
+    assertions:
+      - attribute: 'secret_id'
+        op: 'attribute_exists'
+        message: 'Workload secrets must be stored in Google Secret Manager.'
+    on_fail: violation
