@@ -253,11 +253,16 @@ checks:
       │           │        │              │
       │           │        │              └── kebab-case, max 40 characters
       │           │        └─────────────── aws | azurerm | google | any | manual
-      │           └──────────────────────── terraform | manual | api
+      │           └──────────────────────── terraform | config | manual | api
       └──────────────────────────────────── e.g. waf-sov-010 (lowercase)
 ----
 
 Example: `waf-cost-010.tf.aws.compute-mandatory-tags`
+
+[NOTE]
+====
+The engine is often abbreviated in check IDs: `tf` for `terraform`, `config`, `manual`, and `api` remain verbatim.
+====
 
 === engine
 
@@ -268,11 +273,32 @@ Example: `waf-cost-010.tf.aws.compute-mandatory-tags`
 | `terraform`
 | Check is run against HCL2 Terraform files (wafpass)
 
+| `config`
+| Check evaluates static configuration, documentation, or declarative policies (e.g., ADRs, registers, tagging standards)
+
 | `manual`
 | Manual review required; `automated: false` is always set
 
 | `api`
 | Check requires live query of cloud API (wafpass does not yet support this)
+|===
+
+=== on_fail
+
+Defines the severity of a failed check. Allowed values:
+
+[cols="1,4", options="header"]
+|===
+| Value | Meaning
+
+| `violation`
+| Hard requirement (MUST/SHALL). Blocks deployment; must be fixed before go-live.
+
+| `finding`
+| Required control with remediation SLA (SHOULD). Must be fixed within a defined timeframe.
+
+| `advisory`
+| Recommendation / best practice. Should be implemented but does not block deployment.
 |===
 
 === scope
