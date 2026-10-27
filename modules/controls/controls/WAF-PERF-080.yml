@@ -1,215 +1,250 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-080
 id: WAF-PERF-080
-title: 'Workloads with highly variable, spiky, or unpredictable traffic patterns...'
+title: Workloads with highly variable, spiky, or unpredictable traffic patterns...
 status: active
 tags:
-  - performance
-  - low
-  - governance
-  - configuration
-pillar: performance
+- performance
+- low
+- governance
+- configuration
+pillar: efficiancy
 severity: low
 type:
-  - governance
-  - configuration
-
-category: 'container-security'
-rationale: |
-  Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully managed compute architectures.
+- governance
+- configuration
+category: container-security
+rationale: Unsichere Container und Images führen zu Angriffsflächen, Supply-Chain-Risiken und der Verbreitung von Malware
+  in Produktivumgebungen. Dieses Control adressiert die Anforderungen des Bereichs 'Container-Sicherheit' und stellt sicher,
+  dass Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully
+  managed compute architectures.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Spiky workloads on slow-starting resources suffer cold-start latency and poor user experience.
+- Missing serverless or auto-scaling options lead to over-provisioning during idle periods.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-080.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-080.adoc
+  related_controls:
+  - WAF-PERF-010
+  - WAF-SEC-110
+  - WAF-COST-030
+  - WAF-PERF-050
+  - WAF-SEC-070
+  - WAF-PERF-040
+  - WAF-PERF-090
+  - WAF-PERF-020
+  - WAF-REL-010
+  - WAF-REL-040
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless
+  or fully managed compute architectures. Where serverless is appropriate, Lambda, Cloud Functions, Azure Functions, or managed
+  container services (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency, and cold-start
+  mitigation strategies. Serverless function configurations MUST be optimized to avoid under-memory allocation, excessive
+  timeouts, and uncontrolled concurrency.
 
-description: |
-  Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully managed compute architectures. Where serverless is appropriate, Lambda, Cloud Functions, Azure Functions, or managed container services (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency, and cold-start mitigation strategies. Serverless function configurations MUST be optimized to avoid under-memory allocation, excessive timeouts, and uncontrolled concurrency.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Capacity'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 1 – How do you select the best performing architecture?'
-      - 'COST 8 – How do you use managed services to improve efficiency?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Use platform-as-a-service'
-  - framework: 'Google Cloud Architecture Framework'
-    controls:
-      - 'Managed services – Use fully managed services where possible'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Capacity
 checks:
-  - id: waf-perf-080.tf.aws.lambda-memory-timeout-configured
-    engine: terraform
-    automated: true
-    title: 'AWS Lambda functions must have explicit memory and timeout configuration'
-    provider: aws
-    description: 'Lambda functions must not use default memory (128MB) or default timeout (3s) for production use. Both must be explicitly configured based on measured performance profiles.'
-    expected: 'true'
-    remediation: 'Run AWS Lambda Power Tuning to find optimal memory allocation. Set timeout = 2x measured P99 execution time. Set reserved_concurrent_executions to limit blast radius on account concurrency.\n'
-    example:
-      compliant: |
-        resource "aws_lambda_function" "payment_processor" {
-          function_name = "payment-processor"
-          runtime       = "python3.12"
-          handler       = "handler.process"
-          filename      = data.archive_file.lambda.output_path
-          memory_size   = 512    # Tuned with Lambda Power Tuning
-          timeout       = 30     # 2x measured P99 of 15s
-          reserved_concurrent_executions = 100  # Prevent consuming all account concurrency
-          environment {
-            variables = {
-              LOG_LEVEL = "INFO"
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_lambda_function" "payment_processor" {
-          function_name = "payment-processor"
-          runtime       = "python3.12"
-          handler       = "handler.process"
-          filename      = data.archive_file.lambda.output_path
-          # memory_size defaults to 128MB – not profiled – WAF-PERF-080 violation
-          # timeout defaults to 3s – may cause timeouts
-          # No reserved_concurrent_executions – uncontrolled concurrency
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lambda_function
-    assertions:
-      - attribute: 'memory_size'
-        op: 'greater_than_or_equal'
-        message: 'Lambda memory_size must be explicitly set >= 256MB for production functions (default 128MB is rarely optimal).'
-      - attribute: 'timeout'
-        op: 'greater_than_or_equal'
-        message: 'Lambda timeout must be explicitly set (not default 3s) and sized appropriately.'
-      - attribute: 'reserved_concurrent_executions'
-        op: 'not_equals'
-        message: 'Lambda reserved_concurrent_executions should be configured to control account concurrency usage.'
-    on_fail: violation
-  - id: waf-perf-080.tf.azurerm.function-app-plan-configured
-    engine: terraform
-    automated: true
-    title: 'Azure Function Apps for production should use Premium or Dedicated plan'
-    provider: azurerm
-    description: 'Azure Function Apps in production should use Premium or Dedicated (App Service) plan to avoid cold starts, enable VNet integration, and provide predictable performance.'
-    expected: 'true'
-    remediation: 'For production latency-sensitive functions, use EP1/EP2/EP3 (Premium) or P1v3/P2v3 (Dedicated). Consumption plan (Y1) is acceptable for truly event-driven, non-latency-critical workloads.\n'
-    example:
-      compliant: |
-        resource "azurerm_service_plan" "functions" {
-          name                = "plan-payment-functions"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          os_type             = "Linux"
-          sku_name            = "EP1"  # Premium plan – consistent performance, no cold starts
-        }
-        
-      non_compliant: |
-        resource "azurerm_service_plan" "functions" {
-          name     = "plan-payment-functions"
-          os_type  = "Linux"
-          sku_name = "Y1"  # Consumption – cold starts for production latency SLO – advisory
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_service_plan
-    assertions:
-      - attribute: 'sku_name'
-        op: 'not_in'
-        message: 'Production Function Apps should not use Y1 (Consumption) plan due to cold starts and unpredictable performance.'
-    on_fail: advisory
-  - id: waf-perf-080.tf.google.cloud-run-min-instances
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud Run services with latency SLOs must set min-instances > 0'
-    provider: google
-    description: 'GCP Cloud Run services that have latency SLOs must configure minimum instances > 0 to eliminate cold starts. Services scaling to zero will experience cold start latency that may violate P99 SLO targets.'
-    expected: 'true'
-    remediation: 'Set the autoscaling.knative.dev/minScale annotation to >= 1 for latency-sensitive services. For cost optimization, consider min=1 during business hours and scheduled scaling to 0 overnight.\n'
-    example:
-      compliant: |
-        resource "google_cloud_run_v2_service" "app" {
-          name     = "payment-api"
-          location = "europe-west3"
-          template {
-            scaling {
-              min_instance_count = 1
-              max_instance_count = 50
-            }
-            containers {
-              image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
-              resources {
-                limits = {
-                  cpu    = "2"
-                  memory = "512Mi"
-                }
-              }
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_cloud_run_v2_service" "app" {
-          name     = "payment-api"
-          location = "europe-west3"
-          template {
-            # No scaling config – scales to zero, cold starts – WAF-PERF-080 advisory
-            containers {
-              image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
-            }
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_cloud_run_service
-        - google_cloud_run_v2_service
-    assertions:
-      - attribute: 'template.metadata.annotations["autoscaling.knative.dev/minScale"]'
-        op: 'not_empty'
-        message: 'Cloud Run service should set minimum instance annotation to prevent cold starts.'
-    on_fail: advisory
+- id: waf-perf-080.tf.aws.lambda-memory-timeout-configured
+  engine: terraform
+  automated: true
+  title: AWS Lambda functions must have explicit memory and timeout configuration
+  provider: aws
+  description: Lambda functions must not use default memory (128MB) or default timeout (3s) for production use. Both must
+    be explicitly configured based on measured performance profiles.
+  expected: 'true'
+  remediation: Run AWS Lambda Power Tuning to find optimal memory allocation. Set timeout = 2x measured P99 execution time.
+    Set reserved_concurrent_executions to limit blast radius on account concurrency.\n
+  example:
+    compliant: "resource \"aws_lambda_function\" \"payment_processor\" {\n  function_name = \"payment-processor\"\n  runtime\
+      \       = \"python3.12\"\n  handler       = \"handler.process\"\n  filename      = data.archive_file.lambda.output_path\n\
+      \  memory_size   = 512    # Tuned with Lambda Power Tuning\n  timeout       = 30     # 2x measured P99 of 15s\n  reserved_concurrent_executions\
+      \ = 100  # Prevent consuming all account concurrency\n  environment {\n    variables = {\n      LOG_LEVEL = \"INFO\"\
+      \n    }\n  }\n}\n"
+    non_compliant: "resource \"aws_lambda_function\" \"payment_processor\" {\n  function_name = \"payment-processor\"\n  runtime\
+      \       = \"python3.12\"\n  handler       = \"handler.process\"\n  filename      = data.archive_file.lambda.output_path\n\
+      \  # memory_size defaults to 128MB – not profiled – WAF-PERF-080 violation\n  # timeout defaults to 3s – may cause timeouts\n\
+      \  # No reserved_concurrent_executions – uncontrolled concurrency\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lambda_function
+  assertions:
+  - attribute: memory_size
+    op: greater_than_or_equal
+    message: Lambda memory_size must be explicitly set >= 256MB for production functions (default 128MB is rarely optimal).
+    expected: 256
+  - attribute: timeout
+    op: greater_than_or_equal
+    message: Lambda timeout must be explicitly set (not default 3s) and sized appropriately.
+    expected: 1
+  - attribute: reserved_concurrent_executions
+    op: attribute_exists
+    message: Lambda reserved_concurrent_executions should be configured to control account concurrency usage.
+  on_fail: violation
+- id: waf-perf-080.tf.azurerm.function-app-plan-configured
+  engine: terraform
+  automated: true
+  title: Azure Function Apps for production should use Premium or Dedicated plan
+  provider: azurerm
+  description: Azure Function Apps in production should use Premium or Dedicated (App Service) plan to avoid cold starts,
+    enable VNet integration, and provide predictable performance.
+  expected: 'true'
+  remediation: For production latency-sensitive functions, use EP1/EP2/EP3 (Premium) or P1v3/P2v3 (Dedicated). Consumption
+    plan (Y1) is acceptable for truly event-driven, non-latency-critical workloads.\n
+  example:
+    compliant: "resource \"azurerm_service_plan\" \"functions\" {\n  name                = \"plan-payment-functions\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n  os_type      \
+      \       = \"Linux\"\n  sku_name            = \"EP1\"  # Premium plan – consistent performance, no cold starts\n}\n"
+    non_compliant: "resource \"azurerm_service_plan\" \"functions\" {\n  name     = \"plan-payment-functions\"\n  os_type\
+      \  = \"Linux\"\n  sku_name = \"Y1\"  # Consumption – cold starts for production latency SLO – advisory\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_service_plan
+  assertions:
+  - attribute: sku_name
+    op: not_in
+    message: Production Function Apps should not use Y1 (Consumption) plan due to cold starts and unpredictable performance.
+    expected:
+    - Y1
+  on_fail: advisory
+- id: waf-perf-080.tf.google.cloud-run-min-instances
+  engine: terraform
+  automated: true
+  title: GCP Cloud Run services with latency SLOs must set min-instances > 0
+  provider: google
+  description: GCP Cloud Run services that have latency SLOs must configure minimum instances > 0 to eliminate cold starts.
+    Services scaling to zero will experience cold start latency that may violate P99 SLO targets.
+  expected: 'true'
+  remediation: Set the autoscaling.knative.dev/minScale annotation to >= 1 for latency-sensitive services. For cost optimization,
+    consider min=1 during business hours and scheduled scaling to 0 overnight.\n
+  example:
+    compliant: "resource \"google_cloud_run_v2_service\" \"app\" {\n  name     = \"payment-api\"\n  location = \"europe-west3\"\
+      \n  template {\n    scaling {\n      min_instance_count = 1\n      max_instance_count = 50\n    }\n    containers {\n\
+      \      image = \"europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest\"\n      resources {\n     \
+      \   limits = {\n          cpu    = \"2\"\n          memory = \"512Mi\"\n        }\n      }\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_cloud_run_v2_service\" \"app\" {\n  name     = \"payment-api\"\n  location = \"europe-west3\"\
+      \n  template {\n    # No scaling config – scales to zero, cold starts – WAF-PERF-080 advisory\n    containers {\n  \
+      \    image = \"europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest\"\n    }\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_run_service
+    - google_cloud_run_v2_service
+  assertions:
+  - attribute: template.metadata.annotations["autoscaling.knative.dev/minScale"]
+    op: not_empty
+    message: Cloud Run service should set minimum instance annotation to prevent cold starts.
+  on_fail: advisory
+- id: waf-perf-080.tf.stackit.latency-monitored
+  engine: terraform
+  automated: true
+  title: Workloads with highly variable, spiky, or unpredictable traffic patterns... for stackit
+  provider: stackit
+  description: Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a
+    latency-monitored tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a latency-monitored tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    latency-monitored = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing latency-monitored labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: latency-monitored
+    message: stackit_project is missing the latency-monitored tag/label.
+  on_fail: violation
+- id: waf-perf-080.tf.ovh.latency-monitored
+  engine: terraform
+  automated: true
+  title: Workloads with highly variable, spiky, or unpredictable traffic patterns... for ovh
+  provider: ovh
+  description: Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a
+    latency-monitored tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a latency-monitored tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    latency-monitored = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing latency-monitored tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: latency-monitored
+    message: ovh_cloud_project is missing the latency-monitored tag/label.
+  on_fail: violation
+- id: waf-perf-080.tf.hcloud.latency-monitored
+  engine: terraform
+  automated: true
+  title: Workloads with highly variable, spiky, or unpredictable traffic patterns... for hcloud
+  provider: hcloud
+  description: Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a
+    latency-monitored tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a latency-monitored tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    latency-monitored = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing latency-monitored labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: latency-monitored
+    message: hcloud_server is missing the latency-monitored tag/label.
+  on_fail: violation

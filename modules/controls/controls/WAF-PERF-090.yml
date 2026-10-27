@@ -1,199 +1,249 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-090
 id: WAF-PERF-090
-title: 'All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object...'
+title: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object...
 status: active
 tags:
-  - performance
-  - medium
-  - configuration
-  - governance
-pillar: performance
+- performance
+- medium
+- configuration
+- governance
+pillar: efficiancy
 severity: medium
 type:
-  - configuration
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object storage used by production workloads MUST be configured with appropriate I/O...
+- configuration
+- governance
+category: logging-monitoring
+rationale: Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs 'Logging und Monitoring' und stellt sicher,
+  dass All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object storage used by production workloads MUST
+  be configured with appropriate I/O.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Slow or over-provisioned storage extends response times and increases cost.
+- Missing storage-tiering strategies prevent cost-efficient long-term archiving.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-090.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-090.adoc
+  related_controls:
+  - WAF-PERF-050
+  - WAF-PERF-040
+  - WAF-PERF-020
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object storage used by production workloads
+  MUST be configured with appropriate I/O performance settings (IOPS, throughput, storage class). Storage volumes MUST use
+  the most cost-efficient performance tier for their workload. EBS volumes MUST use gp3 instead of gp2 for new deployments.
+  Storage I/O performance MUST be monitored and alerts configured for throughput saturation and high queue depth.
 
-description: |
-  All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object storage used by production workloads MUST be configured with appropriate I/O performance settings (IOPS, throughput, storage class). Storage volumes MUST use the most cost-efficient performance tier for their workload. EBS volumes MUST use gp3 instead of gp2 for new deployments. Storage I/O performance MUST be monitored and alerts configured for throughput saturation and high queue depth.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Resource Utilization'
-      - 'Performance Efficiency – Time Behavior'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 3 – How do you select your storage solution?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Choose the right storage'
-  - framework: 'Google Cloud Architecture Framework'
-    controls:
-      - 'Storage selection – Choose appropriate disk type'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Resource Utilization
+  - Performance Efficiency – Time Behavior
 checks:
-  - id: waf-perf-090.tf.aws.ebs-gp3-volume-type
-    engine: terraform
-    automated: true
-    title: 'AWS EBS volumes must use gp3 type instead of gp2'
-    provider: aws
-    description: 'EBS volumes must use gp3 type for new deployments. gp3 provides baseline performance of 3000 IOPS and 125 MB/s throughput without burst mechanics, at 20% lower cost than gp2. gp2 volumes deplete burst credits under sustained load causing unpredictable performance.'
-    expected: 'true'
-    remediation: 'Change volume_type from "gp2" to "gp3". For databases requiring higher IOPS, set explicit iops and throughput values on gp3 (max 16000 IOPS, 1000 MB/s). Migration from gp2 to gp3 is online and non-disruptive.\n'
-    example:
-      compliant: |
-        resource "aws_ebs_volume" "data" {
-          availability_zone = "eu-west-1a"
-          size              = 100
-          type              = "gp3"
-          iops              = 6000    # Explicitly set above default 3000
-          throughput        = 250     # Explicitly set above default 125 MB/s
-          encrypted         = true
-          tags = {
-            Name    = "data-payment-api"
-            workload = "payment-api"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_ebs_volume" "data" {
-          availability_zone = "eu-west-1a"
-          size              = 100
-          type              = "gp2"  # gp2 – burst-dependent – WAF-PERF-090 violation
-          # No explicit IOPS; subject to credit depletion
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_ebs_volume
-        - aws_db_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'volume_type'
-        op: 'not_equals'
-        message: 'EBS volume must not use gp2 type. Migrate to gp3 for consistent performance and lower cost.'
-      - attribute: 'volume_type'
-        op: 'in'
-        message: 'EBS volume type must be explicitly set to a supported current type.'
-    on_fail: violation
-  - id: waf-perf-090.tf.azurerm.managed-disk-premium
-    engine: terraform
-    automated: true
-    title: 'Azure Managed Disks for production database workloads should use Premium SSD'
-    provider: azurerm
-    description: 'Azure Managed Disks used for database data volumes should use Premium SSD (P series) or Ultra Disk for high-IOPS workloads. Standard HDD or Standard SSD is inappropriate for production database storage.'
-    expected: 'true'
-    remediation: 'Set storage_account_type = "Premium_LRS" for database data disks. Use UltraSSD_LRS for extremely latency-sensitive workloads requiring sub-millisecond I/O.\n'
-    example:
-      compliant: |
-        resource "azurerm_managed_disk" "db_data" {
-          name                 = "disk-db-payment-data"
-          resource_group_name  = azurerm_resource_group.main.name
-          location             = azurerm_resource_group.main.location
-          storage_account_type = "Premium_LRS"
-          create_option        = "Empty"
-          disk_size_gb         = 256
-          tags = {
-            workload = "payment-db"
-            tier     = "data"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_managed_disk" "db_data" {
-          name                 = "disk-db-payment-data"
-          storage_account_type = "Standard_LRS"  # HDD for database – WAF-PERF-090 advisory
-          create_option        = "Empty"
-          disk_size_gb         = 256
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_managed_disk
-    assertions:
-      - attribute: 'storage_account_type'
-        op: 'not_in'
-        message: 'Production database disks must use Premium_LRS or UltraSSD_LRS, not Standard or StandardSSD.'
-    on_fail: advisory
-  - id: waf-perf-090.tf.google.persistent-disk-ssd
-    engine: terraform
-    automated: true
-    title: 'GCP Persistent Disks for production workloads should use SSD type'
-    provider: google
-    description: 'GCP Persistent Disks for production compute and database workloads should use pd-ssd or pd-balanced type, not pd-standard (HDD) which has high latency.'
-    expected: 'true'
-    remediation: 'Set type = "pd-balanced" for general workloads or type = "pd-ssd" for high-IOPS databases. pd-extreme is available for ultra-high IOPS requirements.\n'
-    example:
-      compliant: |
-        resource "google_compute_disk" "db_data" {
-          name  = "disk-payment-db-data"
-          type  = "pd-ssd"
-          zone  = "europe-west3-a"
-          size  = 100
-          labels = {
-            workload = "payment-db"
-          }
-        }
-        
-      non_compliant: |
-        resource "google_compute_disk" "db_data" {
-          name  = "disk-payment-db-data"
-          type  = "pd-standard"  # HDD – high latency for database – WAF-PERF-090 advisory
-          zone  = "europe-west3-a"
-          size  = 100
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_disk
-    assertions:
-      - attribute: 'type'
-        op: 'not_equals'
-        message: 'Production Persistent Disk must not use pd-standard (HDD). Use pd-ssd or pd-balanced.'
-    on_fail: advisory
+- id: waf-perf-090.tf.aws.ebs-gp3-volume-type
+  engine: terraform
+  automated: true
+  title: AWS EBS volumes must use gp3 type instead of gp2
+  provider: aws
+  description: EBS volumes must use gp3 type for new deployments. gp3 provides baseline performance of 3000 IOPS and 125 MB/s
+    throughput without burst mechanics, at 20% lower cost than gp2. gp2 volumes deplete burst credits under sustained load
+    causing unpredictable performance.
+  expected: 'true'
+  remediation: Change volume_type from "gp2" to "gp3". For databases requiring higher IOPS, set explicit iops and throughput
+    values on gp3 (max 16000 IOPS, 1000 MB/s). Migration from gp2 to gp3 is online and non-disruptive.\n
+  example:
+    compliant: "resource \"aws_ebs_volume\" \"data\" {\n  availability_zone = \"eu-west-1a\"\n  size              = 100\n\
+      \  type              = \"gp3\"\n  iops              = 6000    # Explicitly set above default 3000\n  throughput    \
+      \    = 250     # Explicitly set above default 125 MB/s\n  encrypted         = true\n  tags = {\n    Name    = \"data-payment-api\"\
+      \n    workload = \"payment-api\"\n  }\n}\n"
+    non_compliant: "resource \"aws_ebs_volume\" \"data\" {\n  availability_zone = \"eu-west-1a\"\n  size              = 100\n\
+      \  type              = \"gp2\"  # gp2 – burst-dependent – WAF-PERF-090 violation\n  # No explicit IOPS; subject to credit\
+      \ depletion\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_ebs_volume
+    - aws_db_instance
+    - aws_launch_template
+  assertions:
+  - attribute: volume_type
+    op: not_equals
+    message: EBS volume must not use gp2 type. Migrate to gp3 for consistent performance and lower cost.
+    expected: gp2
+  - attribute: volume_type
+    op: in
+    message: EBS volume type must be explicitly set to gp3 or io2.
+    expected:
+    - gp3
+    - io2
+  on_fail: violation
+- id: waf-perf-090.tf.azurerm.managed-disk-premium
+  engine: terraform
+  automated: true
+  title: Azure Managed Disks for production database workloads should use Premium SSD
+  provider: azurerm
+  description: Azure Managed Disks used for database data volumes should use Premium SSD (P series) or Ultra Disk for high-IOPS
+    workloads. Standard HDD or Standard SSD is inappropriate for production database storage.
+  expected: 'true'
+  remediation: Set storage_account_type = "Premium_LRS" for database data disks. Use UltraSSD_LRS for extremely latency-sensitive
+    workloads requiring sub-millisecond I/O.\n
+  example:
+    compliant: "resource \"azurerm_managed_disk\" \"db_data\" {\n  name                 = \"disk-db-payment-data\"\n  resource_group_name\
+      \  = azurerm_resource_group.main.name\n  location             = azurerm_resource_group.main.location\n  storage_account_type\
+      \ = \"Premium_LRS\"\n  create_option        = \"Empty\"\n  disk_size_gb         = 256\n  tags = {\n    workload = \"\
+      payment-db\"\n    tier     = \"data\"\n  }\n}\n"
+    non_compliant: "resource \"azurerm_managed_disk\" \"db_data\" {\n  name                 = \"disk-db-payment-data\"\n \
+      \ storage_account_type = \"Standard_LRS\"  # HDD for database – WAF-PERF-090 advisory\n  create_option        = \"Empty\"\
+      \n  disk_size_gb         = 256\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_managed_disk
+  assertions:
+  - attribute: storage_account_type
+    op: not_in
+    message: Production database disks must use Premium_LRS or UltraSSD_LRS, not Standard or StandardSSD.
+    expected:
+    - Standard_LRS
+    - StandardSSD_LRS
+  on_fail: advisory
+- id: waf-perf-090.tf.google.persistent-disk-ssd
+  engine: terraform
+  automated: true
+  title: GCP Persistent Disks for production workloads should use SSD type
+  provider: google
+  description: GCP Persistent Disks for production compute and database workloads should use pd-ssd or pd-balanced type, not
+    pd-standard (HDD) which has high latency.
+  expected: 'true'
+  remediation: Set type = "pd-balanced" for general workloads or type = "pd-ssd" for high-IOPS databases. pd-extreme is available
+    for ultra-high IOPS requirements.\n
+  example:
+    compliant: "resource \"google_compute_disk\" \"db_data\" {\n  name  = \"disk-payment-db-data\"\n  type  = \"pd-ssd\"\n\
+      \  zone  = \"europe-west3-a\"\n  size  = 100\n  labels = {\n    workload = \"payment-db\"\n  }\n}\n"
+    non_compliant: "resource \"google_compute_disk\" \"db_data\" {\n  name  = \"disk-payment-db-data\"\n  type  = \"pd-standard\"\
+      \  # HDD – high latency for database – WAF-PERF-090 advisory\n  zone  = \"europe-west3-a\"\n  size  = 100\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_disk
+  assertions:
+  - attribute: type
+    op: not_equals
+    message: Production Persistent Disk must not use pd-standard (HDD). Use pd-ssd or pd-balanced.
+    expected: pd-standard
+  on_fail: advisory
+- id: waf-perf-090.tf.stackit.load-tested
+  engine: terraform
+  automated: true
+  title: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... for stackit
+  provider: stackit
+  description: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... must be documented in IaC via
+    a load-tested tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a load-tested tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-090
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    load-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing load-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: load-tested
+    message: stackit_project is missing the load-tested tag/label.
+  on_fail: violation
+- id: waf-perf-090.tf.ovh.load-tested
+  engine: terraform
+  automated: true
+  title: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... for ovh
+  provider: ovh
+  description: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... must be documented in IaC via
+    a load-tested tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a load-tested tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-090
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    load-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing load-tested tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: load-tested
+    message: ovh_cloud_project is missing the load-tested tag/label.
+  on_fail: violation
+- id: waf-perf-090.tf.hcloud.load-tested
+  engine: terraform
+  automated: true
+  title: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... for hcloud
+  provider: hcloud
+  description: All block storage (EBS, Azure Managed Disks, GCP Persistent Disk) and object... must be documented in IaC via
+    a load-tested tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a load-tested tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-090
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    load-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing load-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: load-tested
+    message: hcloud_server is missing the load-tested tag/label.
+  on_fail: violation

@@ -3,117 +3,132 @@
 :control-id: WAF-AGN-060
 :pillar: agentic
 :severity: medium
-:category: orchestration
-:automated: medium
-:description: WAF++ Agentic – Viele Agenten müssen koordiniert werden. Orchestrierung muss effektiv sein.
+:category: logging-monitoring
+:automatable: High
+:description: Many agents must be coordinated. Agent orchestration MUST use coordinator/manager patterns or mesh architectures. Event-based communication MUST be configured for agent messaging. Failure recovery and agent health monitoring MUST be in place.
 
 [.metadata]
-*Pillar:* Agentic | *Severity:* Medium | *Category:* Orchestration | *Automatisierbar:* Medium
+*Säule:* Agentic | *Schweregrad:* Mittel | *Kategorie:* Logging Monitoring | *Automatisierbar:* High
 
 == Beschreibung
 
-Viele Agenten müssen koordiniert werden. Agent-Orchestrierung muss Coordinator/Manager-Pattern oder Mesh-Architekturen verwenden. Event-basierte Kommunikation muss für Agenten-Messaging konfiguriert sein. Failure Recovery und Agent-Health-Monitoring müssen in place sein.
+Many agents must be coordinated. Agent orchestration MUST use coordinator/manager patterns or mesh architectures. Event-based communication MUST be configured for agent messaging. Failure recovery and agent health monitoring MUST be in place.
 
 == Begründung
 
-Unkoordinierte Multi-Agent-Systeme erzeugen mehrere Probleme:
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
 
-*Redundante Arbeit:* Mehrere Agenten arbeiten an derselben Aufgabe ohne Koordination und verschwenden Ressourcen.
+|*Risk* |Uncoordinated agents create race conditions, deadlocks, or duplicate critical operations.
 
-*Konfliktakte:* Agenten können widersprüchliche Aktionen ohne Koordination ausführen.
+|*Risk* |Missing orchestration governance allows agent swarms to bypass approval boundaries.
 
-*Performance-Probleme:* Fehlendes Lastbalancing führt dazu, dass einige Agenten überlastet sind, während andere untätig sind.
-
-*Versagens-Propagierung:* Wenn ein Agent ausfällt, können abhängige Agenten ohne Recovery ebenfalls ausfallen.
-
-*Keine Sichtbarkeit:* Es ist schwer, die Gesamtsystemgesundheit ohne Orchestrierung zu überwachen.
+|===
 
 == Anforderungen
 
-* Coordinator/Manager-Pattern muss für Agent-Orchestrierung verwendet werden
-* Event-basierte Kommunikation (SNS, SQS, EventBridge) muss konfiguriert sein
-* Failure Recovery-Mechanismen müssen in place sein
-* Agent-Health-Monitoring muss konfiguriert sein
-* Dead Letter Queues müssen für gescheiterte Nachrichten konfiguriert sein
+* Many agents must be coordinated.
+* Agent orchestration MUST use coordinator/manager patterns or mesh architectures.
+* Event-based communication MUST be configured for agent messaging.
+* Failure recovery and agent health monitoring MUST be in place.
 
-== Implementierungshinweise
+== Implementierungsleitfaden
 
-. *Coordinator-Pattern entwerfen:* Ein Manager-Agent delegiert Aufgaben an spezialisierte Worker
-. *Event-Kanäle verwenden:* SNS-Themen, SQS-Warteschlangen und EventBridge-Regeln konfigurieren
-. *Retry-Logik implementieren:* Nachrichten-Retries mit exponentiellem Backoff konfigurieren
-. *Dead Letter Queues einrichten:* DLQ für Nachrichten konfigurieren, die wiederholt fehlschlagen
-. *Agent-Health überwachen:* Alarms für Agenten-Ausfälle und Latenz-Spikes konfigurieren
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegradstufen
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Kriterien
 
-|*1*
-|Keine Orchestrierung
-|Agenten operieren unabhängig ohne Koordination. Kein Failover.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Manuelle Koordination
-|Einige manuelle Orchestrierung über externe Systeme.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Event-basierte Koordination
-|Agenten kommunizieren über Events. Basic Failover konfiguriert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Orchestrierung
-|Dynamische Task-Zuweisung. Automatisches Failover und Skalierung.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Selbstheilendes System
-|Orchestrierer lernt aus Versagen und verbessert sich automatisch.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-agn-060.tf.aws.coordinator-agent-configured
-*Prüft:* Multi-Agent-Systeme haben Coordinator/Manager konfiguriert.
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*Multi-agent systems must have coordinator/manager configured*
+
+Multi-agent AWS Bedrock systems must have a coordinator agent that manages worker agents. The coordinator must route tasks, aggregate results, and handle failures.
+
+*Scope:* `resource` — `aws_bedrockagent`, `aws_lambda_function`, `aws_sfn_state_machine`
+
+*Assertions:*
+* `agent_name` not empty — Coordinator agent must be configured for multi-agent systems.
+
+*Remediation:* Design a coordinator agent pattern where one agent orchestrates multiple specialized agents. Use AWS Step Functions or Lambda to manage the coordination flow. Define clear task delegation and result aggregation.
+
+.Compliant
+
+[source,terraform]
 ----
+# Coordinator agent manages worker agents
 resource "aws_bedrockagent" "coordinator" {
   agent_name = "agent-coordinator"
-  # Verwaltet mehrere Worker-Agenten
+  # Manages multiple worker agents
 }
 
 resource "aws_bedrockagent" "worker_analysis" {
   agent_name = "analysis-worker"
-  # Arbeitet unter Coordinator-Anleitung
+  # Works under coordinator direction
 }
 
 resource "aws_bedrockagent" "worker_research" {
   agent_name = "research-worker"
-  # Arbeitet unter Coordinator-Anleitung
+  # Works under coordinator direction
 }
 
+# Coordination via Step Functions or Lambda
 resource "aws_lambda_function" "agent_coordinator" {
   function_name = "agent-coordinator-function"
-  # Koordiniert Agenten-Kommunikation
+  # Coordinates agent communication
 }
 ----
-|Kein Coordinator definiert
-|===
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No coordinator defined
+# WAF-AGN-060 Violation
+----
+
+---
 
 === waf-agn-060.tf.aws.event-based-communication
-*Prüft:* Agenten-Kommunikation verwendet event-basiertes Messaging (SNS, SQS, EventBridge).
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*Agent communication must use event-based messaging*
+
+Agents must communicate via event-based channels (SNS, SQS, EventBridge) rather than direct HTTP calls. This ensures decoupling, resilience, and auditability of agent interactions.
+
+*Scope:* `resource` — `aws_sns_topic`, `aws_sqs_queue`, `aws_bedrockagent`
+
+*Assertions:*
+* `name` not empty — Event-based communication (SNS/SQS/EventBridge) must be configured.
+
+*Remediation:* Configure SNS topics, SQS queues, and EventBridge rules for agent communication. Agents publish messages to channels and subscribe to relevant events. Avoid direct agent-to-agent HTTP endpoints.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_sns_topic" "agent_events" {
   name = "agent-events"
@@ -131,166 +146,374 @@ resource "aws_sns_topic_subscription" "agent_subscription" {
 
 resource "aws_bedrockagent" "event_agent" {
   agent_name = "event-based-agent"
+  # Listens to SNS/SQS for events
 }
 ----
-|Keine Event-Kommunikation
-|===
 
-=== waf-agn-060.tf.google.event-bridge
-*Prüft:* Google Cloud hat Event-Basierende Kommunikation konfiguriert.
+.Non-Compliant
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
-
-a|[source,hcl]
+[source,terraform]
 ----
-resource "google_pubsub_topic" "agent_events" {
-  name = "agent-events"
-}
-
-resource "google_pubsub_subscription" "agent_subscription" {
-  name  = "agent-subscription"
-  topic = google_pubsub_topic.agent_events.name
+resource "aws_bedrockagent" "direct-agent" {
+  agent_name = "direct-rpc-agent"
+  # Direct HTTP calls to other agents
+  # WAF-AGN-060 Violation
 }
 ----
-|Keine Pub/Sub-Konfiguration
-|===
 
-=== waf-agn-060.tf.azure.event-grid
-*Prüft:* Azure hat Event Grid für Agenten-Kommunikation konfiguriert.
+---
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
+=== waf-agn-060.tf.aws.failure-recovery-configured
 
-a|[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*Multi-agent systems must have failure recovery configured*
+
+Multi-agent systems must have automated failure recovery. Failed agents must be restarted, messages requeued, and alerts raised. Dead letter queues must be configured for failed messages.
+
+*Scope:* `resource` — `aws_sqs_queue`, `aws_cloudwatch_metric_alarm`
+
+*Assertions:*
+* `name` not empty — Failure recovery (dead letter queue, alarms) must be configured.
+
+*Remediation:* Configure CloudWatch Alarms for agent health monitoring. Set up Lambda retry policies and dead letter queues for failed message processing. Implement agent health checks with automatic restart.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "azurerm_event_grid_topic" "agent_events" {
+resource "aws_sqs_queue" "dead_letter_queue" {
+  name = "agent-dead-letter"
+}
+
+resource "aws_sqs_queue" "main_queue" {
+  name = "agent-messages"
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dead_letter_queue.arn
+    maxReceiveCount       = 3
+  })
+}
+
+resource "aws_cloudwatch_metric_alarm" "agent_health" {
+  alarm_name          = "agent-health-alarm"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "Invocations"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "Agent failure detected"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_sqs_queue" "no_redrive" {
+  name = "messages-no-recovery"
+  # No dead letter queue configured
+  # WAF-AGN-060 Violation
+}
+----
+
+---
+
+=== waf-agn-060.tf.azurerm.event-grid-coordination
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Event Grid must be configured for agent coordination*
+
+Azure Event Grid topics and subscriptions must be configured for event-based communication between agents, enabling decoupled coordination.
+
+*Scope:* `resource` — `azurerm_eventgrid_topic`, `azurerm_eventgrid_event_subscription`
+
+*Assertions:*
+* `name` not empty — Event Grid topic must be configured for agent coordination.
+* `scope` not empty — Event Grid subscription must route agent events.
+
+*Remediation:* Deploy azurerm_eventgrid_topic and azurerm_eventgrid_event_subscription to route agent events between coordinator and worker agents.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_eventgrid_topic" "agent_events" {
   name                = "agent-events"
-  resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
 }
 
-resource "azurerm_event_grid_subscription" "agent_subscription" {
-  name                 = "agent-subscription"
-  event_subscription_id = "agent-subscription"
-  resource_group_name  = azurerm_resource_group.main.name
-  topic_name          = azurerm_event_grid_topic.agent_events.name
+resource "azurerm_eventgrid_event_subscription" "agent_subscription" {
+  name  = "agent-worker-subscription"
+  scope = azurerm_eventgrid_topic.agent_events.id
 
   webhook_endpoint {
-    url = azurerm_function_app.main.default_hostname
+    url = "https://agent-worker.example.com/events"
   }
 }
 ----
-|Kein Event Grid konfiguriert
-|===
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_cognitive_deployment" "agent" {
+  name = "standalone-agent"
+  # No Event Grid coordination configured
+  # WAF-AGN-060 Violation
+}
+----
+
+---
+
+=== waf-agn-060.tf.google.eventarc-coordination
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Eventarc triggers must be configured for agent coordination*
+
+GCP Eventarc triggers must route agent events to Cloud Run services or Cloud Functions for event-based coordination between agents.
+
+*Scope:* `resource` — `google_eventarc_trigger`
+
+*Assertions:*
+* `matching_criteria` attribute exists — Eventarc trigger must define matching criteria for agent events.
+* `destination` attribute exists — Eventarc trigger must route events to an agent service destination.
+
+*Remediation:* Configure google_eventarc_trigger resources to subscribe to relevant events and route them to agent services.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_eventarc_trigger" "agent_event" {
+  name     = "agent-coordination-trigger"
+  location = "europe-west3"
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.pubsub.topic.v1.messagePublished"
+  }
+
+  destination {
+    cloud_run_service {
+      service = google_cloud_run_service.agent_worker.name
+      region  = "europe-west3"
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "agent_worker" {
+  name = "agent-worker"
+  # No Eventarc trigger for event-based coordination
+  # WAF-AGN-060 Violation
+}
+----
+
+---
+
+=== waf-agn-060.tf.stackit.agentic-coordination-defined
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*Many agents must be coordinated for stackit*
+
+Many agents must be coordinated must be documented in IaC via a agentic-coordination-defined tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the agentic-coordination-defined tag/label.
+
+*Remediation:* Add a agentic-coordination-defined tag/label to the stackit_project resource to show the stackit implementation of WAF-AGN-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    agentic-coordination-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing agentic-coordination-defined labels
+}
+----
+
+---
+
+=== waf-agn-060.tf.ovh.agentic-coordination-defined
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*Many agents must be coordinated for ovh*
+
+Many agents must be coordinated must be documented in IaC via a agentic-coordination-defined tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the agentic-coordination-defined tag/label.
+
+*Remediation:* Add a agentic-coordination-defined tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-AGN-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    agentic-coordination-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing agentic-coordination-defined tags
+}
+----
+
+---
+
+=== waf-agn-060.tf.hcloud.agentic-coordination-defined
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Many agents must be coordinated for hcloud*
+
+Many agents must be coordinated must be documented in IaC via a agentic-coordination-defined tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the agentic-coordination-defined tag/label.
+
+*Remediation:* Add a agentic-coordination-defined tag/label to the hcloud_server resource to show the hcloud implementation of WAF-AGN-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    agentic-coordination-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing agentic-coordination-defined labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Erforderlich |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Erforderlich
-|Coordinator-Agent-Konfiguration, Event-Channel-Setup, DLQ-Konfiguration.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Konfig*
-|✅ Erforderlich
-|Queue-Konfigurationen, Retry-Policies, Alarm-Schwellenwerte.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Prozess*
-|✅ Erforderlich
-|Orchestrierungs-Runbook, Failover-Testberichte, Health-Monitoring-Dashboards.
-
-|*Governance*
-|✅ Erforderlich
-|Multi-Agent Orchestration Policy, die Koordinationsanforderungen definiert.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Verwandte Controls
 
-* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
-* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-070.adoc[WAF-AGN-070]
+* xref:pillar-agentic:controls/WAF-AGN-030.adoc[WAF-AGN-030]
+* xref:pillar-agentic:controls/WAF-AGN-090.adoc[WAF-AGN-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+== Regulatorisches Mapping
 
-== Regulatorische Zuordnung
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
-|Rahmenwerk |Controls
+|Framework |Controls
 
-|*ISO 27001:2022*
-|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+|ISO 27001:2022 |* A.8.1 – Information security roles and responsibilities
+* A.8.2 – Privileged access rights
 
-|*NIST SP 800-53*
-|AU-2 – Event logging; AU-6 – Audit review and analysis
+|ISO 27017 |* CLD.9.5 – Segregation in virtual computing environments
 
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.DP – Data protection
+|CIS Controls v8 |* CIS 13 – Content Filtering
 
-|*GDPR*
-|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+|SOC 2 Type II |* CC4.1 – Monitoring activities
+* CC7.1 – Infrastructure and software monitoring
 
-|*PCI DSS v4.0*
-|Req 10 – Monitor and detect threats
+|NIST SP 800-53 |* AU-2 – Event logging
+* AU-6 – Audit review and analysis
 
-|*TISAX*
-|Information security – Monitoring and logging
+|NIST CSF 2.0 |* DE.CM – Continuous monitoring
+* DE.DP – Data protection
 
-|*ANSSI SecNumCloud*
-|Domain – Logging und monitoring
+|GDPR |* Art. 32 – Security of processing
+* Art. 5(1)(f) – Integrity and confidentiality
 
-|*BIO*
-|BIO – Logboekhouding en monitoring
+|PCI DSS v4.0 |* Req 10 – Monitor and detect threats
 
-|*ENS High*
-|op.exp.6 – Gestión de cambios
+|CSA STAR |* CCM Logging and Monitoring
 
-|*UK NCSC CAF*
-|A4 – Policy and assurance
+|BSI C5:2020 |* OPS-01 – Operational monitoring
 
-|*FedRAMP*
-|AU-2, AU-6 (Moderate baseline)
+|TISAX |* Information security – Monitoring and logging
 
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Flow audit logs to central log management
+|ANSSI SecNumCloud |* Domain – Logging and monitoring
 
-|*IT-Grundschutz*
-|ORP.1 – Informationstechnisch-related Angriffsschutz
+|BIO |* BIO – Logboekhouding en monitoring
 
-|*IRAP*
-|ISM – Logging and monitoring
+|ENS High |* op.exp.6 – Gestión de cambios
 
-|*CCCS PBMM*
-|AU-2, AU-6 – Logging and audit
+|UK NCSC CAF |* A4 – Policy and assurance
 
-|*MAS TRM*
-|Ch.9 – Change management
+|FedRAMP |* AU-2, AU-6 (Moderate baseline)
 
-|*ISMAP*
-|Monitoring and logging controls
+|CMMC 2.0 |* AU.L2-3.8.1 – Flow audit logs to central log management
 
-|*FISC*
-|Technical measures – Logging and monitoring
+|IT-Grundschutz |* ORP.1 – Organisation
 
-|*AWS Well-Architected Framework*
-|Security Pillar – Logging and monitoring; Reliability Pillar – Failure management
+|IRAP |* ISM – Logging and monitoring
 
-|*Google Cloud Architecture Framework*
-|Reliability – Failure management; Security – Monitoring
+|CCCS PBMM |* AU-2, AU-6 – Logging and audit
 
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring
+|MAS TRM |* Ch.9 – Change management
 
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+|ISMAP |* Monitoring and logging controls
 
-|*CSA STAR*
-|CCM Logging and Monitoring
-
-|*CIS Controls v8*
-|CIS 13 – Content Filtering
+|FISC |* Technical measures – Logging and monitoring
 
 |===

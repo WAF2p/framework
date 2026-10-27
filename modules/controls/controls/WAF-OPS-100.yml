@@ -1,165 +1,300 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-100
 id: WAF-OPS-100
-title: 'All known operational debt – manual processes, undocumented workarounds,...'
+title: All known operational debt – manual processes, undocumented workarounds,...
 status: active
 tags:
-  - operational
-  - medium
-  - governance
-  - configuration
-pillar: operational
+- operational
+- medium
+- governance
+- configuration
+pillar: excellence
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks, siloed knowledge – MUST be tracked in a...
+- governance
+- configuration
+category: data-governance
+rationale: Fehlende Datenklassifizierung, -eigentümerschaft und Lifecycle-Steuerung erhöhen Compliance-Risiken, Kosten und
+  die Wahrscheinlichkeit von Datenverlusten. Dieses Control adressiert die Anforderungen des Bereichs 'Daten-Governance' und
+  stellt sicher, dass All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated
+  runbooks, siloed knowledge – MUST be tracked in a.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Undocumented manual processes accumulate operational debt and knowledge-risk.
+- Unprioritized operational debt blocks planned automation and scaling.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-100.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-100.adoc
+  related_controls:
+  - WAF-OPS-070
+  - WAF-OPS-020
+  - WAF-COST-010
+  - WAF-REL-050
+  - WAF-SUS-010
+  - WAF-OPS-090
+  - WAF-COST-080
+  - WAF-SUS-030
+  - WAF-OPS-040
+  - WAF-OPS-030
+  - WAF-REL-010
+  - WAF-REL-040
+description: 'All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks,
+  siloed knowledge – MUST be tracked in a version-controlled Operational Debt Register. The register MUST be reviewed quarterly
+  with explicit prioritization and paydown allocation. Operational debt items MUST have severity classification, estimated
+  toil hours, owner, and target resolution date.
 
-description: |
-  All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks, siloed knowledge – MUST be tracked in a version-controlled Operational Debt Register. The register MUST be reviewed quarterly with explicit prioritization and paydown allocation. Operational debt items MUST have severity classification, estimated toil hours, owner, and target resolution date.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Continual improvement'
-      - 'Risk management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Continual improvement'
-      - 'Problem management'
-  - framework: 'Google SRE Book'
-    controls:
-      - 'Chapter 5: Eliminating Toil'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 10: How do you use findings to take action?'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Continual improvement
+  - Risk management
+- framework: ITIL 4
+  controls:
+  - Continual improvement
+  - Problem management
+- framework: SRE Book (Google)
+  controls:
+  - 'Chapter 5: Eliminating Toil'
 checks:
-  - id: waf-ops-100.tf.aws.eventbridge-ops-review-schedule
-    engine: terraform
-    automated: true
-    title: 'EventBridge scheduled rule must exist for automated operational review reminders'
-    provider: aws
-    description: "An AWS EventBridge (CloudWatch Events) scheduled rule MUST be configured to send quarterly operational debt review reminders to the team's notification channel."
-    expected: 'true'
-    remediation: 'Create an aws_cloudwatch_event_rule with a cron schedule_expression for quarterly reviews and target it to an SNS topic or Lambda for notifications.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_event_rule" "ops_review_reminder" {
-          name                = "quarterly-ops-debt-review"
-          description         = "Quarterly reminder to review and update Operational Debt Register"
-          schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
-          is_enabled          = true
-        }
-        
-        resource "aws_cloudwatch_event_target" "ops_review_sns" {
-          rule      = aws_cloudwatch_event_rule.ops_review_reminder.name
-          target_id = "OpsReviewNotification"
-          arn       = aws_sns_topic.team_notifications.arn
-          input = jsonencode({
-            message = "Quarterly Operational Debt Register review due. Runbook: https://wiki/ops-debt-review"
-          })
-        }
-        
-      non_compliant: |
-        # No scheduled operational review reminder configured
-        # WAF-OPS-100 Violation: no automated review cadence enforcement
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_event_rule
-    assertions:
-      - attribute: 'schedule_expression'
-        op: 'attribute_exists'
-        message: 'CloudWatch Event rule must define a schedule_expression for periodic review.'
-    on_fail: violation
-  - id: waf-ops-100.tf.aws.ssm-automation-runbook
-    engine: terraform
-    automated: true
-    title: 'AWS SSM automation documents must exist for repetitive operational tasks'
-    provider: aws
-    description: 'Repetitive operational tasks (AMI patching, instance rotation, configuration updates) MUST be automated using AWS Systems Manager automation documents to reduce toil.'
-    expected: 'true'
-    remediation: 'Create aws_ssm_document resources with Automation document type to automate repetitive operational procedures that currently require manual intervention.\n'
-    example:
-      compliant: |
-        resource "aws_ssm_document" "rotate_instances" {
-          name            = "RotateASGInstances"
-          document_type   = "Automation"
-          document_format = "YAML"
-        
-          content = <<-DOC
-            description: Rotate all instances in an Auto Scaling Group
-            schemaVersion: "0.3"
-            parameters:
-              AutoScalingGroupName:
-                type: String
-                description: Name of the Auto Scaling Group to rotate
-            mainSteps:
-              - name: TerminateInstances
-                action: aws:executeScript
-                inputs:
-                  Runtime: python3.11
-                  Handler: rotate_instances
-          DOC
-        }
-        
-      non_compliant: |
-        # No SSM automation documents defined
-        # Instance rotation performed manually via console
-        # WAF-OPS-100 Violation: manual process not automated
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_ssm_document
-    assertions:
-      - attribute: 'document_type'
-        op: 'not_empty'
-        message: 'SSM document must define a document_type.'
-      - attribute: 'content'
-        op: 'not_empty'
-        message: 'SSM document must have content defining automation steps.'
-    on_fail: violation
+- id: waf-ops-100.tf.aws.eventbridge-ops-review-schedule
+  engine: terraform
+  automated: true
+  title: EventBridge scheduled rule must exist for automated operational review reminders
+  provider: aws
+  description: An AWS EventBridge (CloudWatch Events) scheduled rule MUST be configured to send quarterly operational debt
+    review reminders to the team's notification channel.
+  expected: 'true'
+  remediation: Create an aws_cloudwatch_event_rule with a cron schedule_expression for quarterly reviews and target it to
+    an SNS topic or Lambda for notifications.\n
+  example:
+    compliant: "resource \"aws_cloudwatch_event_rule\" \"ops_review_reminder\" {\n  name                = \"quarterly-ops-debt-review\"\
+      \n  description         = \"Quarterly reminder to review and update Operational Debt Register\"\n  schedule_expression\
+      \ = \"cron(0 9 1 1,4,7,10 ? *)\"\n  is_enabled          = true\n}\n\nresource \"aws_cloudwatch_event_target\" \"ops_review_sns\"\
+      \ {\n  rule      = aws_cloudwatch_event_rule.ops_review_reminder.name\n  target_id = \"OpsReviewNotification\"\n  arn\
+      \       = aws_sns_topic.team_notifications.arn\n  input = jsonencode({\n    message = \"Quarterly Operational Debt Register\
+      \ review due. Runbook: https://wiki/ops-debt-review\"\n  })\n}\n"
+    non_compliant: '# No scheduled operational review reminder configured
+
+      # WAF-OPS-100 Violation: no automated review cadence enforcement
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_event_rule
+  assertions:
+  - attribute: schedule_expression
+    op: attribute_exists
+    message: CloudWatch Event rule must define a schedule_expression for periodic review.
+  on_fail: violation
+- id: waf-ops-100.tf.aws.ssm-automation-runbook
+  engine: terraform
+  automated: true
+  title: AWS SSM automation documents must exist for repetitive operational tasks
+  provider: aws
+  description: Repetitive operational tasks (AMI patching, instance rotation, configuration updates) MUST be automated using
+    AWS Systems Manager automation documents to reduce toil.
+  expected: 'true'
+  remediation: Create aws_ssm_document resources with Automation document type to automate repetitive operational procedures
+    that currently require manual intervention.\n
+  example:
+    compliant: "resource \"aws_ssm_document\" \"rotate_instances\" {\n  name            = \"RotateASGInstances\"\n  document_type\
+      \   = \"Automation\"\n  document_format = \"YAML\"\n\n  content = <<-DOC\n    description: Rotate all instances in an\
+      \ Auto Scaling Group\n    schemaVersion: \"0.3\"\n    parameters:\n      AutoScalingGroupName:\n        type: String\n\
+      \        description: Name of the Auto Scaling Group to rotate\n    mainSteps:\n      - name: TerminateInstances\n \
+      \       action: aws:executeScript\n        inputs:\n          Runtime: python3.11\n          Handler: rotate_instances\n\
+      \  DOC\n}\n"
+    non_compliant: '# No SSM automation documents defined
+
+      # Instance rotation performed manually via console
+
+      # WAF-OPS-100 Violation: manual process not automated
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_ssm_document
+  assertions:
+  - attribute: document_type
+    op: not_empty
+    message: SSM document must define a document_type.
+  - attribute: content
+    op: not_empty
+    message: SSM document must have content defining automation steps.
+  on_fail: violation
+- id: waf-ops-100.tf.stackit.ops-debt-tag
+  engine: terraform
+  automated: true
+  title: STACKIT resources must document operational debt
+  provider: stackit
+  description: STACKIT resources must document operational debt. This check validates the Terraform configuration uses the
+    expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_server
+    - stackit_ske_cluster
+  assertions:
+  - attribute: labels.ops-debt
+    op: key_exists
+    key: ops-debt
+    message: STACKIT resource is missing the 'ops-debt' label.
+  on_fail: violation
+- id: waf-ops-100.tf.ovh.ops-debt-tag
+  engine: terraform
+  automated: true
+  title: OVHcloud resources must document operational debt
+  provider: ovh
+  description: OVHcloud resources must document operational debt. This check validates the Terraform configuration uses the
+    expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_instance
+    - ovh_cloud_project_kube
+  assertions:
+  - attribute: tags.ops-debt
+    op: key_exists
+    key: ops-debt
+    message: OVHcloud resource is missing the 'ops-debt' tag.
+  on_fail: violation
+- id: waf-ops-100.tf.hcloud.ops-debt-tag
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud resources must document operational debt
+  provider: hcloud
+  description: Hetzner Cloud resources must document operational debt. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.ops-debt
+    op: key_exists
+    key: ops-debt
+    message: Hetzner Cloud server is missing the 'ops-debt' label.
+  on_fail: violation
+- id: waf-ops-100.tf.azurerm.automation-runbook
+  engine: terraform
+  automated: true
+  title: Azure Automation runbook must exist for repetitive operational tasks
+  provider: azurerm
+  description: Repetitive operational tasks (VM patching, certificate rotation, cleanup jobs) MUST be automated using Azure
+    Automation runbooks to reduce toil.
+  expected: 'true'
+  remediation: Create an azurerm_automation_runbook resource with PowerShell or Python runbook_type and linked to an existing
+    azurerm_automation_account for operational procedures that currently require manual intervention.
+  example:
+    compliant: "resource \"azurerm_automation_account\" \"ops\" {\n  name                = \"ops-automation\"\n  location\
+      \            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  sku_name\
+      \            = \"Basic\"\n}\n\nresource \"azurerm_automation_runbook\" \"rotate_certs\" {\n  name                  \
+      \  = \"RotateKeyVaultCertificates\"\n  location                = azurerm_resource_group.main.location\n  resource_group_name\
+      \     = azurerm_resource_group.main.name\n  automation_account_name = azurerm_automation_account.ops.name\n  runbook_type\
+      \            = \"PowerShell\"\n  log_verbose             = true\n  log_progress            = true\n}\n"
+    non_compliant: "resource \"azurerm_automation_runbook\" \"rotate_certs\" {\n  name        = \"RotateKeyVaultCertificates\"\
+      \n  # Missing automation_account_name and runbook_type\n  # WAF-OPS-100 Violation: operational process not automated\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_automation_runbook
+  assertions:
+  - attribute: runbook_type
+    op: not_empty
+    message: Azure Automation runbook must define a runbook_type.
+  - attribute: automation_account_name
+    op: not_empty
+    message: Azure Automation runbook must be linked to an automation account.
+  on_fail: violation
+- id: waf-ops-100.tf.google.scheduler-ops-review
+  engine: terraform
+  automated: true
+  title: Cloud Scheduler job must trigger quarterly operational debt review reminders
+  provider: google
+  description: A GCP Cloud Scheduler job MUST be configured to send quarterly operational debt review reminders to the team's
+    notification channel.
+  expected: 'true'
+  remediation: Create a google_cloud_scheduler_job with a cron schedule for quarterly reviews and target it to a Pub/Sub topic
+    or HTTP endpoint for notifications.
+  example:
+    compliant: "resource \"google_cloud_scheduler_job\" \"ops_review_reminder\" {\n  name             = \"quarterly-ops-debt-review\"\
+      \n  description      = \"Quarterly reminder to review and update Operational Debt Register\"\n  schedule         = \"\
+      0 9 1 1,4,7,10 *\"\n  time_zone        = \"Europe/Berlin\"\n  pubsub_target {\n    topic_name = google_pubsub_topic.team_notifications.id\n\
+      \    data       = base64encode(\"Quarterly Operational Debt Register review due\")\n  }\n}\n"
+    non_compliant: '# No Cloud Scheduler job configured
+
+      # WAF-OPS-100 Violation: no automated review cadence enforcement
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_scheduler_job
+  assertions:
+  - attribute: schedule
+    op: attribute_exists
+    message: Cloud Scheduler job must define a schedule for periodic review reminders.
+  on_fail: violation

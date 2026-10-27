@@ -1,201 +1,254 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-010
 id: WAF-PERF-010
-title: 'All compute resources (virtual machines, container workloads, managed...'
+title: All compute resources (virtual machines, container workloads, managed...
 status: active
 tags:
-  - performance
-  - high
-  - governance
-  - configuration
-pillar: performance
+- performance
+- high
+- governance
+- configuration
+pillar: efficiancy
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'container-security'
-rationale: |
-  All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured workload requirements and validated...
+- governance
+- configuration
+category: container-security
+rationale: Unsichere Container und Images führen zu Angriffsflächen, Supply-Chain-Risiken und der Verbreitung von Malware
+  in Produktivumgebungen. Dieses Control adressiert die Anforderungen des Bereichs 'Container-Sicherheit' und stellt sicher,
+  dass All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured
+  workload requirements and validated.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Outdated or wrongly sized compute instances waste cost and miss performance targets.
+- Missing SKU reviews lead to resources that are neither efficient nor resilient.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-010.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-010.adoc
+  related_controls:
+  - WAF-PERF-080
+  - WAF-SEC-110
+  - WAF-PERF-020
+  - WAF-COST-030
+  - WAF-PERF-040
+  - WAF-SEC-070
+  - WAF-PERF-050
+  - WAF-PERF-090
+  - WAF-REL-010
+  - WAF-REL-040
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based
+  on measured workload requirements and validated performance baselines. Instance type selection MUST be documented in architecture
+  records or sizing sheets. Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory
+  > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
 
-description: |
-  All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured workload requirements and validated performance baselines. Instance type selection MUST be documented in architecture records or sizing sheets. Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Resource Utilization'
-      - 'Performance Efficiency – Capacity'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency Pillar – Select the right resource types and sizes'
-      - 'PERF 1 – How do you select the best performing architecture?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Choose the right resources'
-  - framework: 'Google Cloud Architecture Framework'
-    controls:
-      - 'Performance optimization – Right-size your instances'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Resource Utilization
+  - Performance Efficiency – Capacity
 checks:
-  - id: waf-perf-010.tf.aws.ec2-current-generation
-    engine: terraform
-    automated: true
-    title: 'AWS EC2 instances must use current-generation instance types'
-    provider: aws
-    description: 'EC2 instances must not use previous-generation instance types (t2, m4, c4, r4, i2, d2, etc.). Current-generation instance types provide significantly better price-performance. All instances must be documented with a sizing rationale.'
-    expected: 'true'
-    remediation: 'Replace previous-generation instance types with current-generation equivalents. t2.* → t3.* or t4g.*; m4.* → m6i.*; c4.* → c6i.*; r4.* → r6i.*. Run AWS Compute Optimizer to get right-sizing recommendations before migrating.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t3.medium"  # Current-generation, validated with Compute Optimizer
-          tags = {
-            sizing-reviewed = "2026-01-15"
-            workload        = "payment-api"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t2.medium"  # Previous-generation – WAF-PERF-010 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-        - aws_launch_configuration
-    assertions:
-      - attribute: 'instance_type'
-        op: 'not_matches'
-        message: 'Instance is using a previous-generation type. Migrate to t3/t4g, m5/m6i, c5/c6i, or r5/r6i.'
-        pattern: '^(t2|m4|c4|r4|i2|d2|hs1|m3|c3|cr1|cc2|g2|hi1)\\..*'
-      - attribute: 'instance_type'
-        op: 'attribute_exists'
-        message: 'Instance type must be explicitly declared; no default allowed.'
-    on_fail: violation
-  - id: waf-perf-010.tf.azurerm.vm-sizing-documented
-    engine: terraform
-    automated: true
-    title: 'Azure VMs must use current-generation sizes and have sizing metadata'
-    provider: azurerm
-    description: 'Azure virtual machines must not use deprecated or previous-generation VM sizes. Sizing metadata must be present as tags on the resource.'
-    expected: 'true'
-    remediation: "Replace deprecated VM sizes with current-generation equivalents (Dv5, Ev5, Bsv2, Dsv5). Use Azure Advisor recommendations for right-sizing guidance. Add a 'sizing-reviewed' tag with the review date.\n"
-    example:
-      compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-payment-api"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          size                = "Standard_D2s_v5"
-          tags = {
-            sizing-reviewed = "2026-01-15"
-            workload        = "payment-api"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-payment-api"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          size                = "Standard_D2"  # Deprecated size – WAF-PERF-010 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_linux_virtual_machine
-        - azurerm_windows_virtual_machine
-        - azurerm_virtual_machine_scale_set
-    assertions:
-      - attribute: 'size'
-        op: 'not_matches'
-        message: 'VM is using a deprecated or previous-generation size. Upgrade to Dv5 or Ev5 series.'
-        pattern: '^Standard_(A|D1$|D2$|D3$|D4$|DS1$|DS2$|DS3$|DS4$)$'
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'sizing-reviewed'
-        message: "VM must have a 'sizing-reviewed' tag with the date of the last sizing review."
-    on_fail: violation
-  - id: waf-perf-010.tf.google.gce-machine-type-validated
-    engine: terraform
-    automated: true
-    title: 'GCP Compute Engine instances must use N2 or C2 series machine types'
-    provider: google
-    description: 'GCP VM instances must not use first-generation N1 machine types for production workloads. N2, N2D, C2, E2, or C3 series offer better performance and price-performance ratios.'
-    expected: 'true'
-    remediation: 'Replace N1 machine types with current-generation equivalents. n1-standard-* → n2-standard-*; n1-highmem-* → n2-highmem-*; n1-highcpu-* → c2-standard-*. Use GCP Recommender for right-sizing analysis.\n'
-    example:
-      compliant: |
-        resource "google_compute_instance" "app" {
-          name         = "payment-api"
-          machine_type = "n2-standard-2"
-          zone         = "europe-west3-a"
-          boot_disk {
-            initialize_params { image = "debian-cloud/debian-11" }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_compute_instance" "app" {
-          name         = "payment-api"
-          machine_type = "n1-standard-2"  # N1 series – WAF-PERF-010 violation
-          zone         = "europe-west3-a"
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_instance
-        - google_compute_instance_template
-    assertions:
-      - attribute: 'machine_type'
-        op: 'not_matches'
-        message: 'GCP instance uses N1 machine type. Migrate to N2, N2D, C2, or E2 series for better performance.'
-        pattern: '^n1-(standard|highmem|highcpu)-.*'
-    on_fail: violation
+- id: waf-perf-010.tf.aws.ec2-current-generation
+  engine: terraform
+  automated: true
+  title: AWS EC2 instances must use current-generation instance types
+  provider: aws
+  description: EC2 instances must not use previous-generation instance types (t2, m4, c4, r4, i2, d2, etc.). Current-generation
+    instance types provide significantly better price-performance. All instances must be documented with a sizing rationale.
+  expected: 'true'
+  remediation: Replace previous-generation instance types with current-generation equivalents. t2.* → t3.* or t4g.*; m4.*
+    → m6i.*; c4.* → c6i.*; r4.* → r6i.*. Run AWS Compute Optimizer to get right-sizing recommendations before migrating.\n
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t3.medium\"\
+      \  # Current-generation, validated with Compute Optimizer\n  tags = {\n    sizing-reviewed = \"2026-01-15\"\n    workload\
+      \        = \"payment-api\"\n  }\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t2.medium\"\
+      \  # Previous-generation – WAF-PERF-010 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+    - aws_launch_configuration
+  assertions:
+  - attribute: instance_type
+    op: not_matches
+    message: Instance is using a previous-generation type. Migrate to t3/t4g, m5/m6i, c5/c6i, or r5/r6i.
+    pattern: ^(t2|m4|c4|r4|i2|d2|hs1|m3|c3|cr1|cc2|g2|hi1)\\..*
+  - attribute: instance_type
+    op: attribute_exists
+    message: Instance type must be explicitly declared; no default allowed.
+  on_fail: violation
+- id: waf-perf-010.tf.azurerm.vm-sizing-documented
+  engine: terraform
+  automated: true
+  title: Azure VMs must use current-generation sizes and have sizing metadata
+  provider: azurerm
+  description: Azure virtual machines must not use deprecated or previous-generation VM sizes. Sizing metadata must be present
+    as tags on the resource.
+  expected: 'true'
+  remediation: 'Replace deprecated VM sizes with current-generation equivalents (Dv5, Ev5, Bsv2, Dsv5). Use Azure Advisor
+    recommendations for right-sizing guidance. Add a ''sizing-reviewed'' tag with the review date.
+
+    '
+  example:
+    compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-payment-api\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n  size         \
+      \       = \"Standard_D2s_v5\"\n  tags = {\n    sizing-reviewed = \"2026-01-15\"\n    workload        = \"payment-api\"\
+      \n  }\n}\n"
+    non_compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-payment-api\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n  size         \
+      \       = \"Standard_D2\"  # Deprecated size – WAF-PERF-010 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_linux_virtual_machine
+    - azurerm_windows_virtual_machine
+    - azurerm_virtual_machine_scale_set
+  assertions:
+  - attribute: size
+    op: not_matches
+    message: VM is using a deprecated or previous-generation size. Upgrade to Dv5 or Ev5 series.
+    pattern: ^Standard_(A|D1$|D2$|D3$|D4$|DS1$|DS2$|DS3$|DS4$)$
+  - attribute: tags
+    op: key_exists
+    key: sizing-reviewed
+    message: VM must have a 'sizing-reviewed' tag with the date of the last sizing review.
+  on_fail: violation
+- id: waf-perf-010.tf.google.gce-machine-type-validated
+  engine: terraform
+  automated: true
+  title: GCP Compute Engine instances must use N2 or C2 series machine types
+  provider: google
+  description: GCP VM instances must not use first-generation N1 machine types for production workloads. N2, N2D, C2, E2,
+    or C3 series offer better performance and price-performance ratios.
+  expected: 'true'
+  remediation: Replace N1 machine types with current-generation equivalents. n1-standard-* → n2-standard-*; n1-highmem-* →
+    n2-highmem-*; n1-highcpu-* → c2-standard-*. Use GCP Recommender for right-sizing analysis.\n
+  example:
+    compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"payment-api\"\n  machine_type = \"n2-standard-2\"\
+      \n  zone         = \"europe-west3-a\"\n  boot_disk {\n    initialize_params { image = \"debian-cloud/debian-11\" }\n\
+      \  }\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"payment-api\"\n  machine_type = \"\
+      n1-standard-2\"  # N1 series – WAF-PERF-010 violation\n  zone         = \"europe-west3-a\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_instance
+    - google_compute_instance_template
+  assertions:
+  - attribute: machine_type
+    op: not_matches
+    message: GCP instance uses N1 machine type. Migrate to N2, N2D, C2, or E2 series for better performance.
+    pattern: ^n1-(standard|highmem|highcpu)-.*
+  on_fail: violation
+- id: waf-perf-010.tf.stackit.performance-slo-defined
+  engine: terraform
+  automated: true
+  title: All compute resources (virtual machines, container workloads, managed... for stackit
+  provider: stackit
+  description: All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a performance-slo-defined tag/label to the stackit_project resource to show the stackit implementation
+    of WAF-PERF-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    performance-slo-defined = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing performance-slo-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: performance-slo-defined
+    message: stackit_project is missing the performance-slo-defined tag/label.
+  on_fail: violation
+- id: waf-perf-010.tf.ovh.performance-slo-defined
+  engine: terraform
+  automated: true
+  title: All compute resources (virtual machines, container workloads, managed... for ovh
+  provider: ovh
+  description: All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a performance-slo-defined tag/label to the ovh_cloud_project resource to show the ovh implementation of
+    WAF-PERF-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    performance-slo-defined = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing performance-slo-defined tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: performance-slo-defined
+    message: ovh_cloud_project is missing the performance-slo-defined tag/label.
+  on_fail: violation
+- id: waf-perf-010.tf.hcloud.performance-slo-defined
+  engine: terraform
+  automated: true
+  title: All compute resources (virtual machines, container workloads, managed... for hcloud
+  provider: hcloud
+  description: All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a performance-slo-defined tag/label to the hcloud_server resource to show the hcloud implementation of
+    WAF-PERF-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    performance-slo-defined = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing performance-slo-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: performance-slo-defined
+    message: hcloud_server is missing the performance-slo-defined tag/label.
+  on_fail: violation

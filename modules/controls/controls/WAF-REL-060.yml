@@ -1,238 +1,264 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-060
 id: WAF-REL-060
-title: 'Every production workload MUST have a documented Incident Response (IR) plan...'
+title: Every production workload MUST have a documented Incident Response (IR) plan...
 status: active
 tags:
-  - reliability
-  - high
-  - governance
-  - configuration
+- reliability
+- high
+- governance
+- configuration
 pillar: reliability
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  Every production workload MUST have a documented Incident Response (IR) plan with defined severity levels, escalation paths, and on-call rotations.
+- governance
+- configuration
+category: logging-monitoring
+rationale: Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs 'Logging und Monitoring' und stellt sicher,
+  dass Every production workload MUST have a documented Incident Response (IR) plan with defined severity levels, escalation
+  paths, and on-call rotations.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Missing incident-response plans lead to panicked ad-hoc reactions and longer MTTR.
+- Unclear escalation paths delay involving the right experts.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-060.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-060.adoc
+  related_controls:
+  - WAF-REL-010
+  - WAF-REL-090
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-SOV-030
+description: 'Every production workload MUST have a documented Incident Response (IR) plan with defined severity levels, escalation
+  paths, and on-call rotations. Runbooks MUST exist for all critical alerts and MUST be version-controlled. Runbooks MUST
+  be linked directly from alert notifications. Post-incident reviews MUST be conducted within 5 business days and findings
+  MUST be tracked as actionable items. Mean Time to Recovery (MTTR) MUST be measured per incident.
 
-description: |
-  Every production workload MUST have a documented Incident Response (IR) plan with defined severity levels, escalation paths, and on-call rotations. Runbooks MUST exist for all critical alerts and MUST be version-controlled. Runbooks MUST be linked directly from alert notifications. Post-incident reviews MUST be conducted within 5 business days and findings MUST be tracked as actionable items. Mean Time to Recovery (MTTR) MUST be measured per incident.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.16.1 – Management of information security incidents and improvements'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Incident Management'
-      - 'Problem Management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'OPS 11 – Respond to events'
-  - framework: 'BSI C5:2022'
-    controls:
-      - 'IS-09 – Incident Management'
-  - framework: 'GDPR'
-    controls:
-      - 'Article 33 – Notification of a personal data breach to the supervisory authority'
+- framework: ISO 27001:2022
+  controls:
+  - A.16.1 – Management of information security incidents and improvements
+- framework: ITIL 4
+  controls:
+  - Incident Management
+  - Problem Management
+- framework: BSI C5:2020
+  controls:
+  - IS-09 – Incident Management
+- framework: GDPR
+  controls:
+  - Article 33 – Notification of a personal data breach to the supervisory authority
 checks:
-  - id: waf-rel-060.tf.aws.sns-topic-alarm-action
-    engine: terraform
-    automated: true
-    title: 'AWS CloudWatch alarms must route to SNS topics for on-call notification'
-    provider: aws
-    description: 'CloudWatch alarms for production services must have alarm_actions pointing to SNS topics that are connected to on-call notification systems.'
-    expected: 'true'
-    remediation: 'Add alarm_actions and ok_actions pointing to an SNS topic. The SNS topic should be subscribed to by PagerDuty, OpsGenie, or email for on-call notification.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_metric_alarm" "api_errors" {
-          alarm_name          = "payment-api-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 3
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApiGateway"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          alarm_actions       = [aws_sns_topic.oncall_critical.arn]
-          ok_actions          = [aws_sns_topic.oncall_critical.arn]
-          alarm_description   = "SEV2: Payment API error rate > 1%. Runbook: https://wiki/runbooks/payment-api-errors"
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "api_errors" {
-          alarm_name          = "payment-api-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 3
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApiGateway"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          # Missing: alarm_actions – alert fires but no one is notified
-          # WAF-REL-060 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_metric_alarm
-    assertions:
-      - attribute: 'alarm_actions'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have alarm_actions configured for on-call notification.'
-      - attribute: 'ok_actions'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have ok_actions to notify when alert resolves.'
-    on_fail: violation
-  - id: waf-rel-060.tf.azurerm.action-group-configured
-    engine: terraform
-    automated: true
-    title: 'Azure Monitor action groups must have webhook or email receivers configured'
-    provider: azurerm
-    description: 'Azure Monitor action groups used by metric alerts must have at least one email_receiver or webhook_receiver configured for on-call notification.'
-    expected: 'true'
-    remediation: 'Add email_receiver or webhook_receiver blocks to the azurerm_monitor_action_group. For PagerDuty or OpsGenie integration, use webhook_receiver pointing to their API URL.\n'
-    example:
-      compliant: |
-        resource "azurerm_monitor_action_group" "oncall" {
-          name                = "oncall-critical"
-          resource_group_name = azurerm_resource_group.main.name
-          short_name          = "oncall"
-        
-          email_receiver {
-            name          = "on-call-team"
-            email_address = var.oncall_email
-          }
-        
-          webhook_receiver {
-            name        = "pagerduty"
-            service_uri = var.pagerduty_webhook_url
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_monitor_action_group" "alerts" {
-          name                = "alerts"
-          resource_group_name = azurerm_resource_group.main.name
-          short_name          = "alerts"
-          # Missing: no receivers configured – alerts fire silently
-          # WAF-REL-060 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_monitor_action_group
-    assertions:
-      - attribute: 'short_name'
-        op: 'not_empty'
-        message: 'Action group must have a short_name for SMS/voice notifications.'
-      - attribute: 'email_receiver'
-        op: 'attribute_exists'
-        message: 'Action group must have at least one email_receiver or webhook_receiver.'
-    on_fail: violation
-  - id: waf-rel-060.tf.google.monitoring-notification-channel
-    engine: terraform
-    automated: true
-    title: 'GCP alert policies must have notification channels configured'
-    provider: google
-    description: 'GCP Monitoring alert policies must reference at least one notification channel to ensure on-call teams are notified during incidents.'
-    expected: 'true'
-    remediation: 'Add notification_channels to the google_monitoring_alert_policy referencing configured google_monitoring_notification_channel resources.\n'
-    example:
-      compliant: |
-        resource "google_monitoring_notification_channel" "pagerduty" {
-          display_name = "PagerDuty On-Call"
-          type         = "pagerduty"
-          labels = {
-            service_key = var.pagerduty_service_key
-          }
-        }
-        
-        resource "google_monitoring_alert_policy" "api_error_rate" {
-          display_name          = "Payment API – Error Rate SEV2"
-          combiner              = "OR"
-          notification_channels = [google_monitoring_notification_channel.pagerduty.name]
-          conditions {
-            display_name = "Error rate > 1%"
-            condition_threshold {
-              filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\""
-              comparison      = "COMPARISON_GT"
-              threshold_value = 100
-              duration        = "60s"
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_monitoring_alert_policy" "api_errors" {
-          display_name = "Errors"
-          combiner     = "OR"
-          conditions {
-            display_name = "Error count high"
-            condition_threshold {
-              filter          = "metric.type=\"logging.googleapis.com/user/errors\""
-              comparison      = "COMPARISON_GT"
-              threshold_value = 100
-              duration        = "60s"
-            }
-          }
-          # Missing: notification_channels – WAF-REL-060 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_monitoring_alert_policy
-    assertions:
-      - attribute: 'notification_channels'
-        op: 'not_empty'
-        message: 'Alert policy must reference at least one notification channel.'
-      - attribute: 'display_name'
-        op: 'not_empty'
-        message: 'Alert policy must have a descriptive display name including service context.'
-    on_fail: violation
+- id: waf-rel-060.tf.aws.sns-topic-alarm-action
+  engine: terraform
+  automated: true
+  title: AWS CloudWatch alarms must route to SNS topics for on-call notification
+  provider: aws
+  description: CloudWatch alarms for production services must have alarm_actions pointing to SNS topics that are connected
+    to on-call notification systems.
+  expected: 'true'
+  remediation: Add alarm_actions and ok_actions pointing to an SNS topic. The SNS topic should be subscribed to by PagerDuty,
+    OpsGenie, or email for on-call notification.\n
+  example:
+    compliant: "resource \"aws_cloudwatch_metric_alarm\" \"api_errors\" {\n  alarm_name          = \"payment-api-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 3\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApiGateway\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  alarm_actions       = [aws_sns_topic.oncall_critical.arn]\n  ok_actions          = [aws_sns_topic.oncall_critical.arn]\n\
+      \  alarm_description   = \"SEV2: Payment API error rate > 1%. Runbook: https://wiki/runbooks/payment-api-errors\"\n\
+      }\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"api_errors\" {\n  alarm_name          = \"payment-api-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 3\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApiGateway\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  # Missing: alarm_actions – alert fires but no one is notified\n  # WAF-REL-060 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_metric_alarm
+  assertions:
+  - attribute: alarm_actions
+    op: not_empty
+    message: CloudWatch alarm must have alarm_actions configured for on-call notification.
+  - attribute: ok_actions
+    op: not_empty
+    message: CloudWatch alarm must have ok_actions to notify when alert resolves.
+  on_fail: violation
+- id: waf-rel-060.tf.azurerm.action-group-configured
+  engine: terraform
+  automated: true
+  title: Azure Monitor action groups must have webhook or email receivers configured
+  provider: azurerm
+  description: Azure Monitor action groups used by metric alerts must have at least one email_receiver or webhook_receiver
+    configured for on-call notification.
+  expected: 'true'
+  remediation: Add email_receiver or webhook_receiver blocks to the azurerm_monitor_action_group. For PagerDuty or OpsGenie
+    integration, use webhook_receiver pointing to their API URL.\n
+  example:
+    compliant: "resource \"azurerm_monitor_action_group\" \"oncall\" {\n  name                = \"oncall-critical\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  short_name          = \"oncall\"\n\n  email_receiver {\n    name          =\
+      \ \"on-call-team\"\n    email_address = var.oncall_email\n  }\n\n  webhook_receiver {\n    name        = \"pagerduty\"\
+      \n    service_uri = var.pagerduty_webhook_url\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_action_group\" \"alerts\" {\n  name                = \"alerts\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  short_name          = \"alerts\"\n  # Missing: no receivers configured – alerts\
+      \ fire silently\n  # WAF-REL-060 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_action_group
+  assertions:
+  - attribute: short_name
+    op: not_empty
+    message: Action group must have a short_name for SMS/voice notifications.
+  - attribute: email_receiver
+    op: attribute_exists
+    message: Action group must have at least one email_receiver or webhook_receiver.
+  on_fail: violation
+- id: waf-rel-060.tf.google.monitoring-notification-channel
+  engine: terraform
+  automated: true
+  title: GCP alert policies must have notification channels configured
+  provider: google
+  description: GCP Monitoring alert policies must reference at least one notification channel to ensure on-call teams are
+    notified during incidents.
+  expected: 'true'
+  remediation: Add notification_channels to the google_monitoring_alert_policy referencing configured google_monitoring_notification_channel
+    resources.\n
+  example:
+    compliant: "resource \"google_monitoring_notification_channel\" \"pagerduty\" {\n  display_name = \"PagerDuty On-Call\"\
+      \n  type         = \"pagerduty\"\n  labels = {\n    service_key = var.pagerduty_service_key\n  }\n}\n\nresource \"google_monitoring_alert_policy\"\
+      \ \"api_error_rate\" {\n  display_name          = \"Payment API – Error Rate SEV2\"\n  combiner              = \"OR\"\
+      \n  notification_channels = [google_monitoring_notification_channel.pagerduty.name]\n  conditions {\n    display_name\
+      \ = \"Error rate > 1%\"\n    condition_threshold {\n      filter          = \"resource.type=\\\"cloud_run_revision\\\
+      \" AND metric.type=\\\"run.googleapis.com/request_count\\\"\"\n      comparison      = \"COMPARISON_GT\"\n      threshold_value\
+      \ = 100\n      duration        = \"60s\"\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"api_errors\" {\n  display_name = \"Errors\"\n  combiner\
+      \     = \"OR\"\n  conditions {\n    display_name = \"Error count high\"\n    condition_threshold {\n      filter   \
+      \       = \"metric.type=\\\"logging.googleapis.com/user/errors\\\"\"\n      comparison      = \"COMPARISON_GT\"\n  \
+      \    threshold_value = 100\n      duration        = \"60s\"\n    }\n  }\n  # Missing: notification_channels – WAF-REL-060\
+      \ violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: notification_channels
+    op: not_empty
+    message: Alert policy must reference at least one notification channel.
+  - attribute: display_name
+    op: not_empty
+    message: Alert policy must have a descriptive display name including service context.
+  on_fail: violation
+- id: waf-rel-060.tf.stackit.auto-recovery-enabled
+  engine: terraform
+  automated: true
+  title: Every production workload for stackit
+  provider: stackit
+  description: Every production workload must be documented in IaC via a auto-recovery-enabled tag/label on stackit_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-recovery-enabled tag/label to the stackit_project resource to show the stackit implementation of
+    WAF-REL-060 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    auto-recovery-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing auto-recovery-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: auto-recovery-enabled
+    message: stackit_project is missing the auto-recovery-enabled tag/label.
+  on_fail: violation
+- id: waf-rel-060.tf.ovh.auto-recovery-enabled
+  engine: terraform
+  automated: true
+  title: Every production workload for ovh
+  provider: ovh
+  description: Every production workload must be documented in IaC via a auto-recovery-enabled tag/label on ovh_cloud_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-recovery-enabled tag/label to the ovh_cloud_project resource to show the ovh implementation of
+    WAF-REL-060 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    auto-recovery-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing auto-recovery-enabled tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: auto-recovery-enabled
+    message: ovh_cloud_project is missing the auto-recovery-enabled tag/label.
+  on_fail: violation
+- id: waf-rel-060.tf.hcloud.auto-recovery-enabled
+  engine: terraform
+  automated: true
+  title: Every production workload for hcloud
+  provider: hcloud
+  description: Every production workload must be documented in IaC via a auto-recovery-enabled tag/label on hcloud_server.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-recovery-enabled tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    auto-recovery-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing auto-recovery-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: auto-recovery-enabled
+    message: hcloud_server is missing the auto-recovery-enabled tag/label.
+  on_fail: violation

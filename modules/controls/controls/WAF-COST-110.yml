@@ -1,0 +1,136 @@
+id: WAF-COST-110
+title: Spot and preemptible instances MUST be explicitly allowed and documented where workload characteristics permit
+status: active
+tags:
+- configuration
+- cost
+- governance
+- medium
+pillar: cost
+severity: medium
+type:
+- governance
+- configuration
+category: data-governance
+rationale: Fehlende Datenklassifizierung, Dokumentation oder Standortsteuerung erhöhen Compliance-Risiken, Kosten und Betriebsrisiken.
+  Dieses Control adressiert die Anforderungen des Bereichs 'Data Governance' und stellt sicher, dass Workloads that tolerate
+  interruption MUST use Spot/Preemptible instances by default unless business...
+threat:
+- Always using on-demand compute for interruptible workloads increases cost without reliability benefit.
+- Undocumented Spot usage leads to inconsistent financial planning and surprise evictions.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-110.adoc
+  related_controls:
+  - WAF-COST-010
+  - WAF-COST-030
+  - WAF-COST-120
+  - WAF-COST-080
+  - WAF-OPS-020
+  - WAF-REL-120
+description: Workloads that tolerate interruption MUST use Spot/Preemptible instances by default unless business justification
+  documents on-demand use. IaC definitions MUST tag interruptible workloads with spot-eligibility and maximum Spot price or
+  eviction policy. Auto Scaling Groups and Managed Instance Groups SHOULD define mixed instance policies combining Spot and
+  On-Demand capacity. Documentation MUST cover workload interruption handling and fallback behavior.
+regulatory_mapping:
+- framework: FinOps Foundation
+  controls:
+  - Optimize Phase – Workload Optimization
+  - Variable Workload Spot/Preemptible Strategy
+- framework: ISO 14001
+  controls:
+  - 6.1.2 – Environmental aspects of operational decisions
+- framework: GHG Protocol
+  controls:
+  - 'Scope 3 – Category 11: purchased services cost-efficiency'
+checks:
+- id: waf-cost-110.tf.aws.spot-tagged
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS interruptible workloads must carry spot-eligibility tag
+  description: AWS interruptible workloads must carry spot-eligibility tag
+  expected: 'true'
+  remediation: AWS interruptible workloads must carry spot-eligibility tag
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_autoscaling_group
+    - aws_spot_instance_request
+    - aws_ec2_fleet
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: spot-eligibility
+    message: Interruptible workload must be tagged with spot-eligibility.
+  on_fail: finding
+- id: waf-cost-110.tf.azurerm.spot-eviction-policy
+  engine: terraform
+  provider: azurerm
+  automated: true
+  title: Azure Spot VMs must define eviction policy
+  description: Azure Spot VMs must define eviction policy
+  expected: 'true'
+  remediation: Azure Spot VMs must define eviction policy
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_linux_virtual_machine
+    - azurerm_windows_virtual_machine
+  assertions:
+  - attribute: priority
+    op: in
+    expected:
+    - Spot
+    - spot
+    message: Spot VM must have priority Spot with eviction policy.
+  on_fail: advisory
+- id: waf-cost-110.config.spot-policy-documented
+  engine: config
+  provider: any
+  automated: false
+  title: Spot instance policy must be documented
+  description: Spot instance policy must be documented
+  expected: 'true'
+  remediation: Spot instance policy must be documented
+  scope:
+    block_type: file
+    path_pattern: docs/finops/spot-policy.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Spot/preemptible policy must document eligible workload classes.
+  on_fail: finding

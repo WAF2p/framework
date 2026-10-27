@@ -1,252 +1,372 @@
 = WAF-PERF-050 – Performance Monitoring & SLO Definition
 :page-toc: right
 :control-id: WAF-PERF-050
-:pillar: performance
+:pillar: efficiancy
 :severity: high
-:category: observability
-:automated: medium-high
-:description: WAF++ Performance Efficiency – SLOs definieren, SLIs instrumentieren und Error-Budget-Management etablieren.
+:category: logging-monitoring
+:automatable: High
+:description: All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics: latency (P95 and P99), error rate, and availability. Service Level Indicators (SLIs) MUST be instrumented and measured continuously. Performance dashboards MUST be available for all production services showing current SLO compliance and historical trends. Alerting MUST be configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds. SLOs MUST be reviewed and updated quarterly or after major architectural changes.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Observability | *Automatisierbar:* Mittel–Hoch
+*Säule:* Efficiancy | *Schweregrad:* Hoch | *Kategorie:* Logging Monitoring | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle Produktions-Services MÜSSEN Service Level Objectives (SLOs) für Latenz (P95, P99),
-Fehlerrate und Verfügbarkeit definiert haben. Service Level Indicators (SLIs) MÜSSEN
-kontinuierlich instrumentiert und gemessen werden. Alerting MUSS auf SLO-Burn-Rate basieren,
-nicht auf absoluten Durchschnittswerten. SLOs MÜSSEN quartalsweise reviewed werden.
+All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics: latency (P95 and P99), error rate, and availability. Service Level Indicators (SLIs) MUST be instrumented and measured continuously. Performance dashboards MUST be available for all production services showing current SLO compliance and historical trends. Alerting MUST be configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds. SLOs MUST be reviewed and updated quarterly or after major architectural changes.
 
-Durchschnittswerte lügen. P99 zeigt, was echte Nutzer erleben.
-
-== Rationale
-
-Ohne SLOs gibt es kein objektives Kriterium für "gute Performance". Teams diskutieren subjektiv.
-Error Budgets geben der Diskussion eine quantitative Basis: Solange das Budget vorhanden ist,
-kann das Team neue Features deployen. Bei Budgeterschöpfung: Stabilisierungsarbeit hat Priorität.
-Alerting auf Durchschnittswerte maskiert Tail-Latenz-Probleme, die 1% der Nutzer stark beeinträchtigen.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Graduelle Degradation unbemerkt*
-|Ohne P99-Monitoring können Services über Wochen langsamer werden ohne dass es auffällt.
+|*Risk* |Services without SLOs have no measurable reliability commitment and hide user impact.
 
-|*SLA-Verletzungen*
-|Externe SLAs können nicht nachgewiesen oder überwacht werden ohne interne SLOs.
-
-|*Tail-Latenz maskiert*
-|P50 avg = 50ms, P99 = 5000ms: Durchschnitt sieht gut aus, 1% der Nutzer leiden.
-
-|*Fehlende Deployment-Entscheidungsgrundlage*
-|Ohne Error-Budget kein objektives Kriterium für "wann pausieren wir Features".
+|*Risk* |Missing error budgets allow recurring instability to be accepted without consequence.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* SLOs MÜSSEN für alle Produktions-Services definiert sein (P95, P99-Latenz, Fehlerrate, Verfügbarkeit)
-* SLIs MÜSSEN kontinuierlich instrumentiert und gemessen werden (nicht nur Stichproben)
-* SLO-Burn-Rate-Alerting MUSS konfiguriert sein (nicht nur statische Schwellenwerte)
-* SLOs MÜSSEN quartalsweise reviewed und bei Bedarf angepasst werden
+* All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics: latency (P95 and P99), error rate, and availability.
+* Service Level Indicators (SLIs) MUST be instrumented and measured continuously.
+* Performance dashboards MUST be available for all production services showing current SLO compliance and historical trends.
+* Alerting MUST be configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds.
+* SLOs MUST be reviewed and updated quarterly or after major architectural changes.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *SLO-Dokument erstellen*: `docs/slos/<service>.yml` mit SLI-Definition, SLO-Ziel, Error-Budget-Policy
-. *SLIs instrumentieren*: APM-Tool einrichten (X-Ray, Application Insights, Cloud Trace, Prometheus)
-. *Percentile-Alerts konfigurieren*: CloudWatch p99, Application Insights percentile-Queries
-. *Error-Budget berechnen*: 99.9% SLO = 0.1% Fehlerrate = 43.2 min Ausfallzeit/Monat
-. *Multi-Window Burn Rate Alerts*: 1h/6h/24h-Windows nach Google SRE-Methodik
-. *Dashboard erstellen*: SLO-Compliance, Error-Budget-Status, Burn-Rate-Trend
-. *Quarterly Review einplanen*: SLOs anpassen wenn Targets nicht mehr repräsentativ sind
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Kein SLO
-|Nur Availability-Monitoring (up/down); keine Latenz-Baselines; Incidents durch Nutzer entdeckt.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Informelle Targets
-|Latenz gesammelt aber keine formalen SLOs; Durchschnittswert-Alerting; keine Error Budgets.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Formale SLOs
-|SLOs dokumentiert; P99-Alerting; SLIs instrumentiert; Error Budgets berechnet.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Error Budget Management
-|Deployment-Gates bei Budget-Erschöpfung; SLO in Quarterly Engineering Reviews.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Prädiktives SLO-Management
-|Burn-Rate-Prediction; automatische Kapazitätsanpassung bei drohendem Budget-Breach.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-050.tf.aws.cloudwatch-latency-alarm
-*Prüft:* CloudWatch-Alarms müssen Alarm-Actions, mehrere Evaluation-Periods und Beschreibung haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS CloudWatch alarms must monitor P99 latency for load balancers*
+
+Load balancers must have CloudWatch alarms configured for P99 target response time to detect latency degradation before it becomes visible to users.
+
+*Scope:* `resource` — `aws_cloudwatch_metric_alarm`
+
+*Assertions:*
+* `alarm_actions` not empty — CloudWatch alarm must have at least one action (SNS topic) configured.
+* `evaluation_periods` greater than or equal `2` — Alarm must evaluate over at least 2 periods to avoid spurious alerts.
+* `alarm_description` not empty — Alarm must have a description explaining what it monitors and what to do.
+
+*Remediation:* Ensure CloudWatch alarms have alarm_actions pointing to SNS topics for notification. Set evaluation_periods >= 2 to reduce false positives. Add alarm_description with runbook link.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_metric_alarm" "p99" {
-  alarm_name         = "payment-api-p99"
-  alarm_description  = "P99 > 500ms. Runbook: https://wiki/perf"
-  metric_name        = "TargetResponseTime"
-  statistic          = "p99"
-  threshold          = 0.5
-  evaluation_periods = 3
-  alarm_actions      = [aws_sns_topic.alerts.arn]
+resource "aws_cloudwatch_metric_alarm" "p99_latency" {
+  alarm_name          = "payment-api-p99-latency"
+  alarm_description   = "P99 latency > 500ms for payment API. Runbook: https://wiki/perf-runbook"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "p99"
+  threshold           = 0.5
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+  }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudwatch_metric_alarm" "latency" {
-  alarm_name = "latency"
-  statistic  = "Average"  # Avg statt p99
-  threshold  = 1.0
-  evaluation_periods = 1
-  # Keine alarm_actions
-  # WAF-PERF-050 Violation
+  alarm_name          = "latency-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"  # Average hides P99 spikes – WAF-PERF-050 violation
+  threshold           = 1.0
+  # No alarm_actions – alert fires but nobody is notified
 }
 ----
-|===
 
-*Remediation:* Auf `p99`-Statistik wechseln; `alarm_actions` mit SNS-Topic setzen;
-`evaluation_periods >= 2`; `alarm_description` mit Runbook-Link hinzufügen.
+---
+
+=== waf-perf-050.tf.azurerm.app-insights-availability
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Application Insights must be configured for SLO monitoring*
+
+Azure Application Insights must be deployed and configured for all production services to enable performance monitoring, distributed tracing, and SLO tracking.
+
+*Scope:* `resource` — `azurerm_application_insights`
+
+*Assertions:*
+* `application_type` not empty — Application Insights application_type must be set (web or other).
+* `retention_in_days` greater than or equal `1` — Application Insights retention must be at least 30 days for trend analysis.
+
+*Remediation:* Set application_type to "web" for HTTP services. Set retention_in_days >= 90 for adequate trend analysis. Configure availability tests and custom metric alerts for SLOs.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_application_insights" "app" {
+  name                = "appi-payment-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  application_type    = "web"
+  retention_in_days   = 90
+  tags = {
+    workload    = "payment-api"
+    environment = "production"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_application_insights" "app" {
+  name             = "appi-payment-api"
+  application_type = "other"  # Wrong type for web service
+  retention_in_days = 7       # Too short – WAF-PERF-050 violation
+}
+----
+
+---
+
+=== waf-perf-050.tf.google.monitoring-uptime-check
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP services must have uptime checks and alert policies configured*
+
+GCP production services must have Cloud Monitoring uptime checks and alerting policies for latency and availability SLO monitoring.
+
+*Scope:* `resource` — `google_monitoring_alert_policy`
+
+*Assertions:*
+* `notification_channels` not empty — Alert policy must have at least one notification channel.
+* `display_name` not empty — Alert policy must have a descriptive display name.
+* `enabled` is true — Alert policy must be enabled.
+
+*Remediation:* Ensure alert policies have notification_channels configured, are enabled, and have descriptive display names. Create SLO-based alerts using google_monitoring_slo resource.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_monitoring_alert_policy" "latency" {
+  display_name = "payment-api-p99-latency"
+  enabled      = true
+  conditions {
+    display_name = "P99 latency > 500ms"
+    condition_threshold {
+      filter          = "metric.type=\"loadbalancing.googleapis.com/https/backend_latencies\" resource.type=\"https_lb_rule\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 500
+      duration        = "60s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
+      }
+    }
+  }
+  notification_channels = [google_monitoring_notification_channel.slack.id]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_monitoring_alert_policy" "latency" {
+  display_name = "latency"
+  enabled      = false  # Alert disabled – WAF-PERF-050 violation
+  conditions { }
+  # No notification_channels
+}
+----
+
+---
+
+=== waf-perf-050.tf.stackit.cdn-configured
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*All production services for stackit*
+
+All production services must be documented in IaC via a cdn-configured tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the cdn-configured tag/label.
+
+*Remediation:* Add a cdn-configured tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    cdn-configured = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing cdn-configured labels
+}
+----
+
+---
+
+=== waf-perf-050.tf.ovh.cdn-configured
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*All production services for ovh*
+
+All production services must be documented in IaC via a cdn-configured tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the cdn-configured tag/label.
+
+*Remediation:* Add a cdn-configured tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    cdn-configured = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing cdn-configured tags
+}
+----
+
+---
+
+=== waf-perf-050.tf.hcloud.cdn-configured
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*All production services for hcloud*
+
+All production services must be documented in IaC via a cdn-configured tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the cdn-configured tag/label.
+
+*Remediation:* Add a cdn-configured tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    cdn-configured = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing cdn-configured labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Governance*
-|✅ Pflicht
-|SLO-Dokument für alle Produktions-Services (SLI, SLO-Ziel, Error-Budget-Policy).
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Monitoring-/APM-Konfiguration mit SLI-Instrumentierung und SLO-Alerting.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|SLO-Compliance-Dashboard mit historischen Trends.
-
-|*Process*
-|Optional
-|Quarterly-SLO-Review-Meeting-Protokoll.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Selection; Performance Efficiency Pillar – Review; Performance Efficiency Pillar – Efficiency
-
-|*Azure Well-Architected Framework*
-|Performance – Performance monitoring; Performance – Load and stress testing; Performance – Auto-scaling
-
-|*Google Cloud Architecture Framework*
-|Performance – Performance design principles; Performance – Monitoring and debugging
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture; ADM Phase D – Technology architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution; 5.3.3 – Test reporting
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software; 9.4.2 – Verification
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management; CIS 8.1 – Vulnerability scanning
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls; RA-5 – Security assessments; RA-9 – External information system attacks
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection; DE.DP – Data performance
-
-|*FedRAMP*
-|RA-2, RA-5, RA-9 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
-* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-reliability:controls/WAF-REL-060.adoc[WAF-REL-060]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-observability.adoc[Performance-Observability & SLOs →]
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
+* Performance Efficiency – Capacity
+
+|SRE Book (Google) |* Service Level Objectives
+* Error Budgets
+
+|===

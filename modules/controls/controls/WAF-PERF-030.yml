@@ -1,211 +1,262 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-030
 id: WAF-PERF-030
-title: 'All workloads with repeated read patterns or high-latency data sources MUST...'
+title: All workloads with repeated read patterns or high-latency data sources MUST...
 status: active
 tags:
-  - performance
-  - medium
-  - configuration
-  - governance
-pillar: performance
+- performance
+- medium
+- configuration
+- governance
+pillar: efficiancy
 severity: medium
 type:
-  - configuration
-  - governance
-
-category: 'identity-access'
-rationale: |
-  All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined and implemented.
+- configuration
+- governance
+category: identity-access
+rationale: Unkontrollierte Identitäten und übermäßige Berechtigungen ermöglichen Datendiebstahl, Lateral Movement und unautorisierte
+  Änderungen an Produktivsystemen. Dieses Control adressiert die Anforderungen des Bereichs 'Identitäts- und Zugriffsmanagement'
+  und stellt sicher, dass All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy
+  defined and implemented.
 threat:
-  - 'Internet-facing resources or open management ports become direct attack vectors.'
-  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+- Internet-facing resources or open management ports become direct attack vectors.
+- Lateral movement is easier when network segmentation and access rules are missing.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-030.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-030.adoc
+  related_controls:
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-COST-040
+  - WAF-COST-090
+  - WAF-SEC-030
+  - WAF-SEC-040
+  - WAF-SEC-080
+description: 'All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined
+  and implemented. The caching strategy MUST specify cache layers (application, distributed cache, CDN), TTL policies, cache
+  invalidation mechanisms, and cache hit rate targets. CDN caching MUST be configured for all public-facing static and dynamic
+  content. Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data and frequently-accessed
+  read-heavy datasets.
 
-description: |
-  All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined and implemented. The caching strategy MUST specify cache layers (application, distributed cache, CDN), TTL policies, cache invalidation mechanisms, and cache hit rate targets. CDN caching MUST be configured for all public-facing static and dynamic content. Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data and frequently-accessed read-heavy datasets.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Resource Utilization'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 3 – How do you select your storage solution?'
-      - 'PERF 4 – How do you select your database solution?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Use caching'
-  - framework: 'TOGAF'
-    controls:
-      - 'Architecture Building Blocks – Caching Services'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Resource Utilization
 checks:
-  - id: waf-perf-030.tf.aws.elasticache-cluster-configured
-    engine: terraform
-    automated: true
-    title: 'AWS ElastiCache clusters must be in cluster mode with automatic failover'
-    provider: aws
-    description: 'ElastiCache Redis clusters must have cluster mode or multi-AZ with automatic failover enabled to ensure high availability of the caching layer. Single-node ElastiCache deployments in production are a violation.'
-    expected: 'true'
-    remediation: 'Set automatic_failover_enabled = true, num_cache_clusters >= 2, and at_rest_encryption_enabled = true. For Redis, use replication_group resource with at least one replica.\n'
-    example:
-      compliant: |
-        resource "aws_elasticache_replication_group" "app" {
-          replication_group_id       = "payment-cache"
-          description                = "Cache for payment service sessions and lookups"
-          node_type                  = "cache.t3.medium"
-          num_cache_clusters         = 2
-          automatic_failover_enabled = true
-          at_rest_encryption_enabled = true
-          transit_encryption_enabled = true
-          subnet_group_name          = aws_elasticache_subnet_group.main.name
-          security_group_ids         = [aws_security_group.cache.id]
-        }
-        
-      non_compliant: |
-        resource "aws_elasticache_cluster" "app" {
-          cluster_id        = "payment-cache"
-          engine            = "redis"
-          node_type         = "cache.t3.micro"
-          num_cache_nodes   = 1  # Single node, no failover – WAF-PERF-030 violation
-          # No encryption configured
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_elasticache_replication_group
-        - aws_elasticache_cluster
-    assertions:
-      - attribute: 'automatic_failover_enabled'
-        op: 'is_true'
-        message: 'ElastiCache replication group must have automatic_failover_enabled = true for production use.'
-      - attribute: 'num_cache_clusters'
-        op: 'greater_than_or_equal'
-        message: 'ElastiCache must have at least 2 cache nodes for redundancy.'
-      - attribute: 'at_rest_encryption_enabled'
-        op: 'is_true'
-        message: 'ElastiCache must have at-rest encryption enabled.'
-    on_fail: violation
-  - id: waf-perf-030.tf.azurerm.redis-cache-premium
-    engine: terraform
-    automated: true
-    title: 'Azure Cache for Redis must be Premium or Standard tier with persistence'
-    provider: azurerm
-    description: 'Azure Cache for Redis for production use must be Standard or Premium tier with clustering enabled for large datasets and geo-replication where required.'
-    expected: 'true'
-    remediation: 'Upgrade Redis SKU to Standard or Premium. Disable non-SSL port. Set minimum_tls_version = "1.2". For large datasets enable cluster mode (Premium only).\n'
-    example:
-      compliant: |
-        resource "azurerm_redis_cache" "app" {
-          name                = "cache-payment-api"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          capacity            = 1
-          family              = "C"
-          sku_name            = "Standard"
-          enable_non_ssl_port = false
-          minimum_tls_version = "1.2"
-        }
-        
-      non_compliant: |
-        resource "azurerm_redis_cache" "app" {
-          name                = "cache-payment-api"
-          capacity            = 0
-          family              = "C"
-          sku_name            = "Basic"  # Basic tier – no replication – WAF-PERF-030 violation
-          enable_non_ssl_port = true     # SSL disabled – security violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_redis_cache
-    assertions:
-      - attribute: 'sku_name'
-        op: 'in'
-        message: 'Azure Redis Cache must use Standard or Premium SKU for production (not Basic).'
-      - attribute: 'enable_non_ssl_port'
-        op: 'is_false'
-        message: 'Non-SSL port must be disabled on Azure Redis Cache.'
-      - attribute: 'minimum_tls_version'
-        op: 'equals'
-        message: 'Azure Redis Cache must enforce TLS 1.2 minimum.'
-    on_fail: violation
-  - id: waf-perf-030.tf.google.memorystore-redis-ha
-    engine: terraform
-    automated: true
-    title: 'GCP Memorystore for Redis must use STANDARD_HA tier'
-    provider: google
-    description: 'GCP Memorystore for Redis instances used for production caching must use STANDARD_HA tier to ensure failover and high availability.'
-    expected: 'true'
-    remediation: 'Set tier = "STANDARD_HA" for production Redis instances. Set transit_encryption_mode = "SERVER_AUTHENTICATION" for encryption in transit.\n'
-    example:
-      compliant: |
-        resource "google_redis_instance" "app" {
-          name                    = "cache-payment-api"
-          tier                    = "STANDARD_HA"
-          memory_size_gb          = 4
-          region                  = "europe-west3"
-          transit_encryption_mode = "SERVER_AUTHENTICATION"
-          redis_version           = "REDIS_7_0"
-          labels = {
-            workload = "payment-api"
-          }
-        }
-        
-      non_compliant: |
-        resource "google_redis_instance" "app" {
-          name           = "cache-payment-api"
-          tier           = "BASIC"  # No failover – WAF-PERF-030 violation
-          memory_size_gb = 1
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_redis_instance
-    assertions:
-      - attribute: 'tier'
-        op: 'equals'
-        message: 'Memorystore Redis must use STANDARD_HA tier for production use.'
-      - attribute: 'transit_encryption_mode'
-        op: 'equals'
-        message: 'Memorystore Redis must have transit encryption enabled.'
-    on_fail: violation
+- id: waf-perf-030.tf.aws.elasticache-cluster-configured
+  engine: terraform
+  automated: true
+  title: AWS ElastiCache clusters must be in cluster mode with automatic failover
+  provider: aws
+  description: ElastiCache Redis clusters must have cluster mode or multi-AZ with automatic failover enabled to ensure high
+    availability of the caching layer. Single-node ElastiCache deployments in production are a violation.
+  expected: 'true'
+  remediation: Set automatic_failover_enabled = true, num_cache_clusters >= 2, and at_rest_encryption_enabled = true. For
+    Redis, use replication_group resource with at least one replica.\n
+  example:
+    compliant: "resource \"aws_elasticache_replication_group\" \"app\" {\n  replication_group_id       = \"payment-cache\"\
+      \n  description                = \"Cache for payment service sessions and lookups\"\n  node_type                  =\
+      \ \"cache.t3.medium\"\n  num_cache_clusters         = 2\n  automatic_failover_enabled = true\n  at_rest_encryption_enabled\
+      \ = true\n  transit_encryption_enabled = true\n  subnet_group_name          = aws_elasticache_subnet_group.main.name\n\
+      \  security_group_ids         = [aws_security_group.cache.id]\n}\n"
+    non_compliant: "resource \"aws_elasticache_cluster\" \"app\" {\n  cluster_id        = \"payment-cache\"\n  engine    \
+      \        = \"redis\"\n  node_type         = \"cache.t3.micro\"\n  num_cache_nodes   = 1  # Single node, no failover\
+      \ – WAF-PERF-030 violation\n  # No encryption configured\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_elasticache_replication_group
+    - aws_elasticache_cluster
+  assertions:
+  - attribute: automatic_failover_enabled
+    op: is_true
+    message: ElastiCache replication group must have automatic_failover_enabled = true for production use.
+  - attribute: num_cache_clusters
+    op: greater_than_or_equal
+    message: ElastiCache must have at least 2 cache nodes for redundancy.
+    expected: 2
+  - attribute: at_rest_encryption_enabled
+    op: is_true
+    message: ElastiCache must have at-rest encryption enabled.
+  on_fail: violation
+- id: waf-perf-030.tf.azurerm.redis-cache-premium
+  engine: terraform
+  automated: true
+  title: Azure Cache for Redis must be Premium or Standard tier with persistence
+  provider: azurerm
+  description: Azure Cache for Redis for production use must be Standard or Premium tier with clustering enabled for large
+    datasets and geo-replication where required.
+  expected: 'true'
+  remediation: Upgrade Redis SKU to Standard or Premium. Disable non-SSL port. Set minimum_tls_version = "1.2". For large
+    datasets enable cluster mode (Premium only).\n
+  example:
+    compliant: "resource \"azurerm_redis_cache\" \"app\" {\n  name                = \"cache-payment-api\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n  capacity     \
+      \       = 1\n  family              = \"C\"\n  sku_name            = \"Standard\"\n  enable_non_ssl_port = false\n  minimum_tls_version\
+      \ = \"1.2\"\n}\n"
+    non_compliant: "resource \"azurerm_redis_cache\" \"app\" {\n  name                = \"cache-payment-api\"\n  capacity\
+      \            = 0\n  family              = \"C\"\n  sku_name            = \"Basic\"  # Basic tier – no replication –\
+      \ WAF-PERF-030 violation\n  enable_non_ssl_port = true     # SSL disabled – security violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_redis_cache
+  assertions:
+  - attribute: sku_name
+    op: in
+    message: Azure Redis Cache must use Standard or Premium SKU for production (not Basic).
+    expected:
+    - Standard
+    - Premium
+  - attribute: enable_non_ssl_port
+    op: is_false
+    message: Non-SSL port must be disabled on Azure Redis Cache.
+  - attribute: minimum_tls_version
+    op: equals
+    message: Azure Redis Cache must enforce TLS 1.2 minimum.
+    expected: '1.2'
+  on_fail: violation
+- id: waf-perf-030.tf.google.memorystore-redis-ha
+  engine: terraform
+  automated: true
+  title: GCP Memorystore for Redis must use STANDARD_HA tier
+  provider: google
+  description: GCP Memorystore for Redis instances used for production caching must use STANDARD_HA tier to ensure failover
+    and high availability.
+  expected: 'true'
+  remediation: Set tier = "STANDARD_HA" for production Redis instances. Set transit_encryption_mode = "SERVER_AUTHENTICATION"
+    for encryption in transit.\n
+  example:
+    compliant: "resource \"google_redis_instance\" \"app\" {\n  name                    = \"cache-payment-api\"\n  tier  \
+      \                  = \"STANDARD_HA\"\n  memory_size_gb          = 4\n  region                  = \"europe-west3\"\n\
+      \  transit_encryption_mode = \"SERVER_AUTHENTICATION\"\n  redis_version           = \"REDIS_7_0\"\n  labels = {\n  \
+      \  workload = \"payment-api\"\n  }\n}\n"
+    non_compliant: "resource \"google_redis_instance\" \"app\" {\n  name           = \"cache-payment-api\"\n  tier       \
+      \    = \"BASIC\"  # No failover – WAF-PERF-030 violation\n  memory_size_gb = 1\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_redis_instance
+  assertions:
+  - attribute: tier
+    op: equals
+    message: Memorystore Redis must use STANDARD_HA tier for production use.
+    expected: STANDARD_HA
+  - attribute: transit_encryption_mode
+    op: equals
+    message: Memorystore Redis must have transit encryption enabled.
+    expected: SERVER_AUTHENTICATION
+  on_fail: violation
+- id: waf-perf-030.tf.stackit.scalability-tested
+  engine: terraform
+  automated: true
+  title: All workloads with repeated read patterns or high-latency data sources for stackit
+  provider: stackit
+  description: All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a scalability-tested tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-030
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    scalability-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing scalability-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: scalability-tested
+    message: stackit_project is missing the scalability-tested tag/label.
+  on_fail: violation
+- id: waf-perf-030.tf.ovh.scalability-tested
+  engine: terraform
+  automated: true
+  title: All workloads with repeated read patterns or high-latency data sources for ovh
+  provider: ovh
+  description: All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a scalability-tested tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-030
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    scalability-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing scalability-tested tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: scalability-tested
+    message: ovh_cloud_project is missing the scalability-tested tag/label.
+  on_fail: violation
+- id: waf-perf-030.tf.hcloud.scalability-tested
+  engine: terraform
+  automated: true
+  title: All workloads with repeated read patterns or high-latency data sources for hcloud
+  provider: hcloud
+  description: All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a scalability-tested tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-030
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    scalability-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing scalability-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: scalability-tested
+    message: hcloud_server is missing the scalability-tested tag/label.
+  on_fail: violation

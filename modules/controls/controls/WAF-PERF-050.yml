@@ -1,226 +1,264 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-050
 id: WAF-PERF-050
-title: 'All production services MUST have Service Level Objectives (SLOs) defined...'
+title: All production services MUST have Service Level Objectives (SLOs) defined...
 status: active
 tags:
-  - performance
-  - high
-  - governance
-  - configuration
-pillar: performance
+- performance
+- high
+- governance
+- configuration
+pillar: efficiancy
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics: latency (P95 and P99), error rate, and availability.
+- governance
+- configuration
+category: logging-monitoring
+rationale: 'Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs ''Logging und Monitoring'' und stellt
+  sicher, dass All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics:
+  latency (P95 and P99), error rate, and.'
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Services without SLOs have no measurable reliability commitment and hide user impact.
+- Missing error budgets allow recurring instability to be accepted without consequence.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-050.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-050.adoc
+  related_controls:
+  - WAF-PERF-040
+  - WAF-PERF-020
+  - WAF-PERF-090
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics:
+  latency (P95 and P99), error rate, and availability. Service Level Indicators (SLIs) MUST be instrumented and measured continuously.
+  Performance dashboards MUST be available for all production services showing current SLO compliance and historical trends.
+  Alerting MUST be configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds. SLOs MUST be reviewed
+  and updated quarterly or after major architectural changes.
 
-description: |
-  All production services MUST have Service Level Objectives (SLOs) defined for performance-relevant metrics: latency (P95 and P99), error rate, and availability. Service Level Indicators (SLIs) MUST be instrumented and measured continuously. Performance dashboards MUST be available for all production services showing current SLO compliance and historical trends. Alerting MUST be configured to notify on-call teams when SLO burn rate exceeds acceptable thresholds. SLOs MUST be reviewed and updated quarterly or after major architectural changes.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Capacity'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'OPS 7 – How do you know that your workload and changes are successful?'
-      - 'REL 9 – How do you test reliability?'
-  - framework: 'Google SRE Book'
-    controls:
-      - 'Service Level Objectives'
-      - 'Error Budgets'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service Level Management'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Capacity
+- framework: SRE Book (Google)
+  controls:
+  - Service Level Objectives
+  - Error Budgets
 checks:
-  - id: waf-perf-050.tf.aws.cloudwatch-latency-alarm
-    engine: terraform
-    automated: true
-    title: 'AWS CloudWatch alarms must monitor P99 latency for load balancers'
-    provider: aws
-    description: 'Load balancers must have CloudWatch alarms configured for P99 target response time to detect latency degradation before it becomes visible to users.'
-    expected: 'true'
-    remediation: 'Ensure CloudWatch alarms have alarm_actions pointing to SNS topics for notification. Set evaluation_periods >= 2 to reduce false positives. Add alarm_description with runbook link.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_metric_alarm" "p99_latency" {
-          alarm_name          = "payment-api-p99-latency"
-          alarm_description   = "P99 latency > 500ms for payment API. Runbook: https://wiki/perf-runbook"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 3
-          metric_name         = "TargetResponseTime"
-          namespace           = "AWS/ApplicationELB"
-          period              = 60
-          statistic           = "p99"
-          threshold           = 0.5
-          alarm_actions       = [aws_sns_topic.alerts.arn]
-          dimensions = {
-            LoadBalancer = aws_lb.app.arn_suffix
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "latency" {
-          alarm_name          = "latency-alarm"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 1
-          metric_name         = "TargetResponseTime"
-          namespace           = "AWS/ApplicationELB"
-          period              = 60
-          statistic           = "Average"  # Average hides P99 spikes – WAF-PERF-050 violation
-          threshold           = 1.0
-          # No alarm_actions – alert fires but nobody is notified
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_metric_alarm
-    assertions:
-      - attribute: 'alarm_actions'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have at least one action (SNS topic) configured.'
-      - attribute: 'evaluation_periods'
-        op: 'greater_than_or_equal'
-        message: 'Alarm must evaluate over at least 2 periods to avoid spurious alerts.'
-      - attribute: 'alarm_description'
-        op: 'not_empty'
-        message: 'Alarm must have a description explaining what it monitors and what to do.'
-    on_fail: violation
-  - id: waf-perf-050.tf.azurerm.app-insights-availability
-    engine: terraform
-    automated: true
-    title: 'Azure Application Insights must be configured for SLO monitoring'
-    provider: azurerm
-    description: 'Azure Application Insights must be deployed and configured for all production services to enable performance monitoring, distributed tracing, and SLO tracking.'
-    expected: 'true'
-    remediation: 'Set application_type to "web" for HTTP services. Set retention_in_days >= 90 for adequate trend analysis. Configure availability tests and custom metric alerts for SLOs.\n'
-    example:
-      compliant: |
-        resource "azurerm_application_insights" "app" {
-          name                = "appi-payment-api"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          application_type    = "web"
-          retention_in_days   = 90
-          tags = {
-            workload    = "payment-api"
-            environment = "production"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_application_insights" "app" {
-          name             = "appi-payment-api"
-          application_type = "other"  # Wrong type for web service
-          retention_in_days = 7       # Too short – WAF-PERF-050 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_application_insights
-    assertions:
-      - attribute: 'application_type'
-        op: 'not_empty'
-        message: 'Application Insights application_type must be set (web or other).'
-      - attribute: 'retention_in_days'
-        op: 'greater_than_or_equal'
-        message: 'Application Insights retention must be at least 30 days for trend analysis.'
-    on_fail: violation
-  - id: waf-perf-050.tf.google.monitoring-uptime-check
-    engine: terraform
-    automated: true
-    title: 'GCP services must have uptime checks and alert policies configured'
-    provider: google
-    description: 'GCP production services must have Cloud Monitoring uptime checks and alerting policies for latency and availability SLO monitoring.'
-    expected: 'true'
-    remediation: 'Ensure alert policies have notification_channels configured, are enabled, and have descriptive display names. Create SLO-based alerts using google_monitoring_slo resource.\n'
-    example:
-      compliant: |
-        resource "google_monitoring_alert_policy" "latency" {
-          display_name = "payment-api-p99-latency"
-          enabled      = true
-          conditions {
-            display_name = "P99 latency > 500ms"
-            condition_threshold {
-              filter          = "metric.type=\"loadbalancing.googleapis.com/https/backend_latencies\" resource.type=\"https_lb_rule\""
-              comparison      = "COMPARISON_GT"
-              threshold_value = 500
-              duration        = "60s"
-              aggregations {
-                alignment_period   = "60s"
-                per_series_aligner = "ALIGN_PERCENTILE_99"
-              }
-            }
-          }
-          notification_channels = [google_monitoring_notification_channel.slack.id]
-        }
-        
-      non_compliant: |
-        resource "google_monitoring_alert_policy" "latency" {
-          display_name = "latency"
-          enabled      = false  # Alert disabled – WAF-PERF-050 violation
-          conditions { }
-          # No notification_channels
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_monitoring_alert_policy
-    assertions:
-      - attribute: 'notification_channels'
-        op: 'not_empty'
-        message: 'Alert policy must have at least one notification channel.'
-      - attribute: 'display_name'
-        op: 'not_empty'
-        message: 'Alert policy must have a descriptive display name.'
-      - attribute: 'enabled'
-        op: 'is_true'
-        message: 'Alert policy must be enabled.'
-    on_fail: violation
+- id: waf-perf-050.tf.aws.cloudwatch-latency-alarm
+  engine: terraform
+  automated: true
+  title: AWS CloudWatch alarms must monitor P99 latency for load balancers
+  provider: aws
+  description: Load balancers must have CloudWatch alarms configured for P99 target response time to detect latency degradation
+    before it becomes visible to users.
+  expected: 'true'
+  remediation: Ensure CloudWatch alarms have alarm_actions pointing to SNS topics for notification. Set evaluation_periods
+    >= 2 to reduce false positives. Add alarm_description with runbook link.\n
+  example:
+    compliant: "resource \"aws_cloudwatch_metric_alarm\" \"p99_latency\" {\n  alarm_name          = \"payment-api-p99-latency\"\
+      \n  alarm_description   = \"P99 latency > 500ms for payment API. Runbook: https://wiki/perf-runbook\"\n  comparison_operator\
+      \ = \"GreaterThanThreshold\"\n  evaluation_periods  = 3\n  metric_name         = \"TargetResponseTime\"\n  namespace\
+      \           = \"AWS/ApplicationELB\"\n  period              = 60\n  statistic           = \"p99\"\n  threshold     \
+      \      = 0.5\n  alarm_actions       = [aws_sns_topic.alerts.arn]\n  dimensions = {\n    LoadBalancer = aws_lb.app.arn_suffix\n\
+      \  }\n}\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"latency\" {\n  alarm_name          = \"latency-alarm\"\n  comparison_operator\
+      \ = \"GreaterThanThreshold\"\n  evaluation_periods  = 1\n  metric_name         = \"TargetResponseTime\"\n  namespace\
+      \           = \"AWS/ApplicationELB\"\n  period              = 60\n  statistic           = \"Average\"  # Average hides\
+      \ P99 spikes – WAF-PERF-050 violation\n  threshold           = 1.0\n  # No alarm_actions – alert fires but nobody is\
+      \ notified\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_metric_alarm
+  assertions:
+  - attribute: alarm_actions
+    op: not_empty
+    message: CloudWatch alarm must have at least one action (SNS topic) configured.
+  - attribute: evaluation_periods
+    op: greater_than_or_equal
+    message: Alarm must evaluate over at least 2 periods to avoid spurious alerts.
+    expected: 2
+  - attribute: alarm_description
+    op: not_empty
+    message: Alarm must have a description explaining what it monitors and what to do.
+  on_fail: violation
+- id: waf-perf-050.tf.azurerm.app-insights-availability
+  engine: terraform
+  automated: true
+  title: Azure Application Insights must be configured for SLO monitoring
+  provider: azurerm
+  description: Azure Application Insights must be deployed and configured for all production services to enable performance
+    monitoring, distributed tracing, and SLO tracking.
+  expected: 'true'
+  remediation: Set application_type to "web" for HTTP services. Set retention_in_days >= 90 for adequate trend analysis. Configure
+    availability tests and custom metric alerts for SLOs.\n
+  example:
+    compliant: "resource \"azurerm_application_insights\" \"app\" {\n  name                = \"appi-payment-api\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n  application_type\
+      \    = \"web\"\n  retention_in_days   = 90\n  tags = {\n    workload    = \"payment-api\"\n    environment = \"production\"\
+      \n  }\n}\n"
+    non_compliant: "resource \"azurerm_application_insights\" \"app\" {\n  name             = \"appi-payment-api\"\n  application_type\
+      \ = \"other\"  # Wrong type for web service\n  retention_in_days = 7       # Too short – WAF-PERF-050 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_application_insights
+  assertions:
+  - attribute: application_type
+    op: not_empty
+    message: Application Insights application_type must be set (web or other).
+  - attribute: retention_in_days
+    op: greater_than_or_equal
+    message: Application Insights retention must be at least 30 days for trend analysis.
+    expected: 1
+  on_fail: violation
+- id: waf-perf-050.tf.google.monitoring-uptime-check
+  engine: terraform
+  automated: true
+  title: GCP services must have uptime checks and alert policies configured
+  provider: google
+  description: GCP production services must have Cloud Monitoring uptime checks and alerting policies for latency and availability
+    SLO monitoring.
+  expected: 'true'
+  remediation: Ensure alert policies have notification_channels configured, are enabled, and have descriptive display names.
+    Create SLO-based alerts using google_monitoring_slo resource.\n
+  example:
+    compliant: "resource \"google_monitoring_alert_policy\" \"latency\" {\n  display_name = \"payment-api-p99-latency\"\n\
+      \  enabled      = true\n  conditions {\n    display_name = \"P99 latency > 500ms\"\n    condition_threshold {\n    \
+      \  filter          = \"metric.type=\\\"loadbalancing.googleapis.com/https/backend_latencies\\\" resource.type=\\\"https_lb_rule\\\
+      \"\"\n      comparison      = \"COMPARISON_GT\"\n      threshold_value = 500\n      duration        = \"60s\"\n    \
+      \  aggregations {\n        alignment_period   = \"60s\"\n        per_series_aligner = \"ALIGN_PERCENTILE_99\"\n    \
+      \  }\n    }\n  }\n  notification_channels = [google_monitoring_notification_channel.slack.id]\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"latency\" {\n  display_name = \"latency\"\n  enabled   \
+      \   = false  # Alert disabled – WAF-PERF-050 violation\n  conditions { }\n  # No notification_channels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: notification_channels
+    op: not_empty
+    message: Alert policy must have at least one notification channel.
+  - attribute: display_name
+    op: not_empty
+    message: Alert policy must have a descriptive display name.
+  - attribute: enabled
+    op: is_true
+    message: Alert policy must be enabled.
+  on_fail: violation
+- id: waf-perf-050.tf.stackit.cdn-configured
+  engine: terraform
+  automated: true
+  title: All production services for stackit
+  provider: stackit
+  description: All production services must be documented in IaC via a cdn-configured tag/label on stackit_project. This validates
+    the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a cdn-configured tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-050
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    cdn-configured = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing cdn-configured labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: cdn-configured
+    message: stackit_project is missing the cdn-configured tag/label.
+  on_fail: violation
+- id: waf-perf-050.tf.ovh.cdn-configured
+  engine: terraform
+  automated: true
+  title: All production services for ovh
+  provider: ovh
+  description: All production services must be documented in IaC via a cdn-configured tag/label on ovh_cloud_project. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a cdn-configured tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-050
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    cdn-configured = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing cdn-configured tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: cdn-configured
+    message: ovh_cloud_project is missing the cdn-configured tag/label.
+  on_fail: violation
+- id: waf-perf-050.tf.hcloud.cdn-configured
+  engine: terraform
+  automated: true
+  title: All production services for hcloud
+  provider: hcloud
+  description: All production services must be documented in IaC via a cdn-configured tag/label on hcloud_server. This validates
+    the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a cdn-configured tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-050
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    cdn-configured = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing cdn-configured labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: cdn-configured
+    message: hcloud_server is missing the cdn-configured tag/label.
+  on_fail: violation

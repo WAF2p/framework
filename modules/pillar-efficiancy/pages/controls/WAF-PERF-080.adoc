@@ -1,250 +1,362 @@
 = WAF-PERF-080 – Serverless & Managed Services for Variable Load
 :page-toc: right
 :control-id: WAF-PERF-080
-:pillar: performance
+:pillar: efficiancy
 :severity: low
-:category: compute-architecture
-:automated: medium
-:description: WAF++ Performance Efficiency – Serverlose Architekturen für variable Last einsetzen und korrekt konfigurieren.
+:category: container-security
+:automatable: High
+:description: Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully managed compute architectures. Where serverless is appropriate, Lambda, Cloud Functions, Azure Functions, or managed container services (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency, and cold-start mitigation strategies. Serverless function configurations MUST be optimized to avoid under-memory allocation, excessive timeouts, and uncontrolled concurrency.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Low | *Kategorie:* Compute Architecture | *Automatisierbar:* Mittel
+*Säule:* Efficiancy | *Schweregrad:* Niedrig | *Kategorie:* Container Security | *Automatisierbar:* High
 
 == Beschreibung
 
-Workloads mit stark variablem, unvorhersehbarem Traffic SOLLEN auf Serverless-Eignung evaluiert werden.
-Serverlose Funktionen (Lambda, Cloud Functions, Azure Functions) MÜSSEN mit explizit konfiguriertem
-Memory, Timeout und Concurrency deployed werden. Cold-Start-Latenz MUSS für latenz-sensitive
-Funktionen durch Provisioned Concurrency oder Min-Instances-Konfiguration mitigiert werden.
-Lambda-Memory MUSS durch Profiling optimiert werden, nicht durch Standardwerte.
+Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully managed compute architectures. Where serverless is appropriate, Lambda, Cloud Functions, Azure Functions, or managed container services (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency, and cold-start mitigation strategies. Serverless function configurations MUST be optimized to avoid under-memory allocation, excessive timeouts, and uncontrolled concurrency.
 
-== Rationale
-
-Serverlose Architekturen eliminieren idle-Kapazitätskosten und skalieren instantan auf Demand.
-Für Spike-Workloads kann Serverless 10–100x kostengünstiger sein als Auto-Scaled EC2.
-Aber: Standard-Lambda mit 128MB Memory ist für die meisten produktiven Workloads suboptimal –
-CPU skaliert proportional zur Memory-Konfiguration, mehr Memory kann sogar günstiger sein durch
-schnellere Ausführung. Falsch konfigurierter Serverless-Code hat unvorhersehbare Performance.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Cold-Start-Latenz*
-|Erste Anfrage nach Idle-Phase ist 1–10x langsamer → SLO-Verletzung für erste Nutzer.
+|*Risk* |Spiky workloads on slow-starting resources suffer cold-start latency and poor user experience.
 
-|*Unter-Memory = langsamere Ausführung*
-|Lambda CPU ist proportional zu Memory; 256MB = 2x CPU-Credits vs 128MB.
-
-|*Unkontrollierte Concurrency*
-|Keine Reserved Concurrency → eine Funktion verbraucht alle Account-Concurrency-Credits.
-
-|*Timeout-Misconfiguration*
-|Default 3s-Timeout zu kurz → Silent Failures; 15min-Timeout zu lang → Zombie-Executions.
+|*Risk* |Missing serverless or auto-scaling options lead to over-provisioning during idle periods.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Variable-Load-Workloads SOLLEN auf Serverless-Eignung evaluiert werden (dokumentierte Entscheidung)
-* Lambda-Memory MUSS explizit konfiguriert sein (nicht Default 128MB)
-* Lambda-Timeout MUSS explizit auf 2x P99-Ausführungszeit gesetzt werden
-* Reserved Concurrency MUSS konfiguriert sein um Kontrollverlust über Account-Concurrency zu verhindern
-* Cold-Start-Mitigation MUSS für latenz-sensitive Funktionen evaluiert und implementiert werden
+* Workloads with highly variable, spiky, or unpredictable traffic patterns SHOULD be evaluated for serverless or fully managed compute architectures.
+* Where serverless is appropriate, Lambda, Cloud Functions, Azure Functions, or managed container services (Fargate, Cloud Run) MUST be configured with appropriate memory, timeout, concurrency, and cold-start mitigation strategies.
+* Serverless function configurations MUST be optimized to avoid under-memory allocation, excessive timeouts, and uncontrolled concurrency.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Workload-Eignung evaluieren*: Variable Last? Async-tolerant? Zustandslos? → Serverless-Kandidat
-. *Lambda Power Tuning ausführen*: `aws-lambda-power-tuning` für optimale Memory-Konfiguration
-. *Timeout messen*: P99 der Ausführungszeit messen; Timeout = 2x P99 setzen
-. *Reserved Concurrency konfigurieren*: Pro Service maximal X% der Account-Concurrency zuteilen
-. *Cold-Start-Analyse*: Latenz-SLO prüfen; bei P99-SLO < 500ms: Provisioned Concurrency evaluieren
-. *CloudWatch-Alarme*: Duration-P99, Throttles, ConcurrentExecutions überwachen
-. *Cloud Run Min-Instances*: Für GCP: min_instance_count >= 1 für latenz-sensitive Services
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Default-Konfiguration
-|128MB Memory; Default-Timeout; keine Reserved Concurrency; keine Cold-Start-Analyse.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Manuell angepasst
-|Memory angepasst (nicht gemessen); Timeout gesetzt; Cold Starts bekannt aber nicht mitigiert.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Optimiert durch Profiling
-|Lambda Power Tuning durchgeführt; Timeout = 2x P99; Reserved Concurrency konfiguriert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Erweiterte Optimierung
-|Provisioned Concurrency für latenz-kritische Funktionen; Cost-per-Invocation optimiert.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Vollständig managed
-|Autonomes Cost-Performance-Balancing; Edge Functions für ultra-low Latency.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-080.tf.aws.lambda-memory-timeout-configured
-*Prüft:* Lambda-Funktionen müssen explizites Memory >= 256MB, Timeout und Reserved Concurrency haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS Lambda functions must have explicit memory and timeout configuration*
+
+Lambda functions must not use default memory (128MB) or default timeout (3s) for production use. Both must be explicitly configured based on measured performance profiles.
+
+*Scope:* `resource` — `aws_lambda_function`
+
+*Assertions:*
+* `memory_size` greater than or equal `256` — Lambda memory_size must be explicitly set >= 256MB for production functions (default 128MB is rarely optimal).
+* `timeout` greater than or equal `1` — Lambda timeout must be explicitly set (not default 3s) and sized appropriately.
+* `reserved_concurrent_executions` attribute exists — Lambda reserved_concurrent_executions should be configured to control account concurrency usage.
+
+*Remediation:* Run AWS Lambda Power Tuning to find optimal memory allocation. Set timeout = 2x measured P99 execution time. Set reserved_concurrent_executions to limit blast radius on account concurrency.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_lambda_function" "processor" {
+resource "aws_lambda_function" "payment_processor" {
   function_name = "payment-processor"
   runtime       = "python3.12"
-  memory_size   = 512    # Aus Power Tuning
-  timeout       = 30     # 2x P99 = 15s
-  reserved_concurrent_executions = 100
+  handler       = "handler.process"
+  filename      = data.archive_file.lambda.output_path
+  memory_size   = 512    # Tuned with Lambda Power Tuning
+  timeout       = 30     # 2x measured P99 of 15s
+  reserved_concurrent_executions = 100  # Prevent consuming all account concurrency
+  environment {
+    variables = {
+      LOG_LEVEL = "INFO"
+    }
+  }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_lambda_function" "processor" {
+resource "aws_lambda_function" "payment_processor" {
   function_name = "payment-processor"
   runtime       = "python3.12"
-  # memory_size default 128MB
-  # timeout default 3s
-  # Keine reserved_concurrent_executions
-  # WAF-PERF-080 Violation
+  handler       = "handler.process"
+  filename      = data.archive_file.lambda.output_path
+  # memory_size defaults to 128MB – not profiled – WAF-PERF-080 violation
+  # timeout defaults to 3s – may cause timeouts
+  # No reserved_concurrent_executions – uncontrolled concurrency
 }
 ----
-|===
 
-*Remediation:* `memory_size >= 256`, `timeout = 2x_p99`, `reserved_concurrent_executions` setzen.
-Lambda Power Tuning ausführen: https://github.com/alexcasalboni/aws-lambda-power-tuning
+---
+
+=== waf-perf-080.tf.azurerm.function-app-plan-configured
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Function Apps for production should use Premium or Dedicated plan*
+
+Azure Function Apps in production should use Premium or Dedicated (App Service) plan to avoid cold starts, enable VNet integration, and provide predictable performance.
+
+*Scope:* `resource` — `azurerm_service_plan`
+
+*Assertions:*
+* `sku_name` not in `['Y1']` — Production Function Apps should not use Y1 (Consumption) plan due to cold starts and unpredictable performance.
+
+*Remediation:* For production latency-sensitive functions, use EP1/EP2/EP3 (Premium) or P1v3/P2v3 (Dedicated). Consumption plan (Y1) is acceptable for truly event-driven, non-latency-critical workloads.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_service_plan" "functions" {
+  name                = "plan-payment-functions"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  os_type             = "Linux"
+  sku_name            = "EP1"  # Premium plan – consistent performance, no cold starts
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_service_plan" "functions" {
+  name     = "plan-payment-functions"
+  os_type  = "Linux"
+  sku_name = "Y1"  # Consumption – cold starts for production latency SLO – advisory
+}
+----
+
+---
+
+=== waf-perf-080.tf.google.cloud-run-min-instances
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Run services with latency SLOs must set min-instances > 0*
+
+GCP Cloud Run services that have latency SLOs must configure minimum instances > 0 to eliminate cold starts. Services scaling to zero will experience cold start latency that may violate P99 SLO targets.
+
+*Scope:* `resource` — `google_cloud_run_service`, `google_cloud_run_v2_service`
+
+*Assertions:*
+* `template.metadata.annotations["autoscaling.knative.dev/minScale"]` not empty — Cloud Run service should set minimum instance annotation to prevent cold starts.
+
+*Remediation:* Set the autoscaling.knative.dev/minScale annotation to >= 1 for latency-sensitive services. For cost optimization, consider min=1 during business hours and scheduled scaling to 0 overnight.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_v2_service" "app" {
+  name     = "payment-api"
+  location = "europe-west3"
+  template {
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 50
+    }
+    containers {
+      image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
+      resources {
+        limits = {
+          cpu    = "2"
+          memory = "512Mi"
+        }
+      }
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_v2_service" "app" {
+  name     = "payment-api"
+  location = "europe-west3"
+  template {
+    # No scaling config – scales to zero, cold starts – WAF-PERF-080 advisory
+    containers {
+      image = "europe-west3-docker.pkg.dev/${var.project}/services/payment-api:latest"
+    }
+  }
+}
+----
+
+---
+
+=== waf-perf-080.tf.stackit.latency-monitored
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*Workloads with highly variable, spiky, or unpredictable traffic patterns... for stackit*
+
+Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a latency-monitored tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the latency-monitored tag/label.
+
+*Remediation:* Add a latency-monitored tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-080 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    latency-monitored = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing latency-monitored labels
+}
+----
+
+---
+
+=== waf-perf-080.tf.ovh.latency-monitored
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*Workloads with highly variable, spiky, or unpredictable traffic patterns... for ovh*
+
+Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a latency-monitored tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the latency-monitored tag/label.
+
+*Remediation:* Add a latency-monitored tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-080 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    latency-monitored = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing latency-monitored tags
+}
+----
+
+---
+
+=== waf-perf-080.tf.hcloud.latency-monitored
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Workloads with highly variable, spiky, or unpredictable traffic patterns... for hcloud*
+
+Workloads with highly variable, spiky, or unpredictable traffic patterns... must be documented in IaC via a latency-monitored tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the latency-monitored tag/label.
+
+*Remediation:* Add a latency-monitored tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-080 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    latency-monitored = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing latency-monitored labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Lambda-/Function-Konfiguration mit explizitem Memory, Timeout, Concurrency.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Governance*
-|✅ Pflicht
-|Dokumentation der Serverless-Adoption-Entscheidung für variable Workloads.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Lambda Power Tuning-Ergebnisse oder Memory-Optimierungsanalyse.
-
-|*Process*
-|Optional
-|Kostenvergleich Serverless vs. EC2/Container für Spike-Workloads.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Selection; Performance Efficiency Pillar – Review; Performance Efficiency Pillar – Efficiency
-
-|*Azure Well-Architected Framework*
-|Performance – Performance monitoring; Performance – Load and stress testing; Performance – Auto-scaling
-
-|*Google Cloud Architecture Framework*
-|Performance – Performance design principles; Performance – Monitoring and debugging
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture; ADM Phase D – Technology architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution; 5.3.3 – Test reporting
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software; 9.4.2 – Verification
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management; CIS 8.1 – Vulnerability scanning
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls; RA-5 – Security assessments; RA-9 – External information system attacks
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection; DE.DP – Data performance
-
-|*FedRAMP*
-|RA-2, RA-5, RA-9 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
+* xref:pillar-efficiancy:controls/WAF-PERF-010.adoc[WAF-PERF-010]
+* xref:pillar-security:controls/WAF-SEC-110.adoc[WAF-SEC-110]
+* xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-security:controls/WAF-SEC-070.adoc[WAF-SEC-070]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-autoscaling.adoc[Auto-Scaling & Serverless →]
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
+* Performance Efficiency – Capacity
+
+|===

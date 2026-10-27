@@ -1,173 +1,268 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-020
 id: WAF-COST-020
-title: 'Cost budgets MUST be defined as IaC resources (not manually in cloud console...'
+title: Cost budgets MUST be defined as IaC resources (not manually in cloud console...
 status: active
 tags:
-  - cost
-  - high
-  - governance
+- cost
+- high
+- governance
 pillar: cost
 severity: high
 type:
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project.
+- governance
+category: logging-monitoring
+rationale: Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs 'Logging und Monitoring' und stellt sicher,
+  dass Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription,
+  or project.
 threat:
-  - 'Uncontrolled cloud spend erodes budget and project viability.'
-  - 'High lock-in or debt decisions are made without financial impact visibility.'
+- Uncontrolled cloud spend erodes budget and project viability.
+- High lock-in or debt decisions are made without financial impact visibility.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Die Umsetzung wird regelmäßig überprüft und in Reviews nachgewiesen.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-020.adoc
+  related_controls:
+  - WAF-COST-070
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription,
+  or project. Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload
+  owner and FinOps team. Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
 
-description: |
-  Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project. Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload owner and FinOps team. Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Inform Phase – Budget Visibility and Accountability'
-      - 'Operate Phase – Budget Management and Variance Reporting'
-  - framework: 'ISO 20000'
-    controls:
-      - 'Service financial management – budget control'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Cloud Cost Governance Policy – Budget Enforcement'
+- framework: FinOps Foundation
+  controls:
+  - Inform Phase – Budget Visibility and Accountability
+  - Operate Phase – Budget Management and Variance Reporting
 checks:
-  - id: waf-cost-020.tf.aws.budgets-budget-exists
-    engine: terraform
-    automated: true
-    title: 'AWS budget must be defined as IaC resource'
-    provider: aws
-    description: 'An aws_budgets_budget resource must exist in the Terraform configuration. Budgets set only in the AWS Console are not version-controlled and may be deleted or modified without audit trail.'
-    expected: 'true'
-    remediation: 'Add an aws_budgets_budget resource to your Terraform configuration. Set budget_type = "COST", time_unit = "MONTHLY", and configure notification blocks for 80% and 100% thresholds.\n'
-    example:
-      compliant: |
-        resource "aws_budgets_budget" "workload_monthly" {
-          name         = "payment-service-prod-monthly"
-          budget_type  = "COST"
-          limit_amount = "5000"
-          limit_unit   = "USD"
-          time_unit    = "MONTHLY"
-        
-          notification {
-            comparison_operator        = "GREATER_THAN"
-            threshold                  = 80
-            threshold_type             = "PERCENTAGE"
-            notification_type          = "ACTUAL"
-            subscriber_email_addresses = ["payments-team@company.com"]
-          }
-        
-          notification {
-            comparison_operator        = "GREATER_THAN"
-            threshold                  = 100
-            threshold_type             = "PERCENTAGE"
-            notification_type          = "ACTUAL"
-            subscriber_email_addresses = ["payments-team@company.com", "finops@company.com"]
-          }
-        }
-        
-      non_compliant: |
-        # No aws_budgets_budget resource defined.
-        # Budget was set manually in AWS Console – not reproducible, not version-controlled.
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_budgets_budget
-    assertions:
-      - attribute: 'budget_type'
-        op: 'equals'
-        message: 'Budget must be of type COST for cloud spend tracking.'
-      - attribute: 'time_unit'
-        op: 'in'
-        message: 'Budget time unit must be MONTHLY or QUARTERLY.'
-    on_fail: violation
-  - id: waf-cost-020.tf.azurerm.consumption-budget-defined
-    engine: terraform
-    automated: true
-    title: 'Azure consumption budget must be defined as IaC resource'
-    provider: azurerm
-    description: 'An azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource must exist in the Terraform configuration for Azure spending control.'
-    expected: 'true'
-    remediation: 'Add an azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource to your Terraform configuration with appropriate notification thresholds.\n'
-    example:
-      compliant: |
-        resource "azurerm_consumption_budget_resource_group" "main" {
-          name              = "payment-service-monthly-budget"
-          resource_group_id = azurerm_resource_group.main.id
-          amount            = 5000
-          time_grain        = "Monthly"
-        
-          time_period {
-            start_date = "2025-01-01T00:00:00Z"
-          }
-        
-          notification {
-            enabled        = true
-            threshold      = 80
-            operator       = "GreaterThan"
-            threshold_type = "Actual"
-            contact_emails = ["payments-team@company.com"]
-          }
-        
-          notification {
-            enabled        = true
-            threshold      = 100
-            operator       = "GreaterThan"
-            threshold_type = "Actual"
-            contact_emails = ["payments-team@company.com", "finops@company.com"]
-          }
-        }
-        
-      non_compliant: |
-        # No azurerm_consumption_budget_* resource defined.
-        # No automated budget control for this Azure workload.
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_consumption_budget_resource_group
-        - azurerm_consumption_budget_subscription
-        - azurerm_consumption_budget_management_group
-    assertions:
-      - attribute: 'amount'
-        op: 'greater_than_or_equal'
-        message: 'Budget amount must be greater than 0.'
-    on_fail: violation
+- id: waf-cost-020.tf.aws.budgets-budget-exists
+  engine: terraform
+  automated: true
+  title: AWS budget must be defined as IaC resource
+  provider: aws
+  description: An aws_budgets_budget resource must exist in the Terraform configuration. Budgets set only in the AWS Console
+    are not version-controlled and may be deleted or modified without audit trail.
+  expected: 'true'
+  remediation: Add an aws_budgets_budget resource to your Terraform configuration. Set budget_type = "COST", time_unit = "MONTHLY",
+    and configure notification blocks for 80% and 100% thresholds.\n
+  example:
+    compliant: "resource \"aws_budgets_budget\" \"workload_monthly\" {\n  name         = \"payment-service-prod-monthly\"\n\
+      \  budget_type  = \"COST\"\n  limit_amount = \"5000\"\n  limit_unit   = \"USD\"\n  time_unit    = \"MONTHLY\"\n\n  notification\
+      \ {\n    comparison_operator        = \"GREATER_THAN\"\n    threshold                  = 80\n    threshold_type    \
+      \         = \"PERCENTAGE\"\n    notification_type          = \"ACTUAL\"\n    subscriber_email_addresses = [\"payments-team@company.com\"\
+      ]\n  }\n\n  notification {\n    comparison_operator        = \"GREATER_THAN\"\n    threshold                  = 100\n\
+      \    threshold_type             = \"PERCENTAGE\"\n    notification_type          = \"ACTUAL\"\n    subscriber_email_addresses\
+      \ = [\"payments-team@company.com\", \"finops@company.com\"]\n  }\n}\n"
+    non_compliant: '# No aws_budgets_budget resource defined.
+
+      # Budget was set manually in AWS Console – not reproducible, not version-controlled.
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_budgets_budget
+  assertions:
+  - attribute: budget_type
+    op: equals
+    message: Budget must be of type COST for cloud spend tracking.
+    expected: COST
+  - attribute: time_unit
+    op: in
+    message: Budget time unit must be MONTHLY or QUARTERLY.
+    expected:
+    - MONTHLY
+    - QUARTERLY
+    - DAILY
+  on_fail: violation
+- id: waf-cost-020.tf.azurerm.consumption-budget-defined
+  engine: terraform
+  automated: true
+  title: Azure consumption budget must be defined as IaC resource
+  provider: azurerm
+  description: An azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource must exist
+    in the Terraform configuration for Azure spending control.
+  expected: 'true'
+  remediation: Add an azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource to your
+    Terraform configuration with appropriate notification thresholds.\n
+  example:
+    compliant: "resource \"azurerm_consumption_budget_resource_group\" \"main\" {\n  name              = \"payment-service-monthly-budget\"\
+      \n  resource_group_id = azurerm_resource_group.main.id\n  amount            = 5000\n  time_grain        = \"Monthly\"\
+      \n\n  time_period {\n    start_date = \"2025-01-01T00:00:00Z\"\n  }\n\n  notification {\n    enabled        = true\n\
+      \    threshold      = 80\n    operator       = \"GreaterThan\"\n    threshold_type = \"Actual\"\n    contact_emails\
+      \ = [\"payments-team@company.com\"]\n  }\n\n  notification {\n    enabled        = true\n    threshold      = 100\n\
+      \    operator       = \"GreaterThan\"\n    threshold_type = \"Actual\"\n    contact_emails = [\"payments-team@company.com\"\
+      , \"finops@company.com\"]\n  }\n}\n"
+    non_compliant: '# No azurerm_consumption_budget_* resource defined.
+
+      # No automated budget control for this Azure workload.
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_consumption_budget_resource_group
+    - azurerm_consumption_budget_subscription
+    - azurerm_consumption_budget_management_group
+  assertions:
+  - attribute: amount
+    op: greater_than_or_equal
+    message: Budget amount must be greater than 0.
+    expected: 1
+  on_fail: violation
+- id: waf-cost-020.tf.google.billing-budget-exists
+  engine: terraform
+  automated: true
+  title: GCP billing budget must be defined as IaC resource
+  provider: google
+  description: A google_billing_budget resource must exist in the Terraform configuration. GCP budgets set only in the Cloud
+    Console are not version-controlled and may be modified without audit trail.
+  expected: 'true'
+  remediation: Add a google_billing_budget resource to your Terraform configuration. Define billing_account, display_name,
+    amount, and threshold_rules for 80% and 100% of the budget.\n
+  example:
+    compliant: "resource \"google_billing_budget\" \"workload_monthly\" {\n  billing_account = data.google_billing_account.main.id\n\
+      \  display_name    = \"payment-service-prod-monthly\"\n\n  amount {\n    specified_amount {\n      currency_code = \"\
+      EUR\"\n      units         = \"5000\"\n    }\n  }\n\n  threshold_rules {\n    threshold_percent = 80\n  }\n\n  threshold_rules\
+      \ {\n    threshold_percent = 100\n  }\n\n  all_updates_rule {\n    monitoring_notification_channels = [\n      google_monitoring_notification_channel.finops.id,\n\
+      \      google_monitoring_notification_channel.owner.id,\n    ]\n    disable_default_iam_recipients   = false\n  }\n\
+      }\n"
+    non_compliant: '# No google_billing_budget resource defined.
+
+      # Budget was set manually in GCP Console – not reproducible, not version-controlled.
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_billing_budget
+  assertions:
+  - attribute: billing_account
+    op: attribute_exists
+    message: GCP billing budget must reference a billing account.
+  - attribute: threshold_rules
+    op: attribute_exists
+    message: GCP billing budget must define threshold rules for alerts.
+  on_fail: violation
+- id: waf-cost-020.tf.stackit.budget-documented
+  engine: terraform
+  automated: true
+  title: STACKIT cost budgets must be defined and documented
+  provider: stackit
+  description: STACKIT cost budgets must be defined and documented. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_project\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_project\" \"example\" {\n  #\
+      \ Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels.budget-alert
+    op: key_exists
+    key: budget-alert
+    message: STACKIT project is missing the 'budget-alert' label documenting budget enforcement.
+  on_fail: violation
+- id: waf-cost-020.tf.ovh.budget-documented
+  engine: terraform
+  automated: true
+  title: OVHcloud cost budgets must be defined and documented
+  provider: ovh
+  description: OVHcloud cost budgets must be defined and documented. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project\" \"example\" {\n \
+      \ # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: labels.budget-alert
+    op: key_exists
+    key: budget-alert
+    message: OVHcloud project is missing the 'budget-alert' label documenting budget enforcement.
+  on_fail: violation
+- id: waf-cost-020.tf.hcloud.budget-documented
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud cost budgets must be defined and documented
+  provider: hcloud
+  description: Hetzner Cloud cost budgets must be defined and documented. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.budget-alert
+    op: key_exists
+    key: budget-alert
+    message: Hetzner Cloud resource is missing the 'budget-alert' label documenting budget enforcement.
+  on_fail: violation

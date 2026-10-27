@@ -1,259 +1,364 @@
 = WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline
 :page-toc: right
 :control-id: WAF-PERF-060
-:pillar: performance
+:pillar: efficiancy
 :severity: medium
-:category: load-testing
-:automated: medium
-:description: WAF++ Performance Efficiency – Lasttests automatisch in die CI/CD-Pipeline integrieren und als Deployment-Gate betreiben.
+:category: network-security
+:automatable: High
+:description: All production services handling external or variable load MUST have load tests defined and executed at least as part of staging or pre-production validation gates. Load tests MUST define explicit acceptance criteria (P95/P99 latency thresholds, error rate limits, minimum throughput targets). Performance regression MUST be detected automatically by comparing load test results against the established baseline. Critical services MUST be stress-tested to identify capacity limits before production launches.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Load Testing | *Automatisierbar:* Mittel
+*Säule:* Efficiancy | *Schweregrad:* Mittel | *Kategorie:* Network Security | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle produktionskritischen Services MÜSSEN Lasttests mit definierten Akzeptanzkriterien
-als Bestandteil der CI/CD-Pipeline haben. Deployment in Produktion MUSS durch bestandenen
-Lasttest freigegeben werden. Performance-Regressionen (> 10% P99-Verschlechterung gegenüber Baseline)
-MÜSSEN automatisch erkannt und als Deployment-Blocker behandelt werden.
-Stresstests MÜSSEN mindestens quartalsweise durchgeführt werden, um Kapazitätsgrenzen zu ermitteln.
+All production services handling external or variable load MUST have load tests defined and executed at least as part of staging or pre-production validation gates. Load tests MUST define explicit acceptance criteria (P95/P99 latency thresholds, error rate limits, minimum throughput targets). Performance regression MUST be detected automatically by comparing load test results against the established baseline. Critical services MUST be stress-tested to identify capacity limits before production launches.
 
-== Rationale
-
-Performance-Probleme, die in der Produktion entdeckt werden, sind 10–100x teurer als in der
-Vorproduktionsphase. Jedes Deployment ohne Lasttest ist ein Experiment mit Nutzern als Probanden.
-Auto-Scaling, Connection Pools, Datenbankabfrage-Pläne und Caching-Konfigurationen müssen
-alle unter realistischer gleichzeitiger Last validiert werden.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Performance-Regression in Produktion*
-|Neues Feature verursacht 30% P99-Anstieg → entdeckt erst nach Nutzerbeschweren.
+|*Risk* |Workloads without load balancing are disproportionately impacted by node failure or traffic spikes.
 
-|*Auto-Scaling-Versagen*
-|Scaling-Konfiguration greift zu spät oder gar nicht → entdeckt erst beim echten Traffic-Peak.
-
-|*Connection-Pool-Erschöpfung*
-|Concurrent-Load sättigt Connection Pool → entdeckt erst bei Production-Incident.
-
-|*Unbekannte Kapazitätsgrenzen*
-|Kein Stresstest → niemand weiß, bei welcher Last der Service versagt.
+|*Risk* |Missing load-balancer configurations create single points of failure.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Lasttests MÜSSEN automatisch als Deployment-Gate in der CI/CD-Pipeline ausgeführt werden
-* Akzeptanzkriterien MÜSSEN vor dem Test definiert sein: P95 < [SLO-Ziel], Fehlerrate < 0.1%
-* Performance-Regressionen (> 10% P99-Anstieg gegenüber Baseline) MÜSSEN Deployment blockieren
-* Stresstests MÜSSEN quartalsweise für alle kritischen Services durchgeführt werden
+* All production services handling external or variable load MUST have load tests defined and executed at least as part of staging or pre-production validation gates.
+* Load tests MUST define explicit acceptance criteria (P95/P99 latency thresholds, error rate limits, minimum throughput targets).
+* Performance regression MUST be detected automatically by comparing load test results against the established baseline.
+* Critical services MUST be stress-tested to identify capacity limits before production launches.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Lasttest-Framework wählen*: k6 (developer-friendly, JavaScript), Gatling (Scala, hoher Throughput), Locust (Python)
-. *Test-Szenarien definieren*: Haupt-User-Journeys testen, nicht nur einzelne Endpoints
-. *Akzeptanzkriterien definieren*: P95/P99 < SLO-Ziel, Error-Rate < 0.1%, Target-TPS erreicht
-. *CI/CD-Integration*: Lasttest-Stage nach Build/Unit-Tests, vor Produktion-Deployment
-. *Baseline-Management*: Testergebnisse als Artefakte speichern; Baseline nach jedem erfolgreichen Test aktualisieren
-. *Regression-Check*: Automatischer Vergleich gegen Baseline; > 10% P99-Anstieg = Deployment-Stopp
-. *Stresstest-Kalender*: Quartalsweise manuelle Stresstests mit 2x/5x Peak-Last
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Lasttests
-|Performance unter Last völlig unbekannt; Probleme werden in Produktion entdeckt.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Manuelle Lasttests
-|Vor großen Releases manuell ausgeführt; keine CI-Integration; keine Akzeptanzkriterien.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Automatisch im CI/CD-Gate
-|Automatisch nach Build; Akzeptanzkriterien enforced; Deployment blockiert bei Failure.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Regression-Detection
-|Baseline-Vergleich automatisch; > 10% P99-Anstieg = Block; quartalsweise Stresstests.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Continuous Performance Testing
-|Permanente Last auf Staging; Chaos Engineering integriert; ML-Anomalie-Detection.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-060.tf.aws.codepipeline-performance-stage
-*Prüft:* AWS CodePipeline sollte eine Performance-Test-Stage vor dem Produktions-Deployment haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS CodePipeline should include a performance testing stage*
+
+AWS CodePipeline deployment pipelines for production services should include a performance testing stage (using CodeBuild running k6/Gatling/Locust) before promoting to production. This check verifies that a performance stage is referenced in pipeline configuration.
+
+*Scope:* `resource` — `aws_codepipeline`
+
+*Assertions:*
+* `stage` not empty — CodePipeline must have at least 3 stages (Source, Build, Deploy) with performance validation included.
+
+*Remediation:* Add a performance testing stage to CodePipeline using CodeBuild to execute load tests. Configure the stage to block promotion to production when acceptance criteria are not met.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_codepipeline" "app" {
-  name = "pipeline-payment-api"
-  stage { name = "Source" }
-  stage { name = "Build" }
+  name     = "pipeline-payment-api"
+  role_arn = aws_iam_role.pipeline.arn
+  artifact_store { location = aws_s3_bucket.artifacts.bucket; type = "S3" }
+  stage { name = "Source"; action { ... } }
+  stage { name = "Build";  action { ... } }
   stage {
     name = "PerformanceTest"
     action {
       name     = "LoadTest"
       category = "Build"
+      owner    = "AWS"
       provider = "CodeBuild"
       configuration = {
         ProjectName = aws_codebuild_project.load_test.name
       }
     }
   }
-  stage { name = "Deploy" }
+  stage { name = "Deploy"; action { ... } }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_codepipeline" "app" {
   name = "pipeline-payment-api"
-  stage { name = "Source" }
-  stage { name = "Build" }
-  stage { name = "Deploy" }
-  # Kein Performance-Test-Stage
-  # WAF-PERF-060 Violation
+  stage { name = "Source"; action { ... } }
+  stage { name = "Build";  action { ... } }
+  stage { name = "Deploy"; action { ... } }
+  # No performance test stage – WAF-PERF-060 violation
 }
 ----
-|===
 
-*Remediation:* Performance-Test-Stage zwischen Build und Prod-Deployment hinzufügen.
-CodeBuild-Projekt für k6/Gatling-Ausführung konfigurieren.
-Pipeline blockiert Prod-Deployment bei Akzeptanzkriterien-Failure.
+---
+
+=== waf-perf-060.tf.azurerm.devops-pipeline-perf-gate
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure DevOps pipelines should include performance validation gates*
+
+Azure deployment pipelines should configure release gates or pre-deployment conditions that execute performance tests before production deployment.
+
+*Scope:* `resource` — `azurerm_resource_group_policy_assignment`
+
+*Assertions:*
+* `name` not empty — Policy assignments must be named descriptively.
+
+*Remediation:* Configure Azure DevOps pipeline YAML with a performance test job that runs k6 or Gatling and fails the pipeline if acceptance criteria are not met. Reference load test scripts stored in the repository.
+
+.Compliant
+
+[source,terraform]
+----
+# azure-pipelines.yml (referenced by Terraform azuredevops_build_definition)
+stages:
+  - stage: PerformanceTest
+    dependsOn: BuildAndPush
+    jobs:
+      - job: LoadTest
+        steps:
+          - script: |
+              k6 run --vus 50 --duration 5m \
+                --env BASE_URL=$(STAGING_URL) \
+                tests/performance/payment-api.js
+            displayName: "Run k6 Load Tests"
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: 'k6-results.xml'
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# azure-pipelines.yml without performance stage
+stages:
+  - stage: Build
+  - stage: Deploy  # Direct deploy without performance gate – WAF-PERF-060 violation
+----
+
+---
+
+=== waf-perf-060.tf.google.cloud-build-perf-step
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Build triggers should include performance test steps*
+
+GCP Cloud Build configurations for production deployments should include load test execution steps before deploying to production.
+
+*Scope:* `resource` — `google_cloudbuild_trigger`
+
+*Assertions:*
+* `filename` not empty — Cloud Build trigger must reference a cloudbuild.yaml file.
+* `disabled` is false — Cloud Build trigger must not be disabled.
+
+*Remediation:* Enable Cloud Build trigger and ensure the referenced cloudbuild.yaml includes a performance test step using k6 or Locust before the deploy step.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloudbuild_trigger" "deploy" {
+  name     = "deploy-payment-api"
+  filename = "cloudbuild.yaml"
+  disabled = false
+  github {
+    owner = var.github_owner
+    name  = var.github_repo
+    push { branch = "^main$" }
+  }
+}
+# cloudbuild.yaml includes:
+# - id: 'performance-test'
+#   name: 'grafana/k6'
+#   args: ['run', 'tests/performance/payment-api.js']
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloudbuild_trigger" "deploy" {
+  name     = "deploy-payment-api"
+  disabled = true  # Trigger disabled – WAF-PERF-060 violation
+  filename = "cloudbuild.yaml"
+}
+----
+
+---
+
+=== waf-perf-060.tf.stackit.caching-enabled
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*All production services handling external or variable load for stackit*
+
+All production services handling external or variable load must be documented in IaC via a caching-enabled tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the caching-enabled tag/label.
+
+*Remediation:* Add a caching-enabled tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    caching-enabled = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing caching-enabled labels
+}
+----
+
+---
+
+=== waf-perf-060.tf.ovh.caching-enabled
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*All production services handling external or variable load for ovh*
+
+All production services handling external or variable load must be documented in IaC via a caching-enabled tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the caching-enabled tag/label.
+
+*Remediation:* Add a caching-enabled tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    caching-enabled = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing caching-enabled tags
+}
+----
+
+---
+
+=== waf-perf-060.tf.hcloud.caching-enabled
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*All production services handling external or variable load for hcloud*
+
+All production services handling external or variable load must be documented in IaC via a caching-enabled tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the caching-enabled tag/label.
+
+*Remediation:* Add a caching-enabled tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    caching-enabled = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing caching-enabled labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC / Code*
-|✅ Pflicht
-|Lasttest-Skripte mit Akzeptanzkriterien in Versionskontrolle.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|CI/CD-Pipeline-Konfiguration mit Lasttest als Deployment-Gate.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Historische Lasttest-Ergebnisse als Regression-Baseline.
-
-|*Governance*
-|Optional
-|Performance-Test-Strategie-Dokument mit Szenarien und Kadenz.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Selection; Performance Efficiency Pillar – Review; Performance Efficiency Pillar – Efficiency
-
-|*Azure Well-Architected Framework*
-|Performance – Performance monitoring; Performance – Load and stress testing; Performance – Auto-scaling
-
-|*Google Cloud Architecture Framework*
-|Performance – Performance design principles; Performance – Monitoring and debugging
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture; ADM Phase D – Technology architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution; 5.3.3 – Test reporting
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software; 9.4.2 – Verification
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management; CIS 8.1 – Vulnerability scanning
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls; RA-5 – Security assessments; RA-9 – External information system attacks
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection; DE.DP – Data performance
-
-|*FedRAMP*
-|RA-2, RA-5, RA-9 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-100.adoc[WAF-PERF-100 – Performance Debt Register & Quarterly Review]
+* xref:pillar-security:controls/WAF-SEC-050.adoc[WAF-SEC-050]
+* xref:pillar-sovereign:controls/WAF-SOV-040.adoc[WAF-SOV-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-070.adoc[WAF-PERF-070]
+* xref:pillar-efficiancy:controls/WAF-PERF-030.adoc[WAF-PERF-030]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-load-testing.adoc[Lasttests & Stresstests →]
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
+* Performance Efficiency – Capacity
+
+|===

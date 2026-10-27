@@ -3,124 +3,84 @@
 :control-id: WAF-COST-080
 :pillar: cost
 :severity: medium
-:category: cost-optimization
-:automated: medium
-:description: WAF++ Cost Optimization – Baseline-Workloads durch Reservierungen abdecken; Spot-Instances für variable Workloads.
+:category: data-governance
+:automatable: High
+:description: Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans. All persistent on-demand compute resources MUST carry a 'capacity-commitment' tag documenting their reservation status and the date of the last commitment review. Spot/Preemptible Instances are the preferred option for variable and interruptible workloads.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Cost Optimization | *Automatisierbar:* Mittel
+*Säule:* Cost | *Schweregrad:* Mittel | *Kategorie:* Data Governance | *Automatisierbar:* High
 
 == Beschreibung
 
-Compute-Ressourcen mit dauerhafter Auslastung >= 70% über 30 Tage MÜSSEN durch Reserved Instances
-oder Savings Plans abgedeckt sein. Alle persistenten On-Demand-Compute-Ressourcen MÜSSEN den Tag
-`capacity-commitment` tragen, der den Reservierungsstatus dokumentiert.
-Spot/Preemptible Instances sind für variable und unterbrechbare Workloads zu bevorzugen.
+Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans. All persistent on-demand compute resources MUST carry a 'capacity-commitment' tag documenting their reservation status and the date of the last commitment review. Spot/Preemptible Instances are the preferred option for variable and interruptible workloads.
 
-== Rationale
-
-Baseline-Produktions-Workloads dauerhaft auf On-Demand zu betreiben ist eine strukturelle Ineffizienz.
-Reserved Instances und Savings Plans bieten 30–60% Kosteneinsparung für stabile Workloads.
-Der häufigste Commitment-Fehler: Keine Reservierungen, weil der Workload als variabel eingeschätzt wird –
-obwohl er in der Praxis ein stabiles Baseline-Muster hat.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*On-Demand-Aufpreis für Baseline*
-|30–60% Mehrkosten für Baseline-Workloads ohne Reservierungen – monatlich und strukturell.
+|*Risk* |High sustained load without capacity planning leads to expensive on-demand resources and budget variance.
 
-|*Ungenutzte Reserved Instances*
-|RIs für Workloads, die geändert oder abgeschaltet wurden, erzeugen Fixkosten ohne Wert.
-
-|*Falsches Commitment-Timing*
-|Long-Term-Reservierungen vor Stabilitätsnachweis: Wenn Workload sich ändert, ist die RI wertlos.
+|*Risk* |Missing reserved-instance or savings-plan documentation prevents optimization opportunities.
 
 |===
 
-== Commitment-Strategie
+== Anforderungen
 
-=== Wann reservieren?
+* Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans.
+* All persistent on-demand compute resources MUST carry a 'capacity-commitment' tag documenting their reservation status and the date of the last commitment review.
 
-* Auslastung >= 70% über 30 Tage → Reservierungskandidat
-* Erst nach 30 Tagen Baseline-Messung committed werden
-* Compute Savings Plans bevorzugen gegenüber EC2-RIs (mehr Flexibilität beim Rightsizing)
+== Implementierungsleitfaden
 
-=== Commitment-Typen
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-[cols="1,2,2"]
+== Reifegrade
+
+[cols="1,2,4"]
 |===
-|Typ |Kosteneinsparung |Flexibilität
+|Level |Name |Kriterien
 
-|*1yr No-Upfront Reserved*
-|~30–40%
-|Kein Voraus-Commitment; monatlich kündbar innerhalb von 12 Monaten
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*1yr All-Upfront Reserved*
-|~40–50%
-|Vollständige Vorauszahlung; keine Flexibilität
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3yr No-Upfront Reserved*
-|~50–60%
-|Längerer Commitment-Zeitraum; höheres Risiko bei Workload-Änderung
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*Compute Savings Plan*
-|~20–40%
-|Flexibel über Instanztypen, Familien und Regionen
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*Spot/Preemptible*
-|Bis zu 90%
-|Nur für unterbrechbare Workloads; kann jederzeit zurückgenommen werden
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Reifegrad-Abstufung
-
-[cols="1,2,3"]
-|===
-|Level |Bezeichnung |Kriterien
-
-|*1*
-|Alles On-Demand
-|Keine Reservierungen; keine Auslastungsmessung.
-
-|*2*
-|Erste Reservierungen vorhanden
-|Einige RIs ohne systematische Auslastungsanalyse.
-
-|*3*
-|Baseline vollständig reserviert
-|Alle Workloads mit >= 70% Auslastung über 30d durch RI/SP abgedeckt; `capacity-commitment`-Tag Pflicht.
-
-|*4*
-|Savings Plans optimiert
-|Compute-Savings-Plans statt EC2-RIs; RI-Ablaufdaten-Alerts 90 Tage vorher.
-
-|*5*
-|ML-gestützte Commitment-Optimierung
-|Cloud-Provider-Commitment-Empfehlungen automatisch verarbeitet; Spot-Maximierung.
-
-|===
-
-== Terraform Checks
+== Checks
 
 === waf-cost-080.tf.aws.ec2-capacity-commitment-tag
-*Prüft:* EC2-Instanzen müssen ihren Reservierungsstatus als Tag deklarieren.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*EC2 instances must declare their capacity commitment status*
+
+All EC2 instances must carry a 'capacity-commitment' tag documenting whether the instance is covered by a reservation, savings plan, spot pricing, or on-demand. This tag proves active commitment management and enables automated coverage reporting.
+
+*Scope:* `resource` — `aws_instance`, `aws_launch_template`
+
+*Assertions:*
+* `tags` key exists — EC2 instance missing 'capacity-commitment' tag. Reservation status must be declared.
+* `tags.capacity-commitment` in `['reserved', 'savings-plan', 'spot', 'on-demand', 'reviewed']` — capacity-commitment must be: reserved, savings-plan, spot, on-demand, or reviewed.
+
+*Remediation:* Add 'capacity-commitment' tag to all EC2 instances. Value 'reserved' or 'savings-plan' = commitment exists. Value 'on-demand' = no commitment, flagged for review. Value 'reviewed' = reviewed and consciously left on-demand (needs date + justification).
+
+.Compliant
+
+[source,terraform]
 ----
-# Baseline-Instanz mit Savings-Plan-Coverage
+# Baseline instance with savings plan coverage
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "c5.2xlarge"
-
   tags = merge(module.mandatory_tags.tags, {
     rightsizing-reviewed = "2025-03-01"
     capacity-commitment  = "savings-plan"
@@ -129,143 +89,271 @@ resource "aws_instance" "app" {
   })
 }
 
-# CI/CD-Runner auf Spot
-resource "aws_instance" "ci" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "c5.xlarge"
-
+# Spot instance for CI/CD
+resource "aws_instance" "ci_runner" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "c5.xlarge"
   instance_market_options {
     market_type = "spot"
   }
-
   tags = merge(module.mandatory_tags.tags, {
     capacity-commitment = "spot"
   })
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "c5.2xlarge"
   tags = {
     cost-center = "fintech-platform"
-    # capacity-commitment Tag fehlt
-    # Reservierungsstatus unbekannt
-    # WAF-COST-080 Violation
+    # Missing capacity-commitment – commitment status unknown
   }
 }
 ----
-|===
 
-*Remediation:* `capacity-commitment`-Tag auf alle Compute-Ressourcen setzen.
-Erlaubte Werte: `reserved`, `savings-plan`, `spot`, `on-demand`, `reviewed`.
+---
+
+=== waf-cost-080.tf.azurerm.vm-commitment-tag
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure VMs must declare their capacity commitment status*
+
+All Azure Virtual Machines must carry a 'capacity-commitment' tag documenting whether the VM is covered by a Reserved VM Instance, Azure Savings Plan, Spot pricing, or On-Demand. This enables automated coverage gap detection.
+
+*Scope:* `resource` — `azurerm_linux_virtual_machine`, `azurerm_windows_virtual_machine`, `azurerm_virtual_machine_scale_set`
+
+*Assertions:*
+* `tags` key exists — Azure VM missing 'capacity-commitment' tag.
+
+*Remediation:* Add 'capacity-commitment' tag to all Azure VM resources. Use Azure Advisor to identify baseline VMs that should have Reserved VM Instances.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name                = "vm-payment-app"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  size                = "Standard_D4s_v3"
+  tags = merge(local.mandatory_tags, {
+    "capacity-commitment" = "reserved"
+    "commitment-type"     = "1yr-no-upfront"
+  })
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name     = "vm-payment-app"
+  location = var.location
+  size     = "Standard_D8s_v3"
+  # Missing: capacity-commitment tag
+}
+----
+
+---
+
+=== waf-cost-080.tf.google.vm-capacity-commitment-label
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP compute instances must declare capacity commitment status*
+
+All persistent GCP Compute Engine instances and GKE node pools must carry a 'capacity-commitment' label documenting whether the resource is covered by Committed Use Discounts, Spot/Preemptible pricing, or On-Demand.
+
+*Scope:* `resource` — `google_compute_instance`, `google_container_node_pool`
+
+*Assertions:*
+* `labels` key exists — GCP compute instance missing 'capacity-commitment' label.
+
+*Remediation:* Add 'capacity-commitment' label to all google_compute_instance and google_container_node_pool resources. Use CUD analysis to identify baseline workloads that should have Committed Use Discounts.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_compute_instance" "app" {
+  name         = "vm-payment-app"
+  machine_type = "e2-standard-4"
+  zone         = var.zone
+
+  labels = merge(module.mandatory_tags.labels, {
+    capacity-commitment = "cud-1yr"
+    commitment-expiry   = "2026-03-01"
+  })
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_compute_instance" "app" {
+  name         = "vm-payment-app"
+  machine_type = "e2-standard-4"
+  zone         = var.zone
+  # Missing capacity-commitment label – on-demand assumed
+}
+----
+
+---
+
+=== waf-cost-080.tf.stackit.server-capacity-commitment-label
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT compute resources must document capacity commitment decision*
+
+STACKIT compute resources must document capacity commitment decision. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_server`, `stackit_ske_cluster`, `stackit_ske_node_pool`
+
+*Assertions:*
+* `labels` key exists — STACKIT compute resource is missing the 'capacity-commitment' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-080.tf.ovh.instance-capacity-commitment-tag
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud compute resources must document capacity commitment decision*
+
+OVHcloud compute resources must document capacity commitment decision. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_instance`, `ovh_vps`, `ovh_dedicated_server`
+
+*Assertions:*
+* `tags` key exists — OVHcloud compute resource is missing the 'capacity-commitment' tag.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-080.tf.hcloud.server-capacity-commitment-label
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud compute resources must document capacity commitment decision*
+
+Hetzner Cloud compute resources must document capacity commitment decision. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — Hetzner Cloud server is missing the 'capacity-commitment' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Terraform Compute-Ressourcen mit `capacity-commitment`-Tag.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|RI/SP-Utilization-Report (quartalsweise, Ziel: >= 80%).
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Quarterly RI-Portfolio-Review-Protokoll mit Ablaufdaten und Coverage-Gaps.
-
-|*Config*
-|Optional
-|Savings-Plans-Empfehlungsreport aus AWS Cost Management.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO 27001:2022*
-|A.5.36 – Compliance with policies, rules and standards; A.8.1.1 – Access control strategy; A.8.10 – Information deletion; A.8.24 – Use of cryptography
-
-|*ISO 20000-1:2018*
-|9.4.1 – Configuration management; 9.4.2 – Configuration records; 10.2.2 – Financial management; 10.2.4 – Budgeting and accounting
-
-|*BSI C5:2020*
-|COM-01 – Network and service security; COM-02 – Cloud monitoring; GOV-01 – Governance, risk and compliance
-
-|*AWS Well-Architected Framework*
-|Cost Optimization Pillar – Cost allocation tagging; Financial Security – Budgeting and forecasting
-
-|*Azure Well-Architected Framework*
-|Cost management – Tagging; Governance – Resource governance; Cost optimization – Cost allocation
-
-|*Google Cloud Architecture Framework*
-|Organization and folders – Tagging; Billing – Cost allocation; Resource management – Resource hierarchy
-
-|*FinOps Foundation*
-|Core Module – Tagging standards; Management Layer – Cost attribution; Open Module – Financial accountability
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing (cost of security measures)
-
-|*CSRD*
-|ESRS G1 – Governance – Disclosure of information; ESRS M1 – Materiality – Disclosure of information
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; FR.AN – Analysis; RP.RP – Recovery planning
-
-|*CIS Controls v8*
-|CIS 2 – Inventory and Control of Software Assets; CIS 2.1 – Software inventory; CIS 2.2 – Hardware inventory
-
-|*TISAX*
-|Information security – Resource management
-
-|*ANSSI SecNumCloud*
-|Domain – Financial management; Domain – Resource management
-
-|*BIO*
-|BIO – Financieel beheer
-
-|*ENS High*
-|org.2 – Control de gestión; op.exp.1 – Gestión de incidentes
-
-|*UK NCSC CAF*
-|A2 – Financial management; A3 – Resource management
-
-|*CMMC 2.0*
-|AC.L2-3.1.1 – Access control policy
-
-|*IRAP*
-|ISM – Financial management
-
-|*CCCS PBMM*
-|CM-6 – Configuration management
-
-|*MAS TRM*
-|Ch.6 – Financial management
-
-|*ISMAP*
-|Resource management and cost control
-
-|*FISC*
-|Operational measures – Financial management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-COST-030.adoc[WAF-COST-030 – Rightsizing & Idle Detection]
-* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+* xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+* xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-rightsizing.adoc[Rightsizing & Resource Optimization →]
+|FinOps Foundation |* Optimize Phase – Rate Optimization and Commitment Management
+* Operate Phase – Commitment Planning and Renewal Management
+
+|===

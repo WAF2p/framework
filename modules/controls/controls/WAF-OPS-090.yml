@@ -1,199 +1,292 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-090
 id: WAF-OPS-090
-title: 'All production infrastructure MUST be continuously compared against its IaC...'
+title: All production infrastructure MUST be continuously compared against its IaC...
 status: active
 tags:
-  - operational
-  - high
-  - governance
-  - configuration
-pillar: operational
+- operational
+- high
+- governance
+- configuration
+pillar: excellence
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  All production infrastructure MUST be continuously compared against its IaC definition.
+- governance
+- configuration
+category: logging-monitoring
+rationale: Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs 'Logging und Monitoring' und stellt sicher,
+  dass All production infrastructure MUST be continuously compared against its IaC definition.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Drift between IaC and actual infrastructure leads to shadow IT and unexpected configurations.
+- Undetected manual changes undermine compliance and security controls.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-090.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-090.adoc
+  related_controls:
+  - WAF-OPS-040
+  - WAF-OPS-030
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-REL-060
+  - WAF-SOV-030
+  - WAF-SUS-040
+description: 'All production infrastructure MUST be continuously compared against its IaC definition. Configuration drift
+  – any difference between the actual infrastructure state and the declared IaC state – MUST be detected automatically, reported
+  to the owning team, and remediated within defined SLAs based on severity. Emergency manual changes MUST be codified in IaC
+  within 24 hours.
 
-description: |
-  All production infrastructure MUST be continuously compared against its IaC definition. Configuration drift – any difference between the actual infrastructure state and the declared IaC state – MUST be detected automatically, reported to the owning team, and remediated within defined SLAs based on severity. Emergency manual changes MUST be codified in IaC within 24 hours.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Configuration management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service configuration management'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC8.1 – Change Management – Authorized Changes'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Requirement 12.3.2: Perform targeted risk analyses'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'BCM-04 Configuration Management'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Configuration management
+- framework: ITIL 4
+  controls:
+  - Service configuration management
+- framework: SOC 2 Type II
+  controls:
+  - CC8.1 – Change Management – Authorized Changes
+- framework: PCI DSS v4.0
+  controls:
+  - 'Requirement 12.3.2: Perform targeted risk analyses'
+- framework: BSI C5:2020
+  controls:
+  - BCM-04 Configuration Management
 checks:
-  - id: waf-ops-090.tf.aws.config-rule-enabled
-    engine: terraform
-    automated: true
-    title: 'AWS Config must be enabled with compliance rules for drift detection'
-    provider: aws
-    description: 'AWS Config MUST be enabled in production accounts and MUST have compliance rules configured to detect configuration changes and non-compliant resource states.'
-    expected: 'true'
-    remediation: 'Enable AWS Config with a configuration recorder and delivery channel. Add aws_config_config_rule resources for key compliance checks.\n'
-    example:
-      compliant: |
-        resource "aws_config_configuration_recorder" "main" {
-          name     = "default"
-          role_arn = aws_iam_role.config_role.arn
-        
-          recording_group {
-            all_supported = true
-            include_global_resource_types = true
-          }
-        }
-        
-        resource "aws_config_delivery_channel" "main" {
-          name           = "default"
-          s3_bucket_name = aws_s3_bucket.config.bucket
-        }
-        
-        resource "aws_config_config_rule" "s3_public_read_prohibited" {
-          name = "s3-bucket-public-read-prohibited"
-          source {
-            owner             = "AWS"
-            source_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
-          }
-        }
-        
-      non_compliant: |
-        # No AWS Config recorder or rules defined
-        # WAF-OPS-090 Violation: no configuration drift detection
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_config_configuration_recorder
-    assertions:
-      - attribute: 'recording_group'
-        op: 'attribute_exists'
-        message: 'AWS Config recorder must define recording_group.'
-    on_fail: violation
-  - id: waf-ops-090.tf.aws.cloudtrail-enabled
-    engine: terraform
-    automated: true
-    title: 'AWS CloudTrail must be enabled for all regions to detect console changes'
-    provider: aws
-    description: 'AWS CloudTrail MUST be enabled across all regions to audit all API calls, including console changes that may indicate configuration drift from IaC.'
-    expected: 'true'
-    remediation: 'Set is_multi_region_trail = true and enable_log_file_validation = true on your aws_cloudtrail resource.\n'
-    example:
-      compliant: |
-        resource "aws_cloudtrail" "main" {
-          name                          = "production-trail"
-          s3_bucket_name                = aws_s3_bucket.cloudtrail.id
-          is_multi_region_trail         = true
-          enable_log_file_validation    = true
-          include_global_service_events = true
-        }
-        
-      non_compliant: |
-        resource "aws_cloudtrail" "main" {
-          name                       = "production-trail"
-          s3_bucket_name             = aws_s3_bucket.cloudtrail.id
-          is_multi_region_trail      = false
-          enable_log_file_validation = false
-          # Single-region trail without validation – WAF-OPS-090 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudtrail
-    assertions:
-      - attribute: 'is_multi_region_trail'
-        op: 'is_true'
-        message: 'CloudTrail must be a multi-region trail to capture all console changes.'
-      - attribute: 'enable_log_file_validation'
-        op: 'is_true'
-        message: 'CloudTrail must have log file validation enabled.'
-    on_fail: violation
-  - id: waf-ops-090.tf.azurerm.policy-assignment-drift
-    engine: terraform
-    automated: true
-    title: 'Azure Policy must be assigned for configuration compliance monitoring'
-    provider: azurerm
-    description: 'Azure Policy initiatives MUST be assigned to production subscriptions or resource groups to continuously evaluate configuration compliance and detect drift.'
-    expected: 'true'
-    remediation: 'Assign Azure Policy or built-in initiative (e.g., Azure Security Benchmark) to the production subscription using azurerm_subscription_policy_assignment.\n'
-    example:
-      compliant: |
-        data "azurerm_policy_set_definition" "security_benchmark" {
-          display_name = "Azure Security Benchmark"
-        }
-        
-        resource "azurerm_subscription_policy_assignment" "security" {
-          name                 = "security-benchmark"
-          subscription_id      = data.azurerm_subscription.current.id
-          policy_definition_id = data.azurerm_policy_set_definition.security_benchmark.id
-          description          = "Azure Security Benchmark for configuration drift detection"
-          display_name         = "Security Benchmark – Production"
-        }
-        
-      non_compliant: |
-        # No Azure Policy assigned to subscription
-        # Configuration drift undetectable – WAF-OPS-090 Violation
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_subscription_policy_assignment
-    assertions:
-      - attribute: 'policy_definition_id'
-        op: 'not_empty'
-        message: 'Policy assignment must reference a policy or initiative definition.'
-    on_fail: violation
+- id: waf-ops-090.tf.aws.config-rule-enabled
+  engine: terraform
+  automated: true
+  title: AWS Config must be enabled with compliance rules for drift detection
+  provider: aws
+  description: AWS Config MUST be enabled in production accounts and MUST have compliance rules configured to detect configuration
+    changes and non-compliant resource states.
+  expected: 'true'
+  remediation: Enable AWS Config with a configuration recorder and delivery channel. Add aws_config_config_rule resources
+    for key compliance checks.\n
+  example:
+    compliant: "resource \"aws_config_configuration_recorder\" \"main\" {\n  name     = \"default\"\n  role_arn = aws_iam_role.config_role.arn\n\
+      \n  recording_group {\n    all_supported = true\n    include_global_resource_types = true\n  }\n}\n\nresource \"aws_config_delivery_channel\"\
+      \ \"main\" {\n  name           = \"default\"\n  s3_bucket_name = aws_s3_bucket.config.bucket\n}\n\nresource \"aws_config_config_rule\"\
+      \ \"s3_public_read_prohibited\" {\n  name = \"s3-bucket-public-read-prohibited\"\n  source {\n    owner            \
+      \ = \"AWS\"\n    source_identifier = \"S3_BUCKET_PUBLIC_READ_PROHIBITED\"\n  }\n}\n"
+    non_compliant: '# No AWS Config recorder or rules defined
+
+      # WAF-OPS-090 Violation: no configuration drift detection
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_config_configuration_recorder
+  assertions:
+  - attribute: recording_group
+    op: attribute_exists
+    message: AWS Config recorder must define recording_group.
+  on_fail: violation
+- id: waf-ops-090.tf.aws.cloudtrail-enabled
+  engine: terraform
+  automated: true
+  title: AWS CloudTrail must be enabled for all regions to detect console changes
+  provider: aws
+  description: AWS CloudTrail MUST be enabled across all regions to audit all API calls, including console changes that may
+    indicate configuration drift from IaC.
+  expected: 'true'
+  remediation: Set is_multi_region_trail = true and enable_log_file_validation = true on your aws_cloudtrail resource.\n
+  example:
+    compliant: "resource \"aws_cloudtrail\" \"main\" {\n  name                          = \"production-trail\"\n  s3_bucket_name\
+      \                = aws_s3_bucket.cloudtrail.id\n  is_multi_region_trail         = true\n  enable_log_file_validation\
+      \    = true\n  include_global_service_events = true\n}\n"
+    non_compliant: "resource \"aws_cloudtrail\" \"main\" {\n  name                       = \"production-trail\"\n  s3_bucket_name\
+      \             = aws_s3_bucket.cloudtrail.id\n  is_multi_region_trail      = false\n  enable_log_file_validation = false\n\
+      \  # Single-region trail without validation – WAF-OPS-090 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudtrail
+  assertions:
+  - attribute: is_multi_region_trail
+    op: is_true
+    message: CloudTrail must be a multi-region trail to capture all console changes.
+  - attribute: enable_log_file_validation
+    op: is_true
+    message: CloudTrail must have log file validation enabled.
+  on_fail: violation
+- id: waf-ops-090.tf.azurerm.policy-assignment-drift
+  engine: terraform
+  automated: true
+  title: Azure Policy must be assigned for configuration compliance monitoring
+  provider: azurerm
+  description: Azure Policy initiatives MUST be assigned to production subscriptions or resource groups to continuously evaluate
+    configuration compliance and detect drift.
+  expected: 'true'
+  remediation: Assign Azure Policy or built-in initiative (e.g., Azure Security Benchmark) to the production subscription
+    using azurerm_subscription_policy_assignment.\n
+  example:
+    compliant: "data \"azurerm_policy_set_definition\" \"security_benchmark\" {\n  display_name = \"Azure Security Benchmark\"\
+      \n}\n\nresource \"azurerm_subscription_policy_assignment\" \"security\" {\n  name                 = \"security-benchmark\"\
+      \n  subscription_id      = data.azurerm_subscription.current.id\n  policy_definition_id = data.azurerm_policy_set_definition.security_benchmark.id\n\
+      \  description          = \"Azure Security Benchmark for configuration drift detection\"\n  display_name         = \"\
+      Security Benchmark – Production\"\n}\n"
+    non_compliant: '# No Azure Policy assigned to subscription
+
+      # Configuration drift undetectable – WAF-OPS-090 Violation
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_subscription_policy_assignment
+  assertions:
+  - attribute: policy_definition_id
+    op: not_empty
+    message: Policy assignment must reference a policy or initiative definition.
+  on_fail: violation
+- id: waf-ops-090.tf.google.security-command-center-asset-drift
+  engine: terraform
+  automated: true
+  title: GCP Security Command Center must be enabled for asset inventory and drift detection
+  provider: google
+  description: GCP Security Command Center (SCC) or Asset Inventory feeds must be enabled to continuously compare cloud resources
+    against the IaC definition. Audit logging must be enabled to detect console/API changes.
+  expected: 'true'
+  remediation: Enable Security Command Center at the organization level. Create google_security_center_notification_config
+    resources to route asset changes and findings. Ensure google_logging_project_sink routes audit logs to a durable store.\n
+  example:
+    compliant: "resource \"google_security_center_notification_config\" \"asset_changes\" {\n  config_id    = \"asset-drift\"\
+      \n  organization = var.org_id\n  pubsub_topic = google_pubsub_topic.scc.id\n\n  streaming_config {\n    filter = \"\
+      category = \\\"CATEGORY_ASSET\\\"\"\n  }\n}\n\nresource \"google_logging_project_sink\" \"audit\" {\n  name        =\
+      \ \"audit-logs\"\n  destination = \"bigquery.googleapis.com/projects/${var.project_id}/datasets/audit_logs\"\n  filter\
+      \      = \"protoPayload.@type=\\\"type.googleapis.com/google.cloud.audit.AuditLog\\\"\"\n}\n"
+    non_compliant: '# Security Command Center not enabled; no audit log sink configured.
+
+      # Manual console changes can drift undetected.
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_security_center_notification_config
+    - google_logging_project_sink
+  assertions:
+  - attribute: pubsub_topic
+    op: attribute_exists
+    message: Security Command Center notification config must route asset findings to a Pub/Sub topic.
+  on_fail: violation
+- id: waf-ops-090.tf.stackit.ci-cd-enabled
+  engine: terraform
+  automated: true
+  title: STACKIT infrastructure must be deployed via CI/CD
+  provider: stackit
+  description: STACKIT infrastructure must be deployed via CI/CD. This check validates the Terraform configuration uses the
+    expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n\
+      \  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_ske_cluster
+  assertions:
+  - attribute: labels.cicd-pipeline
+    op: key_exists
+    key: cicd-pipeline
+    message: STACKIT SKE cluster is missing the 'cicd-pipeline' label.
+  on_fail: violation
+- id: waf-ops-090.tf.ovh.ci-cd-enabled
+  engine: terraform
+  automated: true
+  title: OVHcloud infrastructure must be deployed via CI/CD
+  provider: ovh
+  description: OVHcloud infrastructure must be deployed via CI/CD. This check validates the Terraform configuration uses the
+    expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_kube\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_kube\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_kube
+  assertions:
+  - attribute: tags.cicd-pipeline
+    op: key_exists
+    key: cicd-pipeline
+    message: OVHcloud Kubernetes cluster is missing the 'cicd-pipeline' tag.
+  on_fail: violation
+- id: waf-ops-090.tf.hcloud.ci-cd-enabled
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud infrastructure must be deployed via CI/CD
+  provider: hcloud
+  description: Hetzner Cloud infrastructure must be deployed via CI/CD. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.cicd-pipeline
+    op: key_exists
+    key: cicd-pipeline
+    message: Hetzner Cloud server is missing the 'cicd-pipeline' label.
+  on_fail: violation

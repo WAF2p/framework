@@ -1,197 +1,209 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-070
 id: WAF-SUS-070
-title: 'Software MUST be designed with energy efficiency as an explicit quality...'
+title: Software MUST be designed with energy efficiency as an explicit quality...
 status: active
 tags:
-  - sustainability
-  - medium
-  - governance
-  - configuration
+- sustainability
+- medium
+- governance
+- configuration
 pillar: sustainability
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'sustainability-efficiency'
-rationale: |
+- governance
+- configuration
+category: sustainability-efficiency
+rationale: Ineffiziente Ressourcennutzung erhöht Energieverbrauch, CO₂-Fußabdruck und Kosten, ohne Mehrwert für das Geschäft
+  zu schaffen. Dieses Control adressiert die Anforderungen des Bereichs 'Nachhaltigkeitseffizienz' und stellt sicher, dass
   Software MUST be designed with energy efficiency as an explicit quality attribute.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Software that ignores energy efficiency consumes resources disproportionately.
+- Inefficient algorithms or polling patterns waste CPU cycles and increase carbon emissions.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-070.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-070.adoc
+  related_controls:
+  - WAF-SUS-020
+  - WAF-SUS-010
+  - WAF-SUS-030
+  - WAF-SUS-100
+  - WAF-COST-010
+  - WAF-COST-050
+  - WAF-OPS-020
+  - WAF-REL-050
+description: 'Software MUST be designed with energy efficiency as an explicit quality attribute. Architecture Decision Records
+  MUST include energy efficiency considerations for algorithm and data structure choices. Dependencies MUST be reviewed for
+  efficiency: unused libraries, heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and
+  event-driven designs. Software Carbon Intensity (SCI) SHOULD be measured for critical workloads and included in architecture
+  reviews. Teams MUST avoid over-engineering: monolithic frameworks, excessive microservice proliferation, and redundant compute
+  layers all increase energy consumption without delivering proportional value.
 
-description: |
-  Software MUST be designed with energy efficiency as an explicit quality attribute. Architecture Decision Records MUST include energy efficiency considerations for algorithm and data structure choices. Dependencies MUST be reviewed for efficiency: unused libraries, heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and event-driven designs. Software Carbon Intensity (SCI) SHOULD be measured for critical workloads and included in architecture reviews. Teams MUST avoid over-engineering: monolithic frameworks, excessive microservice proliferation, and redundant compute layers all increase energy consumption without delivering proportional value.
+  '
 regulatory_mapping:
-  - framework: 'Green Software Foundation'
-    controls:
-      - 'Software Carbon Intensity (SCI) – measurement and optimization standard'
-      - 'Energy Efficiency – algorithmic and architectural efficiency'
-      - 'Carbon Efficiency – reducing energy per functional unit'
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS E1 – Climate Change – operational measures to reduce emissions'
-  - framework: 'ISO 14001'
-    controls:
-      - '6.1.2 – Environmental Aspects – software design as environmental aspect'
+- framework: Green Software Foundation
+  controls:
+  - Software Carbon Intensity (SCI) – measurement and optimization standard
+  - Energy Efficiency – algorithmic and architectural efficiency
+  - Carbon Efficiency – reducing energy per functional unit
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change – operational measures to reduce emissions
+- framework: ISO 14001
+  controls:
+  - 6.1.2 – Environmental Aspects – software design as environmental aspect
 checks:
-  - id: waf-sus-070.tf.aws.lambda-no-large-layers
-    engine: terraform
-    automated: true
-    title: 'Lambda functions should not attach excessive numbers of layers'
-    provider: aws
-    description: 'Lambda functions with many layers have larger deployment packages, higher cold-start energy consumption, and more complex dependency footprints. Each layer must be justified by the functionality it provides.'
-    expected: 'true'
-    remediation: 'Review Lambda layer usage. Consolidate multiple utility layers into a single optimized layer. Use dependency management (requirements.txt, package.json) to control package size. Consider Lambda container images for complex dependency trees with multi-arch builds.\n'
-    example:
-      compliant: |
-        resource "aws_lambda_function" "api" {
-          function_name = "api-handler"
-          runtime       = "python3.12"
-          architectures = ["arm64"]
-          handler       = "main.handler"
-          role          = aws_iam_role.lambda.arn
-          filename      = "function.zip"
-          # No unnecessary layers – slim deployment package
-        }
-        
-      non_compliant: |
-        resource "aws_lambda_function" "api" {
-          function_name = "api-handler"
-          runtime       = "python3.12"
-          architectures = ["x86_64"]
-          layers = [
-            aws_lambda_layer_version.utils.arn,
-            aws_lambda_layer_version.logging.arn,
-            aws_lambda_layer_version.db_client.arn,
-            aws_lambda_layer_version.aws_sdk_extras.arn,
-            aws_lambda_layer_version.common.arn,
-            # WAF-SUS-070 Warning: 5 layers – review and consolidate
-          ]
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lambda_function
-    assertions:
-      - attribute: 'layers'
-        op: 'attribute_exists'
-        message: 'No layers attribute found – this check passes; single-package deployments are preferred.'
-    on_fail: advisory
-  - id: waf-sus-070.tf.aws.sqs-not-polling
-    engine: terraform
-    automated: true
-    title: 'SQS event source mapping should use long polling for Lambda triggers'
-    provider: aws
-    description: 'Lambda functions triggered by SQS should use long polling (maximum_batching_window_in_seconds > 0) to batch messages and reduce the number of Lambda invocations. Short polling or no batching causes excessive invocations per message, increasing energy consumption per unit of work.'
-    expected: 'true'
-    remediation: 'Set maximum_batching_window_in_seconds = 30 (or higher) and batch_size = 100 on SQS event source mappings to maximize message batching. This reduces Lambda invocations by up to 90% for high-volume queues, directly reducing energy per message processed.\n'
-    example:
-      compliant: |
-        resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-          event_source_arn                   = aws_sqs_queue.events.arn
-          function_name                      = aws_lambda_function.processor.arn
-          batch_size                         = 100
-          maximum_batching_window_in_seconds = 30  # batch for 30s before invoking
-          function_response_types            = ["ReportBatchItemFailures"]
-        }
-        
-      non_compliant: |
-        resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-          event_source_arn = aws_sqs_queue.events.arn
-          function_name    = aws_lambda_function.processor.arn
-          batch_size       = 1  # WAF-SUS-070 Warning: 1 invocation per message, very inefficient
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lambda_event_source_mapping
-    assertions:
-      - attribute: 'maximum_batching_window_in_seconds'
-        op: 'greater_than_or_equal'
-        message: 'SQS Lambda trigger uses no batching window – enable long polling to reduce invocations per message.'
-    on_fail: advisory
-  - id: waf-sus-070.tf.google.cloud-run-min-instances-zero
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud Run services should scale to zero in non-production'
-    provider: google
-    description: 'Cloud Run services with min_instance_count > 0 maintain warm instances continuously even when there is no traffic. Setting min_instance_count = 0 allows scale-to-zero, eliminating idle compute energy consumption.'
-    expected: 'true'
-    remediation: 'Set min_instance_count = 0 for all non-production Cloud Run services. For production services with strict cold-start SLAs, use min_instance_count = 1 and document the sustainability trade-off in the architecture decision record.\n'
-    example:
-      compliant: |
-        resource "google_cloud_run_v2_service" "api" {
-          name     = "api-service"
-          location = "europe-north1"
-        
-          template {
-            scaling {
-              min_instance_count = 0   # scale to zero – no idle energy
-              max_instance_count = 10
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_cloud_run_v2_service" "api" {
-          name     = "api-service"
-          location = "us-east1"
-        
-          template {
-            scaling {
-              min_instance_count = 5   # WAF-SUS-070 Warning: always-on instances, idle energy
-              max_instance_count = 50
-            }
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_cloud_run_v2_service
-    assertions:
-      - attribute: 'template.scaling.min_instance_count'
-        op: 'equals'
-        message: 'Cloud Run service has minimum instances > 0 – idle instances consume energy. Consider scale-to-zero.'
-    on_fail: advisory
+- id: waf-sus-070.tf.aws.lambda-no-large-layers
+  engine: terraform
+  automated: true
+  title: Lambda functions should not attach excessive numbers of layers
+  provider: aws
+  description: Lambda functions with many layers have larger deployment packages, higher cold-start energy consumption, and
+    more complex dependency footprints. Each layer must be justified by the functionality it provides.
+  expected: 'true'
+  remediation: Review Lambda layer usage. Consolidate multiple utility layers into a single optimized layer. Use dependency
+    management (requirements.txt, package.json) to control package size. Consider Lambda container images for complex dependency
+    trees with multi-arch builds.\n
+  example:
+    compliant: "resource \"aws_lambda_function\" \"api\" {\n  function_name = \"api-handler\"\n  runtime       = \"python3.12\"\
+      \n  architectures = [\"arm64\"]\n  handler       = \"main.handler\"\n  role          = aws_iam_role.lambda.arn\n  filename\
+      \      = \"function.zip\"\n  # No unnecessary layers – slim deployment package\n}\n"
+    non_compliant: "resource \"aws_lambda_function\" \"api\" {\n  function_name = \"api-handler\"\n  runtime       = \"python3.12\"\
+      \n  architectures = [\"x86_64\"]\n  layers = [\n    aws_lambda_layer_version.utils.arn,\n    aws_lambda_layer_version.logging.arn,\n\
+      \    aws_lambda_layer_version.db_client.arn,\n    aws_lambda_layer_version.aws_sdk_extras.arn,\n    aws_lambda_layer_version.common.arn,\n\
+      \    # WAF-SUS-070 Warning: 5 layers – review and consolidate\n  ]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lambda_function
+  assertions:
+  - attribute: layers
+    op: attribute_exists
+    message: No layers attribute found – this check passes; single-package deployments are preferred.
+  on_fail: advisory
+- id: waf-sus-070.tf.aws.sqs-not-polling
+  engine: terraform
+  automated: true
+  title: SQS event source mapping should use long polling for Lambda triggers
+  provider: aws
+  description: Lambda functions triggered by SQS should use long polling (maximum_batching_window_in_seconds > 0) to batch
+    messages and reduce the number of Lambda invocations. Short polling or no batching causes excessive invocations per message,
+    increasing energy consumption per unit of work.
+  expected: 'true'
+  remediation: Set maximum_batching_window_in_seconds = 30 (or higher) and batch_size = 100 on SQS event source mappings to
+    maximize message batching. This reduces Lambda invocations by up to 90% for high-volume queues, directly reducing energy
+    per message processed.\n
+  example:
+    compliant: "resource \"aws_lambda_event_source_mapping\" \"sqs_trigger\" {\n  event_source_arn                   = aws_sqs_queue.events.arn\n\
+      \  function_name                      = aws_lambda_function.processor.arn\n  batch_size                         = 100\n\
+      \  maximum_batching_window_in_seconds = 30  # batch for 30s before invoking\n  function_response_types            =\
+      \ [\"ReportBatchItemFailures\"]\n}\n"
+    non_compliant: "resource \"aws_lambda_event_source_mapping\" \"sqs_trigger\" {\n  event_source_arn = aws_sqs_queue.events.arn\n\
+      \  function_name    = aws_lambda_function.processor.arn\n  batch_size       = 1  # WAF-SUS-070 Warning: 1 invocation\
+      \ per message, very inefficient\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lambda_event_source_mapping
+  assertions:
+  - attribute: maximum_batching_window_in_seconds
+    op: greater_than_or_equal
+    message: SQS Lambda trigger uses no batching window – enable long polling to reduce invocations per message.
+    expected: 1
+  on_fail: advisory
+- id: waf-sus-070.tf.google.cloud-run-min-instances-zero
+  engine: terraform
+  automated: true
+  title: GCP Cloud Run services should scale to zero in non-production
+  provider: google
+  description: Cloud Run services with min_instance_count > 0 maintain warm instances continuously even when there is no traffic.
+    Setting min_instance_count = 0 allows scale-to-zero, eliminating idle compute energy consumption.
+  expected: 'true'
+  remediation: Set min_instance_count = 0 for all non-production Cloud Run services. For production services with strict cold-start
+    SLAs, use min_instance_count = 1 and document the sustainability trade-off in the architecture decision record.\n
+  example:
+    compliant: "resource \"google_cloud_run_v2_service\" \"api\" {\n  name     = \"api-service\"\n  location = \"europe-north1\"\
+      \n\n  template {\n    scaling {\n      min_instance_count = 0   # scale to zero – no idle energy\n      max_instance_count\
+      \ = 10\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_cloud_run_v2_service\" \"api\" {\n  name     = \"api-service\"\n  location = \"us-east1\"\
+      \n\n  template {\n    scaling {\n      min_instance_count = 5   # WAF-SUS-070 Warning: always-on instances, idle energy\n\
+      \      max_instance_count = 50\n    }\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_run_v2_service
+  assertions:
+  - attribute: template.scaling.min_instance_count
+    op: equals
+    message: Cloud Run service has minimum instances > 0 – idle instances consume energy. Consider scale-to-zero.
+    expected: 0
+  on_fail: advisory
+- id: waf-sus-070.tf.azurerm.service-plan-consumption
+  engine: terraform
+  automated: true
+  title: Azure App Service plans for event-driven workloads should be Consumption or Elastic Premium
+  provider: azurerm
+  description: Azure Function Apps and event-driven workloads should run on Consumption (Y1) or Elastic Premium (EP1/EP2/EP3)
+    plans so they scale to zero when idle, reducing baseline energy consumption.
+  expected: 'true'
+  remediation: 'Set azurerm_service_plan.sku_name to Y1 for Consumption or EP1/EP2/EP3 for Elastic Premium. Avoid Dedicated
+    (S1/P1V2) App Service plans for purely event-driven workloads.
+
+    '
+  example:
+    compliant: "resource \"azurerm_service_plan\" \"consumption\" {\n  name                = \"asp-consumption\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = \"germanywestcentral\"\n  os_type             = \"Linux\"\
+      \n  sku_name            = \"Y1\"\n}\n\nresource \"azurerm_linux_function_app\" \"processor\" {\n  name             \
+      \   = \"processor-func\"\n  resource_group_name = azurerm_resource_group.main.name\n  location            = \"germanywestcentral\"\
+      \n  service_plan_id     = azurerm_service_plan.consumption.id\n  site_config {}\n}\n"
+    non_compliant: "resource \"azurerm_service_plan\" \"dedicated\" {\n  name                = \"asp-dedicated\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = \"germanywestcentral\"\n  os_type             = \"Linux\"\
+      \n  sku_name            = \"S1\"\n}\n\nresource \"azurerm_linux_function_app\" \"processor\" {\n  name            =\
+      \ \"processor-func\"\n  service_plan_id = azurerm_service_plan.dedicated.id\n  # Dedicated plan keeps workers always\
+      \ on\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_service_plan
+  assertions:
+  - attribute: sku_name
+    op: in
+    expected:
+    - Y1
+    - EP1
+    - EP2
+    - EP3
+    message: Azure Service Plan should use Consumption (Y1) or Elastic Premium (EP1/EP2/EP3) for event-driven/energy-efficient
+      workloads.
+  on_fail: finding

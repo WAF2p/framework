@@ -3,234 +3,407 @@
 :control-id: WAF-REL-040
 :pillar: reliability
 :severity: critical
-:category: backup-recovery
-:automated: high
-:description: WAF++ Reliability – Automatisierte Backups, PITR und nachweislich getestete Recovery-Verfahren.
+:category: secret-management
+:automatable: High
+:description: All production databases, object stores, and stateful services MUST have automated backup configurations with defined retention periods. Backup configurations MUST specify RPO-aligned retention. Recovery procedures MUST be tested at minimum quarterly through documented restore exercises. Backups MUST be stored in a separate account, region, or vault from the primary data source. Point-in-time recovery (PITR) MUST be enabled for all production databases. Untested backups are not backups.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* Critical | *Kategorie:* Backup Recovery | *Automatisierbar:* Hoch
+*Säule:* Reliability | *Schweregrad:* Kritisch | *Kategorie:* Secret Management | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle Produktionsdatenbanken MÜSSEN automatisierte Backups mit Retention >= 7 Tage und
-Point-in-Time Recovery (PITR) konfigurieren. Backups MÜSSEN in einem separaten Account
-oder einer separaten Region gespeichert werden. Recovery-Verfahren MÜSSEN mindestens
-quartalsweise getestet und dokumentiert sein. Ungetestete Backups gelten als nicht vorhanden.
+All production databases, object stores, and stateful services MUST have automated backup configurations with defined retention periods. Backup configurations MUST specify RPO-aligned retention. Recovery procedures MUST be tested at minimum quarterly through documented restore exercises. Backups MUST be stored in a separate account, region, or vault from the primary data source. Point-in-time recovery (PITR) MUST be enabled for all production databases. Untested backups are not backups.
 
-== Rationale
-
-Datenverlust durch Accidental Deletion, Ransomware oder Korruption ist ohne validierte
-Recovery-Verfahren katastrophal. Der häufigste Fehler ist nicht das Fehlen von Backups,
-sondern ein nie getestetes Recovery-Verfahren, das im Ernstfall aufgrund veralteter
-Anleitungen, fehlender Schlüssel oder nicht existierender Zielinfrastruktur scheitert.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Ransomware*
-|Backup im selben Account wie Produktionsdaten wird gleichzeitig verschlüsselt.
+|*Risk* |Databases without backups or with too short retention cannot be recovered from corruption.
 
-|*Accidental Deletion*
-|Ohne ausreichende Retention sind Daten, die erst nach Tagen fehlen, nicht wiederherstellbar.
-
-|*Ungetesteter Restore*
-|Recovery-Prozedur scheitert im Ernstfall an manuellen Schritten, die nie dokumentiert wurden.
-
-|*RPO-Verletzung*
-|Backup-Interval zu groß: Daten, die zwischen zwei Backups erstellt wurden, gehen verloren.
+|*Risk* |Missing point-in-time recovery significantly extends recovery time from logical errors.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Automatisierte Backups: Retention >= 7 Tage für alle Produktionsdatenbanken
-* PITR: Für alle relationalen Produktionsdatenbanken aktiviert
-* Backup-Speicherung: Separates AWS Account / Azure Subscription / GCP Project
-* Deletion Protection: Aktiviert auf allen Produktionsdatenbanken
-* Restore-Test: Quartalsweise mit Ergebnisdokumentation (RTO, Datenintegrität)
-* Backup-Alerts: Benachrichtigung bei Job-Fehler oder überaltertem Backup
+* All production databases, object stores, and stateful services MUST have automated backup configurations with defined retention periods.
+* Backup configurations MUST specify RPO-aligned retention.
+* Recovery procedures MUST be tested at minimum quarterly through documented restore exercises.
+* Backups MUST be stored in a separate account, region, or vault from the primary data source.
+* Point-in-time recovery (PITR) MUST be enabled for all production databases.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Retention erhöhen*: `backup_retention_period = 14` – mindestens 7, besser 14 Tage
-. *PITR aktivieren*: `point_in_time_recovery_enabled = true` (GCP), Standard bei RDS/Azure
-. *Cross-Account Backup*: AWS Backup Plan mit `copy_action` auf Backup-Account-Vault
-. *Deletion Protection*: `deletion_protection = true` – verhindert versehentliches Löschen
-. *Restore-Test automatisieren*: Skript für quartalsweisen automatisierten Restore-Test
-. *Monitoring*: CloudWatch Event Rule für fehlgeschlagene Backup-Jobs
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Backups
-|Keine automatisierten Backups konfiguriert.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Backups da, ungetestet
-|Automatische Backups aktiv; Restore nie getestet; kein Cross-Account.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|PITR + Cross-Account + getestet
-|PITR aktiviert; Backup in separatem Account; Restore quartalsweise getestet.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierter monatlicher Test
-|Automatisierter Restore-Test in Pipeline; Backup-Integrity-Checks.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|WORM + CDP
-|Immutable Backup Storage; Continuous Data Protection; schemagetriggerte Tests.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-rel-040.tf.aws.rds-backup-retention
-*Prüft:* RDS hat `backup_retention_period >= 7` und `deletion_protection = true`.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS RDS must have backup retention >= 7 days with PITR enabled*
+
+Production RDS instances must have backup_retention_period of at least 7 days to enable point-in-time recovery across a full week of transactions.
+
+*Scope:* `resource` — `aws_db_instance`, `aws_rds_cluster`
+
+*Assertions:*
+* `backup_retention_period` greater than or equal `1` — RDS backup retention must be at least 7 days for production.
+* `deletion_protection` is true — RDS deletion protection must be enabled to prevent accidental deletion.
+
+*Remediation:* Set backup_retention_period >= 7 on the aws_db_instance resource. Enable deletion_protection = true to prevent accidental deletion. Configure backup_window to a low-traffic maintenance window.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_db_instance" "main" {
-  identifier    = "payment-db-prod"
-  engine        = "postgres"
-  instance_class = "db.t3.medium"
+  identifier             = "payment-db-prod"
+  engine                 = "postgres"
+  instance_class         = "db.t3.medium"
+  allocated_storage      = 100
   backup_retention_period = 14
-  backup_window = "02:00-03:00"
-  deletion_protection = true
-  copy_tags_to_snapshot = true
+  backup_window          = "02:00-03:00"
+  deletion_protection    = true
+  copy_tags_to_snapshot  = true
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_db_instance" "main" {
-  identifier    = "payment-db-prod"
-  engine        = "postgres"
-  instance_class = "db.t3.medium"
-  backup_retention_period = 1
-  # WAF-REL-040 Violation
-  deletion_protection = false
-  # WAF-REL-040 Violation
+  identifier             = "payment-db-prod"
+  engine                 = "postgres"
+  instance_class         = "db.t3.medium"
+  allocated_storage      = 100
+  backup_retention_period = 1   # WAF-REL-040 violation
+  deletion_protection    = false # WAF-REL-040 violation
 }
 ----
-|===
 
-*Remediation:* `backup_retention_period >= 7` und `deletion_protection = true`
-auf `aws_db_instance` setzen.
+---
+
+=== waf-rel-040.tf.aws.s3-versioning
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*AWS S3 buckets with production data must have versioning enabled*
+
+S3 buckets storing production data must have versioning enabled to allow recovery from accidental deletion or overwrite.
+
+*Scope:* `resource` — `aws_s3_bucket_versioning`
+
+*Assertions:*
+* `versioning_configuration.status` equals `Enabled` — S3 bucket versioning must be Enabled for production data buckets.
+
+*Remediation:* Add an aws_s3_bucket_versioning resource referencing the bucket with versioning_configuration { status = "Enabled" }.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket_versioning" "data" {
+  bucket = aws_s3_bucket.production_data.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket_versioning" "data" {
+  bucket = aws_s3_bucket.production_data.id
+  versioning_configuration {
+    status = "Suspended"  # WAF-REL-040 violation
+  }
+}
+----
+
+---
+
+=== waf-rel-040.tf.azurerm.postgresql-backup
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure PostgreSQL Flexible Server must have backup retention >= 7 days*
+
+Azure PostgreSQL Flexible Server must configure backup_retention_days of at least 7 for production workloads.
+
+*Scope:* `resource` — `azurerm_postgresql_flexible_server`, `azurerm_mysql_flexible_server`
+
+*Assertions:*
+* `backup_retention_days` greater than or equal `7` — Database backup retention must be at least 7 days.
+* `geo_redundant_backup_enabled` is true — Geo-redundant backup must be enabled for cross-region recovery.
+
+*Remediation:* Set backup_retention_days >= 7 and geo_redundant_backup_enabled = true on the azurerm_postgresql_flexible_server resource.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_postgresql_flexible_server" "main" {
+  name                         = "payment-db-prod"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = "westeurope"
+  version                      = "15"
+  backup_retention_days        = 14
+  geo_redundant_backup_enabled = true
+  sku_name                     = "GP_Standard_D2s_v3"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_postgresql_flexible_server" "main" {
+  name                         = "payment-db-prod"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = "westeurope"
+  version                      = "15"
+  backup_retention_days        = 1   # WAF-REL-040 violation
+  geo_redundant_backup_enabled = false # WAF-REL-040 violation
+  sku_name                     = "GP_Standard_D2s_v3"
+}
+----
+
+---
+
+=== waf-rel-040.tf.google.sql-backup-config
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud SQL must have automated backups and PITR enabled*
+
+GCP Cloud SQL instances must have automated backups enabled with point-in-time recovery enabled for production databases.
+
+*Scope:* `resource` — `google_sql_database_instance`
+
+*Assertions:*
+* `settings.backup_configuration.enabled` is true — Cloud SQL automated backups must be enabled.
+* `settings.backup_configuration.point_in_time_recovery_enabled` is true — Cloud SQL point-in-time recovery must be enabled.
+
+*Remediation:* Set enabled = true and point_in_time_recovery_enabled = true in the backup_configuration block of the google_sql_database_instance settings.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "main" {
+  name             = "payment-db-prod"
+  database_version = "POSTGRES_15"
+  settings {
+    tier = "db-custom-2-7680"
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "02:00"
+      point_in_time_recovery_enabled = true
+      transaction_log_retention_days = 7
+      retained_backups               = 14
+      retention_unit                 = "COUNT"
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "main" {
+  name             = "payment-db-prod"
+  database_version = "POSTGRES_15"
+  settings {
+    tier = "db-custom-2-7680"
+    backup_configuration {
+      enabled = false  # WAF-REL-040 violation
+    }
+  }
+}
+----
+
+---
+
+=== waf-rel-040.tf.stackit.database-backup-enabled
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT databases must have automated backups enabled*
+
+STACKIT databases must have automated backups enabled. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_postgres_instance`, `stackit_mysql_instance`, `stackit_mariadb_instance`, `stackit_redis_instance`
+
+*Assertions:*
+* `backup_schedule` attribute exists — STACKIT database must define a backup schedule.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_postgres_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_postgres_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-rel-040.tf.ovh.database-backup-enabled
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud databases must have automated backups enabled*
+
+OVHcloud databases must have automated backups enabled. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_database_postgresql`, `ovh_cloud_project_database_mysql`
+
+*Assertions:*
+* `plan` attribute exists — OVHcloud database must define a plan that includes backups.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_database_postgresql" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_database_postgresql" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-rel-040.tf.hcloud.volume-backups-enabled
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud volumes must have automated backups enabled*
+
+Hetzner Cloud volumes must have automated backups enabled. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_volume`
+
+*Assertions:*
+* `labels.backup-enabled` key exists — Hetzner Cloud volume must declare a backup-enabled label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_volume" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_volume" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Terraform mit Backup-Konfiguration: Retention, PITR, Cross-Account-Storage.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|Quartalsweiser Restore-Test-Bericht: RTO erreicht, Datenintegrität validiert, Unterschrift.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Governance*
-|Optional
-|RTO/RPO Dokument pro Workload, jährlich reviewed.
-
-|*Config*
-|Optional
-|Backup-Monitoring Alerts für Job-Fehler und überalterte Backups.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor; Reliability Pillar – Improve
-
-|*SRE Book (Google)*
-|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring; Chapter 7 – Emergency response
-
-|*CNCF Cloud Native Security*
-|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
-
-|*BSI C5:2022*
-|SIM-01 – Security incident management; SIM-02 – Security information and event management; SIM-03 – Emergency response
-
-|*GDPR*
-|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
-
-|*NIST SP 800-161*
-|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
-
-|*DORA*
-|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools and systems
-
-|*COBIT 2019*
-|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity; DSS04.02.01 – Manage incidents
-
-|*TISAX*
-|Information security – Incident response
-
-|*ANSSI SecNumCloud*
-|Domain – Incident response; Domain – Business continuity
-
-|*BIO*
-|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
-
-|*ENS High*
-|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
-
-|*UK NCSC CAF*
-|D1 – Response and recovery planning; D2 – Lessons learned
-
-|*CMMC 2.0*
-|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
-
-|*IRAP*
-|ISM – Incident management; ISM – Business continuity
-
-|*CCCS PBMM*
-|IR-4 – Incident handling; IR-8 – Incident response plan
-
-|*MAS TRM*
-|Ch.10 – Security incident management; Ch.11 – Business continuity
-
-|*ISMAP*
-|Reliability and incident management
-
-|*FISC*
-|Operational measures – Incident response
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]
-* xref:controls/WAF-REL-060.adoc[WAF-REL-060 – Incident Response & Runbooks]
-* xref:controls/WAF-REL-070.adoc[WAF-REL-070 – Disaster Recovery Testing]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-backup-recovery.adoc[Backup, Recovery & Wiederherstellungstests →]
+|ISO 27001:2022 |* A.8.13 – Information backup
+* A.17.1 – Information security continuity
+
+|GDPR |* Article 32 – Security of processing (data availability)
+* Article 5(1)(f) – Integrity and confidentiality
+
+|BSI C5:2020 |* RB-01 – Availability and Redundancy
+* RB-04 – Data Backup and Recovery
+
+|===

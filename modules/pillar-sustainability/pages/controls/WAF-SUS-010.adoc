@@ -3,255 +3,289 @@
 :control-id: WAF-SUS-010
 :pillar: sustainability
 :severity: high
-:category: carbon-measurement
-:automated: high
-:description: WAF++ Sustainability – CO₂-Fußabdruck messen, Workload-Attribution, Cloud-Provider-Tools aktivieren und in CSRD/ESG-Reporting integrieren.
+:category: data-governance
+:automatable: High
+:description: Organizations MUST measure and report the carbon footprint of their cloud workloads. Cloud-provider carbon footprint tools (AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard, GCP Carbon Footprint) MUST be enabled and queried at least monthly. Emissions data MUST be exported, tagged by workload, and retained for ESG reporting. Organizations subject to CSRD MUST integrate cloud IT emissions into their ESRS E1 reporting.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* High | *Kategorie:* Carbon Measurement | *Automatisierbar:* Hoch
+*Säule:* Sustainability | *Schweregrad:* Hoch | *Kategorie:* Data Governance | *Automatisierbar:* High
 
 == Beschreibung
 
-Cloud-Provider Carbon-Footprint-Tools (AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard,
-GCP Carbon Footprint) MÜSSEN aktiviert und mindestens monatlich ausgewertet werden.
-Emissionsdaten MÜSSEN mit Workload-Tags verknüpft sein, um eine Workload-Attribution zu ermöglichen.
-Für CSRD-pflichtige Organisationen MÜSSEN Cloud-IT-Emissionen in die ESRS E1-6 Berichterstattung
-als Scope-3-Kategorie-11-Emissionen aufgenommen werden.
+Organizations MUST measure and report the carbon footprint of their cloud workloads. Cloud-provider carbon footprint tools (AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard, GCP Carbon Footprint) MUST be enabled and queried at least monthly. Emissions data MUST be exported, tagged by workload, and retained for ESG reporting. Organizations subject to CSRD MUST integrate cloud IT emissions into their ESRS E1 reporting.
 
-== Rationale
-
-Emissionsreduktion erfordert zuerst Messung. Cloud-IT ist ein messbarer, direkt beeinflussbarer
-Scope-3-Faktor. CSRD verpflichtet berichtspflichtige Unternehmen zur Offenlegung von Scope-3-Emissionen —
-Cloud-IT ist dort ausdrücklich enthalten. Ohne systematische Messung sind Reduktionsziele nicht
-verifizierbar und ESG-Berichte nicht CSRD-konform.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*CSRD Non-Compliance*
-|Fehlende IT-Emissionsdaten in ESRS E1-6 sind ein klassisches Audit-Finding in der CSRD-Erstprüfung — Bußgeld-Risiko.
+|*Risk* |Inefficient resource choices increase energy consumption and carbon emissions.
 
-|*Greenwashing-Vorwurf*
-|Nachhaltigkeitsversprechen ohne messbare CO₂-Daten sind regulatorisch und reputational ein Hochrisiko-Szenario.
-
-|*SBTi-Zielverfehlung*
-|Scope-3-Reduktionsziele können nicht verfolgt oder nachgewiesen werden ohne Cloud-IT-Emissionsdaten.
-
-|*Investoren-Anfragen*
-|ESG-bewusste Investoren stellen explizit nach Cloud-IT-Emissionsdaten; fehlende Antworten schaden der Bewertung.
+|*Risk* |Unnecessary compute and storage waste budget and environmental targets.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Cloud-Provider Carbon-Footprint-Tools MÜSSEN für alle genutzten Cloud-Provider aktiviert sein
-* Emissionen MÜSSEN mindestens monatlich exportiert und archiviert werden
-* Workload-Tagging MUSS Carbon-Attribution auf Workload-Ebene ermöglichen
-* CSRD-pflichtige Organisationen MÜSSEN Cloud-IT in ESRS E1-6 Scope-3 integrieren
-* Carbon-Daten MÜSSEN mindestens 7 Jahre aufbewahrt werden (CSRD-Pflicht)
-* Eine Emissions-Baseline MUSS dokumentiert sein
+* Organizations MUST measure and report the carbon footprint of their cloud workloads.
+* Cloud-provider carbon footprint tools (AWS Customer Carbon Footprint Tool, Azure Emissions Impact Dashboard, GCP Carbon Footprint) MUST be enabled and queried at least monthly.
+* Emissions data MUST be exported, tagged by workload, and retained for ESG reporting.
+* Organizations subject to CSRD MUST integrate cloud IT emissions into their ESRS E1 reporting.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Cloud-Provider-Tools aktivieren*: AWS CCF Tool in Cost Explorer; Azure Emissions Impact Dashboard aktivieren; GCP Carbon Footprint in Cloud Console
-. *Workload-Tagging sicherstellen*: Pflicht-Tags `workload`, `cost-center`, `environment` auf allen Ressourcen
-. *Monatlicher Export-Prozess*: Automatisierten S3/BigQuery-Export konfigurieren; Lambda-Scheduler für monthly Pull
-. *Carbon Ledger aufbauen*: Multi-Cloud-Aggregation in einheitlichem Format; CSRD-konforme Methodik dokumentieren
-. *CSRD-Scoping*: Assessment ob und ab wann CSRD-Pflicht gilt; ESRS E1 Mapping für Cloud-IT-Emissionen
-. *Baseline festlegen*: Ersten vollständigen Jahres-Footprint als Baseline dokumentieren
-. *Retention einrichten*: S3-Lifecycle mit 7-Jahres-Retention für Carbon-Daten (CSRD-Pflicht)
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Carbon-blind
-|Keine Cloud-Carbon-Tools aktiviert; IT-Emissionen unbekannt.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Tool aktiv, ad-hoc
-|Carbon-Tool aktiviert; gelegentliche manuelle Abfragen; keine systematische Attribution.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Regelmäßig, workload-attribuiert
-|Monatlicher Export; Workload-Attribution durch Tagging; in ESG-Report integriert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Pipeline, ESG-integriert
-|Automatisierter monatlicher Export aus allen Cloud-Providern; CSRD-Daten-Feed; SCI für Tier-1.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Echtzeit-Dashboard, CSRD-automatisiert
-|Echtzeit-Carbon-Dashboard; automatische CSRD/ESRS-E1-Integration; Third-Party-Assurance.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sus-010.tf.aws.cloudwatch-carbon-export
-*Prüft:* CloudWatch Log Groups haben Retention Policy (kein infinite Retention für Carbon-Audit-Daten).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS CloudWatch log group for carbon footprint data export must exist with retention*
+
+A CloudWatch log group or S3 bucket export for AWS Customer Carbon Footprint Tool data must be configured. This check verifies that a log retention policy is set on log groups used for carbon/cost data (no infinite retention which also wastes storage energy).
+
+*Scope:* `resource` — `aws_cloudwatch_log_group`
+
+*Assertions:*
+* `retention_in_days` attribute exists — CloudWatch log group has no retention policy – infinite retention wastes storage and blocks carbon data lifecycle.
+* `retention_in_days` greater than or equal `1` — Retention must be set to at least 1 day; recommended 90-365 days for carbon audit data.
+
+*Remediation:* Set retention_in_days on all CloudWatch log groups. For carbon footprint audit logs, use 365 days to satisfy CSRD 7-year record retention. Use lifecycle policies to transition older logs to S3 Glacier for cost and energy efficiency.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
-  name              = "/sustainability/carbon-footprint"
+  name              = "/sustainability/carbon-footprint-exports"
   retention_in_days = 365
   tags = {
-    purpose  = "carbon-audit"
-    workload = "sustainability-reporting"
+    purpose     = "carbon-audit"
+    workload    = "sustainability-reporting"
+    environment = "production"
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudwatch_log_group" "carbon_audit" {
-  name = "/sustainability/carbon-footprint"
-  # retention_in_days fehlt
-  # WAF-SUS-010 Violation: infinite retention
+  name = "/sustainability/carbon-footprint-exports"
+  # retention_in_days not set = infinite retention
+  # WAF-SUS-010 Violation
 }
 ----
-|===
-
-*Remediation:* `retention_in_days` auf mindestens 365 für Carbon-Audit-Log-Groups setzen.
-Für CSRD-Pflicht: 7-Jahres-Retention über S3-Lifecycle-Archivierung ergänzen.
 
 ---
 
-=== waf-sus-010.tf.aws.s3-carbon-lifecycle
-*Prüft:* S3-Buckets für Carbon-Daten haben Lifecycle-Rules.
+=== waf-sus-010.tf.aws.s3-carbon-export-lifecycle
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*S3 bucket for carbon footprint exports must have lifecycle rules*
+
+S3 buckets used to store carbon footprint exports from AWS Cost Explorer or Cost and Usage Reports must have lifecycle rules to transition data to cost-efficient storage tiers and eventually expire old records.
+
+*Scope:* `resource` — `aws_s3_bucket_lifecycle_configuration`
+
+*Assertions:*
+* `rule` not empty — S3 bucket has no lifecycle rules – carbon export data will accumulate indefinitely.
+
+*Remediation:* Add lifecycle rules to transition objects to STANDARD_IA after 30 days, GLACIER after 90 days, and expire after 2555 days (7 years for CSRD compliance). This reduces storage emissions while satisfying regulatory retention requirements.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant: 7-Jahres-Retention für CSRD-konforme Aufbewahrung
 resource "aws_s3_bucket_lifecycle_configuration" "carbon_exports" {
   bucket = aws_s3_bucket.carbon_data.id
   rule {
-    id     = "csrd-retention"
+    id     = "carbon-data-lifecycle"
     status = "Enabled"
     transition {
-      days          = 365
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+    transition {
+      days          = 90
       storage_class = "GLACIER"
     }
     expiration {
-      days = 2555  # 7 Jahre
+      days = 2555
     }
   }
 }
 ----
 
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket" "carbon_data" {
+  bucket = "acme-carbon-footprint-exports"
+  # No lifecycle rules – WAF-SUS-010 Violation
+}
+----
+
+---
+
+=== waf-sus-010.tf.azurerm.log-analytics-retention
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Log Analytics workspace for sustainability data must have retention configured*
+
+Azure Log Analytics workspaces used for emissions dashboard data and sustainability reporting must have explicit retention periods. Default unlimited retention accumulates data with no governance.
+
+*Scope:* `resource` — `azurerm_log_analytics_workspace`
+
+*Assertions:*
+* `retention_in_days` attribute exists — Log Analytics workspace has no explicit retention period – data accumulates indefinitely.
+* `retention_in_days` greater than or equal `1` — Retention for sustainability audit data must be at least 90 days; recommended 365.
+
+*Remediation:* Set retention_in_days to at least 365 for sustainability audit workspaces. Enable data export to Azure Storage with lifecycle management for long-term CSRD retention.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_log_analytics_workspace" "sustainability" {
+  name                = "law-sustainability-reporting"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  sku                 = "PerGB2018"
+  retention_in_days   = 365
+  tags = {
+    purpose     = "carbon-audit"
+    environment = "production"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_log_analytics_workspace" "sustainability" {
+  name                = "law-sustainability-reporting"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  # retention_in_days not set – WAF-SUS-010 Violation
+}
+----
+
+---
+
+=== waf-sus-010.tf.google.billing-export-bigquery
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP billing export to BigQuery must be enabled for carbon footprint reporting*
+
+GCP projects must export billing data to a BigQuery dataset so carbon footprint and sustainability metrics can be derived. The dataset should be in an approved region and have appropriate labels.
+
+*Scope:* `resource` — `google_bigquery_dataset`
+
+*Assertions:*
+* `labels` key exists — BigQuery billing export dataset must be labeled with purpose.
+* `location` in `['EU', 'europe-west3', 'europe-west1']` — BigQuery billing export dataset must be in an approved region.
+
+*Remediation:* Configure google_billing_budget or use the GCP console to enable detailed billing export to BigQuery. Create the BigQuery dataset in an approved region and label it for sustainability reporting.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_bigquery_dataset" "billing_export" {
+  dataset_id  = "billing_export"
+  description = "Billing export for carbon footprint and ESG reporting"
+  location    = "EU"
+  labels = {
+    purpose     = "carbon-audit"
+    environment = "production"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No BigQuery dataset configured for billing/carbon export.
+----
+
+---
+
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Config*
-|✅ Pflicht
-|Screenshot/API-Bestätigung: Cloud-Provider Carbon-Tool aktiviert (AWS CCF, Azure EID, GCP CF).
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Governance*
-|✅ Pflicht
-|Monatliche Carbon Footprint Exports (min. 3 Monate) mit Workload-Breakdown.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Carbon-Review-Meeting-Protokolle oder Jira-Tickets mit monatlichem Review-Nachweis.
-
-|*Governance*
-|Optional
-|ESRS E1 Report-Sektion mit Cloud-IT-Emissionen und Methodik-Vermerk.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*EU CSRD (Corporate Sustainability Reporting Directive)*
-|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce; ESRS S2 – Workers in own workforce; ESRS S3 – Affected communities; ESRS S4 – Human rights
-
-|*GHG Protocol (Corporate Accounting and Reporting Standard)*
-|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
-
-|*Green Software Foundation (GSF)*
-|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
-
-|*SBTi (Science Based Targets initiative)*
-|Target setting methodology; Validation and verification; Corporate target standards
-
-|*ISO 14001:2015*
-|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control; Clause 9.1.1 – Monitoring, measurement, analysis and evaluation
-
-|*ISO 14064-1:2018*
-|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing
-
-|*CSRD*
-|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
-
-|*NIST SP 800-53*
-|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
-
-|*TISAX*
-|Information security – Sustainability; Prototype protection – Environmental protection
-
-|*ANSSI SecNumCloud*
-|Domain – Environmental impact
-
-|*BIO*
-|BIO – Milieueffecten
-
-|*ENS High*
-|op.exp.9 – Gestión del impacto ambiental
-
-|*UK NCSC CAF*
-|B6 – Environmental impact
-
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Automated audit logging
-
-|*IRAP*
-|ISM – Environmental monitoring
-
-|*CCCS PBMM*
-|AU-2 – Audit events
-
-|*MAS TRM*
-|Ch.12 – Outsourcing risk management
-
-|*ISMAP*
-|Sustainability and environmental impact
-
-|*FISC*
-|Operational measures – Environmental impact
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-SUS-090.adoc[WAF-SUS-090 – ESG Reporting & Compliance Automation]
-* xref:controls/WAF-SUS-030.adoc[WAF-SUS-030 – Green Region & Carbon-Aware Workload Placement]
-* xref:controls/WAF-SUS-100.adoc[WAF-SUS-100 – Sustainability Debt Register & Quarterly Review]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-sustainability:controls/WAF-SUS-040.adoc[WAF-SUS-040]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-carbon-measurement.adoc[CO₂-Fußabdruck messen und reporten →]
+|EU CSRD (Corporate Sustainability Reporting Directive) |* ESRS E1 – Climate Change
+* ESRS E1-6 – Gross Scope 1, 2, 3 GHG emissions
+
+|GHG Protocol |* Scope 3 – Category 11: Use of sold products
+* Scope 2 – Energy Indirect Emissions (location-based and market-based)
+
+|Green Software Foundation |* Software Carbon Intensity (SCI) – measurement standard
+
+|SBTi (Science Based Targets initiative) |* ICT Sector Guidance – Scope 3 measurement requirements
+
+|ISO 14001 |* 6.1.2 – Environmental Aspects identification and assessment
+* 9.1 – Monitoring, measurement, analysis and evaluation
+
+|===

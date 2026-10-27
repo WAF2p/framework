@@ -1,267 +1,392 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-010
 id: WAF-COST-010
 title: 'All cloud resources MUST carry mandatory cost allocation tags: cost-center,...'
 status: active
 tags:
-  - cost
-  - high
-  - governance
-  - configuration
+- cost
+- high
+- governance
+- configuration
 pillar: cost
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload.
+- governance
+- configuration
+category: data-governance
+rationale: 'Fehlende Datenklassifizierung, -eigentümerschaft und Lifecycle-Steuerung erhöhen Compliance-Risiken, Kosten und
+  die Wahrscheinlichkeit von Datenverlusten. Dieses Control adressiert die Anforderungen des Bereichs ''Daten-Governance''
+  und stellt sicher, dass All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment,
+  and workload.'
 threat:
-  - 'Uncontrolled cloud spend erodes budget and project viability.'
-  - 'High lock-in or debt decisions are made without financial impact visibility.'
+- Uncontrolled cloud spend erodes budget and project viability.
+- High lock-in or debt decisions are made without financial impact visibility.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-010.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-010.adoc
+  related_controls:
+  - WAF-COST-080
+  - WAF-OPS-020
+  - WAF-REL-050
+  - WAF-SUS-010
+  - WAF-COST-020
+  - WAF-OPS-070
+  - WAF-OPS-100
+  - WAF-SUS-030
+  - WAF-COST-050
+  - WAF-COST-030
+  - WAF-COST-060
+  - WAF-COST-070
+description: 'All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload.
+  These tags are required on all resource types that generate billable costs (compute, storage, database, network, managed
+  services). Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance MUST be blocked or flagged
+  as violations.
 
-description: |
-  All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload. These tags are required on all resource types that generate billable costs (compute, storage, database, network, managed services). Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance MUST be blocked or flagged as violations.
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Inform Phase – Cost Allocation and Showback'
-      - 'Operate Phase – Tagging and Cost Attribution'
-  - framework: 'ISO 20000'
-    controls:
-      - 'Service financial management – cost allocation'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Cloud Cost Governance Policy – Resource Ownership'
-      - 'FinOps Charter – Accountability and Transparency'
+- framework: FinOps Foundation
+  controls:
+  - Inform Phase – Cost Allocation and Showback
+  - Operate Phase – Tagging and Cost Attribution
 checks:
-  - id: waf-cost-010.tf.aws.compute-mandatory-tags
-    engine: terraform
-    automated: true
-    title: 'AWS compute resources must have all mandatory cost allocation tags'
-    provider: aws
-    description: 'EC2 instances, ECS services, EKS node groups, Lambda functions and other compute resources must carry all mandatory cost allocation tags: cost-center, owner, environment, and workload.'
-    expected: 'true'
-    remediation: 'Use the shared mandatory-tags module to generate the complete tag map. Add module "tags" { source = "../../modules/mandatory-tags"; cost_center = ...; owner = ...; environment = ...; workload = ...; } Then set tags = module.tags.tags on every resource.\n'
-    example:
-      compliant: |
-        # AWS
-        module "tags" {
-          source      = "../../modules/mandatory-tags"
-          cost_center = "fintech-platform"
-          owner       = "payments-team"
-          environment = "production"
-          workload    = "payment-service"
-        }
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t3.medium"
-          tags          = module.tags.tags
-        }
+- id: waf-cost-010.tf.aws.compute-mandatory-tags
+  engine: terraform
+  automated: true
+  title: AWS compute resources must have all mandatory cost allocation tags
+  provider: aws
+  description: 'EC2 instances, ECS services, EKS node groups, Lambda functions and other compute resources must carry all
+    mandatory cost allocation tags: cost-center, owner, environment, and workload.'
+  expected: 'true'
+  remediation: Use the shared mandatory-tags module to generate the complete tag map. Add module "tags" { source = "../../modules/mandatory-tags";
+    cost_center = ...; owner = ...; environment = ...; workload = ...; } Then set tags = module.tags.tags on every resource.\n
+  example:
+    compliant: "# AWS\nmodule \"tags\" {\n  source      = \"../../modules/mandatory-tags\"\n  cost_center = \"fintech-platform\"\
+      \n  owner       = \"payments-team\"\n  environment = \"production\"\n  workload    = \"payment-service\"\n}\nresource\
+      \ \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t3.medium\"\n  tags    \
+      \      = module.tags.tags\n}\n\n# Azure\nresource \"azurerm_virtual_machine\" \"app\" {\n  name                = \"\
+      payment-app-vm\"\n  resource_group_name = azurerm_resource_group.main.name\n  location            = \"germanywestcentral\"\
+      \n  tags = merge(module.tags.tags, {\n    Name = \"payment-app-vm\"\n  })\n}\n\n# StackIT (SchwarzIT)\nresource \"stackit_load_balancer\"\
+      \ \"app\" {\n  project_id = stackit_project.main.id\n  name       = \"payment-app-lb\"\n  tags = merge(module.tags.tags,\
+      \ {\n    Name = \"payment-app-lb\"\n  })\n}\n\n# OVH\nresource \"ovh_cloud_project_instance\" \"app\" {\n  project_id\
+      \ = ovh_cloud_project.main.id\n  name       = \"payment-app-vm\"\n  flavor     = \"b2-7\"\n  image      = \"Ubuntu 22.04\"\
+      \n  tags = merge(module.tags.tags, {\n    Name = \"payment-app-vm\"\n  })\n}\n\n# Hetzner Cloud\nresource \"hcloud_server\"\
+      \ \"app\" {\n  name        = \"payment-app-server\"\n  server_type = \"cx22\"\n  location    = \"fsn1\"\n  labels =\
+      \ merge(module.tags.tags, {\n    Name = \"payment-app-server\"\n  })\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t3.medium\"\
+      \n  tags = {\n    Name = \"payment-app\"\n    # Missing: cost-center, owner, environment, workload\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+    - aws_eks_node_group
+    - aws_ecs_service
+    - aws_lambda_function
+    - aws_db_instance
+    - aws_rds_cluster
+    - aws_elasticache_cluster
+    - aws_s3_bucket
+    - aws_cloudwatch_log_group
+    - stackit_project
+    - stackit_container_registry
+    - stackit_mysql_instance
+    - stackit_opensearch_instance
+    - stackit_redis_instance
+    - stackit_secret_manager
+    - stackit_load_balancer
+    - stackit_network
+    - stackit_dns_zone
+    - stackit_log_service
+    - ovh_cloud_project
+    - ovh_vps
+    - ovh_dedicated_server
+    - ovh_ip_loadbalancing
+    - hcloud_server
+    - hcloud_volume
+    - hcloud_network
+    - hcloud_load_balancer
+    - hcloud_dns_record
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: cost-center
+    message: Resource is missing the mandatory 'cost-center' tag.
+  - attribute: tags
+    op: key_exists
+    key: owner
+    message: Resource is missing the mandatory 'owner' tag.
+  - attribute: tags
+    op: key_exists
+    key: environment
+    message: Resource is missing the mandatory 'environment' tag.
+  - attribute: tags
+    op: key_exists
+    key: workload
+    message: Resource is missing the mandatory 'workload' tag.
+  on_fail: violation
+- id: waf-cost-010.tf.azurerm.resource-group-mandatory-tags
+  engine: terraform
+  automated: true
+  title: Azure resource groups must have all mandatory cost allocation tags
+  provider: azurerm
+  description: Azure resource groups must carry all mandatory cost allocation tags. Tags applied to resource groups propagate
+    to child resources through Azure Cost Management.
+  expected: 'true'
+  remediation: Add all mandatory tags to Azure resources. For resource groups, ensure tags include cost-center, owner, environment,
+    and workload. Use Azure Policy to enforce tag inheritance.\n
+  example:
+    compliant: "resource \"azurerm_resource_group\" \"main\" {\n  name     = \"rg-payment-service-prod\"\n  location = var.location\n\
+      \  tags = {\n    cost-center = \"fintech-platform\"\n    owner       = \"payments-team\"\n    environment = \"production\"\
+      \n    workload    = \"payment-service\"\n    managed-by  = \"terraform\"\n  }\n}\n"
+    non_compliant: "resource \"azurerm_resource_group\" \"main\" {\n  name     = \"rg-payment-service-prod\"\n  location =\
+      \ var.location\n  # Missing all mandatory tags – WAF-COST-010 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_resource_group
+    - azurerm_virtual_machine
+    - azurerm_storage_account
+    - azurerm_sql_database
+    - azurerm_kubernetes_cluster
+    - stackit_project
+    - stackit_container_registry
+    - stackit_mysql_instance
+    - stackit_opensearch_instance
+    - stackit_redis_instance
+    - stackit_secret_manager
+    - ovh_cloud_project
+    - ovh_vps
+    - ovh_dedicated_server
+    - hcloud_server
+    - hcloud_volume
+    - hcloud_network
+    - hcloud_load_balancer
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: cost-center
+    message: Azure resource is missing the mandatory 'cost-center' tag.
+  - attribute: tags
+    op: key_exists
+    key: owner
+    message: Azure resource is missing the mandatory 'owner' tag.
+  - attribute: tags
+    op: key_exists
+    key: environment
+    message: Azure resource is missing the mandatory 'environment' tag.
+  - attribute: tags
+    op: key_exists
+    key: workload
+    message: Azure resource is missing the mandatory 'workload' tag.
+  on_fail: violation
+- id: waf-cost-010.tf.google.project-labels-mandatory
+  engine: terraform
+  automated: true
+  title: GCP projects and billable resources must have mandatory cost allocation labels
+  provider: google
+  description: GCP projects must define labels for cost-center, owner, environment, and workload. Billable resources such
+    as google_compute_instance, google_storage_bucket, and google_container_cluster must carry the same labels so cost allocation
+    is possible via GCP Cost Management labels.
+  expected: 'true'
+  remediation: Set labels on the google_project and on every billable resource. Use a shared labels module and apply it consistently.
+    For BigQuery datasets, also set default_table_expiration_ms where applicable.\n
+  example:
+    compliant: "resource \"google_project\" \"payment\" {\n  name       = \"payment-service-prod\"\n  project_id = \"payment-service-prod-123\"\
+      \n  labels = {\n    cost-center = \"fintech-platform\"\n    owner       = \"payments-team\"\n    environment = \"production\"\
+      \n    workload    = \"payment-service\"\n  }\n}\n\nresource \"google_compute_instance\" \"app\" {\n  name         =\
+      \ \"vm-payment-app\"\n  machine_type = \"e2-medium\"\n  zone         = var.zone\n\n  labels = merge(module.mandatory_tags.labels,\
+      \ {\n    cost-center = \"fintech-platform\"\n    owner       = \"payments-team\"\n    environment = \"production\"\n\
+      \    workload    = \"payment-service\"\n  })\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"vm-payment-app\"\n  machine_type =\
+      \ \"e2-medium\"\n  zone         = var.zone\n  # Missing mandatory cost allocation labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_project
+    - google_compute_instance
+    - google_storage_bucket
+    - google_container_cluster
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: cost-center
+    message: GCP resource is missing the mandatory 'cost-center' label.
+  - attribute: labels
+    op: key_exists
+    key: owner
+    message: GCP resource is missing the mandatory 'owner' label.
+  - attribute: labels
+    op: key_exists
+    key: environment
+    message: GCP resource is missing the mandatory 'environment' label.
+  - attribute: labels
+    op: key_exists
+    key: workload
+    message: GCP resource is missing the mandatory 'workload' label.
+  on_fail: violation
+- id: waf-cost-010.tf.stackit.project-mandatory-labels
+  engine: terraform
+  automated: true
+  title: STACKIT project and billable resources must carry mandatory cost allocation labels
+  provider: stackit
+  description: STACKIT project and billable resources must carry mandatory cost allocation labels. This check validates the
+    Terraform configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
 
-        # Azure
-        resource "azurerm_virtual_machine" "app" {
-          name                = "payment-app-vm"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = "germanywestcentral"
-          tags = merge(module.tags.tags, {
-            Name = "payment-app-vm"
-          })
-        }
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_project\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_project\" \"example\" {\n  #\
+      \ Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+    - stackit_server
+    - stackit_object_storage_bucket
+    - stackit_ske_cluster
+    - stackit_postgres_instance
+    - stackit_mysql_instance
+    - stackit_redis_instance
+    - stackit_opensearch_instance
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: cost-center
+    message: STACKIT resource is missing the mandatory 'cost-center' label.
+  - attribute: labels
+    op: key_exists
+    key: owner
+    message: STACKIT resource is missing the mandatory 'owner' label.
+  - attribute: labels
+    op: key_exists
+    key: environment
+    message: STACKIT resource is missing the mandatory 'environment' label.
+  - attribute: labels
+    op: key_exists
+    key: workload
+    message: STACKIT resource is missing the mandatory 'workload' label.
+  on_fail: violation
+- id: waf-cost-010.tf.ovh.project-mandatory-tags
+  engine: terraform
+  automated: true
+  title: OVHcloud project and billable resources must carry mandatory cost allocation tags
+  provider: ovh
+  description: OVHcloud project and billable resources must carry mandatory cost allocation tags. This check validates the
+    Terraform configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
 
-        # StackIT (SchwarzIT)
-        resource "stackit_load_balancer" "app" {
-          project_id = stackit_project.main.id
-          name       = "payment-app-lb"
-          tags = merge(module.tags.tags, {
-            Name = "payment-app-lb"
-          })
-        }
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project\" \"example\" {\n \
+      \ # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+    - ovh_cloud_project_instance
+    - ovh_vps
+    - ovh_dedicated_server
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_database_postgresql
+    - ovh_cloud_project_database_mysql
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: cost-center
+    message: OVHcloud resource is missing the mandatory 'cost-center' tag.
+  - attribute: tags
+    op: key_exists
+    key: owner
+    message: OVHcloud resource is missing the mandatory 'owner' tag.
+  - attribute: tags
+    op: key_exists
+    key: environment
+    message: OVHcloud resource is missing the mandatory 'environment' tag.
+  - attribute: tags
+    op: key_exists
+    key: workload
+    message: OVHcloud resource is missing the mandatory 'workload' tag.
+  on_fail: violation
+- id: waf-cost-010.tf.hcloud.server-mandatory-labels
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud billable resources must carry mandatory cost allocation labels
+  provider: hcloud
+  description: Hetzner Cloud billable resources must carry mandatory cost allocation labels. This check validates the Terraform
+    configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
 
-        # OVH
-        resource "ovh_cloud_project_instance" "app" {
-          project_id = ovh_cloud_project.main.id
-          name       = "payment-app-vm"
-          flavor     = "b2-7"
-          image      = "Ubuntu 22.04"
-          tags = merge(module.tags.tags, {
-            Name = "payment-app-vm"
-          })
-        }
-
-        # Hetzner Cloud
-        resource "hcloud_server" "app" {
-          name        = "payment-app-server"
-          server_type = "cx22"
-          location    = "fsn1"
-          labels = merge(module.tags.tags, {
-            Name = "payment-app-server"
-          })
-        }
-
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t3.medium"
-          tags = {
-            Name = "payment-app"
-            # Missing: cost-center, owner, environment, workload
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-        - aws_eks_node_group
-        - aws_ecs_service
-        - aws_lambda_function
-        - aws_db_instance
-        - aws_rds_cluster
-        - aws_elasticache_cluster
-        - aws_s3_bucket
-        - aws_cloudwatch_log_group
-        - stackit_project
-        - stackit_container_registry
-        - stackit_mysql_instance
-        - stackit_opensearch_instance
-        - stackit_redis_instance
-        - stackit_secret_manager
-        - stackit_load_balancer
-        - stackit_network
-        - stackit_dns_zone
-        - stackit_log_service
-        - ovh_cloud_project
-        - ovh_vps
-        - ovh_dedicated_server
-        - ovh_ip_loadbalancing
-        - hcloud_server
-        - hcloud_volume
-        - hcloud_network
-        - hcloud_load_balancer
-        - hcloud_dns_record
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'cost-center'
-        message: "Resource is missing the mandatory 'cost-center' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'owner'
-        message: "Resource is missing the mandatory 'owner' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'environment'
-        message: "Resource is missing the mandatory 'environment' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'workload'
-        message: "Resource is missing the mandatory 'workload' tag."
-    on_fail: violation
-  - id: waf-cost-010.tf.azurerm.resource-group-mandatory-tags
-    engine: terraform
-    automated: true
-    title: 'Azure resource groups must have all mandatory cost allocation tags'
-    provider: azurerm
-    description: 'Azure resource groups must carry all mandatory cost allocation tags. Tags applied to resource groups propagate to child resources through Azure Cost Management.'
-    expected: 'true'
-    remediation: 'Add all mandatory tags to Azure resources. For resource groups, ensure tags include cost-center, owner, environment, and workload. Use Azure Policy to enforce tag inheritance.\n'
-    example:
-      compliant: |
-        resource "azurerm_resource_group" "main" {
-          name     = "rg-payment-service-prod"
-          location = var.location
-          tags = {
-            cost-center = "fintech-platform"
-            owner       = "payments-team"
-            environment = "production"
-            workload    = "payment-service"
-            managed-by  = "terraform"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_resource_group" "main" {
-          name     = "rg-payment-service-prod"
-          location = var.location
-          # Missing all mandatory tags – WAF-COST-010 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_resource_group
-        - azurerm_virtual_machine
-        - azurerm_storage_account
-        - azurerm_sql_database
-        - azurerm_kubernetes_cluster
-        - stackit_project
-        - stackit_container_registry
-        - stackit_mysql_instance
-        - stackit_opensearch_instance
-        - stackit_redis_instance
-        - stackit_secret_manager
-        - ovh_cloud_project
-        - ovh_vps
-        - ovh_dedicated_server
-        - hcloud_server
-        - hcloud_volume
-        - hcloud_network
-        - hcloud_load_balancer
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'cost-center'
-        message: "Azure resource is missing the mandatory 'cost-center' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'owner'
-        message: "Azure resource is missing the mandatory 'owner' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'environment'
-        message: "Azure resource is missing the mandatory 'environment' tag."
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'workload'
-        message: "Azure resource is missing the mandatory 'workload' tag."
-    on_fail: violation
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+    - hcloud_volume
+    - hcloud_load_balancer
+    - hcloud_network
+    - hcloud_floating_ip
+    - hcloud_primary_ip
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: cost-center
+    message: Hetzner Cloud resource is missing the mandatory 'cost-center' label.
+  - attribute: labels
+    op: key_exists
+    key: owner
+    message: Hetzner Cloud resource is missing the mandatory 'owner' label.
+  - attribute: labels
+    op: key_exists
+    key: environment
+    message: Hetzner Cloud resource is missing the mandatory 'environment' label.
+  - attribute: labels
+    op: key_exists
+    key: workload
+    message: Hetzner Cloud resource is missing the mandatory 'workload' label.
+  on_fail: violation

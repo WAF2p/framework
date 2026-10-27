@@ -1,203 +1,205 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-060
 id: WAF-SUS-060
-title: 'Batch workloads, report generation, data processing pipelines, and other...'
+title: Batch workloads, report generation, data processing pipelines, and other...
 status: active
 tags:
-  - sustainability
-  - low
-  - configuration
+- sustainability
+- low
+- configuration
 pillar: sustainability
 severity: low
 type:
-  - configuration
-
-category: 'deployment-automation'
-rationale: |
-  Batch workloads, report generation, data processing pipelines, and other non-latency-sensitive jobs MUST be scheduled during off-peak hours (22:00–06:00...
+- configuration
+category: deployment-automation
+rationale: Manuelle Deployments und fehlende Qualitätsgates erhöhen das Risiko von Ausfällen, menschlichen Fehlern und nicht
+  reproduzierbaren Umgebungen. Dieses Control adressiert die Anforderungen des Bereichs 'Deployment-Automation' und stellt
+  sicher, dass Batch workloads, report generation, data processing pipelines, and other non-latency-sensitive jobs MUST be
+  scheduled during off-peak hours (22:00–06:00 local.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Batch jobs without flexible time windows consume peak-load capacity and miss renewable-energy potential.
+- Missing spot or scheduler optimization leads to expensive and carbon-intensive processing.
 implementation_guidance:
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
-  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+- Implement the required configuration as code in Terraform or equivalent IaC.
+- Add an automated check to CI/CD so deviations are caught before deployment.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Die Anforderung ist dokumentiert; erste Ressourcen zeigen die gewünschte Konfiguration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-060.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-060.adoc
+  related_controls:
+  - WAF-OPS-010
+  - WAF-SUS-040
+  - WAF-OPS-050
+  - WAF-OPS-080
+  - WAF-SUS-010
+  - WAF-SUS-030
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-010
+  - WAF-COST-020
+  - WAF-OPS-020
+description: 'Batch workloads, report generation, data processing pipelines, and other non-latency-sensitive jobs MUST be
+  scheduled during off-peak hours (22:00–06:00 local grid time) when carbon intensity of the electricity grid is typically
+  lower. Workloads with flexible execution windows SHOULD integrate carbon intensity APIs (WattTime, electricityMaps) to execute
+  during low-carbon windows. All EventBridge scheduled jobs and cron-based workloads MUST document their scheduling rationale
+  including whether carbon-aware timing was considered.
 
-description: |
-  Batch workloads, report generation, data processing pipelines, and other non-latency-sensitive jobs MUST be scheduled during off-peak hours (22:00–06:00 local grid time) when carbon intensity of the electricity grid is typically lower. Workloads with flexible execution windows SHOULD integrate carbon intensity APIs (WattTime, electricityMaps) to execute during low-carbon windows. All EventBridge scheduled jobs and cron-based workloads MUST document their scheduling rationale including whether carbon-aware timing was considered.
+  '
 regulatory_mapping:
-  - framework: 'Green Software Foundation'
-    controls:
-      - 'Carbon Aware Computing – Temporal Shifting'
-      - 'Software Carbon Intensity (SCI) – time-based carbon optimization'
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS E1 – Climate Change – operational energy optimization'
-  - framework: 'GHG Protocol'
-    controls:
-      - 'Scope 2 – Market-based method – time-of-use carbon intensity'
+- framework: Green Software Foundation
+  controls:
+  - Carbon Aware Computing – Temporal Shifting
+  - Software Carbon Intensity (SCI) – time-based carbon optimization
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change – operational energy optimization
+- framework: GHG Protocol
+  controls:
+  - Scope 2 – Market-based method – time-of-use carbon intensity
 checks:
-  - id: waf-sus-060.tf.aws.eventbridge-flexible-window
-    engine: terraform
-    automated: true
-    title: 'EventBridge Scheduler schedules should use flexible time windows for batch workloads'
-    provider: aws
-    description: 'EventBridge Scheduler supports a flexible_time_window that allows AWS to execute the schedule within a defined window around the target time. This enables carbon-aware execution: the job can be deferred to a lower-carbon window within the allowed range.'
-    expected: 'true'
-    remediation: 'Set flexible_time_window { mode = "FLEXIBLE"; maximum_window_in_minutes = 120 } on all non-latency-sensitive batch schedules. This allows AWS to execute the job within a 2-hour window, enabling carbon-aware timing without missing SLAs.\n'
-    example:
-      compliant: |
-        resource "aws_scheduler_schedule" "nightly_report" {
-          name = "nightly-report-generator"
-        
-          schedule_expression = "cron(0 22 * * ? *)"  # 22:00 UTC – off-peak window
-        
-          flexible_time_window {
-            mode                      = "FLEXIBLE"
-            maximum_window_in_minutes = 120  # allow up to 2h window for carbon-aware exec
-          }
-        
-          target {
-            arn      = aws_lambda_function.report_generator.arn
-            role_arn = aws_iam_role.scheduler.arn
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_scheduler_schedule" "nightly_report" {
-          name = "nightly-report-generator"
-        
-          schedule_expression = "cron(9 9 * * ? *)"  # 09:00 – peak hours, no reason documented
-        
-          flexible_time_window {
-            mode = "OFF"  # WAF-SUS-060 Warning: no flexible window, fixed peak-time execution
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_scheduler_schedule
-    assertions:
-      - attribute: 'flexible_time_window.mode'
-        op: 'not_equals'
-        message: 'EventBridge schedule uses no flexible window – enable FLEXIBLE mode to allow carbon-aware execution.'
-    on_fail: advisory
-  - id: waf-sus-060.tf.aws.batch-compute-spot
-    engine: terraform
-    automated: true
-    title: 'AWS Batch compute environments should use SPOT allocation strategy'
-    provider: aws
-    description: 'AWS Batch jobs are by definition batch/asynchronous workloads that can tolerate spot interruption. Using SPOT allocation strategy reduces energy consumption from dedicated on-demand capacity and improves overall data center utilization efficiency.'
-    expected: 'true'
-    remediation: 'Change compute_resources.type to "SPOT" for AWS Batch compute environments. Configure spot_iam_fleet_role and bid_percentage = 100 to maximize spot usage. Implement retry policies on batch jobs to handle spot interruptions gracefully.\n'
-    example:
-      compliant: |
-        resource "aws_batch_compute_environment" "processing" {
-          compute_environment_name = "data-processing"
-          type                     = "MANAGED"
-        
-          compute_resources {
-            type                = "SPOT"
-            allocation_strategy = "SPOT_CAPACITY_OPTIMIZED"
-            instance_role       = aws_iam_instance_profile.batch.arn
-            spot_iam_fleet_role = aws_iam_role.spot_fleet.arn
-        
-            min_vcpus     = 0
-            max_vcpus     = 256
-            desired_vcpus = 0
-        
-            instance_type = ["m7g", "c7g", "r7g"]  # Graviton3 spot instances
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_batch_compute_environment" "processing" {
-          compute_environment_name = "data-processing"
-          type                     = "MANAGED"
-        
-          compute_resources {
-            type      = "ON_DEMAND"  # WAF-SUS-060 Warning: batch workload on on-demand
-            min_vcpus = 4  # always-on capacity
-            max_vcpus = 64
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_batch_compute_environment
-    assertions:
-      - attribute: 'compute_resources.type'
-        op: 'in'
-        message: 'Batch compute environment uses ON_DEMAND – consider SPOT for batch workloads to reduce energy overhead.'
-    on_fail: advisory
-  - id: waf-sus-060.tf.google.cloud-scheduler-timezone
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud Scheduler jobs should use UTC timezone and off-peak scheduling'
-    provider: google
-    description: 'GCP Cloud Scheduler jobs should be scheduled in UTC timezone to enable consistent off-peak scheduling aligned with grid carbon intensity data.'
-    expected: 'true'
-    remediation: 'Set time_zone = "Etc/UTC" on all Cloud Scheduler jobs and adjust schedule expressions to target off-peak UTC hours (22:00-06:00 UTC). This ensures consistency with carbon intensity data which is typically published in UTC.\n'
-    example:
-      compliant: |
-        resource "google_cloud_scheduler_job" "data_export" {
-          name      = "nightly-data-export"
-          schedule  = "0 23 * * *"  # 23:00 UTC – off-peak hours
-          time_zone = "Etc/UTC"
-        
-          http_target {
-            uri         = var.export_endpoint
-            http_method = "POST"
-          }
-        }
-        
-      non_compliant: |
-        resource "google_cloud_scheduler_job" "data_export" {
-          name      = "data-export"
-          schedule  = "0 9 * * *"  # 09:00 – peak hours
-          time_zone = "Europe/Berlin"  # WAF-SUS-060 Warning: local timezone, peak hours
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_cloud_scheduler_job
-    assertions:
-      - attribute: 'time_zone'
-        op: 'equals'
-        message: 'Cloud Scheduler job uses local timezone – use UTC for consistent carbon-aware scheduling.'
-    on_fail: advisory
+- id: waf-sus-060.tf.aws.eventbridge-flexible-window
+  engine: terraform
+  automated: true
+  title: EventBridge Scheduler schedules should use flexible time windows for batch workloads
+  provider: aws
+  description: 'EventBridge Scheduler supports a flexible_time_window that allows AWS to execute the schedule within a defined
+    window around the target time. This enables carbon-aware execution: the job can be deferred to a lower-carbon window within
+    the allowed range.'
+  expected: 'true'
+  remediation: Set flexible_time_window { mode = "FLEXIBLE"; maximum_window_in_minutes = 120 } on all non-latency-sensitive
+    batch schedules. This allows AWS to execute the job within a 2-hour window, enabling carbon-aware timing without missing
+    SLAs.\n
+  example:
+    compliant: "resource \"aws_scheduler_schedule\" \"nightly_report\" {\n  name = \"nightly-report-generator\"\n\n  schedule_expression\
+      \ = \"cron(0 22 * * ? *)\"  # 22:00 UTC – off-peak window\n\n  flexible_time_window {\n    mode                    \
+      \  = \"FLEXIBLE\"\n    maximum_window_in_minutes = 120  # allow up to 2h window for carbon-aware exec\n  }\n\n  target\
+      \ {\n    arn      = aws_lambda_function.report_generator.arn\n    role_arn = aws_iam_role.scheduler.arn\n  }\n}\n"
+    non_compliant: "resource \"aws_scheduler_schedule\" \"nightly_report\" {\n  name = \"nightly-report-generator\"\n\n  schedule_expression\
+      \ = \"cron(9 9 * * ? *)\"  # 09:00 – peak hours, no reason documented\n\n  flexible_time_window {\n    mode = \"OFF\"\
+      \  # WAF-SUS-060 Warning: no flexible window, fixed peak-time execution\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_scheduler_schedule
+  assertions:
+  - attribute: flexible_time_window.mode
+    op: not_equals
+    message: EventBridge schedule uses no flexible window – enable FLEXIBLE mode to allow carbon-aware execution.
+    expected: false
+  on_fail: advisory
+- id: waf-sus-060.tf.aws.batch-compute-spot
+  engine: terraform
+  automated: true
+  title: AWS Batch compute environments should use SPOT allocation strategy
+  provider: aws
+  description: AWS Batch jobs are by definition batch/asynchronous workloads that can tolerate spot interruption. Using SPOT
+    allocation strategy reduces energy consumption from dedicated on-demand capacity and improves overall data center utilization
+    efficiency.
+  expected: 'true'
+  remediation: Change compute_resources.type to "SPOT" for AWS Batch compute environments. Configure spot_iam_fleet_role and
+    bid_percentage = 100 to maximize spot usage. Implement retry policies on batch jobs to handle spot interruptions gracefully.\n
+  example:
+    compliant: "resource \"aws_batch_compute_environment\" \"processing\" {\n  compute_environment_name = \"data-processing\"\
+      \n  type                     = \"MANAGED\"\n\n  compute_resources {\n    type                = \"SPOT\"\n    allocation_strategy\
+      \ = \"SPOT_CAPACITY_OPTIMIZED\"\n    instance_role       = aws_iam_instance_profile.batch.arn\n    spot_iam_fleet_role\
+      \ = aws_iam_role.spot_fleet.arn\n\n    min_vcpus     = 0\n    max_vcpus     = 256\n    desired_vcpus = 0\n\n    instance_type\
+      \ = [\"m7g\", \"c7g\", \"r7g\"]  # Graviton3 spot instances\n  }\n}\n"
+    non_compliant: "resource \"aws_batch_compute_environment\" \"processing\" {\n  compute_environment_name = \"data-processing\"\
+      \n  type                     = \"MANAGED\"\n\n  compute_resources {\n    type      = \"ON_DEMAND\"  # WAF-SUS-060 Warning:\
+      \ batch workload on on-demand\n    min_vcpus = 4  # always-on capacity\n    max_vcpus = 64\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_batch_compute_environment
+  assertions:
+  - attribute: compute_resources.type
+    op: in
+    message: Batch compute environment uses ON_DEMAND – consider SPOT for batch workloads to reduce energy overhead.
+    expected:
+    - SPOT
+  on_fail: advisory
+- id: waf-sus-060.tf.google.cloud-scheduler-timezone
+  engine: terraform
+  automated: true
+  title: GCP Cloud Scheduler jobs should use UTC timezone and off-peak scheduling
+  provider: google
+  description: GCP Cloud Scheduler jobs should be scheduled in UTC timezone to enable consistent off-peak scheduling aligned
+    with grid carbon intensity data.
+  expected: 'true'
+  remediation: Set time_zone = "Etc/UTC" on all Cloud Scheduler jobs and adjust schedule expressions to target off-peak UTC
+    hours (22:00-06:00 UTC). This ensures consistency with carbon intensity data which is typically published in UTC.\n
+  example:
+    compliant: "resource \"google_cloud_scheduler_job\" \"data_export\" {\n  name      = \"nightly-data-export\"\n  schedule\
+      \  = \"0 23 * * *\"  # 23:00 UTC – off-peak hours\n  time_zone = \"Etc/UTC\"\n\n  http_target {\n    uri         = var.export_endpoint\n\
+      \    http_method = \"POST\"\n  }\n}\n"
+    non_compliant: "resource \"google_cloud_scheduler_job\" \"data_export\" {\n  name      = \"data-export\"\n  schedule \
+      \ = \"0 9 * * *\"  # 09:00 – peak hours\n  time_zone = \"Europe/Berlin\"  # WAF-SUS-060 Warning: local timezone, peak\
+      \ hours\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_scheduler_job
+  assertions:
+  - attribute: time_zone
+    op: equals
+    message: Cloud Scheduler job uses local timezone – use UTC for consistent carbon-aware scheduling.
+    expected: Etc/UTC
+  on_fail: advisory
+- id: waf-sus-060.tf.azurerm.automation-schedule-offpeak
+  engine: terraform
+  automated: true
+  title: Azure Automation schedules for batch workloads should run during off-peak hours
+  provider: azurerm
+  description: Azure Automation runbook schedules for batch, report generation, and data processing workloads should be configured
+    to start during off-peak hours (e.g., between 22:00 and 06:00 local time) to reduce carbon intensity.
+  expected: 'true'
+  remediation: 'Set azurerm_automation_schedule.start_time to an off-peak hour (e.g., 02:00 UTC) and configure frequency appropriately
+    for batch workloads.
+
+    '
+  example:
+    compliant: "resource \"azurerm_automation_schedule\" \"nightly_batch\" {\n  name                    = \"nightly-batch\"\
+      \n  resource_group_name     = azurerm_resource_group.main.name\n  automation_account_name = azurerm_automation_account.main.name\n\
+      \  frequency               = \"Day\"\n  interval                = 1\n  start_time              = \"2024-01-01T02:00:00Z\"\
+      \n  timezone                = \"Europe/Berlin\"\n}\n"
+    non_compliant: "resource \"azurerm_automation_schedule\" \"daytime_batch\" {\n  name                    = \"daytime-batch\"\
+      \n  resource_group_name     = azurerm_resource_group.main.name\n  automation_account_name = azurerm_automation_account.main.name\n\
+      \  frequency               = \"Day\"\n  interval                = 1\n  start_time              = \"2024-01-01T14:00:00Z\"\
+      \n  timezone                = \"Europe/Berlin\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_automation_schedule
+  assertions:
+  - attribute: start_time
+    op: matches
+    pattern: 'T(0[0-6]|2[23]):'
+    message: Azure Automation schedule start_time should be during off-peak hours (22:00-06:59 UTC or equivalent timezone).
+  on_fail: finding

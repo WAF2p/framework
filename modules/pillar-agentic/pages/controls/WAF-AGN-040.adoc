@@ -1,286 +1,518 @@
 = WAF-AGN-040 – Memory & State Management
-:page-navtitle: AGN-040
 :page-toc: right
-:description: WAF++ – Control AGN-040: Memory & State Management.
+:control-id: WAF-AGN-040
+:pillar: agentic
+:severity: high
+:category: logging-monitoring
+:automatable: High
+:description: Memories and states must be managed consistently. Agent memory MUST be versioned and versioned memory stores MUST be used. State persistence MUST be configured to prevent data loss. Memory and state changes MUST be audited for compliance.
+
+[.metadata]
+*Säule:* Agentic | *Schweregrad:* Hoch | *Kategorie:* Logging Monitoring | *Automatisierbar:* High
 
 == Beschreibung
 
-Erinnerungen und Zustände müssen konsistent verwaltet werden. Agenten-Memory muss versioniert sein und versionierte Memory-Stores müssen verwendet werden. State-Persistence muss so konfiguriert sein, dass Datenverlust verhindert wird. Memory-Änderungen müssen auditiert werden.
+Memories and states must be managed consistently. Agent memory MUST be versioned and versioned memory stores MUST be used. State persistence MUST be configured to prevent data loss. Memory and state changes MUST be audited for compliance.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Inconsistent memory management leads to conflicting decisions and data inconsistencies.
+
+|*Risk* |Uncontrolled state persistence may leak sensitive contexts across sessions or tenants.
+
+|===
 
 == Anforderungen
 
-* Versionierter Memory-Speicher
-* Persistenter State-Speicher mit Backups
-* Audit-Logging für Memory-Änderungen
+* Memories and states must be managed consistently.
+* Agent memory MUST be versioned and versioned memory stores MUST be used.
+* State persistence MUST be configured to prevent data loss.
+* Memory and state changes MUST be audited for compliance.
 
-== Severity: High
+== Implementierungsleitfaden
 
-== Automatisierbar: High
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Rationale
+== Reifegrade
 
-Inkonsistente Speicherung von Agenten-Memory und State birgt erhebliche Risiken:
-
-*Datenverlust:* Ohne Persistenz können wichtige Kontextinformationen bei Systemausfällen verloren gehen.
-
-*Unvorhersehbares Verhalten:* Agenten können bei Wiederaufnahme inkonsistente Zustände haben, was zu Fehlentscheidungen führt.
-
-*Compliance-Lücken:* Regulatorische Rahmenwerke erfordern nachvollziehbare Datenverwaltung.
-
-*Debugging-Schwierigkeiten:* Fehler bei Memory-Operationen sind schwer zu diagnostizieren, wenn keine Logs vorliegen.
-
-== Anforderungen
-
-* Memory Storage muss versioniert sein
-* Persistent State Storage mit Backups muss konfiguriert sein
-* Audit-Logging für Memory-Änderungen muss aktiviert sein
-* Memory-Versionen müssen nachvollziehbar sein
-* State-Änderungen müssen protokolliert werden
-
-== Implementierungshinweise
-
-. *Versionierten Speicher konfigurieren:* DynamoDB-Tabellen mit Versionierung oder S3 mit Versionierung verwenden
-. *Backup-Strategie implementieren:* Point-in-Time-Recovery aktivieren
-. *Audit-Logging einrichten:* Streams oder Trigger für Audit-Logs konfigurieren
-. *State-Schema definieren:* Konsistentes Schema für State-Daten verwenden
-. *Monitoring einrichten:* Alarms für Memory-Operationen und -Fehler
-
-== Reifegradstufen
-
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Kriterien
 
-|*1*
-|Kein Memory
-|Keine Memory-Verwaltung. Keine State-Persistence.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basis-Speicherung
-|Einfacher Speicher ohne Versionierung. Keine Backups.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Versionierter Memory
-|Versionierte Memory-Speicher. Persistenter State mit Backups.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Verwaltung
-|Memory-Verwaltung wird automatisch durchgeführt. Echtzeit-Backups.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Predictive Memory
-|AI-Modelle vorhersagen Memory-Optimierungsbedarf.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
-=== waf-agn-040.tf.aws.memory-versioned
-*Prüft:* AWS Memory Storage ist versioniert konfiguriert.
+=== waf-agn-040.tf.aws.memory-versioning-enabled
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*Agent memory must be versioned*
+
+AWS Bedrock agent memory (sessions, context) must be versioned using DynamoDB versioned tables or S3 versioned buckets. Memory changes must be tracked with timestamps and version IDs.
+
+*Scope:* `resource` — `aws_dynamodb_table`, `aws_s3_bucket`
+
+*Assertions:*
+* `name` not empty — Memory table must have versioning configuration.
+
+*Remediation:* Configure versioning on DynamoDB tables or S3 buckets used for agent memory. Use AWS SDK to track memory version IDs with each agent interaction.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_s3_bucket" "agent_memory" {
-  bucket = "agent-memory-bucket"
+resource "aws_dynamodb_table" "agent_memory" {
+  name         = "agent-memory"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
 
-  versioning {
-    enabled = true
+  attribute {
+    name = "session_id"
+    type = "S"
   }
-}
 
+  attribute {
+    name = "version"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name = "version-index"
+    hash_key = "session_id"
+    range_key = "version"
+  }
+
+  # Versioning enabled via application logic
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_dynamodb_table" "agent-memory" {
+  name         = "agent-memory"
+  billing_mode = "PAY_PER_REQUEST"
+  # No versioning tracking
+  # WAF-AGN-040 Violation
+}
+----
+
+---
+
+=== waf-agn-040.tf.aws.state-persistence-enabled
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*Agent state must be persistently stored*
+
+Agent state (conversation history, context, preferences) must be persistently stored in DynamoDB, S3, or RDS. In-memory state (Redis/ElastiCache) must have replication and automatic backup configured.
+
+*Scope:* `resource` — `aws_dynamodb_table`, `aws_s3_bucket`, `aws_rds_cluster`
+
+*Assertions:*
+* `name` not empty — State storage must have persistence configured.
+
+*Remediation:* Configure persistent storage for agent state. Use DynamoDB tables with point-in-time recovery enabled, or S3 buckets with versioning. Configure backup policies for all state storage.
+
+.Compliant
+
+[source,terraform]
+----
 resource "aws_dynamodb_table" "agent_state" {
   name         = "agent-state"
   billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "agent_id"
 
   attribute {
     name = "agent_id"
     type = "S"
   }
-
-  billing_mode = "PAY_PER_REQUEST"
-}
-----
-|Keine Versionierung konfiguriert
-|===
-
-=== waf-agn-040.tf.aws.point-in-time-recovery
-*Prüft:* AWS DynamoDB Point-in-Time-Recovery ist aktiviert.
-
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
-
-a|[source,hcl]
-----
-resource "aws_dynamodb_table" "state" {
-  name         = "agent-state"
-  billing_mode = "PAY_PER_REQUEST"
 
   point_in_time_recovery {
     enabled = true
   }
 
-  attribute {
-    name = "agent_id"
-    type = "S"
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
   }
 }
 ----
-|Kein Point-in-Time-Recovery
-|===
 
-=== waf-agn-040.tf.google.bucket-versioning
-*Prüft:* Google Cloud Storage Buckets haben Versionierung aktiviert.
+.Non-Compliant
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
-
-a|[source,hcl]
+[source,terraform]
 ----
-resource "google_storage_bucket" "agent_memory" {
-  name     = "agent-memory-bucket"
-  location = "US"
+resource "aws_dynamodb_table" "no_persistence" {
+  name         = "temp-state"
+  billing_mode = "PAY_PER_REQUEST"
+  # No point-in-time recovery
+  # WAF-AGN-040 Violation
+}
+----
 
-  versioning {
-    enabled = true
+---
+
+=== waf-agn-040.tf.aws.memory-audit-logging
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*Memory and state changes must be audited*
+
+All memory and state modifications must be logged to CloudWatch Logs or CloudTrail. Logs must include agent ID, operation type (read/write/delete), timestamp, and data modified.
+
+*Scope:* `resource` — `aws_dynamodb_table`, `aws_cloudwatch_log_group`
+
+*Assertions:*
+* `stream_enabled` is true — Memory table must have stream enabled for audit logging.
+
+*Remediation:* Configure CloudWatch Logs or CloudTrail to capture memory/state changes. Use Lambda triggers on DynamoDB streams to log all modifications with full audit trail.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_cloudwatch_log_group" "memory_audit" {
+  name = "/aws/bedrock/memory-audit"
+}
+
+resource "aws_lambda_function" "memory_audit_log" {
+  function_name = "memory-audit-log"
+  # Triggers on DynamoDB stream
+  # Logs all modifications
+}
+
+resource "aws_dynamodb_table" "agent_memory" {
+  # With stream enabled for audit
+  stream_enabled = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_dynamodb_table" "no_audit" {
+  name = "agent-memory"
+  # No stream enabled, no audit logging
+  # WAF-AGN-040 Violation
+}
+----
+
+---
+
+=== waf-agn-040.tf.azurerm.cosmosdb-backup-configured
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Cosmos DB agent memory must have backup and versioning configured*
+
+Azure Cosmos DB accounts used for agent memory/state must have periodic backup configured to prevent data loss and enable recovery.
+
+*Scope:* `resource` — `azurerm_cosmosdb_account`
+
+*Assertions:*
+* `backup` attribute exists — Cosmos DB account used for agent memory must have backup configured.
+
+*Remediation:* Configure backup on azurerm_cosmosdb_account with periodic backup or continuous backup. Enable point-in-time restore where supported.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_cosmosdb_account" "agent_memory" {
+  name                = "agent-memory-cosmos"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  offer_type          = "Standard"
+  kind                = "GlobalDocumentDB"
+
+  backup {
+    type                = "Periodic"
+    interval_in_minutes = 240
+    retention_in_hours  = 168
+    storage_redundancy    = "Local"
   }
 }
 ----
-|Keine Versionierung
-|===
 
-=== waf-agn-040.tf.azure.blob-versioning
-*Prüft:* Azure Blob Storage hat Versionierung aktiviert.
+.Non-Compliant
 
-[cols="1,1"]
-|===
-|Compliant |Nicht compliant
-
-a|[source,hcl]
+[source,terraform]
 ----
-resource "azurerm_storage_account" "agent_storage" {
-  name                     = "agentstorage"
-  resource_group_name      = azurerm_resource_group.main.name
-  location                 = azurerm_resource_group.main.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
+resource "azurerm_cosmosdb_account" "agent_memory" {
+  name                = "agent-memory-cosmos"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  offer_type          = "Standard"
+  # No backup block configured
+  # WAF-AGN-040 Violation
+}
+----
 
-  blob_properties {
-    versioning_enabled = true
+---
+
+=== waf-agn-040.tf.google.firestore-backup-audit
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Firestore agent memory must have backup and audit logging configured*
+
+GCP Firestore databases used for agent memory/state must have backup (PITR) enabled and audit logging configured to track memory changes.
+
+*Scope:* `resource` — `google_firestore_database`, `google_logging_project_sink`
+
+*Assertions:*
+* `point_in_time_recovery_enablement` equals `POINT_IN_TIME_RECOVERY_ENABLED` — Firestore database must have point-in-time recovery enabled for agent memory.
+
+*Remediation:* Configure google_firestore_database with point_in_time_recovery_enablement enabled. Enable Cloud Audit Logs for datastore.googleapis.com.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_firestore_database" "agent_memory" {
+  name        = "agent-memory"
+  location_id = "eur3"
+  type        = "FIRESTORE_NATIVE"
+  point_in_time_recovery_enablement = "POINT_IN_TIME_RECOVERY_ENABLED"
+}
+
+resource "google_logging_project_sink" "firestore_audit" {
+  name        = "firestore-audit-sink"
+  destination = "bigquery.googleapis.com/projects/my-project/datasets/firestore_audit"
+  filter      = "protoPayload.serviceName="firestore.googleapis.com""
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_firestore_database" "agent_memory" {
+  name        = "agent-memory"
+  location_id = "eur3"
+  type        = "FIRESTORE_NATIVE"
+  # No point-in-time recovery enabled
+  # WAF-AGN-040 Violation
+}
+----
+
+---
+
+=== waf-agn-040.tf.stackit.agentic-memory-managed
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*Memories and states must be managed consistently for stackit*
+
+Memories and states must be managed consistently must be documented in IaC via a agentic-memory-managed tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the agentic-memory-managed tag/label.
+
+*Remediation:* Add a agentic-memory-managed tag/label to the stackit_project resource to show the stackit implementation of WAF-AGN-040 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    agentic-memory-managed = "true"
   }
 }
 ----
-|Keine Versionierung aktiviert
-|===
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing agentic-memory-managed labels
+}
+----
+
+---
+
+=== waf-agn-040.tf.ovh.agentic-memory-managed
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*Memories and states must be managed consistently for ovh*
+
+Memories and states must be managed consistently must be documented in IaC via a agentic-memory-managed tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the agentic-memory-managed tag/label.
+
+*Remediation:* Add a agentic-memory-managed tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-AGN-040 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    agentic-memory-managed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing agentic-memory-managed tags
+}
+----
+
+---
+
+=== waf-agn-040.tf.hcloud.agentic-memory-managed
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Memories and states must be managed consistently for hcloud*
+
+Memories and states must be managed consistently must be documented in IaC via a agentic-memory-managed tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the agentic-memory-managed tag/label.
+
+*Remediation:* Add a agentic-memory-managed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-AGN-040 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    agentic-memory-managed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing agentic-memory-managed labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Erforderlich |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Erforderlich
-|Memory-Storage-Konfiguration, Versionierungseinstellungen, Backup-Konfiguration.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Konfig*
-|✅ Erforderlich
-|Storage-Klassen, Retention-Policy, Audit-Logging-Einstellungen.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Prozess*
-|✅ Erforderlich
-|Memory-Verwaltungsberichte, Backup-Testergebnisse, Audit-Protokolle.
-
-|*Governance*
-|✅ Erforderlich
-|Memory & State Management Policy, die Anforderungen definiert.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Verwandte Controls
 
-* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
-* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
-* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-agentic:controls/WAF-AGN-030.adoc[WAF-AGN-030]
+* xref:pillar-agentic:controls/WAF-AGN-060.adoc[WAF-AGN-060]
+* xref:pillar-agentic:controls/WAF-AGN-070.adoc[WAF-AGN-070]
+* xref:pillar-agentic:controls/WAF-AGN-090.adoc[WAF-AGN-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+== Regulatorisches Mapping
 
-== Regulatorische Zuordnung
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
-|Rahmenwerk |Controls
+|Framework |Controls
 
-|*ISO 27001:2022*
-|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+|ISO 27001:2022 |* A.8.1 – Information security roles and responsibilities
+* A.8.2 – Privileged access rights
+* A.8.23 – Data leakage prevention
 
-|*NIST SP 800-53*
-|AU-2 – Event logging; AU-3 – Event content; SC-39 – Process isolation
+|ISO 27017 |* CLD.9.5 – Segregation in virtual computing environments
 
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.DP – Data protection
+|SOC 2 Type II |* CC4.1 – Monitoring activities
+* CC7.1 – Infrastructure and software monitoring
 
-|*GDPR*
-|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+|NIST SP 800-53 |* SC-28 – Storage protection
+* SC-39 – Process isolation
 
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 10 – Monitor and detect threats
+|NIST CSF 2.0 |* DE.CM – Continuous monitoring
+* DE.DP – Data protection
 
-|*TISAX*
-|Information security – Data management
+|GDPR |* Art. 32 – Security of processing
+* Art. 25 – Data protection by design
 
-|*ANSSI SecNumCloud*
-|Domain – Data protection
+|PCI DSS v4.0 |* Req 4 – Encryption of cardholder data
+* Req 8 – Identify and authenticate access
 
-|*BIO*
-|BIO – Gegevensbeheer (data management)
+|CSA STAR |* CCM Data Security and Privacy
 
-|*ENS High*
-|op.exp.6 – Gestión de cambios
+|BSI C5:2020 |* IDM-01 – Identity and access management policy
 
-|*UK NCSC CAF*
-|A4 – Policy and assurance
+|TISAX |* Information security – Data protection
 
-|*FedRAMP*
-|AU-2, AU-3, SC-39 (Moderate baseline)
+|ANSSI SecNumCloud |* Domain – Data protection
 
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Flow audit logs to central log management
+|BIO |* BIO – Gegevensbeveiliging
 
-|*IT-Grundschutz*
-|ORP.1 – Informationstechnisch-related Angriffsschutz
+|ENS High |* op.dat.5 – Protección de los datos
 
-|*IRAP*
-|ISM – Data protection
+|UK NCSC CAF |* B3 – Storage and processing
 
-|*CCCS PBMM*
-|AU-2, AU-3 – Logging and audit
+|FedRAMP |* SC-28, SC-39 (Moderate baseline)
 
-|*MAS TRM*
-|Ch.9 – Change management
+|CMMC 2.0 |* SC.L2-3.8.1 –Protect data at rest
 
-|*ISMAP*
-|Data protection controls
+|IT-Grundschutz |* ORP.5 – Informationstechnisch-related Schutz
 
-|*FISC*
-|Technical measures – Data protection
+|IRAP |* ISM – Data protection
 
-|*AWS Well-Architected Framework*
-|Security Pillar – Data protection; Reliability Pillar – Backup
+|CCCS PBMM |* SC-28 – Storage protection
 
-|*Google Cloud Architecture Framework*
-|Security – Data protection; Reliability – Backup
+|MAS TRM |* Ch.4 – Data management
 
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control
+|ISMAP |* Data protection controls
 
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
-
-|*CSA STAR*
-|CCM Logging and Monitoring
+|FISC |* Technical measures – Data protection
 
 |===

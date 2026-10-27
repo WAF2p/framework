@@ -1,0 +1,141 @@
+= WAF-SUS-120 – Batch- und HPC-Workloads müssen zeitverschoben (off-peak) aufsetzen, soweit SLA das zulässt
+:page-toc: right
+:control-id: WAF-SUS-120
+:pillar: sustainability
+:severity: low
+:category: sustainability-efficiency
+:automatable: Medium
+:description: Batch, report generation, HPC, and data processing workloads SHOULD be scheduled during off-peak or high-renewable-energy hours. Scheduler configurations MUST document SLA constraints and acceptable time windows. Preemptible/Spot capacity SHOULD be combined with off-peak scheduling where feasible. Energy and cost savings of time-shifting MUST be tracked and reported.
+
+[.metadata]
+*Säule:* Sustainability | *Schweregrad:* 🟢 Niedrig | *Kategorie:* Sustainability Efficiency | *Automatisierbar:* Medium
+
+== Beschreibung
+
+Batch, report generation, HPC, and data processing workloads SHOULD be scheduled during off-peak or high-renewable-energy hours. Scheduler configurations MUST document SLA constraints and acceptable time windows. Preemptible/Spot capacity SHOULD be combined with off-peak scheduling where feasible. Energy and cost savings of time-shifting MUST be tracked and reported.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Running batch workloads during peak hours wastes energy from high-carbon grid mix and increases cost.
+
+|*Risk* |Missing scheduling constraints can violate SLA or delay critical business processes.
+
+|===
+
+== Anforderungen
+
+* Batch, report generation, HPC, and data processing workloads SHOULD be scheduled during off-peak or high-renewable-energy hours.
+* Scheduler configurations MUST document SLA constraints and acceptable time windows.
+* Preemptible/Spot capacity SHOULD be combined with off-peak scheduling where feasible.
+* Energy and cost savings of time-shifting MUST be tracked and reported.
+
+== Implementierungsleitfaden
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Reifegrade
+
+[cols="1,2,4"]
+|===
+|Level |Name |Kriterien
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-sus-120.tf.aws.batch-schedule
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*AWS Batch Compute Environments sollten Spot und Off-Peak-Scheduling bevorzugen*
+
+AWS Batch Compute Environments sollten Spot und Off-Peak-Scheduling bevorzugen
+
+*Scope:* `resource` — aws_batch_compute_environment, aws_batch_job_queue
+
+*Assertions:*
+* `compute_resources.spot_iam_fleet_role` attribute_exists — Batch compute environment should use Spot capacity.
+
+*Remediation:* AWS Batch Compute Environments sollten Spot und Off-Peak-Scheduling bevorzugen
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sus-120.tf.aws.batch-schedule
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sus-120.tf.aws.batch-schedule
+----
+
+---
+
+=== waf-sus-120.config.off-peak-schedule
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*Off-Peak-Scheduling-Policy muss dokumentiert sein*
+
+Off-Peak-Scheduling-Policy muss dokumentiert sein
+
+*Scope:* `file` — `docs/sustainability/off-peak-scheduling.md`
+
+*Assertions:*
+* `exists` attribute_exists — Off-peak scheduling policy must define SLA windows.
+
+*Remediation:* Off-Peak-Scheduling-Policy muss dokumentiert sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sus-120.config.off-peak-schedule
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sus-120.config.off-peak-schedule
+----
+
+---
+
+
+== Evidenz
+
+* Terraform-Konfiguration, die die Anforderung umsetzt.
+* Policy, ADR oder Standard, der die Anforderung dokumentiert.
+* Optionale Cloud-Konsolen- oder API-Ausgaben, die den Laufzeit-Zustand bestätigen.
+
+== Verwandte Controls
+
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-sustainability:controls/WAF-SUS-110.adoc[WAF-SUS-110]
+* xref:pillar-cost:controls/WAF-COST-110.adoc[WAF-COST-110]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+== Regulatorisches Mapping
+
+* *EU CSRD (Corporate Sustainability Reporting Directive)*: ESRS E1 – Climate Change
+* *GHG Protocol*: Scope 2 – Market-based method
+* *Green Software Foundation*: Carbon Aware Computing – temporal shifting
+* *ISO 14001*: 6.1.2 – Environmental aspects
+

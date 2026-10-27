@@ -1,176 +1,283 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-060
 id: WAF-OPS-060
-title: 'Every production workload MUST have a runbook covering all known failure...'
+title: Every production workload MUST have a runbook covering all known failure...
 status: active
 tags:
-  - operational
-  - medium
-  - governance
-  - configuration
-pillar: operational
+- operational
+- medium
+- governance
+- configuration
+pillar: excellence
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'identity-access'
-rationale: |
-  Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths.
+- governance
+- configuration
+category: identity-access
+rationale: Unkontrollierte Identitäten und übermäßige Berechtigungen ermöglichen Datendiebstahl, Lateral Movement und unautorisierte
+  Änderungen an Produktivsystemen. Dieses Control adressiert die Anforderungen des Bereichs 'Identitäts- und Zugriffsmanagement'
+  und stellt sicher, dass Every production workload MUST have a runbook covering all known failure modes, routine operational
+  tasks, and escalation paths.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Runbooks not linked to alerts slow response to recurring disturbances.
+- Missing escalation instructions lead to uncoordinated ad-hoc reactions.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-060.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-060.adoc
+  related_controls:
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-COST-040
+  - WAF-COST-090
+  - WAF-SEC-030
+  - WAF-SEC-040
+  - WAF-SEC-080
+description: 'Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and
+  escalation paths. Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all
+  on-call engineers without authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link to the relevant
+  runbook section.
 
-description: |
-  Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths. Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all on-call engineers without authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link to the relevant runbook section.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Knowledge management'
-      - 'Incident management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Knowledge management'
-      - 'Incident management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 3: How do you understand your operations?'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC9.1 – Risk Mitigation Activities'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Knowledge management
+  - Incident management
+- framework: ITIL 4
+  controls:
+  - Knowledge management
+  - Incident management
+- framework: SOC 2 Type II
+  controls:
+  - CC9.1 – Risk Mitigation Activities
 checks:
-  - id: waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation
-    engine: terraform
-    automated: true
-    title: 'CloudWatch alarms must include runbook URL in description'
-    provider: aws
-    description: 'All CloudWatch metric alarms that trigger on-call notifications MUST include a runbook URL in the alarm_description to reduce mean time to resolution.'
-    expected: 'true'
-    remediation: 'Include a runbook URL in the alarm_description field: alarm_description = "Error rate exceeded. Runbook: https://wiki/runbooks/service-errors"\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_metric_alarm" "error_rate" {
-          alarm_name          = "payment-service-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 2
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApplicationELB"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          alarm_description   = "Payment service error rate high. Runbook: https://wiki/runbooks/payment-5xx"
-          alarm_actions       = [aws_sns_topic.oncall.arn]
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "error_rate" {
-          alarm_name          = "payment-service-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 2
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApplicationELB"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          alarm_description   = "High error rate"
-          # No runbook URL – WAF-OPS-060 Violation
-          alarm_actions       = [aws_sns_topic.oncall.arn]
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_metric_alarm
-    assertions:
-      - attribute: 'alarm_description'
-        op: 'matches'
-        message: 'CloudWatch alarm description must include a runbook URL (http:// or https://).'
-        pattern: 'https?://'
-    on_fail: violation
-  - id: waf-ops-060.tf.aws.prometheus-alert-runbook-label
-    engine: terraform
-    automated: true
-    title: 'Prometheus alert rules must include runbook_url annotation'
-    provider: aws
-    description: 'Prometheus alert rules managed in AWS Managed Prometheus MUST include a runbook_url annotation so on-call engineers have immediate access to remediation steps.'
-    expected: 'true'
-    remediation: 'Add runbook_url: "https://wiki/runbooks/<service>" annotation to all Prometheus alert rules.\n'
-    example:
-      compliant: |
-        resource "aws_prometheus_rule_group_namespace" "alerts" {
-          name         = "payment-service-alerts"
-          workspace_id = aws_prometheus_workspace.main.id
-          data         = <<-EOT
-            groups:
-              - name: payment-service
-                rules:
-                  - alert: HighErrorRate
-                    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
-                    for: 2m
-                    annotations:
-                      summary: "High error rate on payment service"
-                      runbook_url: "https://wiki/runbooks/payment-errors"
-          EOT
-        }
-        
-      non_compliant: |
-        resource "aws_prometheus_rule_group_namespace" "alerts" {
-          name         = "payment-service-alerts"
-          workspace_id = aws_prometheus_workspace.main.id
-          data         = <<-EOT
-            groups:
-              - name: payment-service
-                rules:
-                  - alert: HighErrorRate
-                    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
-                    # No runbook_url annotation – WAF-OPS-060 Violation
-          EOT
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_prometheus_rule_group_namespace
-    assertions:
-      - attribute: 'data'
-        op: 'matches'
-        message: 'Prometheus alert rules must include runbook_url annotation.'
-        pattern: 'runbook_url'
-    on_fail: violation
+- id: waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation
+  engine: terraform
+  automated: true
+  title: CloudWatch alarms must include runbook URL in description
+  provider: aws
+  description: All CloudWatch metric alarms that trigger on-call notifications MUST include a runbook URL in the alarm_description
+    to reduce mean time to resolution.
+  expected: 'true'
+  remediation: 'Include a runbook URL in the alarm_description field: alarm_description = "Error rate exceeded. Runbook: https://wiki/runbooks/service-errors"\n'
+  example:
+    compliant: "resource \"aws_cloudwatch_metric_alarm\" \"error_rate\" {\n  alarm_name          = \"payment-service-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 2\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApplicationELB\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  alarm_description   = \"Payment service error rate high. Runbook: https://wiki/runbooks/payment-5xx\"\
+      \n  alarm_actions       = [aws_sns_topic.oncall.arn]\n}\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"error_rate\" {\n  alarm_name          = \"payment-service-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 2\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApplicationELB\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  alarm_description   = \"High error rate\"\n  # No runbook URL – WAF-OPS-060 Violation\n  alarm_actions\
+      \       = [aws_sns_topic.oncall.arn]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_metric_alarm
+  assertions:
+  - attribute: alarm_description
+    op: matches
+    message: CloudWatch alarm description must include a runbook URL (http:// or https://).
+    pattern: https?://
+  on_fail: violation
+- id: waf-ops-060.tf.aws.prometheus-alert-runbook-label
+  engine: terraform
+  automated: true
+  title: Prometheus alert rules must include runbook_url annotation
+  provider: aws
+  description: Prometheus alert rules managed in AWS Managed Prometheus MUST include a runbook_url annotation so on-call engineers
+    have immediate access to remediation steps.
+  expected: 'true'
+  remediation: 'Add runbook_url: "https://wiki/runbooks/<service>" annotation to all Prometheus alert rules.\n'
+  example:
+    compliant: "resource \"aws_prometheus_rule_group_namespace\" \"alerts\" {\n  name         = \"payment-service-alerts\"\
+      \n  workspace_id = aws_prometheus_workspace.main.id\n  data         = <<-EOT\n    groups:\n      - name: payment-service\n\
+      \        rules:\n          - alert: HighErrorRate\n            expr: rate(http_requests_total{status=~\"5..\"}[5m])\
+      \ > 0.1\n            for: 2m\n            annotations:\n              summary: \"High error rate on payment service\"\
+      \n              runbook_url: \"https://wiki/runbooks/payment-errors\"\n  EOT\n}\n"
+    non_compliant: "resource \"aws_prometheus_rule_group_namespace\" \"alerts\" {\n  name         = \"payment-service-alerts\"\
+      \n  workspace_id = aws_prometheus_workspace.main.id\n  data         = <<-EOT\n    groups:\n      - name: payment-service\n\
+      \        rules:\n          - alert: HighErrorRate\n            expr: rate(http_requests_total{status=~\"5..\"}[5m])\
+      \ > 0.1\n            # No runbook_url annotation – WAF-OPS-060 Violation\n  EOT\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_prometheus_rule_group_namespace
+  assertions:
+  - attribute: data
+    op: matches
+    message: Prometheus alert rules must include runbook_url annotation.
+    pattern: runbook_url
+  on_fail: violation
+- id: waf-ops-060.tf.azurerm.monitor-alert-runbook
+  engine: terraform
+  automated: true
+  title: Azure Monitor alerts must include runbook or knowledge base links
+  provider: azurerm
+  description: Every azurerm_monitor_metric_alert that pages on-call MUST include a runbook or knowledge base URL in its description
+    or action webhook payload so responders can act immediately.
+  expected: 'true'
+  remediation: Add a runbook URL to the description field of every azurerm_monitor_metric_alert. Use action groups with webhook
+    payloads that include the runbook link and alert context.\n
+  example:
+    compliant: "resource \"azurerm_monitor_metric_alert\" \"errors\" {\n  name                = \"payment-service-errors\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  scopes              = [azurerm_application_insights.app.id]\n\
+      \n  criteria {\n    metric_namespace = \"Microsoft.Insights/components\"\n    metric_name      = \"requests/failed\"\
+      \n    aggregation      = \"Count\"\n    operator         = \"GreaterThan\"\n    threshold        = 10\n  }\n\n  description\
+      \ = \"High failed request rate. Runbook: https://wiki/runbooks/payment-errors\"\n\n  action {\n    action_group_id =\
+      \ azurerm_monitor_action_group.oncall.id\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_metric_alert\" \"errors\" {\n  name                = \"payment-service-errors\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  scopes              = [azurerm_application_insights.app.id]\n\
+      \  description       = \"High failed request rate\"\n  # No runbook link provided\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_metric_alert
+  assertions:
+  - attribute: description
+    op: matches
+    message: Azure Monitor alert description must include a runbook URL.
+    pattern: https?://
+  on_fail: finding
+- id: waf-ops-060.tf.google.monitoring-alert-runbook
+  engine: terraform
+  automated: true
+  title: GCP Monitoring alert policies must include runbook or documentation links
+  provider: google
+  description: Every google_monitoring_alert_policy that triggers on-call notifications MUST include a runbook or knowledge
+    base URL in its documentation block so responders have immediate remediation guidance.
+  expected: 'true'
+  remediation: Set the documentation field of every google_monitoring_alert_policy to include alert context and a runbook
+    URL. Keep documentation under version control alongside the Terraform configuration.\n
+  example:
+    compliant: "resource \"google_monitoring_alert_policy\" \"errors\" {\n  display_name = \"Payment Service High Error Rate\"\
+      \n  documentation {\n    content = \"High 5xx error rate on payment service. Runbook: https://wiki/runbooks/payment-errors\"\
+      \n    mime_type = \"text/markdown\"\n  }\n\n  conditions {\n    display_name = \"5xx rate above threshold\"\n    condition_threshold\
+      \ {\n      filter          = \"metric.type=\\\"logging.googleapis.com/user/payment_service_5xx\\\"\"\n      duration\
+      \        = \"300s\"\n      comparison      = \"COMPARISON_GT\"\n      threshold_value = 10\n    }\n  }\n\n  notification_channels\
+      \ = [google_monitoring_notification_channel.oncall.id]\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"errors\" {\n  display_name = \"Payment Service High Error\
+      \ Rate\"\n  # No documentation block with runbook link\n\n  conditions {\n    display_name = \"5xx rate above threshold\"\
+      \n    condition_threshold {\n      filter     = \"metric.type=\\\"logging.googleapis.com/user/payment_service_5xx\\\"\
+      \"\n      duration   = \"300s\"\n      comparison = \"COMPARISON_GT\"\n    }\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: documentation
+    op: attribute_exists
+    message: GCP alert policy must include a documentation block with runbook link.
+  on_fail: finding
+- id: waf-ops-060.tf.stackit.runbook-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for stackit
+  provider: stackit
+  description: Every production workload must be documented in IaC via a runbook-defined tag/label on stackit_project. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a runbook-defined tag/label to the stackit_project resource to show the stackit implementation of WAF-OPS-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    runbook-defined = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing runbook-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: runbook-defined
+    message: stackit_project is missing the runbook-defined tag/label.
+  on_fail: violation
+- id: waf-ops-060.tf.ovh.runbook-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for ovh
+  provider: ovh
+  description: Every production workload must be documented in IaC via a runbook-defined tag/label on ovh_cloud_project. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a runbook-defined tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-OPS-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    runbook-defined = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing runbook-defined tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: runbook-defined
+    message: ovh_cloud_project is missing the runbook-defined tag/label.
+  on_fail: violation
+- id: waf-ops-060.tf.hcloud.runbook-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for hcloud
+  provider: hcloud
+  description: Every production workload must be documented in IaC via a runbook-defined tag/label on hcloud_server. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a runbook-defined tag/label to the hcloud_server resource to show the hcloud implementation of WAF-OPS-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    runbook-defined = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing runbook-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: runbook-defined
+    message: hcloud_server is missing the runbook-defined tag/label.
+  on_fail: violation

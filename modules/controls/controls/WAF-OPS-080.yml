@@ -1,204 +1,282 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-080
 id: WAF-OPS-080
-title: 'Production deployments MUST use safe deployment patterns – canary releases,...'
+title: Production deployments MUST use safe deployment patterns – canary releases,...
 status: active
 tags:
-  - operational
-  - medium
-  - governance
-  - configuration
-pillar: operational
+- operational
+- medium
+- governance
+- configuration
+pillar: excellence
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'deployment-automation'
-rationale: |
-  Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable...
+- governance
+- configuration
+category: deployment-automation
+rationale: Manuelle Deployments und fehlende Qualitätsgates erhöhen das Risiko von Ausfällen, menschlichen Fehlern und nicht
+  reproduzierbaren Umgebungen. Dieses Control adressiert die Anforderungen des Bereichs 'Deployment-Automation' und stellt
+  sicher, dass Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature
+  flags – to reduce blast radius and enable fast.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Big-bang deployments can hit all users with failures at once and complicate rollbacks.
+- Missing canary or feature-flag mechanisms slow detection of regressive changes.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-080.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-080.adoc
+  related_controls:
+  - WAF-OPS-050
+  - WAF-OPS-010
+  - WAF-OPS-090
+  - WAF-OPS-040
+  - WAF-OPS-070
+  - WAF-OPS-030
+  - WAF-OPS-100
+  - WAF-OPS-020
+  - WAF-SUS-060
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature
+  flags – to reduce blast radius and enable fast rollback. New features with significant user impact MUST be gated behind
+  feature flags to allow controlled rollout and instant kill-switch capability. Deployments MUST be reversible without a new
+  deployment for at least 24 hours after release.
 
-description: |
-  Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable fast rollback. New features with significant user impact MUST be gated behind feature flags to allow controlled rollout and instant kill-switch capability. Deployments MUST be reversible without a new deployment for at least 24 hours after release.
+  '
 regulatory_mapping:
-  - framework: 'DevOps Research and Assessment (DORA)'
-    controls:
-      - 'Change Failure Rate'
-      - 'Mean Time to Restore'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 6: How do you deploy your workload?'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Release management'
-      - 'Change enablement'
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Change and deployment management'
+- framework: ITIL 4
+  controls:
+  - Release management
+  - Change enablement
+- framework: ISO/IEC 20000-1
+  controls:
+  - Change and deployment management
 checks:
-  - id: waf-ops-080.tf.aws.codedeploy-deployment-config
-    engine: terraform
-    automated: true
-    title: 'AWS CodeDeploy must use canary or linear deployment configuration'
-    provider: aws
-    description: 'AWS CodeDeploy deployment groups MUST use a deployment configuration that implements progressive delivery (canary or linear) rather than all-at-once for production.'
-    expected: 'true'
-    remediation: 'Set deployment_config_name to CodeDeployDefault.ECSCanary10Percent5Minutes or CodeDeployDefault.LambdaCanary10Percent5Minutes for production deployments.\n'
-    example:
-      compliant: |
-        resource "aws_codedeploy_deployment_group" "production" {
-          app_name               = aws_codedeploy_app.app.name
-          deployment_group_name  = "payment-service-production"
-          service_role_arn       = aws_iam_role.codedeploy.arn
-          deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
-        
-          auto_rollback_configuration {
-            enabled = true
-            events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_codedeploy_deployment_group" "production" {
-          app_name               = aws_codedeploy_app.app.name
-          deployment_group_name  = "payment-service-production"
-          service_role_arn       = aws_iam_role.codedeploy.arn
-          deployment_config_name = "CodeDeployDefault.AllAtOnce"
-          # All-at-once deployment – WAF-OPS-080 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_codedeploy_deployment_group
-    assertions:
-      - attribute: 'deployment_config_name'
-        op: 'not_in'
-        message: 'Production CodeDeploy must not use AllAtOnce – use canary or linear strategy.'
-    on_fail: violation
-  - id: waf-ops-080.tf.aws.appconfig-feature-flag
-    engine: terraform
-    automated: true
-    title: 'AWS AppConfig must be configured for feature flag management'
-    provider: aws
-    description: 'Feature flag configuration MUST be managed through AWS AppConfig or equivalent to enable runtime toggle without redeployment.'
-    expected: 'true'
-    remediation: 'Create an aws_appconfig_application with environments and configuration profiles for feature flag management.\n'
-    example:
-      compliant: |
-        resource "aws_appconfig_application" "feature_flags" {
-          name        = "payment-service-feature-flags"
-          description = "Feature flags for payment service"
-        }
-        
-        resource "aws_appconfig_environment" "production" {
-          name           = "production"
-          application_id = aws_appconfig_application.feature_flags.id
-        }
-        
-        resource "aws_appconfig_configuration_profile" "flags" {
-          name           = "payment-features"
-          application_id = aws_appconfig_application.feature_flags.id
-          location_uri   = "hosted"
-          type           = "AWS.AppConfig.FeatureFlags"
-        }
-        
-      non_compliant: |
-        # No AppConfig or feature flag infrastructure defined
-        # Feature flags hardcoded in application code or environment variables
-        # WAF-OPS-080 Violation
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_appconfig_application
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'AppConfig application must have a non-empty name.'
-    on_fail: violation
-  - id: waf-ops-080.tf.azurerm.traffic-manager-canary
-    engine: terraform
-    automated: true
-    title: 'Azure Traffic Manager must configure weighted routing for canary deployments'
-    provider: azurerm
-    description: 'Azure Traffic Manager profiles used for production traffic MUST support weighted routing to enable canary deployments with controlled traffic splits.'
-    expected: 'true'
-    remediation: 'Set traffic_routing_method to "Weighted" to enable canary deployment traffic splits.\n'
-    example:
-      compliant: |
-        resource "azurerm_traffic_manager_profile" "canary" {
-          name                   = "payment-service-canary"
-          resource_group_name    = azurerm_resource_group.main.name
-          traffic_routing_method = "Weighted"
-        
-          dns_config {
-            relative_name = "payment-service"
-            ttl           = 30
-          }
-        
-          monitor_config {
-            protocol                     = "HTTPS"
-            port                         = 443
-            path                         = "/health"
-            expected_status_code_ranges  = ["200-299"]
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_traffic_manager_profile" "main" {
-          name                   = "payment-service"
-          resource_group_name    = azurerm_resource_group.main.name
-          traffic_routing_method = "Priority"
-          # Priority routing doesn't support canary splits – WAF-OPS-080 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_traffic_manager_profile
-    assertions:
-      - attribute: 'traffic_routing_method'
-        op: 'in'
-        message: 'Traffic Manager routing method must support weighted traffic for canary deployments.'
-    on_fail: violation
+- id: waf-ops-080.tf.aws.codedeploy-deployment-config
+  engine: terraform
+  automated: true
+  title: AWS CodeDeploy must use canary or linear deployment configuration
+  provider: aws
+  description: AWS CodeDeploy deployment groups MUST use a deployment configuration that implements progressive delivery (canary
+    or linear) rather than all-at-once for production.
+  expected: 'true'
+  remediation: Set deployment_config_name to CodeDeployDefault.ECSCanary10Percent5Minutes or CodeDeployDefault.LambdaCanary10Percent5Minutes
+    for production deployments.\n
+  example:
+    compliant: "resource \"aws_codedeploy_deployment_group\" \"production\" {\n  app_name               = aws_codedeploy_app.app.name\n\
+      \  deployment_group_name  = \"payment-service-production\"\n  service_role_arn       = aws_iam_role.codedeploy.arn\n\
+      \  deployment_config_name = \"CodeDeployDefault.ECSCanary10Percent5Minutes\"\n\n  auto_rollback_configuration {\n  \
+      \  enabled = true\n    events  = [\"DEPLOYMENT_FAILURE\", \"DEPLOYMENT_STOP_ON_ALARM\"]\n  }\n}\n"
+    non_compliant: "resource \"aws_codedeploy_deployment_group\" \"production\" {\n  app_name               = aws_codedeploy_app.app.name\n\
+      \  deployment_group_name  = \"payment-service-production\"\n  service_role_arn       = aws_iam_role.codedeploy.arn\n\
+      \  deployment_config_name = \"CodeDeployDefault.AllAtOnce\"\n  # All-at-once deployment – WAF-OPS-080 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_codedeploy_deployment_group
+  assertions:
+  - attribute: deployment_config_name
+    op: not_in
+    message: Production CodeDeploy must not use AllAtOnce – use canary or linear strategy.
+    expected:
+    - 0.0.0.0/0
+    - ''
+  on_fail: violation
+- id: waf-ops-080.tf.aws.appconfig-feature-flag
+  engine: terraform
+  automated: true
+  title: AWS AppConfig must be configured for feature flag management
+  provider: aws
+  description: Feature flag configuration MUST be managed through AWS AppConfig or equivalent to enable runtime toggle without
+    redeployment.
+  expected: 'true'
+  remediation: Create an aws_appconfig_application with environments and configuration profiles for feature flag management.\n
+  example:
+    compliant: "resource \"aws_appconfig_application\" \"feature_flags\" {\n  name        = \"payment-service-feature-flags\"\
+      \n  description = \"Feature flags for payment service\"\n}\n\nresource \"aws_appconfig_environment\" \"production\"\
+      \ {\n  name           = \"production\"\n  application_id = aws_appconfig_application.feature_flags.id\n}\n\nresource\
+      \ \"aws_appconfig_configuration_profile\" \"flags\" {\n  name           = \"payment-features\"\n  application_id = aws_appconfig_application.feature_flags.id\n\
+      \  location_uri   = \"hosted\"\n  type           = \"AWS.AppConfig.FeatureFlags\"\n}\n"
+    non_compliant: '# No AppConfig or feature flag infrastructure defined
+
+      # Feature flags hardcoded in application code or environment variables
+
+      # WAF-OPS-080 Violation
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_appconfig_application
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: AppConfig application must have a non-empty name.
+  on_fail: violation
+- id: waf-ops-080.tf.azurerm.traffic-manager-canary
+  engine: terraform
+  automated: true
+  title: Azure Traffic Manager must configure weighted routing for canary deployments
+  provider: azurerm
+  description: Azure Traffic Manager profiles used for production traffic MUST support weighted routing to enable canary deployments
+    with controlled traffic splits.
+  expected: 'true'
+  remediation: Set traffic_routing_method to "Weighted" to enable canary deployment traffic splits.\n
+  example:
+    compliant: "resource \"azurerm_traffic_manager_profile\" \"canary\" {\n  name                   = \"payment-service-canary\"\
+      \n  resource_group_name    = azurerm_resource_group.main.name\n  traffic_routing_method = \"Weighted\"\n\n  dns_config\
+      \ {\n    relative_name = \"payment-service\"\n    ttl           = 30\n  }\n\n  monitor_config {\n    protocol      \
+      \               = \"HTTPS\"\n    port                         = 443\n    path                         = \"/health\"\n\
+      \    expected_status_code_ranges  = [\"200-299\"]\n  }\n}\n"
+    non_compliant: "resource \"azurerm_traffic_manager_profile\" \"main\" {\n  name                   = \"payment-service\"\
+      \n  resource_group_name    = azurerm_resource_group.main.name\n  traffic_routing_method = \"Priority\"\n  # Priority\
+      \ routing doesn't support canary splits – WAF-OPS-080 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_traffic_manager_profile
+  assertions:
+  - attribute: traffic_routing_method
+    op: in
+    message: Traffic Manager routing method must support weighted traffic for canary deployments.
+    expected:
+    - Weighted
+  on_fail: violation
+- id: waf-ops-080.tf.google.cloud-run-traffic-split
+  engine: terraform
+  automated: true
+  title: GCP Cloud Run services must use safe traffic-split deployments
+  provider: google
+  description: GCP Cloud Run services used in production MUST define traffic blocks that split traffic between revisions (canary/blue-green)
+    rather than sending 100% to a single revision. Feature flags should be managed via a dedicated configuration resource.
+  expected: 'true'
+  remediation: Configure google_cloud_run_service traffic blocks with split percentages across revisions. For GKE workloads,
+    use Gateway API or Traffic Splitting. Manage kill-switches via a feature flag provider.\n
+  example:
+    compliant: "resource \"google_cloud_run_service\" \"payment\" {\n  name     = \"payment-service\"\n  location = var.region\n\
+      \n  template {\n    spec {\n      containers {\n        image = var.image\n      }\n    }\n  }\n\n  traffic {\n    percent\
+      \         = 90\n    revision_name   = \"payment-service-00001\"\n  }\n\n  traffic {\n    percent         = 10\n    revision_name\
+      \   = \"payment-service-00002\"\n    tag             = \"canary\"\n  }\n}\n"
+    non_compliant: "resource \"google_cloud_run_service\" \"payment\" {\n  name     = \"payment-service\"\n  location = var.region\n\
+      \n  traffic {\n    percent       = 100\n    revision_name = \"payment-service-00002\"\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_run_service
+  assertions:
+  - attribute: traffic
+    op: attribute_exists
+    message: Cloud Run service must define traffic splitting across revisions.
+  on_fail: finding
+- id: waf-ops-080.tf.stackit.ske-safe-rollout
+  engine: terraform
+  automated: true
+  title: STACKIT Kubernetes deployments must use safe rollout strategy
+  provider: stackit
+  description: STACKIT Kubernetes deployments must use safe rollout strategy. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n\
+      \  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_ske_cluster
+  assertions:
+  - attribute: maintenance_window
+    op: attribute_exists
+    message: STACKIT SKE cluster must define a maintenance window for safe rollouts.
+  on_fail: violation
+- id: waf-ops-080.tf.ovh.kube-safe-rollout
+  engine: terraform
+  automated: true
+  title: OVHcloud Kubernetes deployments must use safe rollout strategy
+  provider: ovh
+  description: OVHcloud Kubernetes deployments must use safe rollout strategy. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_kube\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_kube\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_kube_nodepool
+  assertions:
+  - attribute: update_strategy
+    op: attribute_exists
+    message: OVHcloud Kubernetes cluster/nodepool should define an update strategy.
+  on_fail: violation
+- id: waf-ops-080.tf.hcloud.server-safe-maintenance
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud production changes must use safe rollout practices
+  provider: hcloud
+  description: Hetzner Cloud production changes must use safe rollout practices. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+    - hcloud_placement_group
+  assertions:
+  - attribute: labels.safe-rollout
+    op: key_exists
+    key: safe-rollout
+    message: Hetzner Cloud server must be marked with safe-rollout label.
+  on_fail: violation

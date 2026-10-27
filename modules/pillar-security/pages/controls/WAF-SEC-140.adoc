@@ -1,0 +1,207 @@
+= WAF-SEC-140 – Web Application Firewall (WAF) und DDoS-Schutz müssen für öffentliche Endpunkte aktiviert sein
+:page-toc: right
+:control-id: WAF-SEC-140
+:pillar: security
+:severity: high
+:category: network-security
+:automatable: High
+:description: All internet-facing applications and APIs MUST be protected by a Web Application Firewall (WAF) with managed rule sets. Distributed Denial-of-Service (DDoS) protection MUST be enabled at the network and application layers. WAF rules MUST block common attack patterns (OWASP Top 10) and be reviewed quarterly. Rate limiting MUST be configured to mitigate abuse and volumetric attacks.
+
+[.metadata]
+*Säule:* Security | *Schweregrad:* 🟠 Hoch | *Kategorie:* Network Security | *Automatisierbar:* High
+
+== Beschreibung
+
+All internet-facing applications and APIs MUST be protected by a Web Application Firewall (WAF) with managed rule sets. Distributed Denial-of-Service (DDoS) protection MUST be enabled at the network and application layers. WAF rules MUST block common attack patterns (OWASP Top 10) and be reviewed quarterly. Rate limiting MUST be configured to mitigate abuse and volumetric attacks.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Unprotected public endpoints are directly exposed to SQL injection, XSS, and other OWASP Top 10 attacks.
+
+|*Risk* |Missing DDoS protection allows trivial disruption of services by saturating network or application capacity.
+
+|===
+
+== Anforderungen
+
+* All internet-facing applications and APIs MUST be protected by a Web Application Firewall (WAF) with managed rule sets.
+* Distributed Denial-of-Service (DDoS) protection MUST be enabled at the network and application layers.
+* WAF rules MUST block common attack patterns (OWASP Top 10) and be reviewed quarterly.
+* Rate limiting MUST be configured to mitigate abuse and volumetric attacks.
+
+== Implementierungsleitfaden
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Reifegrade
+
+[cols="1,2,4"]
+|===
+|Level |Name |Kriterien
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-sec-140.tf.aws.waf-associated
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*Öffentliche AWS ALB/CloudFront-Distributionen müssen mit einer WAFv2 WebACL verbunden sein*
+
+Öffentliche AWS ALB/CloudFront-Distributionen müssen mit einer WAFv2 WebACL verbunden sein
+
+*Scope:* `resource` — aws_wafv2_web_acl_association, aws_cloudfront_distribution
+
+*Assertions:*
+* `web_acl_arn` attribute_exists — Public resource must be associated with a WAFv2 WebACL.
+
+*Remediation:* Öffentliche AWS ALB/CloudFront-Distributionen müssen mit einer WAFv2 WebACL verbunden sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sec-140.tf.aws.waf-associated
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sec-140.tf.aws.waf-associated
+----
+
+---
+
+=== waf-sec-140.tf.azurerm.front-door-waf
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Front Door/CDN muss eine WAF-Policy mit Managed Rules verwenden*
+
+Azure Front Door/CDN muss eine WAF-Policy mit Managed Rules verwenden
+
+*Scope:* `resource` — azurerm_cdn_endpoint_security_policy, azurerm_frontdoor_firewall_policy
+
+*Assertions:*
+* `managed_rule` attribute_exists — WAF policy must include managed rule sets.
+
+*Remediation:* Azure Front Door/CDN muss eine WAF-Policy mit Managed Rules verwenden
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sec-140.tf.azurerm.front-door-waf
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sec-140.tf.azurerm.front-door-waf
+----
+
+---
+
+=== waf-sec-140.tf.google.cloud-armor
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP-Backend-Dienste müssen durch eine Cloud Armor Security Policy geschützt sein*
+
+GCP-Backend-Dienste müssen durch eine Cloud Armor Security Policy geschützt sein
+
+*Scope:* `resource` — google_compute_backend_service, google_compute_backend_bucket
+
+*Assertions:*
+* `security_policy` attribute_exists — Backend service must reference a Cloud Armor security policy.
+
+*Remediation:* GCP-Backend-Dienste müssen durch eine Cloud Armor Security Policy geschützt sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sec-140.tf.google.cloud-armor
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sec-140.tf.google.cloud-armor
+----
+
+---
+
+=== waf-sec-140.config.sovereign-provider-waf-documented
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*Öffentliche Endpunkte bei Sovereign-Providern müssen WAF/DDoS-Konfiguration dokumentieren*
+
+Öffentliche Endpunkte bei Sovereign-Providern müssen WAF/DDoS-Konfiguration dokumentieren
+
+*Scope:* `file` — `docs/security/waf-ddos.md`
+
+*Assertions:*
+* `exists` attribute_exists — WAF/DDoS documentation must exist for sovereign provider public endpoints.
+
+*Remediation:* Öffentliche Endpunkte bei Sovereign-Providern müssen WAF/DDoS-Konfiguration dokumentieren
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sec-140.config.sovereign-provider-waf-documented
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sec-140.config.sovereign-provider-waf-documented
+----
+
+---
+
+
+== Evidenz
+
+* Terraform-Konfiguration, die die Anforderung umsetzt.
+* Policy, ADR oder Standard, der die Anforderung dokumentiert.
+* Optionale Cloud-Konsolen- oder API-Ausgaben, die den Laufzeit-Zustand bestätigen.
+
+== Verwandte Controls
+
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-050.adoc[WAF-SEC-050]
+* xref:pillar-security:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+* xref:pillar-security:controls/WAF-SEC-160.adoc[WAF-SEC-160]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-reliability:controls/WAF-REL-110.adoc[WAF-REL-110]
+* xref:pillar-agentic:controls/WAF-AGN-110.adoc[WAF-AGN-110]
+== Regulatorisches Mapping
+
+* *ISO 27001:2022*: A.8.9 – Configuration management, A.8.16 – Monitoring activities, A.8.23 – Web filtering
+* *CIS Controls v8*: CIS 13 – Network Monitoring and Defense
+* *PCI DSS v4.0*: Req 1 – Install and maintain network security controls, Req 6.4 – Prevent common vulnerabilities
+* *SOC 2 Type II*: CC6.6 – Security infrastructure and software, CC7.2 – System monitoring
+* *GDPR*: Art. 32 – Security of processing
+* *NIS2*: Art. 21(2)(d) – Network and information security
+* *DORA*: Art. 9 – Protection and prevention
+* *EUCS (ENISA)*: NS-03 – Network security
+* *BSI C5:2020*: INF-03 – Network security, INF-04 – Communication security
+* *NIST SP 800-53*: SC-7 – Boundary Protection, SI-4 – Information System Monitoring
+* *NIST CSF 2.0*: PR.DS-01 – Data security
+

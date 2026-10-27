@@ -1,0 +1,111 @@
+id: WAF-OPS-120
+title: Feature flags MUST be available and documented for high-risk changes
+status: active
+tags:
+- configuration
+- excellence
+- governance
+- medium
+pillar: excellence
+severity: medium
+type:
+- governance
+- configuration
+category: deployment-automation
+rationale: Fehlende GitOps-Praktiken und unverwaltete Feature Flags erhöhen das Risiko menschlicher Fehler und nicht reproduzierbarer
+  Deployments. Dieses Control adressiert die Anforderungen des Bereichs 'Deployment Automation' und stellt sicher, dass Risky
+  or customer-visible feature rollouts MUST use feature flags with defined targeting and kill-sw...
+threat:
+- Releases without feature flags force rollbacks for every production issue, increasing MTTR.
+- Orphaned feature flags create technical debt and unpredictable code paths.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-120.adoc
+  related_controls:
+  - WAF-OPS-020
+  - WAF-OPS-030
+  - WAF-OPS-050
+  - WAF-OPS-110
+  - WAF-REL-110
+  - WAF-REL-120
+description: Risky or customer-visible feature rollouts MUST use feature flags with defined targeting and kill-switch capability.
+  Feature flag configurations MUST be version-controlled and auditable. Flag lifecycle MUST be managed so temporary flags
+  are removed after rollout completes. Critical paths MUST support immediate disablement without requiring a full deployment.
+regulatory_mapping:
+- framework: SRE Book (Google)
+  controls:
+  - Chapter 16 – Debugging
+- framework: AWS Well-Architected Framework
+  controls:
+  - OPS 8 – Improve processes
+- framework: Azure Well-Architected Framework
+  controls:
+  - Operational Excellence – Safe deployment practices
+checks:
+- id: waf-ops-120.config.feature-flag-policy
+  engine: config
+  provider: any
+  automated: false
+  title: Feature flag policy must exist
+  description: Feature flag policy must exist
+  expected: 'true'
+  remediation: Feature flag policy must exist
+  scope:
+    block_type: file
+    path_pattern: docs/devops/feature-flag-policy.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Feature flag policy must define kill-switch and lifecycle.
+  on_fail: finding
+- id: waf-ops-120.tf.aws.appconfig-flags
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS AppConfig feature flags should be used
+  description: AWS AppConfig feature flags should be used
+  expected: 'true'
+  remediation: AWS AppConfig feature flags should be used
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_appconfig_extension_association
+    - aws_appconfig_configuration_profile
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: AppConfig resources must exist for feature flags.
+  on_fail: advisory

@@ -1,0 +1,143 @@
+= WAF-REL-130 – Disaster-Recovery-Pläne müssen jährlich getestet und dokumentiert sein
+:page-toc: right
+:control-id: WAF-REL-130
+:pillar: reliability
+:severity: high
+:category: backup-recovery
+:automatable: Low
+:description: Every critical workload MUST have a documented disaster recovery plan with defined RTO and RPO. DR plans MUST be exercised at least annually through tabletop, failover, or full recovery tests. Test results and corrective actions MUST be documented and tracked to completion. DR runbooks MUST be reviewed after each test and after significant architecture changes.
+
+[.metadata]
+*Säule:* Reliability | *Schweregrad:* 🟠 Hoch | *Kategorie:* Backup Recovery | *Automatisierbar:* Low
+
+== Beschreibung
+
+Every critical workload MUST have a documented disaster recovery plan with defined RTO and RPO. DR plans MUST be exercised at least annually through tabletop, failover, or full recovery tests. Test results and corrective actions MUST be documented and tracked to completion. DR runbooks MUST be reviewed after each test and after significant architecture changes.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Untested DR plans often miss critical gaps in network, identity, or data dependencies.
+
+|*Risk* |Outdated DR procedures extend recovery time and increase data loss during real disasters.
+
+|===
+
+== Anforderungen
+
+* Every critical workload MUST have a documented disaster recovery plan with defined RTO and RPO.
+* DR plans MUST be exercised at least annually through tabletop, failover, or full recovery tests.
+* Test results and corrective actions MUST be documented and tracked to completion.
+* DR runbooks MUST be reviewed after each test and after significant architecture changes.
+
+== Implementierungsleitfaden
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Reifegrade
+
+[cols="1,2,4"]
+|===
+|Level |Name |Kriterien
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-rel-130.config.dr-plan-documented
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*DR-Plan mit RTO/RPO muss dokumentiert sein*
+
+DR-Plan mit RTO/RPO muss dokumentiert sein
+
+*Scope:* `file` — `docs/reliability/disaster-recovery-plan.md`
+
+*Assertions:*
+* `exists` attribute_exists — DR plan must define RTO, RPO, and test schedule.
+
+*Remediation:* DR-Plan mit RTO/RPO muss dokumentiert sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-rel-130.config.dr-plan-documented
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-rel-130.config.dr-plan-documented
+----
+
+---
+
+=== waf-rel-130.config.dr-test-evidence
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*Jährliche DR-Test-Evidenz muss existieren*
+
+Jährliche DR-Test-Evidenz muss existieren
+
+*Scope:* `file` — `docs/reliability/dr-test-evidence.md`
+
+*Assertions:*
+* `exists` attribute_exists — DR test evidence within last 12 months must exist.
+
+*Remediation:* Jährliche DR-Test-Evidenz muss existieren
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-rel-130.config.dr-test-evidence
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-rel-130.config.dr-test-evidence
+----
+
+---
+
+
+== Evidenz
+
+* Terraform-Konfiguration, die die Anforderung umsetzt.
+* Policy, ADR oder Standard, der die Anforderung dokumentiert.
+* Optionale Cloud-Konsolen- oder API-Ausgaben, die den Laufzeit-Zustand bestätigen.
+
+== Verwandte Controls
+
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+* xref:pillar-reliability:controls/WAF-REL-070.adoc[WAF-REL-070]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-060.adoc[WAF-OPS-060]
+* xref:pillar-sovereign:controls/WAF-SOV-120.adoc[WAF-SOV-120]
+== Regulatorisches Mapping
+
+* *ISO 27001:2022*: A.8.13 – Information backup, A.8.14 – Redundancy of information processing facilities
+* *BSI C5:2020*: OPS-06 – Operational continuity / Exit management
+* *DORA*: Art. 12 – ICT-related incident management
+* *GDPR*: Art. 32 – Security of processing
+* *SOC 2 Type II*: A1.2 – Failover and recovery
+* *NIST SP 800-53*: CP-4 – Contingency Plan Testing
+

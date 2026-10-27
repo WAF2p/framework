@@ -1,195 +1,285 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-030
 id: WAF-OPS-030
-title: 'Every production workload MUST emit structured logs, expose metrics, and...'
+title: Every production workload MUST emit structured logs, expose metrics, and...
 status: active
 tags:
-  - operational
-  - high
-  - governance
-  - configuration
-pillar: operational
+- operational
+- high
+- governance
+- configuration
+pillar: excellence
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  Every production workload MUST emit structured logs, expose metrics, and support distributed tracing.
+- governance
+- configuration
+category: logging-monitoring
+rationale: Unzureichende Beobachtbarkeit verzögert die Erkennung von Incidents, erschwert die Fehleranalyse und verhindert
+  wirksame Audit-Nachweise. Dieses Control adressiert die Anforderungen des Bereichs 'Logging und Monitoring' und stellt sicher,
+  dass Every production workload MUST emit structured logs, expose metrics, and support distributed tracing.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Unstructured logs and missing metrics delay troubleshooting and incident detection.
+- Without centralized observability data, SLO breaches and security incidents cannot be correlated.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-030.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-030.adoc
+  related_controls:
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-REL-060
+  - WAF-SOV-030
+  - WAF-SUS-040
+description: 'Every production workload MUST emit structured logs, expose metrics, and support distributed tracing. An observability
+  stack MUST be configured with centralized log aggregation, a metrics collection system, and distributed tracing. Logs MUST
+  be structured (JSON), include trace IDs and request IDs, and be routed to a centralized platform with defined retention
+  periods.
 
-description: |
-  Every production workload MUST emit structured logs, expose metrics, and support distributed tracing. An observability stack MUST be configured with centralized log aggregation, a metrics collection system, and distributed tracing. Logs MUST be structured (JSON), include trace IDs and request IDs, and be routed to a centralized platform with defined retention periods.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Monitoring, measurement, analysis, and evaluation'
-      - 'Service availability management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Monitoring and event management'
-      - 'Service configuration management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 7: How do you understand the health of your workload?'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC7.1 – Detect and Monitor – Vulnerability and Threat Detection'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'OIS-10 Protokollierung und Monitoring'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Monitoring, measurement, analysis, and evaluation
+  - Service availability management
+- framework: ITIL 4
+  controls:
+  - Monitoring and event management
+  - Service configuration management
+- framework: SOC 2 Type II
+  controls:
+  - CC7.1 – Detect and Monitor – Vulnerability and Threat Detection
+- framework: BSI C5:2020
+  controls:
+  - OIS-10 Protokollierung und Monitoring
 checks:
-  - id: waf-ops-030.tf.aws.cloudwatch-log-group-retention
-    engine: terraform
-    automated: true
-    title: 'CloudWatch log groups must define retention period'
-    provider: aws
-    description: 'All AWS CloudWatch log groups MUST define a retention_in_days value. Log groups without retention will accumulate indefinitely, increasing costs and violating data governance requirements.'
-    expected: 'true'
-    remediation: 'Add retention_in_days to all aws_cloudwatch_log_group resources. Recommended: 90 days for application logs, 365 days for security/audit logs.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_log_group" "app_logs" {
-          name              = "/aws/ecs/payment-service"
-          retention_in_days = 90
-          tags = {
-            environment = "production"
-            workload    = "payment-service"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_log_group" "app_logs" {
-          name = "/aws/ecs/payment-service"
-          # No retention_in_days – logs stored indefinitely
-          # WAF-OPS-030 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_log_group
-    assertions:
-      - attribute: 'retention_in_days'
-        op: 'attribute_exists'
-        message: 'CloudWatch log group must define retention_in_days.'
-      - attribute: 'retention_in_days'
-        op: 'greater_than_or_equal'
-        message: 'Log group retention must be at least 30 days.'
-    on_fail: violation
-  - id: waf-ops-030.tf.aws.xray-tracing-enabled
-    engine: terraform
-    automated: true
-    title: 'AWS Lambda functions must have X-Ray tracing enabled'
-    provider: aws
-    description: 'AWS Lambda functions in production MUST have X-Ray tracing enabled to support distributed request tracing and latency analysis.'
-    expected: 'true'
-    remediation: 'Add tracing_config { mode = "Active" } to all aws_lambda_function resources.\n'
-    example:
-      compliant: |
-        resource "aws_lambda_function" "processor" {
-          function_name = "payment-processor"
-          role          = aws_iam_role.lambda_exec.arn
-          handler       = "index.handler"
-          runtime       = "nodejs20.x"
-        
-          tracing_config {
-            mode = "Active"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_lambda_function" "processor" {
-          function_name = "payment-processor"
-          role          = aws_iam_role.lambda_exec.arn
-          handler       = "index.handler"
-          runtime       = "nodejs20.x"
-          # No tracing_config – WAF-OPS-030 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lambda_function
-    assertions:
-      - attribute: 'tracing_config.mode'
-        op: 'not_in'
-        message: 'Lambda tracing mode must be Active, not PassThrough.'
-    on_fail: violation
-  - id: waf-ops-030.tf.azurerm.log-analytics-workspace
-    engine: terraform
-    automated: true
-    title: 'Azure Log Analytics workspace must be configured with retention'
-    provider: azurerm
-    description: 'Azure deployments MUST configure a Log Analytics workspace with an appropriate retention period for centralized log aggregation.'
-    expected: 'true'
-    remediation: 'Set retention_in_days to at least 90 for application logs in the azurerm_log_analytics_workspace resource.\n'
-    example:
-      compliant: |
-        resource "azurerm_log_analytics_workspace" "main" {
-          name                = "law-payment-service-prod"
-          location            = var.location
-          resource_group_name = azurerm_resource_group.main.name
-          sku                 = "PerGB2018"
-          retention_in_days   = 90
-        }
-        
-      non_compliant: |
-        resource "azurerm_log_analytics_workspace" "main" {
-          name                = "law-payment-service-prod"
-          location            = var.location
-          resource_group_name = azurerm_resource_group.main.name
-          sku                 = "PerGB2018"
-          retention_in_days   = 7
-          # 7 days is insufficient – WAF-OPS-030 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_log_analytics_workspace
-    assertions:
-      - attribute: 'retention_in_days'
-        op: 'greater_than_or_equal'
-        message: 'Log Analytics workspace retention must be at least 30 days.'
-    on_fail: violation
+- id: waf-ops-030.tf.aws.cloudwatch-log-group-retention
+  engine: terraform
+  automated: true
+  title: CloudWatch log groups must define retention period
+  provider: aws
+  description: All AWS CloudWatch log groups MUST define a retention_in_days value. Log groups without retention will accumulate
+    indefinitely, increasing costs and violating data governance requirements.
+  expected: 'true'
+  remediation: 'Add retention_in_days to all aws_cloudwatch_log_group resources. Recommended: 90 days for application logs,
+    365 days for security/audit logs.\n'
+  example:
+    compliant: "resource \"aws_cloudwatch_log_group\" \"app_logs\" {\n  name              = \"/aws/ecs/payment-service\"\n\
+      \  retention_in_days = 90\n  tags = {\n    environment = \"production\"\n    workload    = \"payment-service\"\n  }\n\
+      }\n"
+    non_compliant: "resource \"aws_cloudwatch_log_group\" \"app_logs\" {\n  name = \"/aws/ecs/payment-service\"\n  # No retention_in_days\
+      \ – logs stored indefinitely\n  # WAF-OPS-030 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_log_group
+  assertions:
+  - attribute: retention_in_days
+    op: attribute_exists
+    message: CloudWatch log group must define retention_in_days.
+  - attribute: retention_in_days
+    op: greater_than_or_equal
+    message: Log group retention must be at least 30 days.
+    expected: 1
+  on_fail: violation
+- id: waf-ops-030.tf.aws.xray-tracing-enabled
+  engine: terraform
+  automated: true
+  title: AWS Lambda functions must have X-Ray tracing enabled
+  provider: aws
+  description: AWS Lambda functions in production MUST have X-Ray tracing enabled to support distributed request tracing and
+    latency analysis.
+  expected: 'true'
+  remediation: Add tracing_config { mode = "Active" } to all aws_lambda_function resources.\n
+  example:
+    compliant: "resource \"aws_lambda_function\" \"processor\" {\n  function_name = \"payment-processor\"\n  role        \
+      \  = aws_iam_role.lambda_exec.arn\n  handler       = \"index.handler\"\n  runtime       = \"nodejs20.x\"\n\n  tracing_config\
+      \ {\n    mode = \"Active\"\n  }\n}\n"
+    non_compliant: "resource \"aws_lambda_function\" \"processor\" {\n  function_name = \"payment-processor\"\n  role    \
+      \      = aws_iam_role.lambda_exec.arn\n  handler       = \"index.handler\"\n  runtime       = \"nodejs20.x\"\n  # No\
+      \ tracing_config – WAF-OPS-030 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lambda_function
+  assertions:
+  - attribute: tracing_config.mode
+    op: not_in
+    message: Lambda tracing mode must be Active, not PassThrough.
+    expected:
+    - 0.0.0.0/0
+    - ''
+  on_fail: violation
+- id: waf-ops-030.tf.azurerm.log-analytics-workspace
+  engine: terraform
+  automated: true
+  title: Azure Log Analytics workspace must be configured with retention
+  provider: azurerm
+  description: Azure deployments MUST configure a Log Analytics workspace with an appropriate retention period for centralized
+    log aggregation.
+  expected: 'true'
+  remediation: Set retention_in_days to at least 90 for application logs in the azurerm_log_analytics_workspace resource.\n
+  example:
+    compliant: "resource \"azurerm_log_analytics_workspace\" \"main\" {\n  name                = \"law-payment-service-prod\"\
+      \n  location            = var.location\n  resource_group_name = azurerm_resource_group.main.name\n  sku            \
+      \     = \"PerGB2018\"\n  retention_in_days   = 90\n}\n"
+    non_compliant: "resource \"azurerm_log_analytics_workspace\" \"main\" {\n  name                = \"law-payment-service-prod\"\
+      \n  location            = var.location\n  resource_group_name = azurerm_resource_group.main.name\n  sku            \
+      \     = \"PerGB2018\"\n  retention_in_days   = 7\n  # 7 days is insufficient – WAF-OPS-030 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_log_analytics_workspace
+  assertions:
+  - attribute: retention_in_days
+    op: greater_than_or_equal
+    message: Log Analytics workspace retention must be at least 30 days.
+    expected: 1
+  on_fail: violation
+- id: waf-ops-030.tf.google.logging-project-sink-exists
+  engine: terraform
+  automated: true
+  title: GCP Cloud Logging sink must route structured logs to a centralized destination
+  provider: google
+  description: Every production GCP project must define a google_logging_project_sink that routes structured logs to a central
+    BigQuery dataset or Cloud Storage bucket. Cloud Trace must be enabled via the trace API usage.
+  expected: 'true'
+  remediation: Create a google_logging_project_sink for each production project with filter capturing application, audit,
+    and security logs. Enable Cloud Trace API and configure applications to export traces.\n
+  example:
+    compliant: "resource \"google_logging_project_sink\" \"central\" {\n  name        = \"centralized-logs\"\n  destination\
+      \ = \"bigquery.googleapis.com/projects/${var.project_id}/datasets/logs\"\n  filter      = \"severity >= WARNING OR protoPayload.serviceName\
+      \ != \\\"\\\"\"\n\n  unique_writer_identity = true\n}\n"
+    non_compliant: '# No google_logging_project_sink defined
+
+      # Application logs remain only in default log buckets
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_logging_project_sink
+  assertions:
+  - attribute: destination
+    op: attribute_exists
+    message: GCP project must route logs to a centralized BigQuery or Cloud Storage destination.
+  on_fail: violation
+- id: waf-ops-030.tf.stackit.log-destination-exists
+  engine: terraform
+  automated: true
+  title: STACKIT workloads must ship logs to a central destination
+  provider: stackit
+  description: STACKIT workloads must ship logs to a central destination. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_argus_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_argus_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_argus_instance
+    - stackit_logme_instance
+    - stackit_observability_instance
+  assertions:
+  - attribute: project_id
+    op: attribute_exists
+    message: STACKIT observability/log instance must be configured.
+  on_fail: violation
+- id: waf-ops-030.tf.ovh.log-destination-exists
+  engine: terraform
+  automated: true
+  title: OVHcloud workloads must ship logs to a central destination
+  provider: ovh
+  description: OVHcloud workloads must ship logs to a central destination. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_database_postgresql\" \"example\"\
+      \ {\n  # required attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_database_postgresql\"\
+      \ \"example\" {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_database_postgresql
+    - ovh_cloud_project_kube
+    - ovh_dedicated_server
+  assertions:
+  - attribute: service_name
+    op: attribute_exists
+    message: OVHcloud service must be configured for log forwarding.
+  on_fail: violation
+- id: waf-ops-030.tf.hcloud.log-destination-exists
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud workloads must ship logs to a central destination
+  provider: hcloud
+  description: Hetzner Cloud workloads must ship logs to a central destination. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.log-destination
+    op: key_exists
+    key: log-destination
+    message: Hetzner Cloud server must declare a log destination label.
+  on_fail: violation

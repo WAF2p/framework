@@ -3,274 +3,299 @@
 :control-id: WAF-SUS-070
 :pillar: sustainability
 :severity: medium
-:category: software-efficiency
-:automated: partial
-:description: WAF++ Sustainability – Energie-Effizienz als Software-Qualitätsmerkmal: SCI messen, Event-Driven statt Polling, Dependency-Hygiene, Scale-to-Zero für serverless Workloads.
+:category: sustainability-efficiency
+:automatable: High
+:description: Software MUST be designed with energy efficiency as an explicit quality attribute. Architecture Decision Records MUST include energy efficiency considerations for algorithm and data structure choices. Dependencies MUST be reviewed for efficiency: unused libraries, heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and event-driven designs. Software Carbon Intensity (SCI) SHOULD be measured for critical workloads and included in architecture reviews. Teams MUST avoid over-engineering: monolithic frameworks, excessive microservice proliferation, and redundant compute layers all increase energy consumption without delivering proportional value.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Software Efficiency | *Automatisierbar:* Teilweise
+*Säule:* Sustainability | *Schweregrad:* Mittel | *Kategorie:* Sustainability Efficiency | *Automatisierbar:* High
 
 == Beschreibung
 
-Software MUSS mit Energie-Effizienz als explizitem Qualitätsmerkmal entworfen werden.
-Architecture Decision Records MÜSSEN Energie-Effizienz-Überlegungen enthalten.
-Event-Driven-Patterns MÜSSEN für asynchrone Kommunikation bevorzugt werden.
-Dependencies MÜSSEN auf Effizienz und Notwendigkeit geprüft werden.
-SCI (Software Carbon Intensity) SOLLTE für Tier-1-Services gemessen werden.
-Cloud-Run- und Lambda-Dienste SOLLEN auf Scale-to-Zero konfiguriert sein.
+Software MUST be designed with energy efficiency as an explicit quality attribute. Architecture Decision Records MUST include energy efficiency considerations for algorithm and data structure choices. Dependencies MUST be reviewed for efficiency: unused libraries, heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and event-driven designs. Software Carbon Intensity (SCI) SHOULD be measured for critical workloads and included in architecture reviews. Teams MUST avoid over-engineering: monolithic frameworks, excessive microservice proliferation, and redundant compute layers all increase energy consumption without delivering proportional value.
 
-== Rationale
-
-Software-Design-Entscheidungen haben multiplikativen Einfluss auf Energieverbrauch.
-Ein ineffizienter Algorithmus auf effizienter Hardware verbraucht immer noch unnötig viel Energie.
-Polling-Patterns generieren konstante API-Aufrufe ohne proportionalen Mehrwert.
-Große Dependency-Trees erhöhen Cold-Start-Energie und Speicherverbrauch.
-Die Green Software Foundation SCI-Formel macht Software-Effizienz messbar und vergleichbar.
-Scale-to-Zero bei serverlosen Diensten vermeidet Idle-Compute komplett.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Ineffiziente Algorithmen*
-|O(n²)-Algorithmen verbrauchen bei 10.000 Elementen 750× mehr CPU als O(n log n) — direkte Emissionsmultiplikation.
+|*Risk* |Software that ignores energy efficiency consumes resources disproportionately.
 
-|*Polling-Pattern*
-|Konstante API-Abfragen statt Event-Trigger erzeugen thousands unnötiger Requests pro Stunde.
-
-|*Bloated Dependencies*
-|Lambda-Funktionen mit 200MB-Deployment-Package haben 5× höhere Cold-Start-Energie als schlanke 20MB-Packages.
-
-|*Microservice-Proliferation*
-|50 Services für was 5 leisten könnten: 10× mehr Netzwerk-Overhead, Service-Discovery-Load, Health-Check-Calls.
-
-|*Fehlende SCI-Messung*
-|Ohne SCI-Metrik können Software-Effizienz-Verbesserungen nicht quantifiziert oder als Ziel gesetzt werden.
+|*Risk* |Inefficient algorithms or polling patterns waste CPU cycles and increase carbon emissions.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* ADR-Template MUSS Energie-Effizienz und SCI-Betrachtung als Abschnitt enthalten
-* Asynchrone Kommunikation MUSS Event-Driven-Patterns (SQS, EventBridge, Pub/Sub) nutzen
-* Dependencies MÜSSEN eine Größen- und Effizienz-Review erhalten vor Aufnahme
-* SCI SOLL für alle Tier-1-Services mindestens jährlich gemessen werden
-* Container-Images SOLLEN Distroless- oder Alpine-Base-Images nutzen (Größenbudget < 500MB)
-* SQS Event Source Mappings MÜSSEN `maximum_batching_window_in_seconds >= 5` haben
+* Software MUST be designed with energy efficiency as an explicit quality attribute.
+* Architecture Decision Records MUST include energy efficiency considerations for algorithm and data structure choices.
+* Dependencies MUST be reviewed for efficiency: unused libraries, heavy frameworks, and polling patterns MUST be replaced with lightweight alternatives and event-driven designs.
+* Software Carbon Intensity (SCI) SHOULD be measured for critical workloads and included in architecture reviews.
+* Teams MUST avoid over-engineering: monolithic frameworks, excessive microservice proliferation, and redundant compute layers all increase energy consumption without delivering proportional value.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *ADR erweitern*: Energie-Effizienz-Sektion: "Wie wurde SCI betrachtet? Welche Alternativen wurden bezüglich Effizienz bewertet?"
-. *Event-Driven Policy*: Polling-Patterns identifizieren und durch SQS/EventBridge/SNS ersetzen
-. *Dependency-Review-Prozess*: Neue Dependencies prüfen auf Größe, Aktivität, Effizienz; Alpine/Distroless-Images
-. *SCI-Messung*: Energie aus CloudWatch-Metriken + Carbon Intensity der Region + Functional Units
-. *SQS Batching*: `batch_size = 100` + `maximum_batching_window_in_seconds = 30` für alle SQS-Lambda-Trigger
-. *Scale-to-Zero*: Cloud Run `min_instance_count = 0`; Lambda hat Scale-to-Zero by default
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Effizienz-Betrachtung
-|Nur funktionale Anforderungen; Polling-Patterns überall; keine Dependency-Hygiene.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Awareness in Code-Review
-|Effizienz wird gelegentlich im Review erwähnt; kein formaler Prozess.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|ADR-Requirement + Event-Driven
-|ADR-Pflicht mit Energie-Sektion; Event-Driven für Async; Dependency-Review; SCI für Tier-1 jährlich.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|SCI als Engineering-Metrik
-|SCI monatlich getrackt; Energie-Effizienz in Definition of Done; N+1 automatisch detektiert.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|SCI-OKR + Continuous Improvement
-|SCI-Verbesserung als OKR; automatische SCI-Regression-Alerts im CI; Energy-Profiling in Dev-Workflow.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
-=== waf-sus-070.tf.aws.sqs-not-polling
-*Prüft:* SQS-Lambda Event Source Mappings nutzen Batching (Long Polling).
+=== waf-sus-070.tf.aws.lambda-no-large-layers
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*Lambda functions should not attach excessive numbers of layers*
+
+Lambda functions with many layers have larger deployment packages, higher cold-start energy consumption, and more complex dependency footprints. Each layer must be justified by the functionality it provides.
+
+*Scope:* `resource` — `aws_lambda_function`
+
+*Assertions:*
+* `layers` attribute exists — No layers attribute found – this check passes; single-package deployments are preferred.
+
+*Remediation:* Review Lambda layer usage. Consolidate multiple utility layers into a single optimized layer. Use dependency management (requirements.txt, package.json) to control package size. Consider Lambda container images for complex dependency trees with multi-arch builds.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_lambda_event_source_mapping" "sqs" {
-  event_source_arn                   = aws_sqs_queue.events.arn
-  function_name                      = aws_lambda_function.processor.arn
-  batch_size                         = 100
-  maximum_batching_window_in_seconds = 30
-  function_response_types            = ["ReportBatchItemFailures"]
+resource "aws_lambda_function" "api" {
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["arm64"]
+  handler       = "main.handler"
+  role          = aws_iam_role.lambda.arn
+  filename      = "function.zip"
+  # No unnecessary layers – slim deployment package
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_lambda_event_source_mapping" "sqs" {
-  event_source_arn = aws_sqs_queue.events.arn
-  function_name    = aws_lambda_function.processor.arn
-  batch_size       = 1
-  # WAF-SUS-070 Warning: batch_size=1, kein Batching-Window
+resource "aws_lambda_function" "api" {
+  function_name = "api-handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+  layers = [
+    aws_lambda_layer_version.utils.arn,
+    aws_lambda_layer_version.logging.arn,
+    aws_lambda_layer_version.db_client.arn,
+    aws_lambda_layer_version.aws_sdk_extras.arn,
+    aws_lambda_layer_version.common.arn,
+    # WAF-SUS-070 Warning: 5 layers – review and consolidate
+  ]
 }
 ----
-|===
-
-*Remediation:* `batch_size = 100` und `maximum_batching_window_in_seconds = 30` setzen. Reduziert Invocations um bis zu 99% bei hochvolumigen Queues.
 
 ---
 
-=== waf-sus-070.tf.google.cloud-run-min-instances
-*Prüft:* GCP Cloud Run Services können auf Zero skalieren.
+=== waf-sus-070.tf.aws.sqs-not-polling
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*SQS event source mapping should use long polling for Lambda triggers*
+
+Lambda functions triggered by SQS should use long polling (maximum_batching_window_in_seconds > 0) to batch messages and reduce the number of Lambda invocations. Short polling or no batching causes excessive invocations per message, increasing energy consumption per unit of work.
+
+*Scope:* `resource` — `aws_lambda_event_source_mapping`
+
+*Assertions:*
+* `maximum_batching_window_in_seconds` greater than or equal `1` — SQS Lambda trigger uses no batching window – enable long polling to reduce invocations per message.
+
+*Remediation:* Set maximum_batching_window_in_seconds = 30 (or higher) and batch_size = 100 on SQS event source mappings to maximize message batching. This reduces Lambda invocations by up to 90% for high-volume queues, directly reducing energy per message processed.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn                   = aws_sqs_queue.events.arn
+  function_name                      = aws_lambda_function.processor.arn
+  batch_size                         = 100
+  maximum_batching_window_in_seconds = 30  # batch for 30s before invoking
+  function_response_types            = ["ReportBatchItemFailures"]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn = aws_sqs_queue.events.arn
+  function_name    = aws_lambda_function.processor.arn
+  batch_size       = 1  # WAF-SUS-070 Warning: 1 invocation per message, very inefficient
+}
+----
+
+---
+
+=== waf-sus-070.tf.google.cloud-run-min-instances-zero
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Run services should scale to zero in non-production*
+
+Cloud Run services with min_instance_count > 0 maintain warm instances continuously even when there is no traffic. Setting min_instance_count = 0 allows scale-to-zero, eliminating idle compute energy consumption.
+
+*Scope:* `resource` — `google_cloud_run_v2_service`
+
+*Assertions:*
+* `template.scaling.min_instance_count` equals `0` — Cloud Run service has minimum instances > 0 – idle instances consume energy. Consider scale-to-zero.
+
+*Remediation:* Set min_instance_count = 0 for all non-production Cloud Run services. For production services with strict cold-start SLAs, use min_instance_count = 1 and document the sustainability trade-off in the architecture decision record.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "google_cloud_run_v2_service" "api" {
   name     = "api-service"
   location = "europe-north1"
+
   template {
     scaling {
-      min_instance_count = 0
+      min_instance_count = 0   # scale to zero – no idle energy
       max_instance_count = 10
     }
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "google_cloud_run_v2_service" "api" {
   name     = "api-service"
   location = "us-east1"
+
   template {
     scaling {
-      min_instance_count = 5
-      # WAF-SUS-070 Warning: immer 5 Instanzen; kein Zero-Scale
+      min_instance_count = 5   # WAF-SUS-070 Warning: always-on instances, idle energy
+      max_instance_count = 50
     }
   }
 }
 ----
-|===
 
-*Remediation:* `min_instance_count = 0` für alle nicht-produktiven Services; für Produktion mit Cold-Start-SLA dokumentieren, warum min > 0 erforderlich ist.
+---
+
+=== waf-sus-070.tf.azurerm.service-plan-consumption
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure App Service plans for event-driven workloads should be Consumption or Elastic Premium*
+
+Azure Function Apps and event-driven workloads should run on Consumption (Y1) or Elastic Premium (EP1/EP2/EP3) plans so they scale to zero when idle, reducing baseline energy consumption.
+
+*Scope:* `resource` — `azurerm_service_plan`
+
+*Assertions:*
+* `sku_name` in `['Y1', 'EP1', 'EP2', 'EP3']` — Azure Service Plan should use Consumption (Y1) or Elastic Premium (EP1/EP2/EP3) for event-driven/energy-efficient workloads.
+
+*Remediation:* Set azurerm_service_plan.sku_name to Y1 for Consumption or EP1/EP2/EP3 for Elastic Premium. Avoid Dedicated (S1/P1V2) App Service plans for purely event-driven workloads.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_service_plan" "consumption" {
+  name                = "asp-consumption"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "germanywestcentral"
+  os_type             = "Linux"
+  sku_name            = "Y1"
+}
+
+resource "azurerm_linux_function_app" "processor" {
+  name                = "processor-func"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "germanywestcentral"
+  service_plan_id     = azurerm_service_plan.consumption.id
+  site_config {}
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_service_plan" "dedicated" {
+  name                = "asp-dedicated"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "germanywestcentral"
+  os_type             = "Linux"
+  sku_name            = "S1"
+}
+
+resource "azurerm_linux_function_app" "processor" {
+  name            = "processor-func"
+  service_plan_id = azurerm_service_plan.dedicated.id
+  # Dedicated plan keeps workers always on
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Governance*
-|✅ Pflicht
-|ADR-Template oder Architecture-Review-Checkliste mit Energie-Effizienz / SCI-Betrachtung.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|Optional
-|Container-Image-Size-Reports (Distroless/Alpine-Compliance).
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|SCI-Measurement-Report für Tier-1-Services mit Baseline und Trend.
-
-|*Governance*
-|Optional
-|Dependency-Review-Policy und Audit-Log.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*EU CSRD (Corporate Sustainability Reporting Directive)*
-|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce; ESRS S2 – Workers in own workforce; ESRS S3 – Affected communities; ESRS S4 – Human rights
-
-|*GHG Protocol (Corporate Accounting and Reporting Standard)*
-|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
-
-|*Green Software Foundation (GSF)*
-|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
-
-|*SBTi (Science Based Targets initiative)*
-|Target setting methodology; Validation and verification; Corporate target standards
-
-|*ISO 14001:2015*
-|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control; Clause 9.1.1 – Monitoring, measurement, analysis and evaluation
-
-|*ISO 14064-1:2018*
-|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing
-
-|*CSRD*
-|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
-
-|*NIST SP 800-53*
-|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
-
-|*TISAX*
-|Information security – Sustainability; Prototype protection – Environmental protection
-
-|*ANSSI SecNumCloud*
-|Domain – Environmental impact
-
-|*BIO*
-|BIO – Milieueffecten
-
-|*ENS High*
-|op.exp.9 – Gestión del impacto ambiental
-
-|*UK NCSC CAF*
-|B6 – Environmental impact
-
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Automated audit logging
-
-|*IRAP*
-|ISM – Environmental monitoring
-
-|*CCCS PBMM*
-|AU-2 – Audit events
-
-|*MAS TRM*
-|Ch.12 – Outsourcing risk management
-
-|*ISMAP*
-|Sustainability and environmental impact
-
-|*FISC*
-|Operational measures – Environmental impact
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-SUS-020.adoc[WAF-SUS-020 – Energy-Efficient Compute Selection]
-* xref:controls/WAF-SUS-040.adoc[WAF-SUS-040 – Idle & Underutilized Resource Elimination]
-* xref:controls/WAF-SUS-080.adoc[WAF-SUS-080 – Network & Data Transfer Efficiency]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-compute-efficiency.adoc[Energieeffizienter Compute & Software-Design →]
+|Green Software Foundation |* Software Carbon Intensity (SCI) – measurement and optimization standard
+* Energy Efficiency – algorithmic and architectural efficiency
+* Carbon Efficiency – reducing energy per functional unit
+
+|EU CSRD (Corporate Sustainability Reporting Directive) |* ESRS E1 – Climate Change – operational measures to reduce emissions
+
+|ISO 14001 |* 6.1.2 – Environmental Aspects – software design as environmental aspect
+
+|===

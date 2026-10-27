@@ -1,0 +1,141 @@
+= WAF-SUS-110 – Regionale Kohlenstoffintensität muss bei Standortentscheidungen berücksichtigt und dokumentiert werden
+:page-toc: right
+:control-id: WAF-SUS-110
+:pillar: sustainability
+:severity: medium
+:category: data-governance
+:automatable: Medium
+:description: New workloads and data stores MUST document carbon intensity alongside latency, cost, and compliance factors when selecting regions. Region selection decisions MUST be captured in an Architecture Decision Record or equivalent register. Batch and non-latency-sensitive workloads SHOULD prefer lower-carbon regions where data residency allows. Carbon intensity assumptions MUST be revisited annually using current provider data.
+
+[.metadata]
+*Säule:* Sustainability | *Schweregrad:* 🟡 Mittel | *Kategorie:* Data Governance | *Automatisierbar:* Medium
+
+== Beschreibung
+
+New workloads and data stores MUST document carbon intensity alongside latency, cost, and compliance factors when selecting regions. Region selection decisions MUST be captured in an Architecture Decision Record or equivalent register. Batch and non-latency-sensitive workloads SHOULD prefer lower-carbon regions where data residency allows. Carbon intensity assumptions MUST be revisited annually using current provider data.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Ignoring grid carbon intensity when selecting regions increases emissions without business justification.
+
+|*Risk* |Undocumented region decisions prevent sustainability audits and optimization over time.
+
+|===
+
+== Anforderungen
+
+* New workloads and data stores MUST document carbon intensity alongside latency, cost, and compliance factors when selecting regions.
+* Region selection decisions MUST be captured in an Architecture Decision Record or equivalent register.
+* Batch and non-latency-sensitive workloads SHOULD prefer lower-carbon regions where data residency allows.
+* Carbon intensity assumptions MUST be revisited annually using current provider data.
+
+== Implementierungsleitfaden
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Reifegrade
+
+[cols="1,2,4"]
+|===
+|Level |Name |Kriterien
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-sus-110.tf.aws.green-region
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*AWS-Provider-Region sollte eine kohlenstoffarme Region sein*
+
+AWS-Provider-Region sollte eine kohlenstoffarme Region sein
+
+*Scope:* `provider` — `aws`
+
+*Assertions:*
+* `region` in `['us-west-2', 'eu-north-1', 'eu-west-1']` — AWS region has a high carbon intensity. Document justification or migrate.
+
+*Remediation:* AWS-Provider-Region sollte eine kohlenstoffarme Region sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sus-110.tf.aws.green-region
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sus-110.tf.aws.green-region
+----
+
+---
+
+=== waf-sus-110.config.carbon-adr
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*Kohlenstoffintensität der Regionsentscheidung muss im ADR dokumentiert sein*
+
+Kohlenstoffintensität der Regionsentscheidung muss im ADR dokumentiert sein
+
+*Scope:* `file` — `docs/adr/*carbon*.md`
+
+*Assertions:*
+* `exists` attribute_exists — ADR must document carbon intensity consideration.
+
+*Remediation:* Kohlenstoffintensität der Regionsentscheidung muss im ADR dokumentiert sein
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sus-110.config.carbon-adr
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sus-110.config.carbon-adr
+----
+
+---
+
+
+== Evidenz
+
+* Terraform-Konfiguration, die die Anforderung umsetzt.
+* Policy, ADR oder Standard, der die Anforderung dokumentiert.
+* Optionale Cloud-Konsolen- oder API-Ausgaben, die den Laufzeit-Zustand bestätigen.
+
+== Verwandte Controls
+
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-sustainability:controls/WAF-SUS-120.adoc[WAF-SUS-120]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-sovereign:controls/WAF-SOV-120.adoc[WAF-SOV-120]
+== Regulatorisches Mapping
+
+* *EU CSRD (Corporate Sustainability Reporting Directive)*: ESRS E1 – Climate Change
+* *GHG Protocol*: Scope 3 – Category 11: purchased cloud services location factor
+* *Green Software Foundation*: Carbon Aware Computing – location-based optimization
+* *ISO 14001*: 6.1.2 – Environmental aspects
+

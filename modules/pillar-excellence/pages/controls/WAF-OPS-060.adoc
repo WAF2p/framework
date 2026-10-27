@@ -1,249 +1,440 @@
 = WAF-OPS-060 – Runbook & Operational Documentation Coverage
 :page-toc: right
 :control-id: WAF-OPS-060
-:pillar: operations
+:pillar: excellence
 :severity: medium
-:category: documentation
-:automated: low
-:description: WAF++ Operational Excellence – Runbooks für alle bekannten Fehlerfälle sind pflicht; alle paging Alerts müssen Runbook-URLs enthalten.
+:category: identity-access
+:automatable: High
+:description: Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths. Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all on-call engineers without authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link to the relevant runbook section.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Dokumentation | *Automatisierbar:* Niedrig
+*Säule:* Excellence | *Schweregrad:* Mittel | *Kategorie:* Identity Access | *Automatisierbar:* High
 
 == Beschreibung
 
-Jeder Produktions-Workload MUSS Runbooks haben, die alle bekannten Fehlerfälle und Routine-Aufgaben
-abdecken. Runbooks MÜSSEN versioniert, regelmäßig reviewed (mindestens quartalsweise) und ohne
-Authentifizierungsbarriere zugänglich sein. Jeder paging Alert MUSS eine Runbook-URL enthalten.
+Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths. Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all on-call engineers without authentication barriers at 3 AM. Alert rules that trigger on-call pages MUST link to the relevant runbook section.
 
-== Rationale
-
-Undokumentiertes Betriebswissen schafft Single Points of Failure in Menschen.
-Wenn der Ingenieur, der "weiß wie man den Payment Processor neu startet", nicht erreichbar ist,
-ist das gesamte Team blockiert. Runbooks kodifizieren dieses Wissen, reduzieren MTTR
-und ermöglichen Junior-Engineers, Incidents selbstständig zu behandeln.
-Runbook-Qualität korreliert direkt mit MTTR: Teams mit umfassenden Runbooks lösen
-Incidents 40–60% schneller.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Wissenssilo*
-|Kritisches Betriebswissen in einzelnen Köpfen: Urlaub oder Kündigung → Betrieb gefährdet.
+|*Risk* |Runbooks not linked to alerts slow response to recurring disturbances.
 
-|*Verlängerte MTTR*
-|Ohne Runbook: Diagnose und Behebung auf Intuition – Stunden statt Minuten.
-
-|*Veraltete Informationen*
-|Runbooks die nicht aktualisiert werden: falsche Schritte können Incident verschlimmern.
-
-|*On-Call-Unfähigkeit*
-|Junior-Engineers können ohne Runbooks keine selbstständigen On-Call-Shifts übernehmen.
+|*Risk* |Missing escalation instructions lead to uncoordinated ad-hoc reactions.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Alle paging Alerts MÜSSEN eine Runbook-URL in der Beschreibung enthalten
-* Runbooks MÜSSEN in Version-Control gespeichert sein (Wiki mit Versionshistorie)
-* Quarterly Review MUSS Aktualität und Vollständigkeit sicherstellen
-* Runbook-Coverage MUSS gemessen werden (Ziel: >= 90% für kritische Services)
-* Alle On-Call-Engineers MÜSSEN Zugang zu Runbooks ohne Authentifizierungsbarriere haben
+* Every production workload MUST have a runbook covering all known failure modes, routine operational tasks, and escalation paths.
+* Runbooks MUST be version-controlled, regularly reviewed (at minimum quarterly), and accessible to all on-call engineers without authentication barriers at 3 AM.
+* Alert rules that trigger on-call pages MUST link to the relevant runbook section.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Runbook-Template erstellen:* Übersicht, Trigger, Auswirkung, Diagnose, Remediation, Eskalation, Author
-. *Runbooks im Repository speichern:* `docs/runbooks/<service>/` mit Revisions-History
-. *Alerts mit Runbooks verknüpfen:* `alarm_description` (CloudWatch), `runbook_url` (Prometheus), `description` (Azure)
-. *Coverage-Metrik tracken:* (Services mit Runbooks / Gesamt Services) × 100; Ziel >= 90%
-. *After-Incident-Updates:* Runbooks innerhalb 48h nach Incident aktualisieren
-. *Quarterly Review:* Veraltete Runbooks für dekkommissionierte Komponenten entfernen
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Runbooks
-|Kein dokumentiertes Betriebswissen. On-Call hängt an spezifischen Personen.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basis-Runbooks
-|Runbooks für schlimmste Szenarien. Nicht mit Alerts verknüpft. Kein formaler Review.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Alle Alerts verlinkt
-|Alle paging Alerts haben Runbook-URLs. Runbooks in Version-Control. Quarterly Review.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Metriken & Living Docs
-|Coverage-Metrik >= 90%. Runbooks binnen 48h nach Incident aktualisiert.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Self-Service-Automation
-|Kritische Runbook-Schritte automatisiert. Coverage 100%. Toil-Trend positiv.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-060.tf.aws.cloudwatch-alarm-runbook-annotation
-*Prüft:* CloudWatch Alarm `alarm_description` enthält eine HTTP(S)-URL (Runbook).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*CloudWatch alarms must include runbook URL in description*
+
+All CloudWatch metric alarms that trigger on-call notifications MUST include a runbook URL in the alarm_description to reduce mean time to resolution.
+
+*Scope:* `resource` — `aws_cloudwatch_metric_alarm`
+
+*Assertions:*
+* `alarm_description` matches pattern `https?://` — CloudWatch alarm description must include a runbook URL (http:// or https://).
+
+*Remediation:* Include a runbook URL in the alarm_description field: alarm_description = "Error rate exceeded. Runbook: https://wiki/runbooks/service-errors"
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_metric_alarm" "errors" {
-  alarm_name    = "payment-5xx-rate"
-  alarm_description = "5xx Rate hoch. " +
-    "Runbook: https://wiki/payment/5xx-errors"
-  alarm_actions = [aws_sns_topic.oncall.arn]
-  /* ... */
+resource "aws_cloudwatch_metric_alarm" "error_rate" {
+  alarm_name          = "payment-service-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_description   = "Payment service error rate high. Runbook: https://wiki/runbooks/payment-5xx"
+  alarm_actions       = [aws_sns_topic.oncall.arn]
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_metric_alarm" "errors" {
-  alarm_name    = "payment-5xx-rate"
-  alarm_description = "High error rate"
-  # Kein Runbook-URL
-  # WAF-OPS-060 Violation
-  alarm_actions = [aws_sns_topic.oncall.arn]
+resource "aws_cloudwatch_metric_alarm" "error_rate" {
+  alarm_name          = "payment-service-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "5XXError"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_description   = "High error rate"
+  # No runbook URL – WAF-OPS-060 Violation
+  alarm_actions       = [aws_sns_topic.oncall.arn]
 }
 ----
 
-|===
+---
 
 === waf-ops-060.tf.aws.prometheus-alert-runbook-label
-*Prüft:* Prometheus Alert Rules haben `runbook_url` Annotation.
 
-[source,yaml]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*Prometheus alert rules must include runbook_url annotation*
+
+Prometheus alert rules managed in AWS Managed Prometheus MUST include a runbook_url annotation so on-call engineers have immediate access to remediation steps.
+
+*Scope:* `resource` — `aws_prometheus_rule_group_namespace`
+
+*Assertions:*
+* `data` matches pattern `runbook_url` — Prometheus alert rules must include runbook_url annotation.
+
+*Remediation:* Add runbook_url: "https://wiki/runbooks/<service>" annotation to all Prometheus alert rules.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
-- alert: HighErrorRate
-  expr: rate(http_requests_total{code=~"5.."}[5m]) > 0.01
-  annotations:
-    runbook_url: "https://wiki/runbooks/payment-errors"
-    # WAF-OPS-060 compliant
+resource "aws_prometheus_rule_group_namespace" "alerts" {
+  name         = "payment-service-alerts"
+  workspace_id = aws_prometheus_workspace.main.id
+  data         = <<-EOT
+    groups:
+      - name: payment-service
+        rules:
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+            for: 2m
+            annotations:
+              summary: "High error rate on payment service"
+              runbook_url: "https://wiki/runbooks/payment-errors"
+  EOT
+}
 ----
 
-*Remediation:* `alarm_description` mit Runbook-URL versehen. Prometheus-Alerts
-mit `runbook_url: "https://..."` Annotation erweitern.
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_prometheus_rule_group_namespace" "alerts" {
+  name         = "payment-service-alerts"
+  workspace_id = aws_prometheus_workspace.main.id
+  data         = <<-EOT
+    groups:
+      - name: payment-service
+        rules:
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+            # No runbook_url annotation – WAF-OPS-060 Violation
+  EOT
+}
+----
+
+---
+
+=== waf-ops-060.tf.azurerm.monitor-alert-runbook
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Monitor alerts must include runbook or knowledge base links*
+
+Every azurerm_monitor_metric_alert that pages on-call MUST include a runbook or knowledge base URL in its description or action webhook payload so responders can act immediately.
+
+*Scope:* `resource` — `azurerm_monitor_metric_alert`
+
+*Assertions:*
+* `description` matches pattern `https?://` — Azure Monitor alert description must include a runbook URL.
+
+*Remediation:* Add a runbook URL to the description field of every azurerm_monitor_metric_alert. Use action groups with webhook payloads that include the runbook link and alert context.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_monitor_metric_alert" "errors" {
+  name                = "payment-service-errors"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_application_insights.app.id]
+
+  criteria {
+    metric_namespace = "Microsoft.Insights/components"
+    metric_name      = "requests/failed"
+    aggregation      = "Count"
+    operator         = "GreaterThan"
+    threshold        = 10
+  }
+
+  description = "High failed request rate. Runbook: https://wiki/runbooks/payment-errors"
+
+  action {
+    action_group_id = azurerm_monitor_action_group.oncall.id
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_monitor_metric_alert" "errors" {
+  name                = "payment-service-errors"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_application_insights.app.id]
+  description       = "High failed request rate"
+  # No runbook link provided
+}
+----
+
+---
+
+=== waf-ops-060.tf.google.monitoring-alert-runbook
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Monitoring alert policies must include runbook or documentation links*
+
+Every google_monitoring_alert_policy that triggers on-call notifications MUST include a runbook or knowledge base URL in its documentation block so responders have immediate remediation guidance.
+
+*Scope:* `resource` — `google_monitoring_alert_policy`
+
+*Assertions:*
+* `documentation` attribute exists — GCP alert policy must include a documentation block with runbook link.
+
+*Remediation:* Set the documentation field of every google_monitoring_alert_policy to include alert context and a runbook URL. Keep documentation under version control alongside the Terraform configuration.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_monitoring_alert_policy" "errors" {
+  display_name = "Payment Service High Error Rate"
+  documentation {
+    content = "High 5xx error rate on payment service. Runbook: https://wiki/runbooks/payment-errors"
+    mime_type = "text/markdown"
+  }
+
+  conditions {
+    display_name = "5xx rate above threshold"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/payment_service_5xx\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 10
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.oncall.id]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_monitoring_alert_policy" "errors" {
+  display_name = "Payment Service High Error Rate"
+  # No documentation block with runbook link
+
+  conditions {
+    display_name = "5xx rate above threshold"
+    condition_threshold {
+      filter     = "metric.type=\"logging.googleapis.com/user/payment_service_5xx\""
+      duration   = "300s"
+      comparison = "COMPARISON_GT"
+    }
+  }
+}
+----
+
+---
+
+=== waf-ops-060.tf.stackit.runbook-defined
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*Every production workload for stackit*
+
+Every production workload must be documented in IaC via a runbook-defined tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the runbook-defined tag/label.
+
+*Remediation:* Add a runbook-defined tag/label to the stackit_project resource to show the stackit implementation of WAF-OPS-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    runbook-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing runbook-defined labels
+}
+----
+
+---
+
+=== waf-ops-060.tf.ovh.runbook-defined
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*Every production workload for ovh*
+
+Every production workload must be documented in IaC via a runbook-defined tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the runbook-defined tag/label.
+
+*Remediation:* Add a runbook-defined tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-OPS-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    runbook-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing runbook-defined tags
+}
+----
+
+---
+
+=== waf-ops-060.tf.hcloud.runbook-defined
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Every production workload for hcloud*
+
+Every production workload must be documented in IaC via a runbook-defined tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the runbook-defined tag/label.
+
+*Remediation:* Add a runbook-defined tag/label to the hcloud_server resource to show the hcloud implementation of WAF-OPS-060 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    runbook-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing runbook-defined labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Process*
-|✅ Pflicht
-|Runbook-Repository mit Versionsverlauf und Letzte-Überprüfung-Datum.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Governance*
-|✅ Pflicht
-|Runbook-Coverage-Report: Anzahl Services mit Runbooks vs. Gesamt.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Alert-Konfiguration mit Runbook-URL-Annotation.
-
-|*Process*
-|Optional
-|Quarterly-Review-Protokoll oder JIRA-Tickets für Runbook-Review-Aufgaben.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 8.4.1 – Service delivery; 8.4.2 – Service reporting
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy; Operational Excellence Pillar – Monitor; Operational Excellence Pillar – Improve
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring; CC7.2 – Evaluation of system changes
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives; Chapter 4 – Eliminating toil
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices; Req 6.6 – Application security
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity; OPS-04 – Change management
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management; CM-6 – Configuration settings; CM-8 – Information system integration; CA-7 – Continuous monitoring
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations; CA.L2-3.12.1 – Periodically assess security controls
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-OPS-040.adoc[WAF-OPS-040 – Symptom-basiertes Alerting]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
-* xref:controls/WAF-OPS-100.adoc[WAF-OPS-100 – Operational Debt Register]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen →]
+|ISO/IEC 20000-1 |* Knowledge management
+* Incident management
+
+|ITIL 4 |* Knowledge management
+* Incident management
+
+|SOC 2 Type II |* CC9.1 – Risk Mitigation Activities
+
+|===

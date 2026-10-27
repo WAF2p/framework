@@ -1,252 +1,419 @@
 = WAF-OPS-080 – Feature Flag & Safe Deployment Patterns
 :page-toc: right
 :control-id: WAF-OPS-080
-:pillar: operations
+:pillar: excellence
 :severity: medium
-:category: deployment-safety
-:automated: high
-:description: WAF++ Operational Excellence – Produktions-Deployments müssen Progressive Delivery nutzen (Canary, Blue/Green, Feature Flags). Rollback in < 5 Minuten ohne neues Deployment.
+:category: deployment-automation
+:automatable: High
+:description: Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable fast rollback. New features with significant user impact MUST be gated behind feature flags to allow controlled rollout and instant kill-switch capability. Deployments MUST be reversible without a new deployment for at least 24 hours after release.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Deployment-Sicherheit | *Automatisierbar:* Hoch
+*Säule:* Excellence | *Schweregrad:* Mittel | *Kategorie:* Deployment Automation | *Automatisierbar:* High
 
 == Beschreibung
 
-Produktions-Deployments MÜSSEN Progressive-Delivery-Muster (Canary, Blue/Green, Feature Flags)
-verwenden, um den Blast Radius von fehlerhaften Deployments zu reduzieren.
-Rollback MUSS innerhalb von 5 Minuten ohne neues Deployment möglich sein.
-Neue Features mit signifikanter Nutzerauswirkung MÜSSEN hinter Feature Flags deployt werden.
+Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable fast rollback. New features with significant user impact MUST be gated behind feature flags to allow controlled rollout and instant kill-switch capability. Deployments MUST be reversible without a new deployment for at least 24 hours after release.
 
-== Rationale
-
-Big-Bang-Deployments – alle Änderungen auf alle Nutzer gleichzeitig – maximieren den Blast Radius
-jedes Fehlers. Progressive Delivery reduziert den Blast Radius: Eine fehlerhafte Canary-Version
-trifft 5% der Nutzer, nicht 100%. Feature Flags ermöglichen sofortigen Rollback in Sekunden
-ohne Deployment-Zyklus.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Voller Blast Radius*
-|Big-Bang-Deployment: fehlerhafter Release trifft 100% der Nutzer gleichzeitig.
+|*Risk* |Big-bang deployments can hit all users with failures at once and complicate rollbacks.
 
-|*Langsamer Rollback*
-|Ohne Progressive Delivery erfordert Rollback einen neuen Deployment-Zyklus (10–20 Minuten).
-
-|*Nicht abbrechbare Launches*
-|Features ohne Flag können nicht sofort deaktiviert werden wenn negative Metriken auftreten.
-
-|*Irreversible Deployments*
-|Datenbankmigrationen ohne Canary machen Deployments praktisch unumkehrbar.
+|*Risk* |Missing canary or feature-flag mechanisms slow detection of regressive changes.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Alle Production-Deployments MÜSSEN Canary, Blue/Green oder Feature Flags verwenden
-* Rollback MUSS in < 5 Minuten ohne neues Deployment möglich sein
-* Neue Features mit Nutzerauswirkung MÜSSEN hinter Feature Flags deployt werden
-* Auto-Rollback MUSS bei Fehlerrate-Anstieg konfiguriert sein (CodeDeploy Alarm, etc.)
+* Production deployments MUST use safe deployment patterns – canary releases, blue/green deployments, or feature flags – to reduce blast radius and enable fast rollback.
+* New features with significant user impact MUST be gated behind feature flags to allow controlled rollout and instant kill-switch capability.
+* Deployments MUST be reversible without a new deployment for at least 24 hours after release.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Deployment-Strategie wählen:* Blue/Green für vollständige Umgebungswechsel; Canary für schrittweisen Traffic-Split
-. *CodeDeploy konfigurieren:* `CodeDeployDefault.ECSCanary10Percent5Minutes` statt `AllAtOnce`
-. *Auto-Rollback-Alarms konfigurieren:* CloudWatch Alarm der bei Fehlerrate-Anstieg Rollback auslöst
-. *Feature-Flag-Service einrichten:* AWS AppConfig, LaunchDarkly, Unleash, oder Flagsmith
-. *Rollback-Prozedur testen:* Regelmäßige Übung des Rollback-Prozesses (mindestens quartalsweise)
-. *Flag-Lifecycle verwalten:* Veraltete Feature Flags (> 90 Tage) regelmäßig entfernen
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Big-Bang Deployments
-|Alle Änderungen gleichzeitig auf 100% der Nutzer. Rollback = neues Deployment.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basis-Deployment-Sicherheit
-|Rolling Updates oder manuelle Blue/Green. Kein Auto-Rollback.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Progressive Delivery
-|Canary/Blue-Green mit Health-Check-basiertem Auto-Rollback. Feature Flags für neue Features.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatische Canary-Analyse
-|Metriken-Vergleich auto-entscheidet Promotion/Rollback. Change Failure Rate tracked.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Experiment-Plattform
-|DORA Elite: CFR < 5%. A/B-Testing-Infrastruktur. Deployment-Entscheidungen vollautomatisch.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-080.tf.aws.codedeploy-deployment-config
-*Prüft:* AWS CodeDeploy Deployment Group nutzt Canary oder Linear, nicht AllAtOnce.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS CodeDeploy must use canary or linear deployment configuration*
+
+AWS CodeDeploy deployment groups MUST use a deployment configuration that implements progressive delivery (canary or linear) rather than all-at-once for production.
+
+*Scope:* `resource` — `aws_codedeploy_deployment_group`
+
+*Assertions:*
+* `deployment_config_name` not in `['0.0.0.0/0', '']` — Production CodeDeploy must not use AllAtOnce – use canary or linear strategy.
+
+*Remediation:* Set deployment_config_name to CodeDeployDefault.ECSCanary10Percent5Minutes or CodeDeployDefault.LambdaCanary10Percent5Minutes for production deployments.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_codedeploy_deployment_group" "production" {
-  app_name              = aws_codedeploy_app.app.name
-  deployment_group_name = "payment-service-production"
-  service_role_arn      = aws_iam_role.codedeploy.arn
+  app_name               = aws_codedeploy_app.app.name
+  deployment_group_name  = "payment-service-production"
+  service_role_arn       = aws_iam_role.codedeploy.arn
   deployment_config_name = "CodeDeployDefault.ECSCanary10Percent5Minutes"
+
   auto_rollback_configuration {
     enabled = true
     events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_codedeploy_deployment_group" "production" {
+  app_name               = aws_codedeploy_app.app.name
+  deployment_group_name  = "payment-service-production"
+  service_role_arn       = aws_iam_role.codedeploy.arn
   deployment_config_name = "CodeDeployDefault.AllAtOnce"
-  # AllAtOnce = 100% Blast Radius
-  # Kein Auto-Rollback
-  # WAF-OPS-080 Violation
+  # All-at-once deployment – WAF-OPS-080 Violation
 }
 ----
 
-|===
+---
 
 === waf-ops-080.tf.aws.appconfig-feature-flag
-*Prüft:* AWS AppConfig Application für Feature-Flag-Management konfiguriert.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*AWS AppConfig must be configured for feature flag management*
+
+Feature flag configuration MUST be managed through AWS AppConfig or equivalent to enable runtime toggle without redeployment.
+
+*Scope:* `resource` — `aws_appconfig_application`
+
+*Assertions:*
+* `name` not empty — AppConfig application must have a non-empty name.
+
+*Remediation:* Create an aws_appconfig_application with environments and configuration profiles for feature flag management.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "aws_appconfig_application" "feature_flags" {
   name        = "payment-service-feature-flags"
   description = "Feature flags for payment service"
 }
+
 resource "aws_appconfig_environment" "production" {
   name           = "production"
   application_id = aws_appconfig_application.feature_flags.id
 }
+
+resource "aws_appconfig_configuration_profile" "flags" {
+  name           = "payment-features"
+  application_id = aws_appconfig_application.feature_flags.id
+  location_uri   = "hosted"
+  type           = "AWS.AppConfig.FeatureFlags"
+}
 ----
 
-*Remediation:* `deployment_config_name` auf Canary- oder Linear-Strategie ändern.
-`auto_rollback_configuration` mit `enabled = true` konfigurieren.
+.Non-Compliant
+
+[source,terraform]
+----
+# No AppConfig or feature flag infrastructure defined
+# Feature flags hardcoded in application code or environment variables
+# WAF-OPS-080 Violation
+----
+
+---
+
+=== waf-ops-080.tf.azurerm.traffic-manager-canary
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Traffic Manager must configure weighted routing for canary deployments*
+
+Azure Traffic Manager profiles used for production traffic MUST support weighted routing to enable canary deployments with controlled traffic splits.
+
+*Scope:* `resource` — `azurerm_traffic_manager_profile`
+
+*Assertions:*
+* `traffic_routing_method` in `['Weighted']` — Traffic Manager routing method must support weighted traffic for canary deployments.
+
+*Remediation:* Set traffic_routing_method to "Weighted" to enable canary deployment traffic splits.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_traffic_manager_profile" "canary" {
+  name                   = "payment-service-canary"
+  resource_group_name    = azurerm_resource_group.main.name
+  traffic_routing_method = "Weighted"
+
+  dns_config {
+    relative_name = "payment-service"
+    ttl           = 30
+  }
+
+  monitor_config {
+    protocol                     = "HTTPS"
+    port                         = 443
+    path                         = "/health"
+    expected_status_code_ranges  = ["200-299"]
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_traffic_manager_profile" "main" {
+  name                   = "payment-service"
+  resource_group_name    = azurerm_resource_group.main.name
+  traffic_routing_method = "Priority"
+  # Priority routing doesn't support canary splits – WAF-OPS-080 Violation
+}
+----
+
+---
+
+=== waf-ops-080.tf.google.cloud-run-traffic-split
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Run services must use safe traffic-split deployments*
+
+GCP Cloud Run services used in production MUST define traffic blocks that split traffic between revisions (canary/blue-green) rather than sending 100% to a single revision. Feature flags should be managed via a dedicated configuration resource.
+
+*Scope:* `resource` — `google_cloud_run_service`
+
+*Assertions:*
+* `traffic` attribute exists — Cloud Run service must define traffic splitting across revisions.
+
+*Remediation:* Configure google_cloud_run_service traffic blocks with split percentages across revisions. For GKE workloads, use Gateway API or Traffic Splitting. Manage kill-switches via a feature flag provider.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "payment" {
+  name     = "payment-service"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = var.image
+      }
+    }
+  }
+
+  traffic {
+    percent         = 90
+    revision_name   = "payment-service-00001"
+  }
+
+  traffic {
+    percent         = 10
+    revision_name   = "payment-service-00002"
+    tag             = "canary"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "payment" {
+  name     = "payment-service"
+  location = var.region
+
+  traffic {
+    percent       = 100
+    revision_name = "payment-service-00002"
+  }
+}
+----
+
+---
+
+=== waf-ops-080.tf.stackit.ske-safe-rollout
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT Kubernetes deployments must use safe rollout strategy*
+
+STACKIT Kubernetes deployments must use safe rollout strategy. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_ske_cluster`
+
+*Assertions:*
+* `maintenance_window` attribute exists — STACKIT SKE cluster must define a maintenance window for safe rollouts.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_ske_cluster" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_ske_cluster" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-080.tf.ovh.kube-safe-rollout
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud Kubernetes deployments must use safe rollout strategy*
+
+OVHcloud Kubernetes deployments must use safe rollout strategy. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_kube`, `ovh_cloud_project_kube_nodepool`
+
+*Assertions:*
+* `update_strategy` attribute exists — OVHcloud Kubernetes cluster/nodepool should define an update strategy.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-080.tf.hcloud.server-safe-maintenance
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud production changes must use safe rollout practices*
+
+Hetzner Cloud production changes must use safe rollout practices. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_placement_group`
+
+*Assertions:*
+* `labels.safe-rollout` key exists — Hetzner Cloud server must be marked with safe-rollout label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Load-Balancer oder Deployment-Konfiguration mit Progressive-Delivery-Pattern.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Feature-Flag-Service-Konfiguration (AppConfig, LaunchDarkly, etc.).
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Deployment-Runbook mit Canary-Promotion und Rollback-Entscheidungskriterien.
-
-|*Config*
-|Optional
-|Auto-Rollback-Alarm-Konfiguration mit Schwellenwerten für Deployment-Abbruch.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 8.4.1 – Service delivery; 8.4.2 – Service reporting
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy; Operational Excellence Pillar – Monitor; Operational Excellence Pillar – Improve
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring; CC7.2 – Evaluation of system changes
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives; Chapter 4 – Eliminating toil
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices; Req 6.6 – Application security
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity; OPS-04 – Change management
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management; CM-6 – Configuration settings; CM-8 – Information system integration; CA-7 – Continuous monitoring
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations; CA.L2-3.12.1 – Periodically assess security controls
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
-* xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
-* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
+* xref:pillar-excellence:controls/WAF-OPS-050.adoc[WAF-OPS-050]
+* xref:pillar-excellence:controls/WAF-OPS-010.adoc[WAF-OPS-010]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-060.adoc[WAF-SUS-060]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-deployment-safety.adoc[Sichere Deployments (Feature Flags, Canary, Blue/Green) →]
+|ITIL 4 |* Release management
+* Change enablement
+
+|ISO/IEC 20000-1 |* Change and deployment management
+
+|===

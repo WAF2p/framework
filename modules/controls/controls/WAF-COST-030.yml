@@ -1,159 +1,262 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-030
 id: WAF-COST-030
-title: 'All persistent compute resources (EC2 instances, VMs, RDS instances,...'
+title: All persistent compute resources (EC2 instances, VMs, RDS instances,...
 status: active
 tags:
-  - cost
-  - medium
-  - configuration
-  - governance
+- cost
+- medium
+- configuration
+- governance
 pillar: cost
 severity: medium
 type:
-  - configuration
-  - governance
-
-category: 'container-security'
-rationale: |
-  All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a 'rightsizing-reviewed' tag with the date of the...
+- configuration
+- governance
+category: container-security
+rationale: Unsichere Container und Images führen zu Angriffsflächen, Supply-Chain-Risiken und der Verbreitung von Malware
+  in Produktivumgebungen. Dieses Control adressiert die Anforderungen des Bereichs 'Container-Sicherheit' und stellt sicher,
+  dass All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a 'rightsizing-reviewed'
+  tag with the date of the last.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Unreviewed compute resources permanently lead to over-provisioning and cloud waste.
+- Missing rightsizing evidence complicates FinOps reviews and budget accountability.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-030.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-030.adoc
+  related_controls:
+  - WAF-PERF-010
+  - WAF-SEC-110
+  - WAF-COST-020
+  - WAF-COST-010
+  - WAF-SEC-070
+  - WAF-PERF-080
+  - WAF-COST-070
+  - WAF-COST-080
+  - WAF-REL-010
+  - WAF-REL-040
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a ''rightsizing-reviewed''
+  tag with the date of the last review (ISO 8601, YYYY-MM-DD). Reviews must be performed at least every 90 days. Resources
+  tagged with a review date older than 90 days are considered non-compliant. Idle detection must be configured for all compute
+  workloads (CPU utilization < 5% over 7 days triggers an alert).
 
-description: |
-  All persistent compute resources (EC2 instances, VMs, RDS instances, Kubernetes node groups) MUST carry a 'rightsizing-reviewed' tag with the date of the last review (ISO 8601, YYYY-MM-DD). Reviews must be performed at least every 90 days. Resources tagged with a review date older than 90 days are considered non-compliant. Idle detection must be configured for all compute workloads (CPU utilization < 5% over 7 days triggers an alert).
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Optimize Phase – Rightsizing and Resource Optimization'
-      - 'Operate Phase – Continuous Resource Review'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Cloud Cost Governance Policy – Resource Efficiency'
-      - 'Engineering Excellence – No Persistent Waste'
+- framework: FinOps Foundation
+  controls:
+  - Optimize Phase – Rightsizing and Resource Optimization
+  - Operate Phase – Continuous Resource Review
 checks:
-  - id: waf-cost-030.tf.aws.ec2-rightsizing-tag-required
-    engine: terraform
-    automated: true
-    title: "EC2 instances must have 'rightsizing-reviewed' tag"
-    provider: aws
-    description: "All EC2 instances must carry a 'rightsizing-reviewed' tag with the date (YYYY-MM-DD) of the last rightsizing review. This tag proves active resource management and enables automated detection of resources that have not been reviewed within 90 days."
-    expected: 'true'
-    remediation: "Add 'rightsizing-reviewed' tag to all EC2 instances and launch templates. Value format: YYYY-MM-DD (ISO 8601 date of last review). Example: rightsizing-reviewed = \"2025-03-01\" Schedule the next review within 90 days.\n"
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t3.medium"
-          tags = merge(module.mandatory_tags.tags, {
-            rightsizing-reviewed = "2025-03-01"
-            rightsizing-result   = "no-change"
-            capacity-commitment  = "on-demand"
-          })
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "t3.medium"
-          tags = {
-            cost-center = "fintech-platform"
-            owner       = "payments-team"
-            environment = "production"
-            workload    = "payment-service"
-            # Missing: rightsizing-reviewed – WAF-COST-030 violation
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'rightsizing-reviewed'
-        message: "EC2 instance is missing the 'rightsizing-reviewed' tag. All compute resources must be actively reviewed."
-    on_fail: violation
-  - id: waf-cost-030.tf.azurerm.vm-rightsizing-tag
-    engine: terraform
-    automated: true
-    title: "Azure VMs must have 'rightsizing-reviewed' tag"
-    provider: azurerm
-    description: "All Azure Virtual Machines must carry a 'rightsizing-reviewed' tag with the ISO 8601 date of the last rightsizing review, proving active management of compute costs."
-    expected: 'true'
-    remediation: "Add 'rightsizing-reviewed' tag to all Azure compute resources. Use Azure Advisor recommendations to inform the rightsizing review.\n"
-    example:
-      compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-payment-app-prod"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = var.location
-          size                = "Standard_D2s_v3"
-          tags = merge(local.mandatory_tags, {
-            "rightsizing-reviewed" = "2025-03-01"
-            "rightsizing-result"   = "no-change"
-          })
-        }
-        
-      non_compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-payment-app-prod"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = var.location
-          size                = "Standard_D8s_v3"  # May be oversized; no review proof
-          # Missing: rightsizing-reviewed tag
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_virtual_machine
-        - azurerm_linux_virtual_machine
-        - azurerm_windows_virtual_machine
-        - azurerm_kubernetes_cluster
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'rightsizing-reviewed'
-        message: "Azure VM is missing 'rightsizing-reviewed' tag."
-    on_fail: violation
+- id: waf-cost-030.tf.aws.ec2-rightsizing-tag-required
+  engine: terraform
+  automated: true
+  title: EC2 instances must have 'rightsizing-reviewed' tag
+  provider: aws
+  description: All EC2 instances must carry a 'rightsizing-reviewed' tag with the date (YYYY-MM-DD) of the last rightsizing
+    review. This tag proves active resource management and enables automated detection of resources that have not been reviewed
+    within 90 days.
+  expected: 'true'
+  remediation: 'Add ''rightsizing-reviewed'' tag to all EC2 instances and launch templates. Value format: YYYY-MM-DD (ISO
+    8601 date of last review). Example: rightsizing-reviewed = "2025-03-01" Schedule the next review within 90 days.
+
+    '
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t3.medium\"\
+      \n  tags = merge(module.mandatory_tags.tags, {\n    rightsizing-reviewed = \"2025-03-01\"\n    rightsizing-result  \
+      \ = \"no-change\"\n    capacity-commitment  = \"on-demand\"\n  })\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"t3.medium\"\
+      \n  tags = {\n    cost-center = \"fintech-platform\"\n    owner       = \"payments-team\"\n    environment = \"production\"\
+      \n    workload    = \"payment-service\"\n    # Missing: rightsizing-reviewed – WAF-COST-030 violation\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: rightsizing-reviewed
+    message: EC2 instance is missing the 'rightsizing-reviewed' tag. All compute resources must be actively reviewed.
+  on_fail: violation
+- id: waf-cost-030.tf.azurerm.vm-rightsizing-tag
+  engine: terraform
+  automated: true
+  title: Azure VMs must have 'rightsizing-reviewed' tag
+  provider: azurerm
+  description: All Azure Virtual Machines must carry a 'rightsizing-reviewed' tag with the ISO 8601 date of the last rightsizing
+    review, proving active management of compute costs.
+  expected: 'true'
+  remediation: 'Add ''rightsizing-reviewed'' tag to all Azure compute resources. Use Azure Advisor recommendations to inform
+    the rightsizing review.
+
+    '
+  example:
+    compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-payment-app-prod\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = var.location\n  size                = \"Standard_D2s_v3\"\
+      \n  tags = merge(local.mandatory_tags, {\n    \"rightsizing-reviewed\" = \"2025-03-01\"\n    \"rightsizing-result\"\
+      \   = \"no-change\"\n  })\n}\n"
+    non_compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-payment-app-prod\"\n\
+      \  resource_group_name = azurerm_resource_group.main.name\n  location            = var.location\n  size            \
+      \    = \"Standard_D8s_v3\"  # May be oversized; no review proof\n  # Missing: rightsizing-reviewed tag\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_virtual_machine
+    - azurerm_linux_virtual_machine
+    - azurerm_windows_virtual_machine
+    - azurerm_kubernetes_cluster
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: rightsizing-reviewed
+    message: Azure VM is missing 'rightsizing-reviewed' tag.
+  on_fail: violation
+- id: waf-cost-030.tf.google.compute-rightsizing-tag
+  engine: terraform
+  automated: true
+  title: GCP compute instances must have 'rightsizing-reviewed' label
+  provider: google
+  description: All GCP Compute Engine instances and GKE node pools must carry a 'rightsizing-reviewed' label with the ISO
+    8601 date of the last rightsizing review, proving active management of compute costs.
+  expected: 'true'
+  remediation: 'Add ''rightsizing-reviewed'' label to all google_compute_instance and google_container_node_pool resources.
+    Value format: YYYY-MM-DD. Use GCP Recommender rightsizing insights to inform the review.
+
+    '
+  example:
+    compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"vm-payment-app-prod\"\n  machine_type =\
+      \ \"e2-medium\"\n  zone         = var.zone\n\n  labels = merge(module.mandatory_tags.labels, {\n    rightsizing-reviewed\
+      \ = \"2025-03-01\"\n    rightsizing-result   = \"no-change\"\n  })\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"vm-payment-app-prod\"\n  machine_type\
+      \ = \"e2-standard-8\"  # May be oversized; no review proof\n  # Missing: rightsizing-reviewed label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_instance
+    - google_container_node_pool
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: rightsizing-reviewed
+    message: GCP compute instance is missing 'rightsizing-reviewed' label.
+  on_fail: finding
+- id: waf-cost-030.tf.stackit.server-rightsizing-tag
+  engine: terraform
+  automated: true
+  title: STACKIT compute resources must have a rightsizing-reviewed tag or label
+  provider: stackit
+  description: STACKIT compute resources must have a rightsizing-reviewed tag or label. This check validates the Terraform
+    configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_server
+    - stackit_ske_cluster
+    - stackit_ske_node_pool
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: rightsizing-reviewed
+    message: STACKIT compute resource is missing the 'rightsizing-reviewed' label.
+  on_fail: violation
+- id: waf-cost-030.tf.ovh.instance-rightsizing-tag
+  engine: terraform
+  automated: true
+  title: OVHcloud compute resources must have a rightsizing-reviewed tag
+  provider: ovh
+  description: OVHcloud compute resources must have a rightsizing-reviewed tag. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_instance
+    - ovh_vps
+    - ovh_dedicated_server
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_kube_nodepool
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: rightsizing-reviewed
+    message: OVHcloud compute resource is missing the 'rightsizing-reviewed' tag.
+  on_fail: violation
+- id: waf-cost-030.tf.hcloud.server-rightsizing-label
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud compute resources must have a rightsizing-reviewed label
+  provider: hcloud
+  description: Hetzner Cloud compute resources must have a rightsizing-reviewed label. This check validates the Terraform
+    configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: rightsizing-reviewed
+    message: Hetzner Cloud server is missing the 'rightsizing-reviewed' label.
+  on_fail: violation
