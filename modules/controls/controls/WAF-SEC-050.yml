@@ -1,425 +1,378 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SEC-050
 id: WAF-SEC-050
-title: 'All compute resources MUST be placed in private subnets unless they...'
+title: All compute resources MUST be placed in private subnets unless they...
 status: active
 tags:
-  - security
-  - high
-  - configuration
+- security
+- high
+- configuration
 pillar: security
 severity: high
 type:
-  - configuration
-
-category: 'network-security'
-rationale: |
-  All compute resources MUST be placed in private subnets unless they explicitly serve public traffic.
+- configuration
+category: network-security
+rationale: Open networks and insufficient segmentation allow external attacks and the spread of threats inside the infrastructure. This control addresses the requirements of the 'Network Security' area and ensures that All compute resources MUST be placed in private subnets unless they explicitly serve public traffic.
 threat:
-  - 'Internet-facing resources or open management ports become direct attack vectors.'
-  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+- Internet-facing resources or open management ports become direct attack vectors.
+- Lateral movement is easier when network segmentation and access rules are missing.
 implementation_guidance:
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
-  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+- Implement the required configuration as code in Terraform or equivalent IaC.
+- Add an automated check to CI/CD so deviations are caught before deployment.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - The requirement is documented; initial resources show the intended configuration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-050.adoc'
-  related_controls: []
+  narrative: modules/pillar-security/pages/controls/WAF-SEC-050.adoc
+  related_controls:
+  - WAF-SEC-060
+  - WAF-SEC-020
+  - WAF-SOV-040
+  - WAF-SEC-010
+  - WAF-SEC-040
+  - WAF-SEC-030
+  - WAF-PERF-060
+  - WAF-SEC-080
+  - WAF-SEC-090
+  - WAF-SEC-120
+  - WAF-SEC-100
+  - WAF-SEC-130
+description: 'All compute resources MUST be placed in private subnets unless they explicitly serve public traffic. Security groups MUST NOT allow unrestricted ingress from 0.0.0.0/0 or ::/0 on administrative ports (SSH port 22, RDP port 3389). Egress MUST be restricted to required destinations; unrestricted egress (0.0.0.0/0 on all ports) is prohibited for workloads handling sensitive data. Network ACLs (NACLs) and security groups MUST be used in combination for defense-in-depth. VPC resources MUST be logically segmented by workload tier (public, private, data).
 
-description: |
-  All compute resources MUST be placed in private subnets unless they explicitly serve public traffic. Security groups MUST NOT allow unrestricted ingress from 0.0.0.0/0 or ::/0 on administrative ports (SSH port 22, RDP port 3389). Egress MUST be restricted to required destinations; unrestricted egress (0.0.0.0/0 on all ports) is prohibited for workloads handling sensitive data. Network ACLs (NACLs) and security groups MUST be used in combination for defense-in-depth. VPC resources MUST be logically segmented by workload tier (public, private, data).
+  '
 regulatory_mapping:
-  - framework: 'ISO 27001:2022'
-    controls:
-      - 'A.8.20 – Networks security'
-      - 'A.8.21 – Security of network services'
-      - 'A.8.22 – Segregation of networks'
-  - framework: 'ISO 27017'
-    controls:
-      - 'CLD.13.1 – Network security management'
-  - framework: 'CIS Controls v8'
-    controls:
-      - 'CIS 4 – Secure Configuration of Enterprise Assets'
-      - 'CIS 12 – Network Infrastructure Management'
-      - 'CIS 13 – Network Monitoring and Defense'
-  - framework: 'CSA STAR'
-    controls:
-      - 'CCM IVS-03 – Network Security'
-      - 'CCM IVS-09 – Segmentation and Segregation'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Req 1 – Install and maintain network security controls'
-      - 'Req 1.2 – Network segmentation'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC6.6 – Network access boundaries'
-  - framework: 'GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-  - framework: 'NIS2'
-    controls:
-      - 'Art. 21(2)(c) – Network and information system security'
-  - framework: 'DORA'
-    controls:
-      - 'Art. 9 – Protection and prevention'
-  - framework: 'EUCS (ENISA)'
-    controls:
-      - 'CSC-01 – Network security controls'
-      - 'CSC-04 – Network segmentation'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'COM-01 – Network architecture and segmentation'
-      - 'COM-02 – Network access controls'
-  - framework: 'IT-Grundschutz'
-    controls:
-      - 'NET.1.1 – Netzarchitektur und -design'
-      - 'NET.3.2 – Firewall'
-  - framework: 'TISAX'
-    controls:
-      - 'Information security – Network segmentation'
-  - framework: 'ANSSI SecNumCloud'
-    controls:
-      - 'Domain – Network security and segmentation'
-  - framework: 'BIO'
-    controls:
-      - 'BIO – Netwerksegmentatie'
-  - framework: 'ENS High'
-    controls:
-      - 'mp.com.1 – Perímetro seguro'
-      - 'mp.com.4 – Segregación de redes'
-  - framework: 'UK Cyber Essentials'
-    controls:
-      - 'CE.FW – Firewalls'
-  - framework: 'UK NCSC CAF'
-    controls:
-      - 'B4 – System security – network and protective monitoring'
-  - framework: 'UK GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-  - framework: 'NIST SP 800-53'
-    controls:
-      - 'SC-7 – Boundary Protection'
-      - 'AC-4 – Information Flow Enforcement'
-  - framework: 'NIST CSF 2.0'
-    controls:
-      - 'PR.IR-01 – Networks are protected from unauthorized access'
-  - framework: 'FedRAMP'
-    controls:
-      - 'SC-7, AC-4 (Moderate/High baseline)'
-  - framework: 'CMMC 2.0'
-    controls:
-      - 'SC.L2-3.13.1 – Monitor, control and protect communications'
-      - 'SC.L2-3.13.5 – Implement subnetworks for publicly accessible components'
-  - framework: 'ASD Essential 8'
-    controls:
-      - 'E8.4 – User application hardening (browser/network)'
-  - framework: 'IRAP'
-    controls:
-      - 'ISM – Network security'
-  - framework: 'CCCS PBMM'
-    controls:
-      - 'SC-7 – Boundary protection'
-  - framework: 'MAS TRM'
-    controls:
-      - 'Ch.9 – IT resilience – Network security'
-  - framework: 'ISMAP'
-    controls:
-      - 'Network access controls and segmentation'
-  - framework: 'FISC'
-    controls:
-      - 'Technical measures – Network access control'
+- framework: ISO 27001:2022
+  controls:
+  - A.8.20 – Networks security
+  - A.8.21 – Security of network services
+  - A.8.22 – Segregation of networks
+- framework: ISO 27017
+  controls:
+  - CLD.13.1 – Network security management
+- framework: CIS Controls v8
+  controls:
+  - CIS 4 – Secure Configuration of Enterprise Assets
+  - CIS 12 – Network Infrastructure Management
+  - CIS 13 – Network Monitoring and Defense
+- framework: CSA STAR
+  controls:
+  - CCM IVS-03 – Network Security
+  - CCM IVS-09 – Segmentation and Segregation
+- framework: PCI DSS v4.0
+  controls:
+  - Req 1 – Install and maintain network security controls
+  - Req 1.2 – Network segmentation
+- framework: SOC 2 Type II
+  controls:
+  - CC6.6 – Network access boundaries
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: NIS2
+  controls:
+  - Art. 21(2)(c) – Network and information system security
+- framework: DORA
+  controls:
+  - Art. 9 – Protection and prevention
+- framework: EUCS (ENISA)
+  controls:
+  - CSC-01 – Network security controls
+  - CSC-04 – Network segmentation
+- framework: BSI C5:2020
+  controls:
+  - COM-01 – Network architecture and segmentation
+  - COM-02 – Network access controls
+- framework: IT-Grundschutz
+  controls:
+  - NET.1.1 – Netzarchitektur und -design
+  - NET.3.2 – Firewall
+- framework: TISAX
+  controls:
+  - Information security – Network segmentation
+- framework: ANSSI SecNumCloud
+  controls:
+  - Domain – Network security and segmentation
+- framework: BIO
+  controls:
+  - BIO – Netwerksegmentatie
+- framework: ENS High
+  controls:
+  - mp.com.1 – Perímetro seguro
+  - mp.com.4 – Segregación de redes
+- framework: UK Cyber Essentials
+  controls:
+  - CE.FW – Firewalls
+- framework: UK NCSC CAF
+  controls:
+  - B4 – System security – network and protective monitoring
+- framework: UK GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: NIST SP 800-53
+  controls:
+  - SC-7 – Boundary Protection
+  - AC-4 – Information Flow Enforcement
+- framework: NIST CSF 2.0
+  controls:
+  - PR.IR-01 – Networks are protected from unauthorized access
+- framework: FedRAMP
+  controls:
+  - SC-7, AC-4 (Moderate/High baseline)
+- framework: CMMC 2.0
+  controls:
+  - SC.L2-3.13.1 – Monitor, control and protect communications
+  - SC.L2-3.13.5 – Implement subnetworks for publicly accessible components
+- framework: ASD Essential 8
+  controls:
+  - E8.4 – User application hardening (browser/network)
+- framework: IRAP
+  controls:
+  - ISM – Network security
+- framework: CCCS PBMM
+  controls:
+  - SC-7 – Boundary protection
+- framework: MAS TRM
+  controls:
+  - Ch.9 – IT resilience – Network security
+- framework: ISMAP
+  controls:
+  - Network access controls and segmentation
+- framework: FISC
+  controls:
+  - Technical measures – Network access control
 checks:
-  - id: waf-sec-050.tf.aws.no-public-ip-internal-compute
-    engine: terraform
-    automated: true
-    title: 'Internal compute resources must not be assigned public IP addresses'
-    provider: aws
-    description: 'EC2 instances and launch templates used for application or internal workloads must have associate_public_ip_address = false to ensure they are not directly reachable from the internet.'
-    expected: 'true'
-    remediation: 'Set associate_public_ip_address = false on all aws_instance and aws_launch_template resources used for internal workloads. Place these instances in private subnets. Use a NAT Gateway for outbound internet access and an Application Load Balancer in a public subnet for inbound traffic if required.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami                         = data.aws_ami.ubuntu.id
-          instance_type               = "t3.medium"
-          subnet_id                   = aws_subnet.private.id
-          associate_public_ip_address = false
-          vpc_security_group_ids      = [aws_security_group.app.id]
-          tags = { Name = "app-server" }
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami                         = data.aws_ami.ubuntu.id
-          instance_type               = "t3.medium"
-          subnet_id                   = aws_subnet.public.id
-          associate_public_ip_address = true   # WAF-SEC-050 violation
-          vpc_security_group_ids      = [aws_security_group.app.id]
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'associate_public_ip_address'
-        op: 'is_false'
-        message: 'Internal compute resources MUST NOT have public IP addresses assigned. Use private subnets and NAT Gateway for outbound access.'
-    on_fail: violation
-  - id: waf-sec-050.tf.aws.no-unrestricted-ssh
-    engine: terraform
-    automated: true
-    title: 'Security groups must not allow unrestricted SSH or RDP ingress from the internet'
-    provider: aws
-    description: 'Security group ingress rules must not allow port 22 (SSH) or port 3389 (RDP) from 0.0.0.0/0 (IPv4) or ::/0 (IPv6). Administrative access must be provided via AWS Systems Manager Session Manager or a bastion host with restricted CIDR access.'
-    expected: 'true'
-    remediation: "Remove any ingress rule allowing port 22 or 3389 from 0.0.0.0/0. For SSH access, use AWS Systems Manager Session Manager (requires SSM agent and IAM role with AmazonSSMManagedInstanceCore policy). For legacy SSH requirements, restrict the source CIDR to your organization's VPN or office IP range.\n"
-    example:
-      compliant: |
-        resource "aws_security_group" "app" {
-          name   = "app-server-sg"
-          vpc_id = aws_vpc.main.id
-          # No SSH ingress rule – use SSM Session Manager instead
-          egress {
-            from_port   = 443
-            to_port     = 443
-            protocol    = "tcp"
-            cidr_blocks = ["0.0.0.0/0"]
-            description = "HTTPS outbound for AWS API calls"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_security_group" "bad" {
-          name   = "app-server-sg"
-          vpc_id = aws_vpc.main.id
-          ingress {
-            from_port   = 22
-            to_port     = 22
-            protocol    = "tcp"
-            cidr_blocks = ["0.0.0.0/0"]   # WAF-SEC-050 violation: open SSH to internet
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_security_group
-        - aws_vpc_security_group_ingress_rule
-    assertions:
-      - attribute: 'ingress'
-        op: 'json_not_contains_pattern'
-        message: 'Security group must not allow ingress from 0.0.0.0/0 on administrative ports. Restrict to known CIDR ranges or use SSM Session Manager.'
-        pattern: '"cidr_blocks":\\s*\\["0\\.0\\.0\\.0/0"\\]'
-    on_fail: violation
+- id: waf-sec-050.tf.aws.no-public-ip-internal-compute
+  engine: terraform
+  automated: true
+  title: Internal compute resources must not be assigned public IP addresses
+  provider: aws
+  description: EC2 instances and launch templates used for application or internal workloads must have associate_public_ip_address = false to ensure they are not directly reachable from the internet.
+  expected: 'true'
+  remediation: Set associate_public_ip_address = false on all aws_instance and aws_launch_template resources used for internal workloads. Place these instances in private subnets. Use a NAT Gateway for outbound internet access and an Application Load Balancer in a public subnet for inbound traffic if required.\n
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami                         = data.aws_ami.ubuntu.id\n  instance_type               = \"t3.medium\"\n  subnet_id                   = aws_subnet.private.id\n  associate_public_ip_address = false\n  vpc_security_group_ids      = [aws_security_group.app.id]\n  tags = { Name = \"app-server\" }\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami                         = data.aws_ami.ubuntu.id\n  instance_type               = \"t3.medium\"\n  subnet_id                   = aws_subnet.public.id\n  associate_public_ip_address = true   # WAF-SEC-050 violation\n  vpc_security_group_ids      = [aws_security_group.app.id]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+  assertions:
+  - attribute: associate_public_ip_address
+    op: is_false
+    message: Internal compute resources MUST NOT have public IP addresses assigned. Use private subnets and NAT Gateway for outbound access.
+  on_fail: violation
+- id: waf-sec-050.tf.aws.no-unrestricted-ssh
+  engine: terraform
+  automated: true
+  title: Security groups must not allow unrestricted SSH or RDP ingress from the internet
+  provider: aws
+  description: Security group ingress rules must not allow port 22 (SSH) or port 3389 (RDP) from 0.0.0.0/0 (IPv4) or ::/0 (IPv6). Administrative access must be provided via AWS Systems Manager Session Manager or a bastion host with restricted CIDR access.
+  expected: 'true'
+  remediation: 'Remove any ingress rule allowing port 22 or 3389 from 0.0.0.0/0. For SSH access, use AWS Systems Manager Session Manager (requires SSM agent and IAM role with AmazonSSMManagedInstanceCore policy). For legacy SSH requirements, restrict the source CIDR to your organization''s VPN or office IP range.
 
-  - id: waf-sec-050.tf.azurerm.nic-no-public-ip
-    engine: terraform
-    automated: true
-    title: 'Azure network interfaces for internal workloads must not have a public IP address'
-    provider: azurerm
-    description: 'All azurerm_network_interface resources used for internal application workloads must leave ip_configuration.public_ip_address_id empty or unset.'
-    expected: 'true'
-    remediation: |
-      Remove public_ip_address_id from the ip_configuration block of internal azurerm_network_interface resources. Place VMs behind an Azure Load Balancer or Application Gateway for inbound traffic if required.
-    example:
-      compliant: |
-        resource "azurerm_network_interface" "app" {
-          name                = "app-nic"
-          location            = azurerm_resource_group.main.location
-          resource_group_name = azurerm_resource_group.main.name
-          ip_configuration {
-            name                          = "internal"
-            subnet_id                     = azurerm_subnet.private.id
-            private_ip_address_allocation = "Dynamic"
-          }
-        }
-      non_compliant: |
-        resource "azurerm_network_interface" "app" {
-          name                = "app-nic"
-          location            = azurerm_resource_group.main.location
-          resource_group_name = azurerm_resource_group.main.name
-          ip_configuration {
-            name                          = "internal"
-            subnet_id                     = azurerm_subnet.private.id
-            private_ip_address_allocation = "Dynamic"
-            public_ip_address_id          = azurerm_public_ip.app.id
-          }
-        }
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_network_interface
-    assertions:
-      - attribute: 'ip_configuration.public_ip_address_id'
-        op: 'equals'
-        expected: ''
-        message: 'Network interface for internal workloads must not have a public IP address assigned.'
-    on_fail: violation
+    '
+  example:
+    compliant: "resource \"aws_security_group\" \"app\" {\n  name   = \"app-server-sg\"\n  vpc_id = aws_vpc.main.id\n  # No SSH ingress rule – use SSM Session Manager instead\n  egress {\n    from_port   = 443\n    to_port     = 443\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n    description = \"HTTPS outbound for AWS API calls\"\n  }\n}\n"
+    non_compliant: "resource \"aws_security_group\" \"bad\" {\n  name   = \"app-server-sg\"\n  vpc_id = aws_vpc.main.id\n  ingress {\n    from_port   = 22\n    to_port     = 22\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]   # WAF-SEC-050 violation: open SSH to internet\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_security_group
+    - aws_vpc_security_group_ingress_rule
+  assertions:
+  - attribute: ingress
+    op: json_not_contains_pattern
+    message: Security group must not allow ingress from 0.0.0.0/0 on administrative ports. Restrict to known CIDR ranges or use SSM Session Manager.
+    pattern: '"cidr_blocks":\\s*\\["0\\.0\\.0\\.0/0"\\]'
+  on_fail: violation
+- id: waf-sec-050.tf.azurerm.nic-no-public-ip
+  engine: terraform
+  automated: true
+  title: Azure network interfaces for internal workloads must not have a public IP address
+  provider: azurerm
+  description: All azurerm_network_interface resources used for internal application workloads must leave ip_configuration.public_ip_address_id empty or unset.
+  expected: 'true'
+  remediation: 'Remove public_ip_address_id from the ip_configuration block of internal azurerm_network_interface resources. Place VMs behind an Azure Load Balancer or Application Gateway for inbound traffic if required.
 
-  - id: waf-sec-050.tf.azurerm.nsg-no-admin-internet
-    engine: terraform
-    automated: true
-    title: 'Azure network security groups must not allow unrestricted SSH or RDP from the internet'
-    provider: azurerm
-    description: 'All azurerm_network_security_group resources must not contain a security_rule that allows destination port 22 or 3389 from source_address_prefix "*" or "Internet".'
-    expected: 'true'
-    remediation: |
-      Remove or restrict administrative ingress rules in azurerm_network_security_group and azurerm_network_security_rule resources. Source CIDRs should be limited to known ranges; prefer Azure Bastion or JIT access.
-    example:
-      compliant: |
-        resource "azurerm_network_security_group" "app" {
-          name                = "app-nsg"
-          location            = azurerm_resource_group.main.location
-          resource_group_name = azurerm_resource_group.main.name
-          # No SSH/RDP ingress from the internet
-        }
-      non_compliant: |
-        resource "azurerm_network_security_group" "bad" {
-          name                = "bad-nsg"
-          location            = azurerm_resource_group.main.location
-          resource_group_name = azurerm_resource_group.main.name
-          security_rule {
-            name                       = "AllowSSH"
-            priority                   = 100
-            direction                  = "Inbound"
-            access                     = "Allow"
-            protocol                   = "Tcp"
-            source_port_range          = "*"
-            destination_port_range     = "22"
-            source_address_prefix      = "Internet"
-            destination_address_prefix = "*"
-          }
-        }
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_network_security_group
-        - azurerm_network_security_rule
-    assertions:
-      - attribute: 'security_rule'
-        op: 'json_not_contains_pattern'
-        pattern: '"destination_port_range":\s*"22"'
-        message: 'NSG must not allow unrestricted SSH (port 22) from the internet.'
-      - attribute: 'security_rule'
-        op: 'json_not_contains_pattern'
-        pattern: '"destination_port_range":\s*"3389"'
-        message: 'NSG must not allow unrestricted RDP (port 3389) from the internet.'
-    on_fail: violation
+    '
+  example:
+    compliant: "resource \"azurerm_network_interface\" \"app\" {\n  name                = \"app-nic\"\n  location            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  ip_configuration {\n    name                          = \"internal\"\n    subnet_id                     = azurerm_subnet.private.id\n    private_ip_address_allocation = \"Dynamic\"\n  }\n}\n"
+    non_compliant: "resource \"azurerm_network_interface\" \"app\" {\n  name                = \"app-nic\"\n  location            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  ip_configuration {\n    name                          = \"internal\"\n    subnet_id                     = azurerm_subnet.private.id\n    private_ip_address_allocation = \"Dynamic\"\n    public_ip_address_id          = azurerm_public_ip.app.id\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_network_interface
+  assertions:
+  - attribute: ip_configuration.public_ip_address_id
+    op: equals
+    expected: ''
+    message: Network interface for internal workloads must not have a public IP address assigned.
+  on_fail: violation
+- id: waf-sec-050.tf.azurerm.nsg-no-admin-internet
+  engine: terraform
+  automated: true
+  title: Azure network security groups must not allow unrestricted SSH or RDP from the internet
+  provider: azurerm
+  description: All azurerm_network_security_group resources must not contain a security_rule that allows destination port 22 or 3389 from source_address_prefix "*" or "Internet".
+  expected: 'true'
+  remediation: 'Remove or restrict administrative ingress rules in azurerm_network_security_group and azurerm_network_security_rule resources. Source CIDRs should be limited to known ranges; prefer Azure Bastion or JIT access.
 
-  - id: waf-sec-050.tf.google.vm-no-access-config
-    engine: terraform
-    automated: true
-    title: 'Google Compute Engine instances for internal workloads must not have external IPs'
-    provider: google
-    description: 'All google_compute_instance resources used for internal application workloads must not contain a network_interface.access_config block (no external IP).'
-    expected: 'true'
-    remediation: |
-      Remove the access_config block from network_interface on internal google_compute_instance resources. Use Cloud NAT for outbound internet access and a load balancer for inbound traffic if required.
-    example:
-      compliant: |
-        resource "google_compute_instance" "app" {
-          name         = "app-vm"
-          machine_type = "e2-medium"
-          zone         = "europe-west3-a"
-          network_interface {
-            subnetwork = google_compute_subnetwork.private.id
-          }
-        }
-      non_compliant: |
-        resource "google_compute_instance" "app" {
-          name         = "app-vm"
-          machine_type = "e2-medium"
-          zone         = "europe-west3-a"
-          network_interface {
-            subnetwork = google_compute_subnetwork.private.id
-            access_config {
-              # external IP assigned
-            }
-          }
-        }
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_instance
-    assertions:
-      - attribute: 'network_interface.access_config'
-        op: 'equals'
-        expected: ''
-        message: 'Internal compute instances must not have an access_config block assigning an external IP.'
-    on_fail: violation
+    '
+  example:
+    compliant: "resource \"azurerm_network_security_group\" \"app\" {\n  name                = \"app-nsg\"\n  location            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  # No SSH/RDP ingress from the internet\n}\n"
+    non_compliant: "resource \"azurerm_network_security_group\" \"bad\" {\n  name                = \"bad-nsg\"\n  location            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  security_rule {\n    name                       = \"AllowSSH\"\n    priority                   = 100\n    direction                  = \"Inbound\"\n    access                     = \"Allow\"\n    protocol                   = \"Tcp\"\n    source_port_range          = \"*\"\n    destination_port_range     = \"22\"\n    source_address_prefix      = \"Internet\"\n    destination_address_prefix = \"*\"\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_network_security_group
+    - azurerm_network_security_rule
+  assertions:
+  - attribute: security_rule
+    op: json_not_contains_pattern
+    pattern: '"destination_port_range":\s*"22"'
+    message: NSG must not allow unrestricted SSH (port 22) from the internet.
+  - attribute: security_rule
+    op: json_not_contains_pattern
+    pattern: '"destination_port_range":\s*"3389"'
+    message: NSG must not allow unrestricted RDP (port 3389) from the internet.
+  on_fail: violation
+- id: waf-sec-050.tf.google.vm-no-access-config
+  engine: terraform
+  automated: true
+  title: Google Compute Engine instances for internal workloads must not have external IPs
+  provider: google
+  description: All google_compute_instance resources used for internal application workloads must not contain a network_interface.access_config block (no external IP).
+  expected: 'true'
+  remediation: 'Remove the access_config block from network_interface on internal google_compute_instance resources. Use Cloud NAT for outbound internet access and a load balancer for inbound traffic if required.
 
-  - id: waf-sec-050.tf.google.firewall-no-admin-internet
-    engine: terraform
-    automated: true
-    title: 'Google Cloud firewalls must not allow unrestricted SSH or RDP from the internet'
-    provider: google
-    description: 'All google_compute_firewall resources allowing ingress must not allow ports 22 or 3389 from source_ranges containing "0.0.0.0/0".'
-    expected: 'true'
-    remediation: |
-      Restrict source_ranges on google_compute_firewall rules for management ports to trusted CIDRs. Prefer Identity-Aware Proxy (IAP) for administrative access.
-    example:
-      compliant: |
-        resource "google_compute_firewall" "internal" {
-          name    = "allow-internal"
-          network = google_compute_network.main.id
-          allow {
-            protocol = "tcp"
-            ports    = ["443"]
-          }
-          source_ranges = ["10.0.0.0/8"]
-        }
-      non_compliant: |
-        resource "google_compute_firewall" "bad" {
-          name    = "allow-ssh-internet"
-          network = google_compute_network.main.id
-          allow {
-            protocol = "tcp"
-            ports    = ["22"]
-          }
-          source_ranges = ["0.0.0.0/0"]
-        }
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_firewall
-    assertions:
-      - attribute: 'allow'
-        op: 'json_not_contains_pattern'
-        pattern: '"ports":\s*\[\s*"22"'
-        message: 'Firewall must not allow unrestricted SSH (port 22) from the internet.'
-      - attribute: 'allow'
-        op: 'json_not_contains_pattern'
-        pattern: '"ports":\s*\[\s*"3389"'
-        message: 'Firewall must not allow unrestricted RDP (port 3389) from the internet.'
-    on_fail: violation
+    '
+  example:
+    compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"app-vm\"\n  machine_type = \"e2-medium\"\n  zone         = \"europe-west3-a\"\n  network_interface {\n    subnetwork = google_compute_subnetwork.private.id\n  }\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"app-vm\"\n  machine_type = \"e2-medium\"\n  zone         = \"europe-west3-a\"\n  network_interface {\n    subnetwork = google_compute_subnetwork.private.id\n    access_config {\n      # external IP assigned\n    }\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_instance
+  assertions:
+  - attribute: network_interface.access_config
+    op: equals
+    expected: ''
+    message: Internal compute instances must not have an access_config block assigning an external IP.
+  on_fail: violation
+- id: waf-sec-050.tf.google.firewall-no-admin-internet
+  engine: terraform
+  automated: true
+  title: Google Cloud firewalls must not allow unrestricted SSH or RDP from the internet
+  provider: google
+  description: All google_compute_firewall resources allowing ingress must not allow ports 22 or 3389 from source_ranges containing "0.0.0.0/0".
+  expected: 'true'
+  remediation: 'Restrict source_ranges on google_compute_firewall rules for management ports to trusted CIDRs. Prefer Identity-Aware Proxy (IAP) for administrative access.
+
+    '
+  example:
+    compliant: "resource \"google_compute_firewall\" \"internal\" {\n  name    = \"allow-internal\"\n  network = google_compute_network.main.id\n  allow {\n    protocol = \"tcp\"\n    ports    = [\"443\"]\n  }\n  source_ranges = [\"10.0.0.0/8\"]\n}\n"
+    non_compliant: "resource \"google_compute_firewall\" \"bad\" {\n  name    = \"allow-ssh-internet\"\n  network = google_compute_network.main.id\n  allow {\n    protocol = \"tcp\"\n    ports    = [\"22\"]\n  }\n  source_ranges = [\"0.0.0.0/0\"]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_firewall
+  assertions:
+  - attribute: allow
+    op: json_not_contains_pattern
+    pattern: '"ports":\s*\[\s*"22"'
+    message: Firewall must not allow unrestricted SSH (port 22) from the internet.
+  - attribute: allow
+    op: json_not_contains_pattern
+    pattern: '"ports":\s*\[\s*"3389"'
+    message: Firewall must not allow unrestricted RDP (port 3389) from the internet.
+  on_fail: violation
+- id: waf-sec-050.tf.stackit.network-no-public-ssh
+  engine: terraform
+  automated: true
+  title: STACKIT network resources must not expose administrative ports to the internet
+  provider: stackit
+  description: stackit_network and stackit_security_group rules must not allow unrestricted ingress from 0.0.0.0/0 to administrative ports (SSH/RDP/3389) or database ports. Management access must be restricted to trusted sources.
+  expected: 'true'
+  remediation: Restrict ingress rules in STACKIT security groups to specific source CIDRs or VPN ranges. Do not expose SSH/RDP/3389 to the public internet.\n
+  example:
+    compliant: "resource \"stackit_network\" \"app\" {\n  project_id = var.stackit_project_id\n  name       = \"app-network\"\n}\n\n# Ingress restricted to trusted office/VPN CIDR via STACKIT console or API\n"
+    non_compliant: "resource \"stackit_network\" \"app\" {\n  project_id = var.stackit_project_id\n  name       = \"app-network\"\n  # Security group allows 0.0.0.0/0:22 – WAF-SEC-050 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_network
+    - stackit_security_group
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: STACKIT network resources must be defined and reviewed for unrestricted administrative access.
+  on_fail: violation
+- id: waf-sec-050.tf.ovh.vps-no-public-admin
+  engine: terraform
+  automated: true
+  title: OVHcloud instances must not expose administrative ports to the internet
+  provider: ovh
+  description: OVHcloud instances (ovh_cloud_project_instance, ovh_vps, ovh_dedicated_server) must not be reachable from 0.0.0.0/0 on administrative ports. Access must be restricted using OVHcloud firewall or customer-managed network ACLs.
+  expected: 'true'
+  remediation: Configure OVHcloud firewall rules or host-based firewalls to restrict SSH/RDP/WinRM to trusted sources. Document allowed source ranges.\n
+  example:
+    compliant: "resource \"ovh_cloud_project_instance\" \"app\" {\n  project_id = var.ovh_project_id\n  name       = \"app-vm\"\n  flavor     = \"b2-7\"\n  image      = \"Ubuntu 22.04\"\n  # OVHcloud firewall restricts SSH to trusted CIDR\n}\n"
+    non_compliant: "resource \"ovh_cloud_project_instance\" \"app\" {\n  project_id = var.ovh_project_id\n  name       = \"app-vm\"\n  # SSH open to 0.0.0.0/0 – WAF-SEC-050 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_instance
+    - ovh_vps
+    - ovh_dedicated_server
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: OVHcloud instance must be defined and reviewed for unrestricted administrative access.
+  on_fail: violation
+- id: waf-sec-050.tf.hcloud.firewall-no-public-admin
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud firewalls must block public administrative access
+  provider: hcloud
+  description: hcloud_firewall rules must not allow 0.0.0.0/0 ingress on administrative ports (SSH/RDP/3389). Management access must be limited to trusted source IPs or a bastion network.
+  expected: 'true'
+  remediation: Create hcloud_firewall rules that restrict SSH and other admin ports to trusted source IPs. Attach the firewall to all production servers.\n
+  example:
+    compliant: "resource \"hcloud_firewall\" \"app\" {\n  name = \"app-firewall\"\n  rule {\n    direction  = \"in\"\n    protocol   = \"tcp\"\n    port       = \"22\"\n    source_ips = [\"203.0.113.0/24\"]\n  }\n}\n"
+    non_compliant: "resource \"hcloud_firewall\" \"app\" {\n  name = \"app-firewall\"\n  rule {\n    direction  = \"in\"\n    protocol   = \"tcp\"\n    port       = \"22\"\n    source_ips = [\"0.0.0.0/0\"]  # WAF-SEC-050 violation\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_firewall
+  assertions:
+  - attribute: rule
+    op: json_not_contains_pattern
+    message: Hetzner Cloud firewall must not allow 0.0.0.0/0 on administrative ports.
+    pattern: '"source_ips":\s*\[\s*"0\\.0\\.0\\.0/0"\s*\]'
+  on_fail: violation

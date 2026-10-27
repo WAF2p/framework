@@ -3,160 +3,156 @@
 :control-id: WAF-SOV-030
 :pillar: sovereign
 :severity: high
-:category: data-residency
-:automated: medium
-:description: WAF++ Sovereign – Keep backup locations within sovereignty boundaries; define and enforce retention and restore tests.
+:category: logging-monitoring
+:automatable: High
+:description: Backup policies MUST explicitly define region/location constraints, minimum retention periods, and restore-test schedules. Cross-region replication MUST be explicitly configured and documented with an approved sovereign destination. Backup storage MUST remain within the same jurisdictional boundary as primary data unless explicitly approved and documented.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Data Residency | *Automatable:* Medium
+*Pillar:* Sovereign | *Severity:* High | *Category:* Logging Monitoring | *Automatable:* High
 
 == Description
 
-Backup policies MUST explicitly define region/location constraints, minimum retention periods,
-and restore test schedules. Cross-region replication MUST be explicitly approved and directed
-exclusively to valid sovereign regions.
-
-Backup storage MUST remain within the same jurisdictional boundary as primary data —
-except with explicitly documented approval.
+Backup policies MUST explicitly define region/location constraints, minimum retention periods, and restore-test schedules. Cross-region replication MUST be explicitly configured and documented with an approved sovereign destination. Backup storage MUST remain within the same jurisdictional boundary as primary data unless explicitly approved and documented.
 
 == Rationale
-
-Backups are often the first sovereignty leak that audit teams overlook. A primary database may
-reside in an approved EU region while automated backup replication silently routes data to a
-US DR region.
-
-Every backup configuration is a potential data residency violation. Restore tests validate
-both the technical recoverability and that backup data has not ended up in non-sovereign storage.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Backup replication to US region*
-|Automated DR replication silently routes backup data to non-approved destination regions.
+|*Risk* |Data loss or ransomware impact is magnified when recovery points are absent.
 
-|*Provider-default backup storage*
-|Managed service backups land in provider-managed storage outside the approved jurisdiction.
-
-|*Untested restore processes*
-|RPO/RTO violation because the restore process was never practiced.
-
-|*Missing retention policy*
-|Unclear retention leads to indefinite storage of sensitive data or premature deletion.
-
-|*Cross-region copy jobs*
-|Scheduled snapshot copies exfiltrate backup data to non-sovereign regions.
+|*Risk* |Regulatory recovery-time requirements may be missed without tested backups.
 
 |===
 
-== Regulatory Mapping
+== Requirements
 
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*GDPR*
-|Art. 5(1)(e) – Storage limitation; Art. 32 – Security of processing; Art. 44–46 – Transfers to third countries
-
-|*BSI C5:2020*
-|OPS-04 – Data management; BCM-01 – Business continuity management
-
-|*EUCS (ENISA)*
-|BCR-01 – Backup policy; DSP-04 – Data portability
-
-|*ISO 27001:2022*
-|A.8.13 – Information backup; A.5.29 – Information security during business disruption
-
-|*BSI C3A:2026*
-|Dimension 4 – Data: Backup location and residency; Dimension 6 – Supply Chain: Backup provider inventory
-
-|===
-
-== Requirement
-
-* Backup configurations MUST set `location`/`region` explicitly
-* `backup_retention_period` MUST be at least 7 days (non-prod) and 30 days (prod)
-* Point-in-Time Recovery (PITR) MUST be enabled for database services with PII/financial data
-* Cross-region replication MUST be explicitly approved and directed to a sovereign target region
-* Restore tests MUST be performed and documented at least annually (quarterly for critical data)
-* Backup resources MUST be tagged with `data-residency` and `data-class` consistent with source data
+* Backup policies MUST explicitly define region/location constraints, minimum retention periods, and restore-test schedules.
+* Cross-region replication MUST be explicitly configured and documented with an approved sovereign destination.
+* Backup storage MUST remain within the same jurisdictional boundary as primary data unless explicitly approved and documented.
 
 == Implementation Guidance
 
-. *Declare backup resources in IaC*: No implicit backup configurations; all settings explicit.
-. *Set retention periods* by data category and enforce in IaC.
-. *Enable PITR* for all databases with personal or financial data.
-. *Review cross-region replication*: Target region in approval list; DPO review if outside.
-. *Configure immutable backups* (Object Lock / Soft Delete) for critical data categories.
-. *Schedule restore drills* and document: backup ID, timestamp, achieved RTO, findings.
-. *Tag backup vaults*: `data-residency` and `data-class` consistent with source data.
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Backups enabled, location uncontrolled
-|Backups enabled for critical databases; no explicit location constraints.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Location and retention defined in IaC
-|Backup vault location in approved region; minimum retention set and enforced.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Full sovereign backup posture
-|All backup targets verified in approved regions; PITR for PII/financial data; cross-region replication approved.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Continuous monitoring and tested restores
-|Quarterly restore tests with evidence; automated checks for backup location compliance; alerts on backup jobs to non-approved regions.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Immutable, auditable sovereign backup process
-|Object Lock / immutable backups enforced; restore drills automated with RTO measurement; backup compliance dashboard for auditors.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sov-030.tf.aws.db-instance-backup-retention
-*Checks:* RDS `backup_retention_period` >= 7 days.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*RDS instance backup retention must be >= 7 days*
+
+AWS RDS instances must have backup_retention_period set to at least 7 days to meet minimum recovery requirements for sovereign data stores.
+
+*Scope:* `resource` — `aws_db_instance`
+
+*Assertions:*
+* `backup_retention_period` attribute exists — aws_db_instance is missing 'backup_retention_period' attribute.
+* `backup_retention_period` greater than or equal `7` — RDS backup_retention_period must be >= 7 days for sovereign compliance.
+
+*Remediation:* Set backup_retention_period to at least 7 (days) on all production RDS instances and 30 days for instances processing PII or financial data.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_db_instance" "main" {
+  identifier             = "prod-db"
+  engine                 = "postgres"
   backup_retention_period = 30
-  backup_window           = "03:00-04:00"
+  backup_window          = "03:00-04:00"
   # ...
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_db_instance" "main" {
-  backup_retention_period = 0
-  # ❌ Backups disabled
+  identifier             = "prod-db"
+  engine                 = "postgres"
+  backup_retention_period = 0  # Backups disabled
 }
 ----
-|===
+
+---
+
+=== waf-sov-030.tf.aws.rds-cluster-backup-retention
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Aurora cluster backup retention must be >= 7 days*
+
+AWS RDS Aurora clusters must have backup_retention_period set to at least 7 days.
+
+*Scope:* `resource` — `aws_rds_cluster`
+
+*Assertions:*
+* `backup_retention_period` greater than or equal `7` — Aurora cluster backup_retention_period must be >= 7 days.
+
+*Remediation:* Set backup_retention_period >= 7 on all Aurora clusters.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_rds_cluster" "main" {
+  backup_retention_period = 14
+  preferred_backup_window = "02:00-03:00"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_rds_cluster" "main" {
+  backup_retention_period = 1
+}
+----
 
 ---
 
 === waf-sov-030.tf.aws.dynamodb-pitr-enabled
-*Checks:* DynamoDB PITR must be enabled.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*DynamoDB tables must have point-in-time recovery enabled*
+
+DynamoDB tables storing sovereign data must have point_in_time_recovery enabled to allow restoration to any point in the last 35 days.
+
+*Scope:* `resource` — `aws_dynamodb_table`
+
+*Assertions:*
+* `point_in_time_recovery.enabled` is true — DynamoDB table must have point_in_time_recovery.enabled = true.
+
+*Remediation:* Add a point_in_time_recovery block with enabled = true to all DynamoDB tables.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_dynamodb_table" "sovereign" {
   name = "sovereign-table"
@@ -165,25 +161,54 @@ resource "aws_dynamodb_table" "sovereign" {
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_dynamodb_table" "sovereign" {
   name = "sovereign-table"
-  # ❌ No PITR
+  # No PITR configured
 }
 ----
-|===
+
+---
+
+=== waf-sov-030.tf.aws.backup-vault-in-approved-region
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*AWS Backup vault must be in an approved sovereign region*
+
+AWS Backup vault configurations must not target non-sovereign regions. Any aws_backup_copy_action destination vault must be verified against the approved region list.
+
+*Scope:* `resource` — `aws_backup_plan`
+
+*Assertions:*
+* `rule.copy_action.destination_vault_arn` matches pattern `arn:aws:[^:]*:([a-z0-9-]+):.*` — Backup copy action destination vault is in a non-approved region.
+
+*Remediation:* Ensure all backup copy action destination vaults reference backup vaults in approved sovereign regions only.
 
 ---
 
 === waf-sov-030.tf.azurerm.recovery-vault-location
-*Checks:* Azure Recovery Services Vault must reside in an approved sovereign region.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
 
-a|[source,hcl]
+*Azure Recovery Services vault must be in approved location*
+
+Azure Recovery Services vaults used for backups must have their 'location' set to an approved sovereign region.
+
+*Scope:* `resource` — `azurerm_recovery_services_vault`
+
+*Assertions:*
+* `location` in `['germanywestcentral', 'westeurope', 'northeurope', 'switzerlandnorth', 'francecentral']` — Azure Recovery Services vault location is not in the approved sovereign locations list.
+
+*Remediation:* Move the Recovery Services vault to an approved sovereign Azure location.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "azurerm_recovery_services_vault" "backup" {
   name                = "rsv-sovereign-prod"
@@ -193,49 +218,91 @@ resource "azurerm_recovery_services_vault" "backup" {
   soft_delete_enabled = true
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "azurerm_recovery_services_vault" "backup" {
   name     = "rsv-prod"
-  location = "eastus"  # ❌ Non-sovereign
+  location = "eastus"  # Non-sovereign location
 }
 ----
-|===
 
 ---
 
 === waf-sov-030.tf.aws.s3-versioning-enabled
-*Checks:* S3 backup buckets must have versioning enabled.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*S3 buckets storing backup data should have versioning enabled*
+
+S3 buckets used as backup destinations must have versioning enabled to protect against accidental deletion and support point-in-time recovery.
+
+*Scope:* `resource` — `aws_s3_bucket_versioning`
+
+*Assertions:*
+* `versioning_configuration.status` equals `Enabled` — S3 bucket versioning must be Enabled for backup/sovereign data stores.
+
+*Remediation:* Enable versioning on S3 buckets used for backup or sovereign data storage.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "aws_s3_bucket_versioning" "backup" {
   bucket = aws_s3_bucket.backup.id
   versioning_configuration {
-    status = "Enabled"  # ✅
+    status = "Enabled"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket_versioning" "backup" {
+  bucket = aws_s3_bucket.backup.id
+  versioning_configuration {
+    status = "Suspended"
   }
 }
 ----
 
 ---
+
 === waf-sov-030.tf.stackit.backup-retention
-*Checks:* StackIT database instances must have backup retention enabled.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
 
-a|[source,hcl]
+*StackIT database instances must have backup retention enabled*
+
+StackIT MySQL, Redis, OpenSearch instances must have backup retention configured. Backups must remain within approved sovereign regions.
+
+*Scope:* `resource` — `stackit_mysql_instance`, `stackit_redis_instance`, `stackit_opensearch_instance`
+
+*Assertions:*
+* `backup_retention_period` attribute exists — StackIT database instance is missing backup_retention_period.
+* `backup_retention_period` greater than or equal `7` — StackIT backup_retention_period must be >= 7 days.
+
+*Remediation:* Configure backup_retention_period on all StackIT database resources and ensure backups are stored in approved sovereign regions (eu-central-1, eu-west-1).
+
+.Compliant
+
+[source,terraform]
 ----
 resource "stackit_mysql_instance" "main" {
-  project_id = stackit_project.main.id
-  name       = "sovereign-mysql"
+  project_id     = stackit_project.main.id
+  name           = "sovereign-mysql"
   backup_retention_period = 14
-  # Backups stored in eu-central-1
+  # backups stored in eu-central-1
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "stackit_mysql_instance" "main" {
   project_id = stackit_project.main.id
@@ -243,126 +310,173 @@ resource "stackit_mysql_instance" "main" {
   # No backup retention configured
 }
 ----
-|===
-
-*Supported providers:* AWS, Azure, **StackIT**, **OVH**, **Hetzner Cloud**
 
 ---
+
 === waf-sov-030.tf.ovh.backup-location-sovereign
-*Checks:* OVH backups must remain in sovereign regions.
 
-*Supported providers:* **OVH**
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVH backups must remain in sovereign regions*
+
+OVH cloud backups, VPS snapshots, and dedicated server backups must not be exported outside approved sovereign regions (DE, EU).
+
+*Scope:* `resource` — `ovh_cloud_project`, `ovh_vps`, `ovh_dedicated_server`
+
+*Assertions:*
+* `backup_location` in `['eu-central-1', 'eu-west-1', 'eu-west-3', 'germanywestcentral', 'westeurope', 'northeurope', 'europe-west3', 'europe-west1', 'fsn1', 'hel1', 'de', 'fi']` — OVH backup location must be in approved sovereign regions only.
+
+*Remediation:* Configure OVH backup policies to restrict backup locations to sovereign regions and prevent cross-border data transfers.
+
+.Compliant
+
+[source,terraform]
+----
+# OVH backups configured to stay within DE-FRA and EU-CY regions
+# No export to non-sovereign regions like US-CA, SG, etc.
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Backup exported to US region - GDPR violation
+----
 
 ---
-=== waf-sov-030.tf.hcloud.backup-location-sovereign
-*Checks:* Hetzner Cloud backups must remain in sovereign regions.
 
-*Supported providers:* **Hetzner Cloud**
+=== waf-sov-030.tf.hcloud.backup-location-sovereign
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud backups must remain in sovereign regions*
+
+Hetzner Cloud server backups, volume snapshots, and image exports must not be exported outside approved sovereign regions (DE, FI).
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_volume`, `hcloud_image`
+
+*Assertions:*
+* `location` in `['eu-central-1', 'eu-west-1', 'eu-west-3', 'germanywestcentral', 'westeurope', 'northeurope', 'europe-west3', 'europe-west1', 'fsn1', 'hel1', 'de', 'fi']` — Hetzner Cloud backup location must be in approved sovereign regions only.
+
+*Remediation:* Configure Hetzner Cloud backup and snapshot policies to restrict locations to sovereign regions and prevent cross-border data transfers.
+
+.Compliant
+
+[source,terraform]
+----
+# Hetzner backups configured to stay within fsn1 (DE) and hel1 (FI) regions
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Backup exported to non-sovereign region
+----
+
+---
+
+=== waf-sov-030.tf.google.sql-backup-location
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Cloud SQL backups must be enabled and stored in approved sovereign locations*
+
+GCP Cloud SQL instances storing sovereign data must have backup configuration enabled and the instance located in an approved sovereign region. Backup geo-redundancy must be disabled or explicitly approved for cross-border transfers.
+
+*Scope:* `resource` — `google_sql_database_instance`
+
+*Assertions:*
+* `region` in `['europe-west3', 'europe-west1', 'europe-north1', 'europe-central2']` — Cloud SQL instance must be in an approved sovereign region.
+* `settings.backup_configuration.enabled` is true — Cloud SQL backup configuration must be enabled.
+* `settings.backup_configuration.geo_redundancy_enabled` is false — Cloud SQL backup geo-redundancy must be disabled unless explicitly approved for cross-border transfer.
+
+*Remediation:* Set settings.backup_configuration.enabled = true on google_sql_database_instance, choose an approved location (e.g., europe-west3), and disable settings.backup_configuration.geo_redundancy_enabled unless explicitly approved.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "sovereign" {
+  name             = "sovereign-db"
+  region           = "europe-west3"
+  database_version = "POSTGRES_15"
+  settings {
+    backup_configuration {
+      enabled                   = true
+      start_time                = "03:00"
+      geo_redundancy_enabled    = false
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "sovereign" {
+  name             = "sovereign-db"
+  region           = "us-central1"
+  database_version = "POSTGRES_15"
+  settings {
+    backup_configuration {
+      enabled = false
+    }
+  }
+}
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*IaC*
-|✅ Required
-|Terraform backup resources with explicit location, retention, and PITR settings.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Required
-|Restore test records (at least annually) with backup ID, timestamp, and achieved RTO.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Cloud console export of the active backup policy with location and retention settings.
-
-|*Logs*
-|Optional
-|Backup job logs with source and destination region.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy]
-* xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning]
-* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
-* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan & Portability]
+* xref:pillar-sovereign:controls/WAF-SOV-080.adoc[WAF-SOV-080]
+* xref:pillar-sovereign:controls/WAF-SOV-100.adoc[WAF-SOV-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+|GDPR |* Art. 5(1)(e) – Storage limitation
+* Art. 32 – Security of processing (availability and resilience)
+* Art. 44-46 – Transfers to third countries
 
-|*BSI C5:2020*
-|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+|BSI C5:2020 |* OPS-04 – Data management
+* BCM-01 – Business continuity
 
-|*EUCS (ENISA)*
-|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+|BSI C3A:2026 |* Dimension 4 – Data: Backup location and residency
+* Dimension 6 – Supply Chain: Backup provider inventory
 
-|*ISO 27001:2022*
-|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+|EUCS (ENISA) |* BCR-01 – Backup policy
+* DSP-04 – Data portability
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
-
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
-
-|*BSI C3A:2026*
-|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
-
-|*GAIA-X*
-|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
-
-|*NIST SP 800-53*
-|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
-
-|*FedRAMP*
-|SC-1, SC-7, SC-8 (High baseline)
-
-|*TISAX*
-|Information security – Data protection; Prototype protection – Sensitive data handling
-
-|*ANSSI SecNumCloud*
-|Domain – Data protection; Domain – Cloud security
-
-|*BIO*
-|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
-
-|*ENS High*
-|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
-
-|*UK NCSC CAF*
-|B3 – Understanding data; B4 – System security
-
-|*CMMC 2.0*
-|SC.L2-3.13.16 – Protect CUI confidentiality at rest
-
-|*IRAP*
-|ISM – Data protection; ISM – Cloud security
-
-|*CCCS PBMM*
-|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
-
-|*ISMAP*
-|Data sovereignty and cloud security
-
-|*FISC*
-|Technical measures – Data protection
+|ISO 27001:2022 |* A.8.13 – Information backup
+* A.5.29 – Information security during disruption
 
 |===
-
-== Best Practice

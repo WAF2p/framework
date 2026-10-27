@@ -3,138 +3,80 @@
 :control-id: WAF-SOV-080
 :pillar: sovereign
 :severity: medium
-:category: supply-chain
-:automated: medium
-:description: WAF++ Sovereign – Maintain a complete inventory of all dependencies and subprocessors; pin Terraform provider versions and module sources; ensure DPA for all data processors.
+:category: logging-monitoring
+:automatable: High
+:description: An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services, third-party SaaS tools, CI/CD platforms, observability providers, and data processors. Changes to this inventory MUST be version-controlled, reviewed, and approved. Provider version constraints in Terraform MUST be pinned to prevent silent upgrades. Module sources MUST reference approved registries with version-locked references.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟡 Medium | *Category:* Supply Chain | *Automatable:* Medium
+*Pillar:* Sovereign | *Severity:* Medium | *Category:* Logging Monitoring | *Automatable:* High
 
 == Description
 
-An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services,
-third-party SaaS tools, CI/CD platforms, observability providers, and data processors. Changes
-to this inventory MUST be versioned, reviewed, and approved.
-
-Provider version constraints in Terraform MUST be pinned to prevent silent upgrades. Module
-sources MUST reference approved registries with version-locked references.
+An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services, third-party SaaS tools, CI/CD platforms, observability providers, and data processors. Changes to this inventory MUST be version-controlled, reviewed, and approved. Provider version constraints in Terraform MUST be pinned to prevent silent upgrades. Module sources MUST reference approved registries with version-locked references.
 
 == Rationale
-
-Cloud sovereignty cannot be assessed without knowing which third parties process data, from
-which jurisdiction, and on what legal basis. A Datadog agent sending logs to US servers, a
-GitHub Actions runner with production access, or an unreviewed Terraform module from an
-untrusted source can each independently compromise the sovereignty posture. Supply chain
-awareness is the prerequisite for supply chain control.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*SaaS tool outside approved jurisdiction*
-|Monitoring, ticketing, or CI/CD tool processes sovereign data outside the approved region.
+|*Risk* |Incomplete sub-processor inventories violate processor transparency obligations.
 
-|*Unpinned Terraform provider*
-|Unpinned provider version is silently updated to a version with breaking changes or changed behavior.
-
-|*Unreviewed Terraform module*
-|Terraform module from an unknown author with malicious resource configurations.
-
-|*Subprocessor without DPA*
-|New subprocessor added without a GDPR Art. 28-compliant DPA.
-
-|*CI/CD as unrecognized subprocessor*
-|CI/CD platform (GitHub, GitLab, CircleCI) with production access not listed as a subprocessor.
+|*Risk* |Missing dependency assessments complicate exit management and emergency planning.
 
 |===
 
-== Regulatory Mapping
+== Requirements
 
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*GDPR*
-|Art. 28 – Data processors; Art. 30 – Records of processing activities; Art. 44–46 – Transfers to third countries
-
-|*BSI C5:2020*
-|SCA-01 – Supply chain management; OPS-04 – Data management
-
-|*EUCS (ENISA)*
-|SCA-01 – Supply chain; IAM-04 – Third-party access
-
-|*ISO 27001:2022*
-|A.5.19 – Information security in supplier relationships; A.5.20 – Information security in supplier agreements; A.5.21 – Information security in the ICT supply chain
-
-|*SLSA*
-|L2 – Build integrity; L3 – Source integrity
-
-|*BSI C3A:2026*
-|Dimension 6 – Supply Chain: Software inventory (SBoM); Dimension 6 – Supply Chain: Hardware inventory; Dimension 6 – Supply Chain: External service dependencies
-
-|===
-
-== Requirement
-
-* All `required_providers` in Terraform MUST include a version constraint
-* `required_version` MUST be set in the Terraform block
-* Terraform module versions MUST be pinned (Registry: `version = "x.y.z"`; Git: `?ref=vX.Y.Z`)
-* Module sources MUST NOT reference unapproved public Git repositories
-* The dependency register MUST be machine-readable (YAML/JSON) and versioned in the repository
-* A DPA reference MUST exist in the register for all subprocessors handling personal data
-* The register MUST be reviewed at least quarterly
-* `terraform.lock.hcl` MUST be committed to the repository
+* An inventory of all dependencies and subprocessors MUST be maintained: managed cloud services, third-party SaaS tools, CI/CD platforms, observability providers, and data processors.
+* Changes to this inventory MUST be version-controlled, reviewed, and approved.
+* Provider version constraints in Terraform MUST be pinned to prevent silent upgrades.
+* Module sources MUST reference approved registries with version-locked references.
 
 == Implementation Guidance
 
-. *Create dependency register*: YAML/JSON in Git; all external services with name, purpose, processed data, hosting region, and legal basis.
-. *Pin provider versions*: All entries in `required_providers` with `~>` constraint (e.g. `~> 5.40` for AWS Provider v5.x).
-. *Pin module versions*: Registry modules with `version = "x.y.z"`; Git modules with `?ref=v1.2.3`.
-. *DPA for data processors*: DPA agreement for every subprocessor with personal data; reference in the register.
-. *Quarterly review*: Review subprocessor list quarterly; record changes in changelog.
-. *Commit lock file*: `terraform.lock.hcl` in repository; CI blocks if lock file is missing.
-. *CI/CD as subprocessor*: List the CI/CD platform itself as a subprocessor when secrets or data flow through it.
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|No formal inventory, provider versions unpinned
-|Some knowledge of main dependencies; no structured documentation.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Dependency inventory documented, providers pinned
-|Dependency register exists (even as a table); Terraform provider versions pinned in `required_providers`; lock file committed to repository.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Versioned inventory with DPA references
-|Machine-readable dependency register in Git; every subprocessor has a DPA reference and data class annotation; quarterly review process with documented evidence.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automated supply chain monitoring
-|Automatic alerts on new/changed providers or modules in PRs; SBOM generated for infrastructure deployments; subprocessor changes trigger review workflow.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Full supply chain attestation
-|SLSA compliance for critical supply chain components; automated DPA status verification integrated into deployment gate; cryptographic attestation for module provenance.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sov-080.tf.any.required-providers-version-pinned
-*Checks:* All `required_providers` must include version constraints.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
 
-a|[source,hcl]
+*All required_providers must have version constraints pinned*
+
+Every entry in the terraform required_providers block must specify a version constraint. Unpinned providers allow silent upgrades that may change behavior, introduce breaking changes, or alter sovereign controls without review.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `version` attribute exists — One or more required_providers entries are missing version constraints.
+* `version` not matches pattern `^>= 0\\.0\\.0$` — Provider version constraint is too broad (>= 0.0.0). Use a tightly bounded constraint.
+
+*Remediation:* Add version constraints to all required_providers using the ~> operator for compatible version pinning (e.g., ~> 5.0 for AWS provider v5.x).
+
+.Compliant
+
+[source,terraform]
 ----
 terraform {
   required_version = ">= 1.6.0"
@@ -147,14 +89,240 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.100"
     }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      # No version constraint – any version accepted
+    }
+  }
+}
+----
+
+---
+
+=== waf-sov-080.tf.any.required-terraform-version
+
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
+
+*Terraform required_version must be set*
+
+The 'terraform' block must include a required_version constraint to ensure reproducible behavior across environments and prevent use of incompatible Terraform versions.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `required_version` attribute exists — terraform block is missing required_version constraint.
+
+*Remediation:* Add required_version = ">= 1.x.x" to the terraform configuration block.
+
+.Compliant
+
+[source,terraform]
+----
+terraform {
+  required_version = ">= 1.6.0, < 2.0.0"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  # No required_version set
+}
+----
+
+---
+
+=== waf-sov-080.tf.any.module-source-version-pinned
+
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
+
+*Terraform module sources must reference a pinned version*
+
+Terraform modules sourced from the Terraform Registry must specify a 'version' attribute. Git-sourced modules must reference a specific tag or commit hash, not a branch reference.
+
+*Scope:* `module`
+
+*Assertions:*
+* `version` matches pattern `\?(ref|version)=` — Registry module must specify a pinned 'version'.
+* `source` not matches pattern `\\?ref=main|\\?ref=master|\\?ref=develop` — Git module source must reference a specific tag or commit hash, not a branch.
+
+*Remediation:* Pin module versions explicitly. For registry modules: use version = "x.y.z". For git modules: use ?ref=v1.2.3 with a semver tag.
+
+.Compliant
+
+[source,terraform]
+----
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.5.3"
+}
+module "internal_module" {
+  source = "git::https://git.example.com/modules/vpc.git?ref=v2.1.0"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  # No version pinned
+}
+module "internal_module" {
+  source = "git::https://git.example.com/modules/vpc.git?ref=main"
+  # Branch reference – mutable
+}
+----
+
+---
+
+=== waf-sov-080.tf.any.no-untrusted-registry-modules
+
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
+
+*Terraform module sources must use approved registries or internal git*
+
+Module sources must reference the official Terraform Registry (registry.terraform.io), an approved internal module registry, or a verified internal git repository. Arbitrary public git repositories without version pinning are not permitted.
+
+*Scope:* `module`
+
+*Assertions:*
+* `source` not matches pattern `^github\\.com/(?!hashicorp/).*\\.git$` — Module source references an unapproved public GitHub repository without registry validation.
+
+*Remediation:* Migrate to official Terraform Registry modules (registry.terraform.io) or publish internal modules to your private registry.
+
+---
+
+=== waf-sov-080.tf.stackit.required-provider-version
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*StackIT provider must have pinned version constraint*
+
+The StackIT (SchwarzIT) Terraform provider must have a version constraint pinned to prevent silent upgrades.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `version` attribute exists — StackIT provider must have version constraint pinned.
+* `version` not matches pattern `^>= 0\\.0\\.0$` — StackIT provider version constraint is too broad.
+
+*Remediation:* Add version constraint to the StackIT provider in required_providers block.
+
+.Compliant
+
+[source,terraform]
+----
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
     stackit = {
       source  = "SchwarzIT/stackit"
       version = "~> 2.0"
     }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  required_providers {
+    stackit = {
+      source = "SchwarzIT/stackit"
+      # No version constraint
+    }
+  }
+}
+----
+
+---
+
+=== waf-sov-080.tf.ovh.required-provider-version
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVH provider must have pinned version constraint*
+
+The OVH Terraform provider must have a version constraint pinned to prevent silent upgrades.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `version` attribute exists — OVH provider must have version constraint pinned.
+* `version` not matches pattern `^>= 0\\.0\\.0$` — OVH provider version constraint is too broad.
+
+*Remediation:* Add version constraint to the OVH provider in required_providers block.
+
+.Compliant
+
+[source,terraform]
+----
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
     ovh = {
       source  = "ovh/ovh"
       version = "~> 1.0"
     }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  required_providers {
+    ovh = {
+      source = "ovh/ovh"
+      # No version constraint
+    }
+  }
+}
+----
+
+---
+
+=== waf-sov-080.tf.hcloud.required-provider-version
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud provider must have pinned version constraint*
+
+The Hetzner Cloud Terraform provider must have a version constraint pinned to prevent silent upgrades.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `version` attribute exists — Hetzner Cloud provider must have version constraint pinned.
+* `version` not matches pattern `^>= 0\\.0\\.0$` — Hetzner Cloud provider version constraint is too broad.
+
+*Remediation:* Add version constraint to the Hetzner Cloud provider in required_providers block.
+
+.Compliant
+
+[source,terraform]
+----
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"
       version = "~> 1.0"
@@ -162,202 +330,178 @@ terraform {
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 terraform {
   required_providers {
-    aws = {
-      source = "hashicorp/aws"
-      # ❌ No version constraint –
-      #    any version accepted
+    hcloud = {
+      source = "hetznercloud/hcloud"
+      # No version constraint
     }
   }
 }
 ----
-|===
 
 ---
 
-=== waf-sov-080.tf.any.required-terraform-version
-*Checks:* `required_version` must be set in the `terraform` block.
+=== waf-sov-080.config.aws.aws-logging-monitoring
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `config` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*An inventory of all dependencies and subprocessors MUST be maintained:*
+
+A version-controlled policy document must exist at `docs/sovereign/waf-sov-080-aws-logging-monitoring.md` and document the AWS implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/sovereign/waf-sov-080-aws-logging-monitoring.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/sovereign/waf-sov-080-aws-logging-monitoring.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/sovereign/waf-sov-080-aws-logging-monitoring.md`. State the requirement, how it is implemented for AWS, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
 ----
-terraform {
-  required_version = ">= 1.6.0, < 2.0.0"
-}
+docs/sovereign/waf-sov-080-aws-logging-monitoring.md:
+- The AWS implementation of WAF-SOV-080 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,text]
 ----
-terraform {
-  # ❌ No required_version –
-  #    any Terraform version accepted
-}
+# `docs/sovereign/waf-sov-080-aws-logging-monitoring.md` is missing or does not contain a normative requirement.
+# WAF-SOV-080 violation: AWS control is not documented
 ----
-|===
 
 ---
 
-=== waf-sov-080.tf.any.module-source-version-pinned
-*Checks:* Terraform modules must reference a pinned version (no `ref=main`/`ref=master`).
+=== waf-sov-080.config.azurerm.azurerm-logging-monitoring
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `config` | *Provider:* azurerm | *Automated:* Yes
 
-a|[source,hcl]
-----
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "5.5.3"  # ✅ Pinned version
-}
+*An inventory of all dependencies and subprocessors MUST be maintained:*
 
-module "internal" {
-  source = "git::https://git.example.com/modules/vpc.git?ref=v2.1.0"
-  # ✅ Git tag instead of branch reference
-}
-----
-a|[source,hcl]
-----
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-  # ❌ No version – latest version
-}
+A version-controlled policy document must exist at `docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md` and document the Azure implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
 
-module "internal" {
-  source = "git::https://git.example.com/modules/vpc.git?ref=main"
-  # ❌ Mutable branch reference
-}
+*Scope:* `file` — `docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md`. State the requirement, how it is implemented for Azure, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
 ----
-|===
+docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md:
+- The Azure implementation of WAF-SOV-080 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/sovereign/waf-sov-080-azurerm-logging-monitoring.md` is missing or does not contain a normative requirement.
+# WAF-SOV-080 violation: Azure control is not documented
+----
 
 ---
 
-=== waf-sov-080.tf.any.no-untrusted-registry-modules
-*Checks:* Module sources must reference approved registries or internal Git.
+=== waf-sov-080.config.google.google-logging-monitoring
 
-[source,hcl]
-----
-# Non-Compliant: Unauthorized public GitHub repository
-module "custom" {
-  source = "github.com/unknown-user/terraform-aws-module.git"
-  # ⚠️ Unapproved public repository without registry validation
-}
+*Engine:* `config` | *Provider:* google | *Automated:* Yes
 
-# Compliant: Official Terraform Registry
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "5.5.3"
-}
+*An inventory of all dependencies and subprocessors MUST be maintained:*
+
+A version-controlled policy document must exist at `docs/sovereign/waf-sov-080-google-logging-monitoring.md` and document the GCP implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/sovereign/waf-sov-080-google-logging-monitoring.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/sovereign/waf-sov-080-google-logging-monitoring.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/sovereign/waf-sov-080-google-logging-monitoring.md`. State the requirement, how it is implemented for GCP, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
 ----
+docs/sovereign/waf-sov-080-google-logging-monitoring.md:
+- The GCP implementation of WAF-SOV-080 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/sovereign/waf-sov-080-google-logging-monitoring.md` is missing or does not contain a normative requirement.
+# WAF-SOV-080 violation: GCP control is not documented
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*Governance*
-|✅ Required
-|Dependency/subprocessor register (versioned; covering all external services with data flows).
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Required
-|Terraform `required_providers` with pinned version constraints and committed lock file.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Quarterly review records of the subprocessor inventory.
-
-|*Governance*
-|Optional
-|DPA agreement reference list for all data-processing subprocessors.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
-* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
-* xref:controls/WAF-SOV-100.adoc[WAF-SOV-100 – Exit Plan]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+* xref:pillar-sovereign:controls/WAF-SOV-100.adoc[WAF-SOV-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+|GDPR |* Art. 28 – Processor
+* Art. 30 – Records of processing activities
+* Art. 44-46 – Transfers to third countries
 
-|*BSI C5:2020*
-|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+|BSI C5:2020 |* SCA-01 – Supply chain management
+* OPS-04 – Data management
 
-|*EUCS (ENISA)*
-|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+|BSI C3A:2026 |* Dimension 6 – Supply Chain: Software inventory (SBoM)
+* Dimension 6 – Supply Chain: Hardware inventory
+* Dimension 6 – Supply Chain: External service dependencies
 
-|*ISO 27001:2022*
-|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+|EUCS (ENISA) |* SCA-01 – Supply chain
+* IAM-04 – Third-party access
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
-
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
-
-|*BSI C3A:2026*
-|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
-
-|*GAIA-X*
-|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
-
-|*NIST SP 800-53*
-|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
-
-|*FedRAMP*
-|SC-1, SC-7, SC-8 (High baseline)
-
-|*TISAX*
-|Information security – Data protection; Prototype protection – Sensitive data handling
-
-|*ANSSI SecNumCloud*
-|Domain – Data protection; Domain – Cloud security
-
-|*BIO*
-|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
-
-|*ENS High*
-|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
-
-|*UK NCSC CAF*
-|B3 – Understanding data; B4 – System security
-
-|*CMMC 2.0*
-|SC.L2-3.13.16 – Protect CUI confidentiality at rest
-
-|*IRAP*
-|ISM – Data protection; ISM – Cloud security
-
-|*CCCS PBMM*
-|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
-
-|*ISMAP*
-|Data sovereignty and cloud security
-
-|*FISC*
-|Technical measures – Data protection
+|ISO 27001:2022 |* A.5.19 – Information security in supplier relationships
+* A.5.20 – Addressing information security in supplier agreements
+* A.5.21 – Managing information security in the ICT supply chain
 
 |===
-
-== Best Practice

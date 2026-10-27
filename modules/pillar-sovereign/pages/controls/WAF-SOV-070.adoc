@@ -3,172 +3,127 @@
 :control-id: WAF-SOV-070
 :pillar: sovereign
 :severity: high
-:category: access-control
-:automated: high
-:description: WAF++ Sovereign – Formally documented break-glass process with full audit trail; alert on root account activity via CloudWatch; enforce post-incident review.
+:category: identity-access
+:automatable: High
+:description: A formally documented break-glass procedure MUST exist defining trigger criteria, approval workflow, activation steps, and post-incident review requirements. All break-glass actions MUST be fully logged via CloudTrail (or equivalent) with log file validation enabled. Root account and emergency admin activities MUST trigger real-time alerts. Post-incident reviews MUST be documented and linked to the activation event.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🟠 High | *Category:* Access Control | *Automatable:* High
+*Pillar:* Sovereign | *Severity:* High | *Category:* Identity Access | *Automatable:* High
 
 == Description
 
-A formally documented break-glass process MUST exist that defines trigger criteria, approval
-workflow, activation steps, and post-incident review requirements. All break-glass actions MUST
-be fully logged via CloudTrail (or equivalent) with log file validation.
-
-Root account and emergency admin activities MUST trigger real-time alerts. Post-incident reviews
-MUST be documented and linked to the activation event.
+A formally documented break-glass procedure MUST exist defining trigger criteria, approval workflow, activation steps, and post-incident review requirements. All break-glass actions MUST be fully logged via CloudTrail (or equivalent) with log file validation enabled. Root account and emergency admin activities MUST trigger real-time alerts. Post-incident reviews MUST be documented and linked to the activation event.
 
 == Rationale
-
-Break-glass access represents the highest-risk event in a cloud environment: emergency use of
-highly privileged credentials that bypass normal access controls. Without a defined process,
-logging, and review cycle, break-glass becomes a permanent backdoor.
-
-From a sovereignty perspective, unlogged privileged access can modify region constraints,
-disable audit logging, change key policies, or exfiltrate data — thereby destroying the entire
-sovereignty posture in a single incident.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Break-glass as permanent backdoor*
-|Emergency access not decommissioned after incident; becomes a permanent backdoor.
+|*Risk* |Emergency access procedures without documentation lead to unauthorized break-glass actions in a crisis.
 
-|*Root account used for routine tasks*
-|Root account credentials used for regular tasks without logging or review.
-
-|*No audit trail during break-glass*
-|Activation without logging enables plausible deniability in case of abuse.
-
-|*Unrotated emergency credentials*
-|Compromised emergency credentials not rotated after incident closure.
-
-|*CloudTrail disabled during "maintenance"*
-|Logging deactivation prevents forensic reconstruction in case of a data breach.
+|*Risk* |Missing break-glass processes extend recovery time during severe incidents.
 
 |===
 
-== Regulatory Mapping
+== Requirements
 
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*GDPR*
-|Art. 32 – Security of processing; Art. 33 – Notification of data breaches
-
-|*BSI C5:2020*
-|IAM-03 – Privileged access management; LOG-01 – Logging; BCM-02 – Incident management
-
-|*EUCS (ENISA)*
-|IAM-03 – Emergency access; LOG-01 – Audit logging
-
-|*ISO 27001:2022*
-|A.5.26 – Response to information security incidents; A.8.15 – Logging; A.8.16 – Monitoring activities
-
-|*SOC 2*
-|CC7.4 – Security incident response
-
-|*BSI C3A:2026*
-|Dimension 3 – State of Defense Takeover: Emergency procedures; Dimension 3 – State of Defense Takeover: Federal takeover provisions
-
-|===
-
-== Requirement
-
-* A break-glass runbook MUST exist: trigger criteria, authorized personnel, approval chain, steps, decommissioning, and review
-* CloudTrail MUST be configured as multi-region with `is_multi_region_trail = true` and `enable_log_file_validation = true`
-* The CloudTrail S3 bucket MUST have public access block fully enabled
-* CloudWatch alarms MUST be configured for root account API calls and IAM policy changes
-* Break-glass credentials MUST be immediately rotated after every use
-* Post-incident review MUST be documented within 5 business days and linked to CloudTrail event IDs
-* The break-glass process MUST be tested at least annually in a non-production environment
+* A formally documented break-glass procedure MUST exist defining trigger criteria, approval workflow, activation steps, and post-incident review requirements.
+* All break-glass actions MUST be fully logged via CloudTrail (or equivalent) with log file validation enabled.
+* Root account and emergency admin activities MUST trigger real-time alerts.
+* Post-incident reviews MUST be documented and linked to the activation event.
 
 == Implementation Guidance
 
-. *Document break-glass runbook*: Trigger criteria, authorized personnel, approval chain, step-by-step procedure, decommissioning, and review.
-. *Store credentials securely*: Break-glass credentials in a dedicated and independently audited secret store (not in the main vault).
-. *Configure CloudTrail completely*: Multi-region, log file validation, global service events, CloudWatch integration.
-. *Set up CloudWatch alarms*: Root account API calls, console sign-ins without MFA, IAM policy changes.
-. *Rotate credentials immediately*: After every use; never use for routine tasks.
-. *Enforce post-incident review*: Within 5 business days of activation; linked to CloudTrail event IDs.
-. *Conduct drill*: Annual test of the break-glass process in non-production.
-. *Secure S3 bucket*: Never make the CloudTrail bucket public; consider Object Lock for logs.
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Break-glass exists but undocumented
-|Emergency access credentials available; no formal process documented.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Process documented, basic logging
-|Break-glass runbook exists and is versioned; CloudTrail enabled for the account.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Full logging, alarms, and post-incident review
-|CloudTrail multi-region with log file validation; real-time alarms on root/break-glass activation; post-incident review mandatory and documented.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automated detection and credential rotation
-|Automatic credential rotation after every use; break-glass activations automatically trigger a change management ticket; annual non-production drill completed.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Zero standing privilege with just-in-time break-glass
-|No permanent break-glass credentials; on-demand activation with dual approval; full forensic evidence chain automated; mean time to activate < 5 minutes with generated audit artifact.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sov-070.tf.aws.cloudtrail-enabled-all-regions
-*Checks:* CloudTrail must be multi-region with log file validation and global service events.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*CloudTrail must be multi-region with log file validation*
+
+At least one CloudTrail must be configured with is_multi_region_trail = true and enable_log_file_validation = true to capture all API activity and detect log tampering.
+
+*Scope:* `resource` — `aws_cloudtrail`
+
+*Assertions:*
+* `is_multi_region_trail` is true — CloudTrail must be multi-region to capture break-glass events from all regions.
+* `enable_log_file_validation` is true — CloudTrail log file validation must be enabled to detect tampering.
+* `include_global_service_events` is true — CloudTrail must include global service events (IAM, STS, etc.).
+
+*Remediation:* Set is_multi_region_trail = true, enable_log_file_validation = true, and include_global_service_events = true on CloudTrail.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudtrail" "sovereign" {
-  name               = "sovereign-audit-trail"
-  s3_bucket_name     = aws_s3_bucket.cloudtrail.id
+  name                          = "sovereign-audit-trail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
   is_multi_region_trail         = true
   enable_log_file_validation    = true
   include_global_service_events = true
-  cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.ct.arn}:*"
+  cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
   cloud_watch_logs_role_arn     = aws_iam_role.cloudtrail_cw.arn
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudtrail" "trail" {
   name           = "my-trail"
   s3_bucket_name = "my-logs"
-  # ❌ Defaults: single-region, no validation,
-  #    no CloudWatch
+  # Defaults: single region, no validation, no CloudWatch
 }
 ----
-|===
 
 ---
 
 === waf-sov-070.tf.aws.cloudtrail-s3-bucket-not-public
-*Checks:* The CloudTrail S3 bucket must have full public access block enabled.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*CloudTrail S3 bucket must not be publicly accessible*
+
+The S3 bucket storing CloudTrail logs must have public access blocked. Public CloudTrail logs expose the full API activity of the account.
+
+*Scope:* `resource` — `aws_s3_bucket_public_access_block`
+
+*Assertions:*
+* `block_public_acls` is true — CloudTrail S3 bucket must block public ACLs.
+* `block_public_policy` is true — CloudTrail S3 bucket must block public bucket policy.
+* `ignore_public_acls` is true — CloudTrail S3 bucket must ignore public ACLs.
+* `restrict_public_buckets` is true — CloudTrail S3 bucket must restrict public buckets.
+
+*Remediation:* Create an aws_s3_bucket_public_access_block resource for the CloudTrail bucket with all four settings set to true.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket_public_access_block" "cloudtrail" {
   bucket                  = aws_s3_bucket.cloudtrail.id
@@ -178,36 +133,49 @@ resource "aws_s3_bucket_public_access_block" "cloudtrail" {
   restrict_public_buckets = true
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket_public_access_block" "cloudtrail" {
   bucket            = aws_s3_bucket.cloudtrail.id
   block_public_acls = true
-  # ❌ Other settings missing – default: false
+  # Other settings missing – defaults to false
 }
 ----
-|===
 
 ---
 
 === waf-sov-070.tf.aws.cloudwatch-alarm-root-login
-*Checks:* CloudWatch alarm for root account activity must be configured.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*CloudWatch alarm must exist for root account sign-in*
+
+A CloudWatch metric filter and alarm must be configured to detect and alert on any root account API call or console sign-in. Root usage outside a documented break-glass process is a critical sovereignty violation.
+
+*Scope:* `resource` — `aws_cloudwatch_metric_alarm`
+
+*Assertions:*
+* `log_group_name` has associated resource — No CloudWatch alarm found monitoring root account activity.
+
+*Remediation:* Create a CloudWatch metric filter matching root API calls and an alarm that notifies a security SNS topic when the metric is triggered.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant: Metric Filter + Alarm for root account usage
 resource "aws_cloudwatch_log_metric_filter" "root_usage" {
   name           = "root-account-usage"
   pattern        = "{$.userIdentity.type = Root && $.userIdentity.invokedBy NOT EXISTS && $.eventType != AwsServiceEvent}"
   log_group_name = aws_cloudwatch_log_group.cloudtrail.name
-
   metric_transformation {
     name      = "RootAccountUsageCount"
     namespace = "CloudTrailMetrics"
     value     = "1"
   }
 }
-
 resource "aws_cloudwatch_metric_alarm" "root_usage" {
   alarm_name          = "root-account-usage"
   comparison_operator = "GreaterThanOrEqualToThreshold"
@@ -221,152 +189,281 @@ resource "aws_cloudwatch_metric_alarm" "root_usage" {
 }
 ----
 
+.Non-Compliant
+
+[source,terraform]
+----
+# No metric filter or alarm for root account activity
+----
+
 ---
 
 === waf-sov-070.tf.aws.cloudwatch-alarm-iam-policy-changes
-*Checks:* CloudWatch alarm for IAM policy changes must be configured.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*CloudWatch alarm must exist for IAM policy changes*
+
+Unauthorized IAM policy changes can escalate privileges or disable sovereignty controls. An alarm must detect and alert on IAM policy creation, modification, or deletion events.
+
+*Scope:* `resource` — `aws_cloudwatch_log_metric_filter`
+
+*Assertions:*
+* `pattern` matches pattern `CreatePolicy|DeletePolicy|AttachRolePolicy|DetachRolePolicy` — No CloudWatch metric filter found monitoring IAM policy changes.
+
+*Remediation:* Create metric filters for IAM policy changes (CreatePolicy, DeletePolicy, AttachRolePolicy, DetachRolePolicy) with associated CloudWatch alarms.
+
+---
+
+=== waf-sov-070.tf.aws.cloudtrail-s3-access-logging
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*CloudTrail S3 bucket should have server access logging enabled*
+
+The S3 bucket storing CloudTrail logs should have access logging enabled to detect unauthorized access attempts to the audit logs themselves.
+
+*Scope:* `resource` — `aws_s3_bucket_logging`
+
+*Assertions:*
+* `s3_bucket_name` has associated resource — CloudTrail S3 bucket should have an aws_s3_bucket_logging resource configured.
+
+*Remediation:* Create an aws_s3_bucket_logging resource for the CloudTrail bucket targeting a separate access logs bucket.
+
+---
+
+=== waf-sov-070.tf.stackit.logging-enabled
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*StackIT services must have logging enabled*
+
+StackIT services (MySQL, Redis, OpenSearch, Container Registry) must have logging enabled for break-glass activity monitoring.
+
+*Scope:* `resource` — `stackit_mysql_instance`, `stackit_redis_instance`, `stackit_opensearch_instance`, `stackit_container_registry`
+
+*Assertions:*
+* `logging.enabled` is true — StackIT service must have logging enabled for audit purposes.
+
+*Remediation:* Enable logging on all StackIT services with log file validation.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant: Metric Filter for IAM policy changes
-resource "aws_cloudwatch_log_metric_filter" "iam_changes" {
-  name    = "iam-policy-changes"
-  pattern = "{($.eventName = CreatePolicy) || ($.eventName = DeletePolicy) || ($.eventName = AttachRolePolicy) || ($.eventName = DetachRolePolicy)}"
-  log_group_name = aws_cloudwatch_log_group.cloudtrail.name
-
-  metric_transformation {
-    name      = "IAMPolicyChangeCount"
-    namespace = "CloudTrailMetrics"
-    value     = "1"
+resource "stackit_mysql_instance" "main" {
+  project_id = stackit_project.main.id
+  name       = "sovereign-mysql"
+  logging {
+    enabled = true
   }
 }
 ----
 
----
-=== waf-sov-070.tf.stackit.logging-enabled
-*Checks:* StackIT services must have logging enabled.
+.Non-Compliant
 
-*Supported providers:* **StackIT**
+[source,terraform]
+----
+resource "stackit_mysql_instance" "main" {
+  project_id = stackit_project.main.id
+  name       = "mysql"
+  # Logging not enabled
+}
+----
 
 ---
+
 === waf-sov-070.tf.ovh.logging-enabled
-*Checks:* OVH services must have logging enabled.
 
-*Supported providers:* **OVH**
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVH services must have logging enabled*
+
+OVH cloud services must have logging enabled for break-glass activity monitoring.
+
+*Scope:* `resource` — `ovh_cloud_project`, `ovh_vps`, `ovh_dedicated_server`
+
+*Assertions:*
+* `logging_enabled` is true — OVH service must have logging enabled for audit purposes.
+
+*Remediation:* Enable logging on OVH services for audit trail compliance.
+
+.Compliant
+
+[source,terraform]
+----
+# OVH services with logging enabled
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# OVH services without logging
+----
 
 ---
-=== waf-sov-070.tf.hcloud.logging-enabled
-*Checks:* Hetzner Cloud services must have logging enabled.
 
-*Supported providers:* **Hetzner Cloud**
+=== waf-sov-070.tf.hcloud.logging-enabled
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud services must have logging enabled*
+
+Hetzner Cloud servers must have logging enabled for break-glass activity monitoring.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — Hetzner Cloud server must have logging-enabled label.
+
+*Remediation:* Enable ssh access logging and system logging on Hetzner Cloud servers.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "main" {
+  name        = "sovereign-server"
+  server_type = "cx22"
+  labels = {
+    logging-enabled = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "main" {
+  name        = "server"
+  server_type = "cx22"
+  # No logging configuration
+}
+----
+
+---
+
+=== waf-sov-070.config.azurerm.break-glass-policy
+
+*Engine:* `config` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure break-glass procedure must be documented*
+
+A version-controlled policy document must exist at docs/sovereign/waf-sov-070-azurerm-break-glass.md and document the Azure break-glass procedure including triggers, approvers, credentials, and revocation steps.
+
+*Scope:* `file` — `docs/sovereign/waf-sov-070-azurerm-break-glass.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Azure break-glass policy file must contain a normative requirement statement.
+
+*Remediation:* Create or update docs/sovereign/waf-sov-070-azurerm-break-glass.md. State triggers, approvers, emergency account details, audit trail, and periodic test schedule.
+
+.Compliant
+
+[source,text]
+----
+docs/sovereign/waf-sov-070-azurerm-break-glass.md:
+- Break-glass triggers are defined (e.g., PIM outage, global admin lockout).
+- Two cloud-only emergency accounts are created with strong authentication.
+- Credential storage and revocation steps are documented.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# docs/sovereign/waf-sov-070-azurerm-break-glass.md is missing or does not contain a normative requirement.
+----
+
+---
+
+=== waf-sov-070.config.google.break-glass-policy
+
+*Engine:* `config` | *Provider:* google | *Automated:* Yes
+
+*GCP break-glass procedure must be documented*
+
+A version-controlled policy document must exist at docs/sovereign/waf-sov-070-google-break-glass.md and document the GCP break-glass procedure including triggers, approvers, credentials, and revocation steps.
+
+*Scope:* `file` — `docs/sovereign/waf-sov-070-google-break-glass.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — GCP break-glass policy file must contain a normative requirement statement.
+
+*Remediation:* Create or update docs/sovereign/waf-sov-070-google-break-glass.md. State triggers, approvers, emergency account details, audit trail, and periodic test schedule.
+
+.Compliant
+
+[source,text]
+----
+docs/sovereign/waf-sov-070-google-break-glass.md:
+- Break-glass triggers are defined (e.g., IAM policy lockout).
+- Organization-level emergency accounts are configured.
+- Credential storage and revocation steps are documented.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# docs/sovereign/waf-sov-070-google-break-glass.md is missing or does not contain a normative requirement.
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*Process*
-|✅ Required
-|Break-glass runbook (versioned; covering triggers, approval, activation, decommissioning, review).
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Required
-|CloudTrail resources with `is_multi_region_trail=true` and `enable_log_file_validation=true`.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*IaC*
-|✅ Required
-|CloudWatch metric filters and alarms for root account activity.
-
-|*Logs*
-|Optional
-|Sample post-incident review record from the last break-glass test or activation event.
-
-|*Config*
-|Optional
-|Secret store configuration for break-glass credential storage.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging Residency]
-* xref:controls/WAF-SOV-050.adoc[WAF-SOV-050 – Key Ownership]
-* xref:controls/WAF-SOV-060.adoc[WAF-SOV-060 – Privileged Access]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-090.adoc[WAF-SOV-090]
+* xref:pillar-sovereign:controls/WAF-SOV-010.adoc[WAF-SOV-010]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+|GDPR |* Art. 32 – Security of processing
+* Art. 33 – Notification of personal data breach
 
-|*BSI C5:2020*
-|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+|BSI C5:2020 |* IAM-03 – Privileged access management
+* LOG-01 – Logging
+* BCM-02 – Incident management
 
-|*EUCS (ENISA)*
-|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+|BSI C3A:2026 |* Dimension 3 – State of Defense Takeover: Emergency procedures
+* Dimension 3 – State of Defense Takeover: Federal takeover provisions
 
-|*ISO 27001:2022*
-|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+|EUCS (ENISA) |* IAM-03 – Emergency access
+* LOG-01 – Audit logging
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+|ISO 27001:2022 |* A.5.26 – Response to information security incidents
+* A.8.15 – Logging
+* A.8.16 – Monitoring activities
 
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
-
-|*BSI C3A:2026*
-|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
-
-|*GAIA-X*
-|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
-
-|*NIST SP 800-53*
-|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
-
-|*FedRAMP*
-|SC-1, SC-7, SC-8 (High baseline)
-
-|*TISAX*
-|Information security – Data protection; Prototype protection – Sensitive data handling
-
-|*ANSSI SecNumCloud*
-|Domain – Data protection; Domain – Cloud security
-
-|*BIO*
-|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
-
-|*ENS High*
-|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
-
-|*UK NCSC CAF*
-|B3 – Understanding data; B4 – System security
-
-|*CMMC 2.0*
-|SC.L2-3.13.16 – Protect CUI confidentiality at rest
-
-|*IRAP*
-|ISM – Data protection; ISM – Cloud security
-
-|*CCCS PBMM*
-|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
-
-|*ISMAP*
-|Data sovereignty and cloud security
-
-|*FISC*
-|Technical measures – Data protection
+|SOC 2 Type II |* CC7.4 – Security incident response
 
 |===
-
-== Best Practice

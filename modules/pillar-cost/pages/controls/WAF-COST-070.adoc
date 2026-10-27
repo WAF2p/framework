@@ -3,215 +3,388 @@
 :control-id: WAF-COST-070
 :pillar: cost
 :severity: medium
-:category: observability-cost
-:automated: high
-:description: WAF++ Cost Optimization – Log-Tiering (Hot/Warm/Cold/Archive), kein Infinite Retention, kein DEBUG in Produktion.
+:category: logging-monitoring
+:automatable: High
+:description: Logging and observability resources MUST be organized in explicit retention tiers: Hot (7-30 days), Warm (30-90 days), Cold (90-365 days), Archive (>365 days). CloudWatch Log Groups MUST NOT have retention_in_days = 0 (infinite). Operational log groups MUST have retention_in_days <= 365. DEBUG-level logging in production is prohibited without Architecture Board justification. High-volume trace sampling MUST be configured for services with >1000 req/s.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* Observability Cost | *Automatisierbar:* Hoch
+*Pillar:* Cost | *Severity:* Medium | *Category:* Logging Monitoring | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Log-Gruppen MÜSSEN nach Retention-Tier kategorisiert sein:
-Hot (7–30 Tage), Warm (30–90 Tage), Cold (90–365 Tage), Archive (>365 Tage).
-CloudWatch Log Groups DÜRFEN NICHT `retention_in_days = 0` haben.
-DEBUG-Level-Logging in Produktion ist ohne Architecture-Board-Genehmigung verboten.
-Trace-Sampling MUSS für High-Volume-Services konfiguriert sein (>1.000 req/s).
+Logging and observability resources MUST be organized in explicit retention tiers: Hot (7-30 days), Warm (30-90 days), Cold (90-365 days), Archive (>365 days). CloudWatch Log Groups MUST NOT have retention_in_days = 0 (infinite). Operational log groups MUST have retention_in_days <= 365. DEBUG-level logging in production is prohibited without Architecture Board justification. High-volume trace sampling MUST be configured for services with >1000 req/s.
 
 == Rationale
 
-Observability-Kosten sind einer der am schnellsten wachsenden und schwer kontrollierbaren
-Cloud-Kostenkategorien. DEBUG-Level-Logging erzeugt 10–100× mehr Log-Volumen als INFO.
-CloudWatch-Default (retention_in_days = 0 oder fehlt) akkumuliert Logs unbegrenzt.
-In schlecht gemanagten Umgebungen übersteigen Observability-Kosten regelmäßig die Compute-Kosten.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Observability-Kostendominanz*
-|Logging/Monitoring-Kosten übersteigen Compute-Kosten – klassisches Anti-Pattern ohne Tiering.
+|*Risk* |Security incidents go undetected without centralised, tamper-proof audit logs.
 
-|*DEBUG in Produktion*
-|10–100× höheres Log-Volumen; 95% der DEBUG-Logs werden nie gelesen.
-
-|*Unbegrenzte Trace-Speicherung*
-|Ohne Sampling sammeln APM-Tools jede einzelne Anfrage – exponentiell wachsende Kosten.
-
-|*DSGVO-Risiko*
-|Logs können personenbezogene Daten enthalten; unbegrenzte Retention = DSGVO-Verstoß.
+|*Risk* |Forensic investigations are delayed or inconclusive when logs are missing.
 
 |===
 
-== Log-Tiering-Modell
+== Requirements
 
-[cols="1,1,2,2"]
+* Logging and observability resources MUST be organized in explicit retention tiers: Hot (7-30 days), Warm (30-90 days), Cold (90-365 days), Archive (>365 days).
+* CloudWatch Log Groups MUST NOT have retention_in_days = 0 (infinite).
+* Operational log groups MUST have retention_in_days <= 365.
+* High-volume trace sampling MUST be configured for services with >1000 req/s.
+
+== Implementation Guidance
+
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Maturity Levels
+
+[cols="1,2,4"]
 |===
-|Tier |Retention |Typ |Kosten
+|Level |Name |Criteria
 
-|*Hot*
-|7–30 Tage
-|Operational Logs (Errors, Warnings, App-Logs)
-|Höchste Kosten/GB; minimale Menge
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*Warm*
-|30–90 Tage
-|Security-Logs, Audit-Trails, Access-Logs
-|Mittlere Kosten; Compliance-relevante Daten
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*Cold*
-|90–365 Tage
-|Regulatory-Logs, Finanzlogs, DSGVO-relevante Logs
-|Günstig; selten abgefragt
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*Archive*
-|> 365 Tage
-|Legal Hold, Langzeit-Compliance (S3 + Glacier)
-|Sehr günstig; quasi kein Zugriff
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|===
-
-== Reifegrad-Abstufung
-
-[cols="1,2,3"]
-|===
-|Level |Bezeichnung |Kriterien
-
-|*1*
-|Alle Logs unbegrenzt
-|CloudWatch-Default (infinite); kein Log-Level-Management; kein Sampling.
-
-|*2*
-|Einige Retention-Werte gesetzt
-|Größte Kostentreiber mit Retention konfiguriert; kein systematischer Ansatz.
-
-|*3*
-|Tiered Retention in IaC
-|Alle Log Groups mit `retention_in_days` != 0; Tier-Strategie dokumentiert; Tags gesetzt.
-
-|*4*
-|Log-Value-Analyse
-|Log Groups analysiert auf Nutzungsfrequenz; Tiering auf Basis von Access-Patterns.
-
-|*5*
-|Automated Intelligent Tiering
-|S3 Intelligent-Tiering für Log-Archive; ML-basierte Log-Anomalie-Erkennung reduziert Volumen.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-070.tf.aws.cloudwatch-retention-not-infinite
-*Prüft:* CloudWatch Log Groups dürfen keine infinite Retention haben (retention_in_days = 0 oder nicht gesetzt).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*CloudWatch Log Groups must not use infinite retention (retention_in_days = 0)*
+
+aws_cloudwatch_log_group resources must have retention_in_days set to a value > 0. The value 0 means infinite retention. Omitting retention_in_days also results in infinite retention. Both configurations constitute Architectural Cost Debt.
+
+*Scope:* `resource` — `aws_cloudwatch_log_group`
+
+*Assertions:*
+* `retention_in_days` attribute exists — retention_in_days must be explicitly set. Missing value defaults to infinite retention.
+* `retention_in_days` greater than or equal `1` — retention_in_days must be >= 1. Value 0 means infinite retention (cost debt).
+
+*Remediation:* Set retention_in_days on all aws_cloudwatch_log_group resources. Recommended values by tier: operational=30, access=90, security-audit=365. Compliance-driven long retention: use S3 export + lifecycle instead of CloudWatch.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "/app/production/payment"
+resource "aws_cloudwatch_log_group" "app_logs" {
+  name              = "/app/production/payment-service"
   retention_in_days = 30
-  kms_key_id        = aws_kms_key.logging.arn
-
   tags = merge(module.mandatory_tags.tags, {
     log-tier = "hot"
     log-type = "operational"
   })
 }
+----
 
-resource "aws_cloudwatch_log_group" "audit" {
-  name              = "/app/production/audit"
-  retention_in_days = 365
-  kms_key_id        = aws_kms_key.logging.arn
+.Non-Compliant
 
-  tags = merge(module.mandatory_tags.tags, {
-    log-tier = "cold"
-    log-type = "audit"
-  })
+[source,terraform]
+----
+resource "aws_cloudwatch_log_group" "app_logs" {
+  name = "/app/production/payment-service"
+  # retention_in_days omitted = infinite retention = violation
 }
 ----
-a|[source,hcl]
-----
-resource "aws_cloudwatch_log_group" "app" {
-  name = "/app/production/payment"
-  # retention_in_days fehlt = unbegrenzt
-  # WAF-COST-070 Violation
-}
-
-resource "aws_cloudwatch_log_group" "debug" {
-  name              = "/app/production/debug"
-  retention_in_days = 0  # Explizit unbegrenzt
-  # WAF-COST-070 Violation
-}
-----
-|===
 
 ---
 
 === waf-cost-070.tf.aws.cloudwatch-operational-retention-max-365
-*Prüft:* Operational Log Groups sollten `retention_in_days` <= 365 haben.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Operational CloudWatch Log Groups should have retention <= 365 days*
+
+CloudWatch Log Groups tagged as operational (log-type = operational or log-tier = hot/warm) should have retention_in_days <= 365. Long-term compliance logs should be exported to S3 with lifecycle policies, not stored in CloudWatch indefinitely.
+
+*Scope:* `resource` — `aws_cloudwatch_log_group`
+
+*Assertions:*
+* `retention_in_days` less than or equal `365` — Operational log groups should have retention <= 365 days. Use S3 export for long-term retention.
+
+*Remediation:* For operational logs needing > 365 days retention: configure CloudWatch Logs subscription to export to S3, then apply S3 lifecycle policies for long-term archive. This is significantly cheaper than retaining in CloudWatch.
+
+.Compliant
+
+[source,terraform]
 ----
-# Für Compliance-Logs > 365 Tage: S3-Export verwenden
-resource "aws_cloudwatch_log_subscription_filter" "compliance_export" {
-  name            = "compliance-logs-to-s3"
-  log_group_name  = aws_cloudwatch_log_group.compliance.name
-  filter_pattern  = ""
-  destination_arn = aws_kinesis_firehose_delivery_stream.s3_archive.arn
+resource "aws_cloudwatch_log_group" "audit_logs" {
+  name              = "/app/production/audit"
+  retention_in_days = 90  # Within CloudWatch; exported to S3 via subscription for archival
+  tags = merge(module.mandatory_tags.tags, {
+    log-tier = "warm"
+    log-type = "audit"
+  })
 }
+# S3 export subscription configured separately with lifecycle to Glacier
+----
 
-# CloudWatch: kurze Retention für Zugriff
-resource "aws_cloudwatch_log_group" "compliance" {
-  name              = "/app/production/compliance"
-  retention_in_days = 90  # In CloudWatch; Export nach S3 für 7 Jahre
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_cloudwatch_log_group" "everything" {
+  name              = "/app/production/all"
+  retention_in_days = 2555  # 7 years in CloudWatch = very expensive
+  # Should be: 90d in CloudWatch, then S3 export with Glacier lifecycle
 }
 ----
 
-== Evidenz
+---
 
-[cols="1,1,2"]
+=== waf-cost-070.tf.azurerm.log-analytics-retention-explicit
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Log Analytics workspaces must have explicit retention days configured*
+
+Every azurerm_log_analytics_workspace resource must define retention_in_days with a finite value. Omitting the value or setting it to 0 results in indefinite retention and unbounded observability cost.
+
+*Scope:* `resource` — `azurerm_log_analytics_workspace`
+
+*Assertions:*
+* `retention_in_days` attribute exists — Azure Log Analytics workspace must define retention_in_days.
+* `retention_in_days` greater than or equal `1` — retention_in_days must be >= 1. Use Azure Storage archive for long-term retention.
+
+*Remediation:* Set retention_in_days on every azurerm_log_analytics_workspace. Use tiered retention: operational logs 30 days, audit logs 365 days. Archive older data to Azure Storage via diagnostic settings and lifecycle policies.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_log_analytics_workspace" "ops" {
+  name                = "ops-workspace"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  tags = {
+    log-tier = "hot"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_log_analytics_workspace" "ops" {
+  name                = "ops-workspace"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  # retention_in_days omitted = default indefinite retention
+}
+----
+
+---
+
+=== waf-cost-070.tf.google.logging-bucket-retention
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP logging buckets must have explicit retention days configured*
+
+Every google_logging_project_sink destination bucket or google_storage_bucket used for centralized logs must have a lifecycle_rule or retention_policy enforcing finite retention. Indefinite log storage is classified as Architectural Cost Debt.
+
+*Scope:* `resource` — `google_storage_bucket`
+
+*Assertions:*
+* `lifecycle_rule` attribute exists — GCP log bucket must define lifecycle rules with finite retention.
+
+*Remediation:* Define lifecycle_rules on log destination google_storage_bucket resources to transition or delete old logs. Set retention_days on google_logging_project_bucket_config resources.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "logs" {
+  name          = "${var.project_id}-logs"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 90
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "logs" {
+  name     = "${var.project_id}-logs"
+  location = var.region
+  # No lifecycle rules – logs accumulate indefinitely
+}
+----
+
+---
+
+=== waf-cost-070.tf.stackit.log-retention-explicit
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT log instances must have an explicit retention period*
+
+STACKIT log instances must have an explicit retention period. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_logme_instance`, `stackit_argus_instance`
+
+*Assertions:*
+* `retention_days` attribute exists — STACKIT log/observability instance must define retention days.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_logme_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_logme_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-070.tf.ovh.log-retention-explicit
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud log destinations must have an explicit retention period*
+
+OVHcloud log destinations must have an explicit retention period. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_database_postgresql`, `ovh_cloud_project_kube`
+
+*Assertions:*
+* `retention` attribute exists — OVHcloud service must define log retention.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_database_postgresql" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_database_postgresql" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-070.tf.hcloud.log-retention-explicit
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud log destinations must have an explicit retention period*
+
+Hetzner Cloud log destinations must have an explicit retention period. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels.log-retention-days` key exists — Hetzner Cloud server must declare a log-retention-days label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Kind |Required |Description
 
-|*IaC*
-|✅ Pflicht
-|Terraform Log-Group-Konfigurationen mit expliziten `retention_in_days`-Werten (nicht 0).
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Governance*
-|✅ Pflicht
-|Retention-Strategie-Dokument mit Log-Tier-Definitionen und Retention-Perioden je Log-Typ.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Trace-Sampling-Konfiguration für APM-Tools.
-
-|*Process*
-|Optional
-|Monatlicher Observability-Kostenanteil am Gesamtbudget (Ziel: < 20%).
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
+== Related Controls
 
-== Regulatorisches Mapping
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-reliability:controls/WAF-REL-060.adoc[WAF-REL-060]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+== Regulatory Mapping
 
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*FinOps Foundation*
-|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
+|GDPR |* Art. 5(1)(e) – Storage limitation (logs containing personal data must not be kept indefinitely)
 
-|*ISO 20000*
-|Service financial management – cost allocation
-
-|*Internal Governance*
-|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
+|FinOps Foundation |* Optimize Phase – Observability Cost Management
 
 |===
-
-== Verwandte Controls

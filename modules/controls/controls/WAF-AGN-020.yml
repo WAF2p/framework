@@ -1,333 +1,390 @@
-# ID: WAF-AGN-020
 id: WAF-AGN-020
-title: 'Not every agent should be able to use every tool'
+title: Not every agent should be able to use every tool
 status: active
 tags:
-  - agentic
-  - high
-  - governance
-  - configuration
+- agentic
+- high
+- governance
+- configuration
 pillar: agentic
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'agentic-governance'
-rationale: |
-  Not every agent should be able to use every tool.
+- governance
+- configuration
+category: agentic-governance
+rationale: Ungoverned agents make unreviewed decisions, process sensitive data without protection, and leave no traceable
+  audit trail. This control addresses the requirements of the 'Agentic Governance' area and ensures that Not every agent should
+  be able to use every tool. Tool use must be approved, logged, and limited.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Overly broad tool permissions allow agents to perform destructive or unauthorized operations.
+- Missing permission boundaries at the tool level enable privilege escalation in automated workflows.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-agentic/pages/controls/WAF-AGN-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-agentic/pages/controls/WAF-AGN-020.adoc
+  related_controls:
+  - WAF-AGN-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-SUS-090
+  - WAF-AGN-030
+  - WAF-AGN-080
+  - WAF-AGN-060
+  - WAF-AGN-070
+  - WAF-AGN-090
+  - WAF-REL-010
+  - WAF-SEC-010
+  - WAF-SEC-020
+description: 'Not every agent should be able to use every tool. Tool use must be approved, logged, and limited. Agents MUST
+  have explicit tool definitions with approved lists. All tool calls MUST be logged with context, input, output, and timestamp.
+  Rate limits and sandboxing MUST be applied to prevent abuse.
 
-description: |
-  Not every agent should be able to use every tool. Tool use must be approved, logged, and limited. Agents MUST have explicit tool definitions with approved lists. All tool calls MUST be logged with context, input, output, and timestamp. Rate limits and sandboxing MUST be applied to prevent abuse.
+  '
 regulatory_mapping:
-  - framework: 'ISO 27001:2022'
-    controls:
-      - 'A.8.2 – Privileged access rights'
-      - 'A.8.3 – Information access restriction'
-      - 'A.5.15 – Access control'
-  - framework: 'ISO 27017'
-    controls:
-      - 'CLD.9.5 – Segregation in virtual computing environments'
-  - framework: 'CIS Controls v8'
-    controls:
-      - 'CIS 5 – Account Management'
-      - 'CIS 6 – Access Control Management'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC6.1 – Logical access security'
-      - 'CC6.3 – Authorisation and segregation of duties'
-  - framework: 'NIST SP 800-53'
-    controls:
-      - 'AC-2 – Account Management'
-      - 'AC-3 – Access Enforcement'
-      - 'AC-6 – Least Privilege'
-  - framework: 'NIST CSF 2.0'
-    controls:
-      - 'PR.AA-01 – Identities and credentials are managed'
-      - 'PR.AA-05 – Access permissions are managed'
-  - framework: 'GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-      - 'Art. 5(1)(f) – Integrity and confidentiality'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Req 7 – Restrict access by business need to know'
-      - 'Req 7.2 – Access based on least privilege'
-  - framework: 'CSA STAR'
-    controls:
-      - 'CCM IAM-09 – User Access Authorization'
-      - 'CCM IAM-10 – User Access Reviews'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'IDM-01 – Identity and access management policy'
-      - 'IDM-03 – Access control and authorisation'
-  - framework: 'TISAX'
-    controls:
-      - 'Information security – Access rights management'
-  - framework: 'ANSSI SecNumCloud'
-    controls:
-      - 'Domain – Access management and least privilege'
-  - framework: 'BIO'
-    controls:
-      - 'BIO – Toegangsrechten en autorisatiebeheer'
-  - framework: 'ENS High'
-    controls:
-      - 'op.acc.4 – Proceso de gestión de derechos de acceso'
-      - 'op.acc.7 – Gestión de privilegios'
-  - framework: 'UK NCSC CAF'
-    controls:
-      - 'B2.a – Identity verification and authorisation'
-  - framework: 'FedRAMP'
-    controls:
-      - 'AC-2, AC-3, AC-6 (Moderate/High baseline)'
-  - framework: 'CMMC 2.0'
-    controls:
-      - 'AC.L2-3.1.5 – Employ the principle of least privilege'
-  - framework: 'IT-Grundschutz'
-    controls:
-      - 'ORP.4 – Identitäts- und Berechtigungsmanagement'
-  - framework: 'IRAP'
-    controls:
-      - 'ISM – Access control – Privileged access'
-  - framework: 'CCCS PBMM'
-    controls:
-      - 'AC-6 – Least privilege'
-  - framework: 'MAS TRM'
-    controls:
-      - 'Ch.6 – Access control'
-  - framework: 'ISMAP'
-    controls:
-      - 'Access control – Least privilege'
-  - framework: 'FISC'
-    controls:
-      - 'Technical measures – Authorisation management'
-  - framework: 'DORA'
-    controls:
-      - 'Art. 9 – Protection and prevention'
-  - framework: 'EUCS (ENISA)'
-    controls:
-      - 'IAM-01 – Identity and access management'
-      - 'IAM-03 – Least privilege access control'
+- framework: ISO 27001:2022
+  controls:
+  - A.8.2 – Privileged access rights
+  - A.8.3 – Information access restriction
+  - A.5.15 – Access control
+- framework: ISO 27017
+  controls:
+  - CLD.9.5 – Segregation in virtual computing environments
+- framework: CIS Controls v8
+  controls:
+  - CIS 5 – Account Management
+  - CIS 6 – Access Control Management
+- framework: SOC 2 Type II
+  controls:
+  - CC6.1 – Logical access security
+  - CC6.3 – Authorisation and segregation of duties
+- framework: NIST SP 800-53
+  controls:
+  - AC-2 – Account Management
+  - AC-3 – Access Enforcement
+  - AC-6 – Least Privilege
+- framework: NIST CSF 2.0
+  controls:
+  - PR.AA-01 – Identities and credentials are managed
+  - PR.AA-05 – Access permissions are managed
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+  - Art. 5(1)(f) – Integrity and confidentiality
+- framework: PCI DSS v4.0
+  controls:
+  - Req 7 – Restrict access by business need to know
+  - Req 7.2 – Access based on least privilege
+- framework: CSA STAR
+  controls:
+  - CCM IAM-09 – User Access Authorization
+  - CCM IAM-10 – User Access Reviews
+- framework: BSI C5:2020
+  controls:
+  - IDM-01 – Identity and access management policy
+  - IDM-03 – Access control and authorisation
+- framework: TISAX
+  controls:
+  - Information security – Access rights management
+- framework: ANSSI SecNumCloud
+  controls:
+  - Domain – Access management and least privilege
+- framework: BIO
+  controls:
+  - BIO – Toegangsrechten en autorisatiebeheer
+- framework: ENS High
+  controls:
+  - op.acc.4 – Proceso de gestión de derechos de acceso
+  - op.acc.7 – Gestión de privilegios
+- framework: UK NCSC CAF
+  controls:
+  - B2.a – Identity verification and authorisation
+- framework: FedRAMP
+  controls:
+  - AC-2, AC-3, AC-6 (Moderate/High baseline)
+- framework: CMMC 2.0
+  controls:
+  - AC.L2-3.1.5 – Employ the principle of least privilege
+- framework: IT-Grundschutz
+  controls:
+  - ORP.4 – Identitäts- und Berechtigungsmanagement
+- framework: IRAP
+  controls:
+  - ISM – Access control – Privileged access
+- framework: CCCS PBMM
+  controls:
+  - AC-6 – Least privilege
+- framework: MAS TRM
+  controls:
+  - Ch.6 – Access control
+- framework: ISMAP
+  controls:
+  - Access control – Least privilege
+- framework: FISC
+  controls:
+  - Technical measures – Authorisation management
+- framework: EUCS (ENISA)
+  controls:
+  - IAM-01 – Identity and access management
+  - IAM-03 – Least privilege access control
 checks:
-  - id: waf-agn-020.tf.aws.bedrock-agent-tools-approved
-    engine: terraform
-    automated: true
-    title: 'AWS Bedrock agents must have approved tool definitions'
-    provider: aws
-    description: 'AWS Bedrock agents must have explicit tool definitions in their tool schema. Wildcard or unrestricted tools are prohibited. All tools must be from an approved list.'
-    expected: 'true'
-    remediation: "Define explicit tools in the aws_bedrockagent resource tool_schema. Use the 'tools' block to specify each allowed tool with name, description, and input schema. Do not use wildcard definitions.\n"
-    example:
-      compliant: |
-        resource "aws_bedrockagent" "support_agent" {
-          agent_name = "customer-support"
+- id: waf-agn-020.tf.aws.bedrock-agent-tools-approved
+  engine: terraform
+  automated: true
+  title: AWS Bedrock agents must have approved tool definitions
+  provider: aws
+  description: AWS Bedrock agents must have explicit tool definitions in their tool schema. Wildcard or unrestricted tools
+    are prohibited. All tools must be from an approved list.
+  expected: 'true'
+  remediation: 'Define explicit tools in the aws_bedrockagent resource tool_schema. Use the ''tools'' block to specify each
+    allowed tool with name, description, and input schema. Do not use wildcard definitions.
 
-          tool_schema {
-            tools = [{
-              name = "lookup_customer"
-              description = "Look up customer by email"
-              input_schema = jsonencode({
-                type = "object"
-                properties = {
-                  email = { type = "string" }
-                }
-                required = ["email"]
-              })
-            }, {
-              name = "check_order_status"
-              description = "Check order status"
-              input_schema = jsonencode({
-                type = "object"
-                properties = {
-                  order_id = { type = "string" }
-                }
-                required = ["order_id"]
-              })
-            }]
-          }
-        }
-      non_compliant: |
-        resource "aws_bedrockagent" "bad_agent" {
-          agent_name = "unrestricted-agent"
+    '
+  example:
+    compliant: "resource \"aws_bedrockagent\" \"support_agent\" {\n  agent_name = \"customer-support\"\n\n  tool_schema {\n\
+      \    tools = [{\n      name = \"lookup_customer\"\n      description = \"Look up customer by email\"\n      input_schema\
+      \ = jsonencode({\n        type = \"object\"\n        properties = {\n          email = { type = \"string\" }\n     \
+      \   }\n        required = [\"email\"]\n      })\n    }, {\n      name = \"check_order_status\"\n      description =\
+      \ \"Check order status\"\n      input_schema = jsonencode({\n        type = \"object\"\n        properties = {\n   \
+      \       order_id = { type = \"string\" }\n        }\n        required = [\"order_id\"]\n      })\n    }]\n  }\n}\n"
+    non_compliant: "resource \"aws_bedrockagent\" \"bad_agent\" {\n  agent_name = \"unrestricted-agent\"\n\n  tool_schema\
+      \ {\n    tools = [{\n      name = \"*\"\n      description = \"Allow all tools\"\n      # WAF-AGN-020 Violation: wildcard\
+      \ tool definition\n    }]\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_bedrockagent
+  assertions:
+  - attribute: tool_schema.tools
+    op: attribute_exists
+    message: Agent must have explicit tool definitions.
+  - attribute: tool_schema.tools
+    op: json_not_contains_pattern
+    message: Tools must not use wildcard names like "*". Define specific tools only.
+    pattern: '"name":\\s*"\*"'
+  on_fail: violation
+- id: waf-agn-020.tf.azurerm.ai-tool-filter
+  engine: terraform
+  automated: true
+  title: Azure AI services must have content filters and tool restrictions configured
+  provider: azurerm
+  description: Azure AI services deployments must have content filters and tool usage restrictions configured. Only approved
+    tool functions should be exposed to agents.
+  expected: 'true'
+  remediation: 'Configure azurerm_cognitive_account with network ACLs and content filters. Use azurerm_cognitive_deployment
+    with strict model settings. Document approved tools in ADR.
 
-          tool_schema {
-            tools = [{
-              name = "*"
-              description = "Allow all tools"
-              # WAF-AGN-020 Violation: wildcard tool definition
-            }]
-          }
-        }
+    '
+  example:
+    compliant: "resource \"azurerm_cognitive_account\" \"ai\" {\n  name                = \"ai-services-account\"\n  location\
+      \            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  kind\
+      \                = \"OpenAI\"\n  sku_name            = \"S0\"\n\n  network_acls {\n    default_action = \"Deny\"\n \
+      \   ip_rules       = [\"10.0.0.0/24\"]\n  }\n}\n\nresource \"azurerm_cognitive_deployment\" \"agent\" {\n  name    \
+      \             = \"agent-deployment\"\n  cognitive_account_id = azurerm_cognitive_account.ai.id\n  model {\n    format\
+      \  = \"OpenAI\"\n    name    = \"gpt-4o\"\n    version = \"2024-08-06\"\n  }\n  sku {\n    name = \"Standard\"\n   \
+      \ capacity = 1\n  }\n}\n"
+    non_compliant: "resource \"azurerm_cognitive_account\" \"ai\" {\n  name                = \"ai-services-account\"\n  location\
+      \            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n  kind\
+      \                = \"OpenAI\"\n  sku_name            = \"S0\"\n  # No network ACLs or content filters configured\n \
+      \ # WAF-AGN-020 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_cognitive_account
+    - azurerm_cognitive_deployment
+  assertions:
+  - attribute: network_acls
+    op: attribute_exists
+    message: Azure AI services account must have network ACLs restricting access.
+  - attribute: sku_name
+    op: not_empty
+    message: Azure AI deployment must have a configured SKU.
+  on_fail: violation
+- id: waf-agn-020.tf.google.vertex-agent-tools-approved
+  engine: terraform
+  automated: true
+  title: Google Vertex AI agents must have approved tool definitions
+  provider: google
+  description: Google Vertex AI agents must have explicit tool function declarations. All tools must reference pre-approved
+    functions with defined schemas.
+  expected: 'true'
+  remediation: Define function_declarations in the vertex_ai_agent configuration with specific function names, descriptions,
+    and parameter schemas. Do not use generic or wildcard function definitions.\n
+  example:
+    compliant: "resource \"google_vertex_ai_agent\" \"data_analyst\" {\n  display_name = \"data-analyst-agent\"\n\n  function_declarations\
+      \ = [{\n    name = \"query_database\"\n    description = \"Query the analytics database\"\n    parameters = {\n    \
+      \  type = \"OBJECT\"\n      properties = {\n        query = {\n          type = \"STRING\"\n          description =\
+      \ \"SQL query to execute\"\n        }\n      }\n      required = [\"query\"]\n    }\n  }]\n}\n"
+    non_compliant: "resource \"google_vertex_ai_agent\" \"unrestricted\" {\n  display_name = \"unrestricted-agent\"\n\n  function_declarations\
+      \ = [{\n    name = \"any_function\"\n    description = \"Any function allowed\"\n    # WAF-AGN-020 Violation: too permissive\n\
+      \  }]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_vertex_ai_agent
+  assertions:
+  - attribute: function_declarations
+    op: not_empty
+    message: Agent must have explicit function declarations.
+  on_fail: violation
+- id: waf-agn-020.tf.aws.tool-call-logging-enabled
+  engine: terraform
+  automated: true
+  title: AWS Bedrock tool calls must be logged
+  provider: aws
+  description: All tool calls made by AWS Bedrock agents MUST be logged to CloudWatch Logs with timestamp, agent ID, tool
+    name, input, output, and duration.
+  expected: 'true'
+  remediation: 'Configure CloudWatch logging for Bedrock agents. Enable ''Inference logs'' in the Bedrock console or via API.
+    Create a log group at /aws/bedrock/inference-logs.
 
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_bedrockagent
-    assertions:
-      - attribute: 'tool_schema.tools'
-        op: 'attribute_exists'
-        message: 'Agent must have explicit tool definitions.'
-      - attribute: 'tool_schema.tools'
-        op: 'not_contains_pattern'
-        message: 'Tools must not use wildcard names like "*". Define specific tools only.'
-        pattern: '"name":\\s*"\*"'
-    on_fail: violation
-  - id: waf-agn-020.tf.google.vertex-agent-tools-approved
-    engine: terraform
-    automated: true
-    title: 'Google Vertex AI agents must have approved tool definitions'
-    provider: google
-    description: 'Google Vertex AI agents must have explicit tool function declarations. All tools must reference pre-approved functions with defined schemas.'
-    expected: 'true'
-    remediation: 'Define function_declarations in the vertex_ai_agent configuration with specific function names, descriptions, and parameter schemas. Do not use generic or wildcard function definitions.\n'
-    example:
-      compliant: |
-        resource "google_vertex_ai_agent" "data_analyst" {
-          display_name = "data-analyst-agent"
+    '
+  example:
+    compliant: "resource \"aws_cloudwatch_log_group\" \"bedrock_logs\" {\n  name = \"/aws/bedrock/inference-logs\"\n}\n\n\
+      resource \"aws_bedrockagent\" \"agent\" {\n  agent_name = \"loggable-agent\"\n  # Tool call logging enabled via CloudWatch\n\
+      }\n"
+    non_compliant: "resource \"aws_bedrockagent\" \"no_logging\" {\n  agent_name = \"no-logging-agent\"\n  # No CloudWatch\
+      \ log group configured\n  # WAF-AGN-020 Violation: no tool call logging\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_bedrockagent
+    - aws_cloudwatch_log_group
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Tool call logging must be configured with a log group.
+  on_fail: violation
+- id: waf-agn-020.tf.aws.tool-rate-limits-configured
+  engine: terraform
+  automated: true
+  title: Tool call rate limits must be configured for agents
+  provider: aws
+  description: Agents MUST have rate limiting configured to prevent abuse. Maximum tokens per minute and requests per minute
+    should be defined.
+  expected: 'true'
+  remediation: Configure rate limits in the Bedrock agent configuration. Use AWS SDK or Console to set maxTokensPerMinute
+    and maxRequestsPerMinute for each agent.\n
+  example:
+    compliant: "resource \"aws_bedrockagent\" \"rate_limited_agent\" {\n  agent_name = \"rate-limited\"\n\n  agent_resource_role_arn\
+      \ = aws_iam_role.bedrock.arn\n\n  instruction = \"You are a helpful assistant.\"\n\n  # Rate limiting via IAM policy\
+      \ or external service\n  # Tools should be rate-limited via API Gateway or similar\n}\n"
+    non_compliant: "resource \"aws_bedrockagent\" \"unlimited\" {\n  agent_name = \"unlimited-agent\"\n  # No rate limiting\
+      \ configured\n  # WAF-AGN-020 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_bedrockagent
+  assertions:
+  - attribute: agent_name
+    op: not_empty
+    message: Agent must have rate limiting configuration.
+  on_fail: violation
+- id: waf-agn-020.tf.stackit.agentic-access-reviewed
+  engine: terraform
+  automated: true
+  title: Not every agent should be able to use every tool for stackit
+  provider: stackit
+  description: Not every agent should be able to use every tool must be documented in IaC via a agentic-access-reviewed tag/label
+    on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-access-reviewed tag/label to the stackit_project resource to show the stackit implementation
+    of WAF-AGN-020 is tracked in IaC.
 
-          function_declarations = [{
-            name = "query_database"
-            description = "Query the analytics database"
-            parameters = {
-              type = "OBJECT"
-              properties = {
-                query = {
-                  type = "STRING"
-                  description = "SQL query to execute"
-                }
-              }
-              required = ["query"]
-            }
-          }]
-        }
-      non_compliant: |
-        resource "google_vertex_ai_agent" "unrestricted" {
-          display_name = "unrestricted-agent"
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    agentic-access-reviewed = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing agentic-access-reviewed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: agentic-access-reviewed
+    message: stackit_project is missing the agentic-access-reviewed tag/label.
+  on_fail: violation
+- id: waf-agn-020.tf.ovh.agentic-access-reviewed
+  engine: terraform
+  automated: true
+  title: Not every agent should be able to use every tool for ovh
+  provider: ovh
+  description: Not every agent should be able to use every tool must be documented in IaC via a agentic-access-reviewed tag/label
+    on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-access-reviewed tag/label to the ovh_cloud_project resource to show the ovh implementation of
+    WAF-AGN-020 is tracked in IaC.
 
-          function_declarations = [{
-            name = "any_function"
-            description = "Any function allowed"
-            # WAF-AGN-020 Violation: too permissive
-          }]
-        }
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    agentic-access-reviewed = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing agentic-access-reviewed tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: agentic-access-reviewed
+    message: ovh_cloud_project is missing the agentic-access-reviewed tag/label.
+  on_fail: violation
+- id: waf-agn-020.tf.hcloud.agentic-access-reviewed
+  engine: terraform
+  automated: true
+  title: Not every agent should be able to use every tool for hcloud
+  provider: hcloud
+  description: Not every agent should be able to use every tool must be documented in IaC via a agentic-access-reviewed tag/label
+    on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-access-reviewed tag/label to the hcloud_server resource to show the hcloud implementation of
+    WAF-AGN-020 is tracked in IaC.
 
-    scope:
-      block_type: resource
-      resource_types:
-        - google_vertex_ai_agent
-    assertions:
-      - attribute: 'function_declarations'
-        op: 'not_empty'
-        message: 'Agent must have explicit function declarations.'
-    on_fail: violation
-  - id: waf-agn-020.tf.aws.tool-call-logging-enabled
-    engine: terraform
-    automated: true
-    title: 'AWS Bedrock tool calls must be logged'
-    provider: aws
-    description: 'All tool calls made by AWS Bedrock agents MUST be logged to CloudWatch Logs with timestamp, agent ID, tool name, input, output, and duration.'
-    expected: 'true'
-    remediation: "Configure CloudWatch logging for Bedrock agents. Enable 'Inference logs' in the Bedrock console or via API. Create a log group at /aws/bedrock/inference-logs.\n"
-    example:
-      compliant: |
-        resource "aws_cloudwatch_log_group" "bedrock_logs" {
-          name = "/aws/bedrock/inference-logs"
-        }
-
-        resource "aws_bedrockagent" "agent" {
-          agent_name = "loggable-agent"
-          # Tool call logging enabled via CloudWatch
-        }
-      non_compliant: |
-        resource "aws_bedrockagent" "no_logging" {
-          agent_name = "no-logging-agent"
-          # No CloudWatch log group configured
-          # WAF-AGN-020 Violation: no tool call logging
-        }
-
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_bedrockagent
-        - aws_cloudwatch_log_group
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Tool call logging must be configured with a log group.'
-    on_fail: violation
-  - id: waf-agn-020.tf.aws.tool-rate-limits-configured
-    engine: terraform
-    automated: true
-    title: 'Tool call rate limits must be configured for agents'
-    provider: aws
-    description: 'Agents MUST have rate limiting configured to prevent abuse. Maximum tokens per minute and requests per minute should be defined.'
-    expected: 'true'
-    remediation: 'Configure rate limits in the Bedrock agent configuration. Use AWS SDK or Console to set maxTokensPerMinute and maxRequestsPerMinute for each agent.\n'
-    example:
-      compliant: |
-        resource "aws_bedrockagent" "rate_limited_agent" {
-          agent_name = "rate-limited"
-
-          agent_resource_role_arn = aws_iam_role.bedrock.arn
-
-          instruction = "You are a helpful assistant."
-
-          # Rate limiting via IAM policy or external service
-          # Tools should be rate-limited via API Gateway or similar
-        }
-      non_compliant: |
-        resource "aws_bedrockagent" "unlimited" {
-          agent_name = "unlimited-agent"
-          # No rate limiting configured
-          # WAF-AGN-020 Violation
-        }
-
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_bedrockagent
-    assertions:
-      - attribute: 'agent_name'
-        op: 'not_empty'
-        message: 'Agent must have rate limiting configuration.'
-    on_fail: violation
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    agentic-access-reviewed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing agentic-access-reviewed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: agentic-access-reviewed
+    message: hcloud_server is missing the agentic-access-reviewed tag/label.
+  on_fail: violation

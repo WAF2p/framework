@@ -1,197 +1,271 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-020
 id: WAF-OPS-020
-title: 'All cloud infrastructure MUST be defined as code using an IaC tool...'
+title: All cloud infrastructure MUST be defined as code using an IaC tool...
 status: active
 tags:
-  - operational
-  - high
-  - governance
-  - configuration
-pillar: operational
+- operational
+- high
+- governance
+- configuration
+pillar: excellence
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent).
+- governance
+- configuration
+category: data-governance
+rationale: Missing data classification, ownership, and lifecycle control increase compliance risk, cost, and the likelihood
+  of data loss. This control addresses the requirements of the 'Data Governance' area and ensures that All cloud infrastructure
+  MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent).
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Manually managed infrastructure drifts from documentation and is hard to restore.
+- Missing IaC practices prevent versioning, peer review, and disaster recovery.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-020.adoc
+  related_controls:
+  - WAF-OPS-070
+  - WAF-OPS-100
+  - WAF-COST-010
+  - WAF-REL-050
+  - WAF-SUS-010
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-COST-080
+  - WAF-SUS-030
+  - WAF-OPS-090
+  - WAF-REL-010
+  - WAF-REL-040
+description: 'All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent).
+  Manual resource creation through cloud consoles MUST be prohibited for all production and staging environments. Infrastructure
+  definitions MUST be version-controlled, reviewed through pull requests, and deployed exclusively through CI/CD pipelines.
 
-description: |
-  All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent). Manual resource creation through cloud consoles MUST be prohibited for all production and staging environments. Infrastructure definitions MUST be version-controlled, reviewed through pull requests, and deployed exclusively through CI/CD pipelines.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Configuration management'
-      - 'Change and deployment management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Infrastructure and platform management'
-      - 'Configuration management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 5: How do you reduce defects, ease remediation, and improve flow in your workload?'
-  - framework: 'DevOps Research and Assessment (DORA)'
-    controls:
-      - 'Version Control'
-      - 'Infrastructure as Code'
-  - framework: 'CIS Controls v8'
-    controls:
-      - 'CIS-4.6: Securely Manage Enterprise Assets and Software'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Configuration management
+  - Change and deployment management
+- framework: ITIL 4
+  controls:
+  - Infrastructure and platform management
+  - Configuration management
+- framework: CIS Controls v8
+  controls:
+  - 'CIS-4.6: Securely Manage Enterprise Assets and Software'
 checks:
-  - id: waf-ops-020.tf.aws.s3-terraform-state-backend
-    engine: terraform
-    automated: true
-    title: 'Terraform state must use S3 backend with DynamoDB locking'
-    provider: aws
-    description: 'Terraform remote state MUST be stored in an S3 bucket with versioning enabled and a DynamoDB table for state locking. This prevents concurrent state modifications and enables state history and rollback.'
-    expected: 'true'
-    remediation: "Configure the S3 backend in your Terraform root module's terraform block. Create the S3 bucket with versioning enabled and a DynamoDB table for locking.\n"
-    example:
-      compliant: |
-        terraform {
-          backend "s3" {
-            bucket         = "my-org-terraform-state"
-            key            = "payment-service/production/terraform.tfstate"
-            region         = "eu-central-1"
-            dynamodb_table = "terraform-state-lock"
-            encrypt        = true
-          }
-        }
-        
-        resource "aws_s3_bucket_versioning" "state" {
-          bucket = "my-org-terraform-state"
-          versioning_configuration {
-            status = "Enabled"
-          }
-        }
-        
-      non_compliant: |
-        terraform {
-          # No backend configured – local state only
-          # WAF-OPS-020 Violation: no remote state
-        }
-        
-    scope:
-      block_type: terraform
-    assertions:
-      - attribute: 'backend'
-        op: 'attribute_exists'
-        message: 'Terraform must configure a remote backend (not local state).'
-    on_fail: violation
-  - id: waf-ops-020.tf.aws.s3-state-bucket-versioning
-    engine: terraform
-    automated: true
-    title: 'Terraform state S3 bucket must have versioning enabled'
-    provider: aws
-    description: 'The S3 bucket used for Terraform remote state MUST have versioning enabled to allow state history, audit, and rollback capabilities.'
-    expected: 'true'
-    remediation: 'Add an aws_s3_bucket_versioning resource with status = "Enabled" for your Terraform state bucket.\n'
-    example:
-      compliant: |
-        resource "aws_s3_bucket_versioning" "state" {
-          bucket = aws_s3_bucket.terraform_state.id
-          versioning_configuration {
-            status = "Enabled"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_s3_bucket_versioning" "state" {
-          bucket = aws_s3_bucket.terraform_state.id
-          versioning_configuration {
-            status = "Suspended"
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_s3_bucket_versioning
-    assertions:
-      - attribute: 'versioning_configuration.status'
-        op: 'equals'
-        message: 'S3 state bucket versioning must be Enabled.'
-    on_fail: violation
-  - id: waf-ops-020.tf.azurerm.terraform-state-storage
-    engine: terraform
-    automated: true
-    title: 'Azure Terraform state must use Azure Storage Account backend'
-    provider: azurerm
-    description: 'Terraform state for Azure deployments MUST be stored in an Azure Storage Account with blob versioning enabled. This ensures state durability and collaboration.'
-    expected: 'true'
-    remediation: 'Configure blob versioning on the Storage Account used for Terraform state.\n'
-    example:
-      compliant: |
-        resource "azurerm_storage_account" "terraform_state" {
-          name                     = "myorgtfstate"
-          resource_group_name      = azurerm_resource_group.tfstate.name
-          location                 = var.location
-          account_tier             = "Standard"
-          account_replication_type = "GRS"
-        
-          blob_properties {
-            versioning_enabled = true
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_storage_account" "terraform_state" {
-          name                     = "myorgtfstate"
-          resource_group_name      = azurerm_resource_group.tfstate.name
-          location                 = var.location
-          account_tier             = "Standard"
-          account_replication_type = "LRS"
-          # No blob versioning – WAF-OPS-020 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_storage_account
-    assertions:
-      - attribute: 'blob_properties'
-        op: 'attribute_exists'
-        message: 'Storage account must have blob_properties configured.'
-    on_fail: violation
+- id: waf-ops-020.tf.aws.s3-terraform-state-backend
+  engine: terraform
+  automated: true
+  title: Terraform state must use S3 backend with DynamoDB locking
+  provider: aws
+  description: Terraform remote state MUST be stored in an S3 bucket with versioning enabled and a DynamoDB table for state
+    locking. This prevents concurrent state modifications and enables state history and rollback.
+  expected: 'true'
+  remediation: 'Configure the S3 backend in your Terraform root module''s terraform block. Create the S3 bucket with versioning
+    enabled and a DynamoDB table for locking.
+
+    '
+  example:
+    compliant: "terraform {\n  backend \"s3\" {\n    bucket         = \"my-org-terraform-state\"\n    key            = \"\
+      payment-service/production/terraform.tfstate\"\n    region         = \"eu-central-1\"\n    dynamodb_table = \"terraform-state-lock\"\
+      \n    encrypt        = true\n  }\n}\n\nresource \"aws_s3_bucket_versioning\" \"state\" {\n  bucket = \"my-org-terraform-state\"\
+      \n  versioning_configuration {\n    status = \"Enabled\"\n  }\n}\n"
+    non_compliant: "terraform {\n  # No backend configured – local state only\n  # WAF-OPS-020 Violation: no remote state\n\
+      }\n"
+  scope:
+    block_type: terraform
+  assertions:
+  - attribute: backend
+    op: attribute_exists
+    message: Terraform must configure a remote backend (not local state).
+  on_fail: violation
+- id: waf-ops-020.tf.aws.s3-state-bucket-versioning
+  engine: terraform
+  automated: true
+  title: Terraform state S3 bucket must have versioning enabled
+  provider: aws
+  description: The S3 bucket used for Terraform remote state MUST have versioning enabled to allow state history, audit, and
+    rollback capabilities.
+  expected: 'true'
+  remediation: Add an aws_s3_bucket_versioning resource with status = "Enabled" for your Terraform state bucket.\n
+  example:
+    compliant: "resource \"aws_s3_bucket_versioning\" \"state\" {\n  bucket = aws_s3_bucket.terraform_state.id\n  versioning_configuration\
+      \ {\n    status = \"Enabled\"\n  }\n}\n"
+    non_compliant: "resource \"aws_s3_bucket_versioning\" \"state\" {\n  bucket = aws_s3_bucket.terraform_state.id\n  versioning_configuration\
+      \ {\n    status = \"Suspended\"\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_s3_bucket_versioning
+  assertions:
+  - attribute: versioning_configuration.status
+    op: equals
+    message: S3 state bucket versioning must be Enabled.
+    expected: Enabled
+  on_fail: violation
+- id: waf-ops-020.tf.azurerm.terraform-state-storage
+  engine: terraform
+  automated: true
+  title: Azure Terraform state must use Azure Storage Account backend
+  provider: azurerm
+  description: Terraform state for Azure deployments MUST be stored in an Azure Storage Account with blob versioning enabled.
+    This ensures state durability and collaboration.
+  expected: 'true'
+  remediation: Configure blob versioning on the Storage Account used for Terraform state.\n
+  example:
+    compliant: "resource \"azurerm_storage_account\" \"terraform_state\" {\n  name                     = \"myorgtfstate\"\n\
+      \  resource_group_name      = azurerm_resource_group.tfstate.name\n  location                 = var.location\n  account_tier\
+      \             = \"Standard\"\n  account_replication_type = \"GRS\"\n\n  blob_properties {\n    versioning_enabled =\
+      \ true\n  }\n}\n"
+    non_compliant: "resource \"azurerm_storage_account\" \"terraform_state\" {\n  name                     = \"myorgtfstate\"\
+      \n  resource_group_name      = azurerm_resource_group.tfstate.name\n  location                 = var.location\n  account_tier\
+      \             = \"Standard\"\n  account_replication_type = \"LRS\"\n  # No blob versioning – WAF-OPS-020 Violation\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_storage_account
+  assertions:
+  - attribute: blob_properties
+    op: attribute_exists
+    message: Storage account must have blob_properties configured.
+  on_fail: violation
+- id: waf-ops-020.tf.google.gcs-state-backend
+  engine: terraform
+  automated: true
+  title: GCP Terraform state must use Cloud Storage backend with versioning
+  provider: google
+  description: Terraform state for GCP deployments MUST be stored in a google_storage_bucket configured as a backend with
+    uniform_bucket_level_access and versioning enabled. This prevents concurrent state modifications and provides state history.
+  expected: 'true'
+  remediation: Configure the gcs backend in the Terraform root module and enable versioning on the state bucket. Use a dedicated
+    project for state storage with restricted IAM access.\n
+  example:
+    compliant: "terraform {\n  backend \"gcs\" {\n    bucket = \"my-org-terraform-state\"\n    prefix = \"payment-service/production\"\
+      \n  }\n}\n\nresource \"google_storage_bucket\" \"terraform_state\" {\n  name          = \"my-org-terraform-state\"\n\
+      \  location      = \"EU\"\n  storage_class = \"STANDARD\"\n\n  versioning {\n    enabled = true\n  }\n\n  uniform_bucket_level_access\
+      \ = true\n}\n"
+    non_compliant: "terraform {\n  # No backend configured – local state only\n  # WAF-OPS-020 Violation: no remote state\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_storage_bucket
+  assertions:
+  - attribute: versioning
+    op: attribute_exists
+    message: GCP Terraform state bucket must have versioning enabled.
+  on_fail: violation
+- id: waf-ops-020.tf.stackit.provider-version-constrained
+  engine: terraform
+  automated: true
+  title: STACKIT Terraform provider must have version constraint
+  provider: stackit
+  description: STACKIT Terraform provider must have version constraint. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"provider\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"provider\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: terraform
+  assertions:
+  - attribute: required_providers.stackit.source
+    op: attribute_exists
+    message: STACKIT provider source must be declared.
+  - attribute: required_providers.stackit.version
+    op: attribute_exists
+    message: STACKIT provider version must be constrained.
+  on_fail: violation
+- id: waf-ops-020.tf.ovh.provider-version-constrained
+  engine: terraform
+  automated: true
+  title: OVHcloud Terraform provider must have version constraint
+  provider: ovh
+  description: OVHcloud Terraform provider must have version constraint. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"provider\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"provider\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: terraform
+  assertions:
+  - attribute: required_providers.ovh.source
+    op: attribute_exists
+    message: OVHcloud provider source must be declared.
+  - attribute: required_providers.ovh.version
+    op: attribute_exists
+    message: OVHcloud provider version must be constrained.
+  on_fail: violation
+- id: waf-ops-020.tf.hcloud.provider-version-constrained
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud Terraform provider must have version constraint
+  provider: hcloud
+  description: Hetzner Cloud Terraform provider must have version constraint. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"provider\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"provider\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: terraform
+  assertions:
+  - attribute: required_providers.hcloud.source
+    op: attribute_exists
+    message: Hetzner Cloud provider source must be declared.
+  - attribute: required_providers.hcloud.version
+    op: attribute_exists
+    message: Hetzner Cloud provider version must be constrained.
+  on_fail: violation

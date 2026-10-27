@@ -1,235 +1,260 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-070
 id: WAF-REL-070
-title: 'All production workloads classified as critical or high availability MUST...'
+title: All production workloads classified as critical or high availability MUST...
 status: active
 tags:
-  - reliability
-  - high
-  - governance
-  - configuration
+- reliability
+- high
+- governance
+- configuration
 pillar: reliability
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'backup-recovery'
-rationale: |
-  All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year.
+- governance
+- configuration
+category: backup-recovery
+rationale: Missing or untested recovery plans prolong downtime, increase data loss, and endanger business continuity. This
+  control addresses the requirements of the 'Backup and Recovery' area and ensures that All production workloads classified
+  as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Critical workloads without disaster-recovery plans may remain unreachable for a long time during regional outages.
+- Missing failover mechanisms prevent recovery in the secondary location.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-070.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-070.adoc
+  related_controls:
+  - WAF-REL-050
+  - WAF-SUS-050
+  - WAF-REL-080
+  - WAF-REL-100
+  - WAF-COST-010
+  - WAF-OPS-020
+  - WAF-SUS-010
+description: 'All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery
+  (DR) testing at minimum twice per year. DR tests MUST validate actual RTO and RPO targets defined in the DR plan. Tests
+  MUST cover complete failure scenarios: full region failover, database restore, and service reconstruction from IaC. Results
+  MUST be documented and deviation from targets MUST trigger remediation within 30 days. DR plans MUST be reviewed and updated
+  after every significant architecture change.
 
-description: |
-  All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year. DR tests MUST validate actual RTO and RPO targets defined in the DR plan. Tests MUST cover complete failure scenarios: full region failover, database restore, and service reconstruction from IaC. Results MUST be documented and deviation from targets MUST trigger remediation within 30 days. DR plans MUST be reviewed and updated after every significant architecture change.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.17.1.3 – Verify, review and evaluate information security continuity'
-  - framework: 'GDPR'
-    controls:
-      - 'Article 32 – Security of processing (resilience and recovery testing)'
-  - framework: 'BSI C5:2022'
-    controls:
-      - 'RB-04 – Data Backup and Recovery'
-      - 'RB-05 – Disaster Recovery'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 14 – Plan for disaster recovery'
-      - 'REL 13 – Test resiliency'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service Continuity Management'
+- framework: ISO 27001:2022
+  controls:
+  - A.17.1.3 – Verify, review and evaluate information security continuity
+- framework: GDPR
+  controls:
+  - Article 32 – Security of processing (resilience and recovery testing)
+- framework: BSI C5:2020
+  controls:
+  - RB-04 – Data Backup and Recovery
+  - RB-05 – Disaster Recovery
+- framework: ITIL 4
+  controls:
+  - Service Continuity Management
 checks:
-  - id: waf-rel-070.tf.aws.route53-health-check-failover
-    engine: terraform
-    automated: true
-    title: 'AWS Route 53 failover routing must be configured for DR'
-    provider: aws
-    description: 'Production DNS entries for critical workloads must use Route 53 health check failover routing policies to enable automated DNS failover during regional events.'
-    expected: 'true'
-    remediation: 'Configure aws_route53_health_check with type, fqdn, port, resource_path, failure_threshold, and request_interval. Link to Route 53 failover records.\n'
-    example:
-      compliant: |
-        resource "aws_route53_health_check" "primary" {
-          fqdn              = "api.payment-service.example.com"
-          port              = 443
-          type              = "HTTPS"
-          resource_path     = "/health/ready"
-          failure_threshold = 3
-          request_interval  = 10
-          tags = {
-            Name = "payment-api-health-check"
-          }
-        }
-        
-        resource "aws_route53_record" "primary" {
-          zone_id = var.hosted_zone_id
-          name    = "api.payment-service.example.com"
-          type    = "A"
-          failover_routing_policy {
-            type = "PRIMARY"
-          }
-          set_identifier  = "primary"
-          health_check_id = aws_route53_health_check.primary.id
-          alias {
-            name                   = aws_lb.primary.dns_name
-            zone_id                = aws_lb.primary.zone_id
-            evaluate_target_health = true
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_route53_record" "api" {
-          zone_id = var.hosted_zone_id
-          name    = "api.payment-service.example.com"
-          type    = "A"
-          ttl     = 300
-          records = [var.primary_ip]
-          # No failover routing, no health check – WAF-REL-070 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_route53_health_check
-    assertions:
-      - attribute: 'type'
-        op: 'not_empty'
-        message: 'Route 53 health check type must be specified.'
-      - attribute: 'failure_threshold'
-        op: 'attribute_exists'
-        message: 'Health check failure threshold must be explicitly defined.'
-      - attribute: 'request_interval'
-        op: 'attribute_exists'
-        message: 'Health check request interval must be defined.'
-    on_fail: violation
-  - id: waf-rel-070.tf.azurerm.traffic-manager-profile
-    engine: terraform
-    automated: true
-    title: 'Azure Traffic Manager must be configured for failover routing'
-    provider: azurerm
-    description: 'Azure Traffic Manager profiles for critical workloads must use failover or performance routing methods with health checks enabled on all endpoints.'
-    expected: 'true'
-    remediation: 'Configure azurerm_traffic_manager_profile with traffic_routing_method = "Priority" and a monitor_config block with protocol, port, and path for health checks.\n'
-    example:
-      compliant: |
-        resource "azurerm_traffic_manager_profile" "main" {
-          name                   = "payment-api-dr"
-          resource_group_name    = azurerm_resource_group.main.name
-          traffic_routing_method = "Priority"
-        
-          dns_config {
-            relative_name = "payment-api"
-            ttl           = 30
-          }
-        
-          monitor_config {
-            protocol                     = "HTTPS"
-            port                         = 443
-            path                         = "/health/ready"
-            interval_in_seconds          = 10
-            timeout_in_seconds           = 9
-            tolerated_number_of_failures = 3
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_traffic_manager_profile" "main" {
-          name                   = "payment-api-dr"
-          resource_group_name    = azurerm_resource_group.main.name
-          traffic_routing_method = "Weighted"
-          dns_config {
-            relative_name = "payment-api"
-            ttl           = 300
-          }
-          # Missing: monitor_config – no health checking
-          # WAF-REL-070 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_traffic_manager_profile
-    assertions:
-      - attribute: 'traffic_routing_method'
-        op: 'not_in'
-        message: 'Traffic Manager should use Failover or Priority routing for DR, not only Weighted.'
-      - attribute: 'monitor_config'
-        op: 'attribute_exists'
-        message: 'Traffic Manager must define monitor_config for endpoint health checking.'
-    on_fail: violation
-  - id: waf-rel-070.tf.google.dns-managed-zone-failover
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud DNS must have low TTL for disaster recovery scenarios'
-    provider: google
-    description: 'GCP Cloud DNS records for production services must use TTL values <= 60 seconds to enable rapid DNS-based failover during disaster recovery.'
-    expected: 'true'
-    remediation: 'Set ttl = 30 on google_dns_record_set for production service endpoints. Lower TTL reduces the DNS propagation window during failover events.\n'
-    example:
-      compliant: |
-        resource "google_dns_record_set" "api" {
-          name         = "api.payment-service.example.com."
-          type         = "A"
-          ttl          = 30
-          managed_zone = google_dns_managed_zone.main.name
-          rrdatas      = [google_compute_global_forwarding_rule.primary.ip_address]
-        }
-        
-      non_compliant: |
-        resource "google_dns_record_set" "api" {
-          name         = "api.payment-service.example.com."
-          type         = "A"
-          ttl          = 3600  # WAF-REL-070 violation: 1 hour TTL prevents rapid DR
-          managed_zone = google_dns_managed_zone.main.name
-          rrdatas      = [var.primary_ip]
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_dns_record_set
-    assertions:
-      - attribute: 'ttl'
-        op: 'less_than_or_equal'
-        message: 'DNS record TTL must be <= 60 seconds for DR scenarios to enable rapid failover.'
-    on_fail: violation
+- id: waf-rel-070.tf.aws.route53-health-check-failover
+  engine: terraform
+  automated: true
+  title: AWS Route 53 failover routing must be configured for DR
+  provider: aws
+  description: Production DNS entries for critical workloads must use Route 53 health check failover routing policies to enable
+    automated DNS failover during regional events.
+  expected: 'true'
+  remediation: Configure aws_route53_health_check with type, fqdn, port, resource_path, failure_threshold, and request_interval.
+    Link to Route 53 failover records.\n
+  example:
+    compliant: "resource \"aws_route53_health_check\" \"primary\" {\n  fqdn              = \"api.payment-service.example.com\"\
+      \n  port              = 443\n  type              = \"HTTPS\"\n  resource_path     = \"/health/ready\"\n  failure_threshold\
+      \ = 3\n  request_interval  = 10\n  tags = {\n    Name = \"payment-api-health-check\"\n  }\n}\n\nresource \"aws_route53_record\"\
+      \ \"primary\" {\n  zone_id = var.hosted_zone_id\n  name    = \"api.payment-service.example.com\"\n  type    = \"A\"\n\
+      \  failover_routing_policy {\n    type = \"PRIMARY\"\n  }\n  set_identifier  = \"primary\"\n  health_check_id = aws_route53_health_check.primary.id\n\
+      \  alias {\n    name                   = aws_lb.primary.dns_name\n    zone_id                = aws_lb.primary.zone_id\n\
+      \    evaluate_target_health = true\n  }\n}\n"
+    non_compliant: "resource \"aws_route53_record\" \"api\" {\n  zone_id = var.hosted_zone_id\n  name    = \"api.payment-service.example.com\"\
+      \n  type    = \"A\"\n  ttl     = 300\n  records = [var.primary_ip]\n  # No failover routing, no health check – WAF-REL-070\
+      \ violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_route53_health_check
+  assertions:
+  - attribute: type
+    op: not_empty
+    message: Route 53 health check type must be specified.
+  - attribute: failure_threshold
+    op: attribute_exists
+    message: Health check failure threshold must be explicitly defined.
+  - attribute: request_interval
+    op: attribute_exists
+    message: Health check request interval must be defined.
+  on_fail: violation
+- id: waf-rel-070.tf.azurerm.traffic-manager-profile
+  engine: terraform
+  automated: true
+  title: Azure Traffic Manager must be configured for failover routing
+  provider: azurerm
+  description: Azure Traffic Manager profiles for critical workloads must use failover or performance routing methods with
+    health checks enabled on all endpoints.
+  expected: 'true'
+  remediation: Configure azurerm_traffic_manager_profile with traffic_routing_method = "Priority" and a monitor_config block
+    with protocol, port, and path for health checks.\n
+  example:
+    compliant: "resource \"azurerm_traffic_manager_profile\" \"main\" {\n  name                   = \"payment-api-dr\"\n \
+      \ resource_group_name    = azurerm_resource_group.main.name\n  traffic_routing_method = \"Priority\"\n\n  dns_config\
+      \ {\n    relative_name = \"payment-api\"\n    ttl           = 30\n  }\n\n  monitor_config {\n    protocol          \
+      \           = \"HTTPS\"\n    port                         = 443\n    path                         = \"/health/ready\"\
+      \n    interval_in_seconds          = 10\n    timeout_in_seconds           = 9\n    tolerated_number_of_failures = 3\n\
+      \  }\n}\n"
+    non_compliant: "resource \"azurerm_traffic_manager_profile\" \"main\" {\n  name                   = \"payment-api-dr\"\
+      \n  resource_group_name    = azurerm_resource_group.main.name\n  traffic_routing_method = \"Weighted\"\n  dns_config\
+      \ {\n    relative_name = \"payment-api\"\n    ttl           = 300\n  }\n  # Missing: monitor_config – no health checking\n\
+      \  # WAF-REL-070 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_traffic_manager_profile
+  assertions:
+  - attribute: traffic_routing_method
+    op: not_in
+    message: Traffic Manager should use Failover or Priority routing for DR, not only Weighted.
+    expected:
+    - 0.0.0.0/0
+    - ''
+  - attribute: monitor_config
+    op: attribute_exists
+    message: Traffic Manager must define monitor_config for endpoint health checking.
+  on_fail: violation
+- id: waf-rel-070.tf.google.dns-managed-zone-failover
+  engine: terraform
+  automated: true
+  title: GCP Cloud DNS must have low TTL for disaster recovery scenarios
+  provider: google
+  description: GCP Cloud DNS records for production services must use TTL values <= 60 seconds to enable rapid DNS-based failover
+    during disaster recovery.
+  expected: 'true'
+  remediation: Set ttl = 30 on google_dns_record_set for production service endpoints. Lower TTL reduces the DNS propagation
+    window during failover events.\n
+  example:
+    compliant: "resource \"google_dns_record_set\" \"api\" {\n  name         = \"api.payment-service.example.com.\"\n  type\
+      \         = \"A\"\n  ttl          = 30\n  managed_zone = google_dns_managed_zone.main.name\n  rrdatas      = [google_compute_global_forwarding_rule.primary.ip_address]\n\
+      }\n"
+    non_compliant: "resource \"google_dns_record_set\" \"api\" {\n  name         = \"api.payment-service.example.com.\"\n\
+      \  type         = \"A\"\n  ttl          = 3600  # WAF-REL-070 violation: 1 hour TTL prevents rapid DR\n  managed_zone\
+      \ = google_dns_managed_zone.main.name\n  rrdatas      = [var.primary_ip]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_dns_record_set
+  assertions:
+  - attribute: ttl
+    op: less_than_or_equal
+    message: DNS record TTL must be <= 60 seconds for DR scenarios to enable rapid failover.
+    expected: 60
+  on_fail: violation
+- id: waf-rel-070.tf.stackit.chaos-tested
+  engine: terraform
+  automated: true
+  title: All production workloads classified as critical or high availability for stackit
+  provider: stackit
+  description: All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a chaos-tested tag/label to the stackit_project resource to show the stackit implementation of WAF-REL-070
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    chaos-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing chaos-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: chaos-tested
+    message: stackit_project is missing the chaos-tested tag/label.
+  on_fail: violation
+- id: waf-rel-070.tf.ovh.chaos-tested
+  engine: terraform
+  automated: true
+  title: All production workloads classified as critical or high availability for ovh
+  provider: ovh
+  description: All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a chaos-tested tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-REL-070
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    chaos-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing chaos-tested tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: chaos-tested
+    message: ovh_cloud_project is missing the chaos-tested tag/label.
+  on_fail: violation
+- id: waf-rel-070.tf.hcloud.chaos-tested
+  engine: terraform
+  automated: true
+  title: All production workloads classified as critical or high availability for hcloud
+  provider: hcloud
+  description: All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a chaos-tested tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-070
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    chaos-tested = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing chaos-tested labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: chaos-tested
+    message: hcloud_server is missing the chaos-tested tag/label.
+  on_fail: violation

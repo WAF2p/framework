@@ -1,193 +1,208 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-020
 id: WAF-SUS-020
-title: 'All compute resources MUST prefer energy-efficient processor architectures...'
+title: All compute resources MUST prefer energy-efficient processor architectures...
 status: active
 tags:
-  - sustainability
-  - high
-  - configuration
-  - governance
+- sustainability
+- high
+- configuration
+- governance
 pillar: sustainability
 severity: high
 type:
-  - configuration
-  - governance
-
-category: 'cost-governance'
-rationale: |
-  All compute resources MUST prefer energy-efficient processor architectures (ARM64/Graviton for AWS, Ampere Altra for Azure, T2A for GCP) over equivalent x86...
+- configuration
+- governance
+category: cost-governance
+rationale: Lack of cost transparency and governance leads to budget overruns, cloud waste, and unaccountable spending. This
+  control addresses the requirements of the 'Cost Governance' area and ensures that All compute resources MUST prefer energy-efficient
+  processor architectures (ARM64/Graviton for AWS, Ampere Altra for Azure, T2A for GCP) over equivalent x86.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Energy-inefficient processors increase carbon footprint and operating cost without added value.
+- Outdated instance families do not use hardware optimally and waste power.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-020.adoc
+  related_controls:
+  - WAF-SUS-100
+  - WAF-COST-050
+  - WAF-SUS-010
+  - WAF-SUS-040
+  - WAF-COST-060
+  - WAF-COST-100
+  - WAF-PERF-100
+  - WAF-SUS-030
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-010
+description: 'All compute resources MUST prefer energy-efficient processor architectures (ARM64/Graviton for AWS, Ampere Altra
+  for Azure, T2A for GCP) over equivalent x86 instance families. AWS Lambda functions MUST use arm64 architecture unless the
+  workload has a verified incompatibility. EC2 instances MUST NOT use previous-generation families (t2, m4, c4, r4) when current-generation
+  equivalents are available. ARM/Graviton instances deliver 20-40% better performance-per-watt compared to equivalent x86
+  instances, reducing both cost and carbon emissions simultaneously.
 
-description: |
-  All compute resources MUST prefer energy-efficient processor architectures (ARM64/Graviton for AWS, Ampere Altra for Azure, T2A for GCP) over equivalent x86 instance families. AWS Lambda functions MUST use arm64 architecture unless the workload has a verified incompatibility. EC2 instances MUST NOT use previous-generation families (t2, m4, c4, r4) when current-generation equivalents are available. ARM/Graviton instances deliver 20-40% better performance-per-watt compared to equivalent x86 instances, reducing both cost and carbon emissions simultaneously.
+  '
 regulatory_mapping:
-  - framework: 'Green Software Foundation'
-    controls:
-      - 'Software Carbon Intensity (SCI) – hardware efficiency component'
-      - 'Energy Efficiency – compute selection guidance'
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS E1 – Climate Change – Scope 3 emission reduction measures'
-  - framework: 'GHG Protocol'
-    controls:
-      - 'Scope 2 – Location-based and market-based methods'
-      - 'Scope 3 Category 11 – efficiency of purchased cloud compute'
-  - framework: 'SBTi (Science Based Targets initiative)'
-    controls:
-      - 'ICT Sector Guidance – energy intensity reduction targets'
+- framework: Green Software Foundation
+  controls:
+  - Software Carbon Intensity (SCI) – hardware efficiency component
+  - Energy Efficiency – compute selection guidance
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change – Scope 3 emission reduction measures
+- framework: GHG Protocol
+  controls:
+  - Scope 2 – Location-based and market-based methods
+  - Scope 3 Category 11 – efficiency of purchased cloud compute
+- framework: SBTi (Science Based Targets initiative)
+  controls:
+  - ICT Sector Guidance – energy intensity reduction targets
 checks:
-  - id: waf-sus-020.tf.aws.lambda-arm64
-    engine: terraform
-    automated: true
-    title: 'AWS Lambda functions must use arm64 architecture'
-    provider: aws
-    description: 'Lambda functions running on arm64 (Graviton2) use 20% less energy per invocation than x86_64 equivalents at equivalent performance. All Lambda functions MUST declare architectures = ["arm64"] unless there is a documented compatibility exception.'
-    expected: 'true'
-    remediation: 'Set architectures = ["arm64"] on all Lambda functions. Verify that all Lambda layers and dependencies support arm64. Most Python, Node.js, Java and Go runtimes are fully supported. For container image functions, rebuild the image for linux/arm64 platform.\n'
-    example:
-      compliant: |
-        resource "aws_lambda_function" "api_handler" {
-          function_name = "api-handler"
-          runtime       = "python3.12"
-          architectures = ["arm64"]  # 20% energy reduction vs x86_64
-          handler       = "main.handler"
-          role          = aws_iam_role.lambda.arn
-          filename      = "function.zip"
-        }
-        
-      non_compliant: |
-        resource "aws_lambda_function" "api_handler" {
-          function_name = "api-handler"
-          runtime       = "python3.12"
-          architectures = ["x86_64"]  # WAF-SUS-020 Violation: use arm64
-          handler       = "main.handler"
-          role          = aws_iam_role.lambda.arn
-          filename      = "function.zip"
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lambda_function
-    assertions:
-      - attribute: 'architectures'
-        op: 'not_in'
-        message: 'Lambda function uses x86_64 architecture; switch to arm64 for 20% energy reduction.'
-    on_fail: violation
-  - id: waf-sus-020.tf.aws.ec2-no-previous-gen
-    engine: terraform
-    automated: true
-    title: 'EC2 instances must not use previous-generation instance families'
-    provider: aws
-    description: 'Previous-generation EC2 instance families (t2, m4, c4, r4, i2, d2, m3, c3) have significantly worse performance-per-watt than current-generation equivalents. They also lack support for modern EBS optimized I/O and network performance features.'
-    expected: 'true'
-    remediation: 'Replace previous-generation instance types with current-generation equivalents: t2 -> t4g (Graviton2, 40% better price-performance), m4 -> m7g (Graviton3, best performance-per-watt), c4 -> c7g (Graviton3, compute-optimized), r4 -> r7g (Graviton3, memory-optimized). Test compatibility before migration using AWS Graviton migration guide.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu_arm.id
-          instance_type = "m7g.large"  # Graviton3, 40% better performance/watt
-          tags = {
-            environment = "production"
-            workload    = "payment-service"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "m4.large"  # WAF-SUS-020 Violation: previous-gen, poor efficiency
-          tags = {
-            environment = "production"
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'instance_type'
-        op: 'not_matches'
-        message: 'Instance type uses a previous-generation family with poor energy efficiency. Migrate to t4g, m7g, c7g, or r7g.'
-    on_fail: violation
-  - id: waf-sus-020.tf.azurerm.vm-efficient-series
-    engine: terraform
-    automated: true
-    title: 'Azure VMs should use Ampere Altra (Dpsv5/Epsv5) or equivalent efficient series'
-    provider: azurerm
-    description: 'Azure Dpsv5 and Epsv5 series VMs use Ampere Altra ARM processors with 40% better performance per watt than equivalent Dv4/Ev4 series. These should be preferred for general and memory-optimized workloads.'
-    expected: 'true'
-    remediation: 'Migrate VMs to Dpsv5 (Ampere Altra ARM) for general workloads or Epsv5 for memory-intensive. For x86-only workloads, use Ddsv5 or Edsv5 as the most energy-efficient x86 option. Run Azure Migrate assessment to validate compatibility before resizing.\n'
-    example:
-      compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-app-prod"
-          resource_group_name = var.resource_group_name
-          location            = var.location
-          size                = "Standard_D4ps_v5"  # Ampere Altra ARM – best efficiency
-          admin_username      = "adminuser"
-          network_interface_ids = [azurerm_network_interface.app.id]
-        }
-        
-      non_compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-app-prod"
-          resource_group_name = var.resource_group_name
-          location            = var.location
-          size                = "Standard_D4_v3"  # WAF-SUS-020 Warning: older series, lower efficiency
-          admin_username      = "adminuser"
-          network_interface_ids = [azurerm_network_interface.app.id]
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_linux_virtual_machine
-        - azurerm_windows_virtual_machine
-    assertions:
-      - attribute: 'size'
-        op: 'not_matches'
-        message: 'VM uses an older series with poor energy efficiency. Consider Dpsv5, Epsv5, or Ddsv5 series.'
-    on_fail: advisory
+- id: waf-sus-020.tf.aws.lambda-arm64
+  engine: terraform
+  automated: true
+  title: AWS Lambda functions must use arm64 architecture
+  provider: aws
+  description: Lambda functions running on arm64 (Graviton2) use 20% less energy per invocation than x86_64 equivalents at
+    equivalent performance. All Lambda functions MUST declare architectures = ["arm64"] unless there is a documented compatibility
+    exception.
+  expected: 'true'
+  remediation: Set architectures = ["arm64"] on all Lambda functions. Verify that all Lambda layers and dependencies support
+    arm64. Most Python, Node.js, Java and Go runtimes are fully supported. For container image functions, rebuild the image
+    for linux/arm64 platform.\n
+  example:
+    compliant: "resource \"aws_lambda_function\" \"api_handler\" {\n  function_name = \"api-handler\"\n  runtime       = \"\
+      python3.12\"\n  architectures = [\"arm64\"]  # 20% energy reduction vs x86_64\n  handler       = \"main.handler\"\n\
+      \  role          = aws_iam_role.lambda.arn\n  filename      = \"function.zip\"\n}\n"
+    non_compliant: "resource \"aws_lambda_function\" \"api_handler\" {\n  function_name = \"api-handler\"\n  runtime     \
+      \  = \"python3.12\"\n  architectures = [\"x86_64\"]  # WAF-SUS-020 Violation: use arm64\n  handler       = \"main.handler\"\
+      \n  role          = aws_iam_role.lambda.arn\n  filename      = \"function.zip\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lambda_function
+  assertions:
+  - attribute: architectures
+    op: not_in
+    message: Lambda function uses x86_64 architecture; switch to arm64 for 20% energy reduction.
+    expected:
+    - x86_64
+  on_fail: violation
+- id: waf-sus-020.tf.aws.ec2-no-previous-gen
+  engine: terraform
+  automated: true
+  title: EC2 instances must not use previous-generation instance families
+  provider: aws
+  description: Previous-generation EC2 instance families (t2, m4, c4, r4, i2, d2, m3, c3) have significantly worse performance-per-watt
+    than current-generation equivalents. They also lack support for modern EBS optimized I/O and network performance features.
+  expected: 'true'
+  remediation: 'Replace previous-generation instance types with current-generation equivalents: t2 -> t4g (Graviton2, 40%
+    better price-performance), m4 -> m7g (Graviton3, best performance-per-watt), c4 -> c7g (Graviton3, compute-optimized),
+    r4 -> r7g (Graviton3, memory-optimized). Test compatibility before migration using AWS Graviton migration guide.\n'
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu_arm.id\n  instance_type = \"m7g.large\"\
+      \  # Graviton3, 40% better performance/watt\n  tags = {\n    environment = \"production\"\n    workload    = \"payment-service\"\
+      \n  }\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"m4.large\"\
+      \  # WAF-SUS-020 Violation: previous-gen, poor efficiency\n  tags = {\n    environment = \"production\"\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+  assertions:
+  - attribute: instance_type
+    op: not_matches
+    message: Instance type uses a previous-generation family with poor energy efficiency. Migrate to t4g, m7g, c7g, or r7g.
+    pattern: ^(t2|m4|c4|r4|i2|d2|m3|c3)\.
+  on_fail: violation
+- id: waf-sus-020.tf.azurerm.vm-efficient-series
+  engine: terraform
+  automated: true
+  title: Azure VMs should use Ampere Altra (Dpsv5/Epsv5) or equivalent efficient series
+  provider: azurerm
+  description: Azure Dpsv5 and Epsv5 series VMs use Ampere Altra ARM processors with 40% better performance per watt than
+    equivalent Dv4/Ev4 series. These should be preferred for general and memory-optimized workloads.
+  expected: 'true'
+  remediation: Migrate VMs to Dpsv5 (Ampere Altra ARM) for general workloads or Epsv5 for memory-intensive. For x86-only workloads,
+    use Ddsv5 or Edsv5 as the most energy-efficient x86 option. Run Azure Migrate assessment to validate compatibility before
+    resizing.\n
+  example:
+    compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-app-prod\"\n  resource_group_name\
+      \ = var.resource_group_name\n  location            = var.location\n  size                = \"Standard_D4ps_v5\"  # Ampere\
+      \ Altra ARM – best efficiency\n  admin_username      = \"adminuser\"\n  network_interface_ids = [azurerm_network_interface.app.id]\n\
+      }\n"
+    non_compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-app-prod\"\n  resource_group_name\
+      \ = var.resource_group_name\n  location            = var.location\n  size                = \"Standard_D4_v3\"  # WAF-SUS-020\
+      \ Warning: older series, lower efficiency\n  admin_username      = \"adminuser\"\n  network_interface_ids = [azurerm_network_interface.app.id]\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_linux_virtual_machine
+    - azurerm_windows_virtual_machine
+  assertions:
+  - attribute: size
+    op: not_matches
+    message: VM uses an older series with poor energy efficiency. Consider Dpsv5, Epsv5, or Ddsv5 series.
+    pattern: ^Standard_(D|E)[0-9]+_v[0-3]$
+  on_fail: advisory
+- id: waf-sus-020.tf.google.compute-efficient-machine-type
+  engine: terraform
+  automated: true
+  title: GCP compute instances should use energy-efficient machine families
+  provider: google
+  description: GCP compute instances should prefer energy-efficient machine types such as e2, n2d, c3d, or t2d families over
+    legacy n1/n2 where workloads allow.
+  expected: 'true'
+  remediation: 'Choose energy-efficient machine types (e2-standard-2, n2d-standard-2, c3d-standard-4, t2d-standard-1) for
+    new workloads and migrate legacy n1/n2 instances where feasible.
+
+    '
+  example:
+    compliant: "resource \"google_compute_instance\" \"web\" {\n  name         = \"web-server\"\n  machine_type = \"e2-standard-2\"\
+      \n  zone         = \"europe-west3-a\"\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"legacy\" {\n  name         = \"legacy-server\"\n  machine_type\
+      \ = \"n1-standard-4\"\n  zone         = \"us-central1-a\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_instance
+  assertions:
+  - attribute: machine_type
+    op: matches
+    pattern: ^(e2|n2d|c3d|t2d)-
+    message: GCP compute instance should use an energy-efficient machine family (e2, n2d, c3d, t2d).
+  on_fail: finding

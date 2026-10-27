@@ -1,0 +1,112 @@
+id: WAF-REL-120
+title: Graceful degradation and fallback strategies MUST be documented and tested
+status: active
+tags:
+- architecture
+- governance
+- high
+- reliability
+pillar: reliability
+severity: high
+type:
+- governance
+- architecture
+category: reliability-design
+rationale: Fehlende Resilience-Patterns und nicht getestete Degradationsstrategien führen zu kaskadierenden Ausfällen und
+  längerer Wiederherstellungszeit. Dieses Control adressiert die Anforderungen des Bereichs 'Reliability Design' und stellt
+  sicher, dass Critical user journeys MUST continue in a degraded mode when non-essential dependencies fail. Fallba...
+threat:
+- Hard dependencies on non-essential services turn partial failures into total outages.
+- Untested fallback paths often fail when first invoked during a real incident.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-120.adoc
+  related_controls:
+  - WAF-REL-050
+  - WAF-REL-110
+  - WAF-REL-130
+  - WAF-OPS-020
+  - WAF-OPS-040
+  - WAF-AGN-040
+description: Critical user journeys MUST continue in a degraded mode when non-essential dependencies fail. Fallback behavior,
+  default responses, and feature degradation order MUST be documented. Degradation paths MUST be tested in staging and during
+  chaos experiments. Non-critical features MUST be tiered so lower-priority functions can be disabled first.
+regulatory_mapping:
+- framework: SRE Book (Google)
+  controls:
+  - Chapter 22 – Addressing Cascading Failures
+- framework: AWS Well-Architected Framework
+  controls:
+  - REL 9 – Mitigate deployment risks
+- framework: Azure Well-Architected Framework
+  controls:
+  - Reliability – Failure mode analysis
+- framework: NIST CSF 2.0
+  controls:
+  - RS.RP-01 – Response plan is executed
+checks:
+- id: waf-rel-120.config.degradation-adr
+  engine: config
+  provider: any
+  automated: false
+  title: Graceful degradation must be documented in ADR
+  description: Graceful degradation must be documented in ADR
+  expected: 'true'
+  remediation: Graceful degradation must be documented in ADR
+  scope:
+    block_type: file
+    path_pattern: docs/adr/*degradation*.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: At least one ADR must document graceful degradation strategy.
+  on_fail: finding
+- id: waf-rel-120.config.chaos-test-evidence
+  engine: config
+  provider: any
+  automated: false
+  title: Chaos test evidence for fallback paths must exist
+  description: Chaos test evidence for fallback paths must exist
+  expected: 'true'
+  remediation: Chaos test evidence for fallback paths must exist
+  scope:
+    block_type: file
+    path_pattern: docs/reliability/chaos-tests.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Chaos tests must demonstrate fallback behavior.
+  on_fail: finding

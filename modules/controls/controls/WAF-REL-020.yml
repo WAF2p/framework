@@ -1,224 +1,258 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-020
 id: WAF-REL-020
-title: 'All production services MUST expose health check endpoints and configure...'
+title: All production services MUST expose health check endpoints and configure...
 status: active
 tags:
-  - reliability
-  - high
-  - configuration
+- reliability
+- high
+- configuration
 pillar: reliability
 severity: high
 type:
-  - configuration
-
-category: 'network-encryption'
-rationale: |
-  All production services MUST expose health check endpoints and configure readiness and liveness probes.
+- configuration
+category: network-encryption
+rationale: Unencrypted data transfer enables eavesdropping, man-in-the-middle attacks, and violations of data-protection and
+  compliance requirements. This control addresses the requirements of the 'Network Encryption' area and ensures that All production
+  services MUST expose health check endpoints and configure readiness and liveness probes.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Services without health checks are not recognized as failed by load balancers and keep receiving traffic.
+- Missing state-check endpoints delay detection of partial outages.
 implementation_guidance:
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
-  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+- Implement the required configuration as code in Terraform or equivalent IaC.
+- Add an automated check to CI/CD so deviations are caught before deployment.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - The requirement is documented; initial resources show the intended configuration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-020.adoc
+  related_controls:
+  - WAF-REL-030
+  - WAF-PERF-070
+  - WAF-REL-050
+  - WAF-SUS-080
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-COST-010
+description: 'All production services MUST expose health check endpoints and configure readiness and liveness probes. Load
+  balancers and orchestrators MUST use health checks to route traffic only to healthy instances. Kubernetes workloads MUST
+  define readinessProbe and livenessProbe. AWS load balancers MUST have health check paths configured. Health check intervals,
+  thresholds, and timeout values MUST be explicitly defined – no reliance on cloud provider defaults.
 
-description: |
-  All production services MUST expose health check endpoints and configure readiness and liveness probes. Load balancers and orchestrators MUST use health checks to route traffic only to healthy instances. Kubernetes workloads MUST define readinessProbe and livenessProbe. AWS load balancers MUST have health check paths configured. Health check intervals, thresholds, and timeout values MUST be explicitly defined – no reliance on cloud provider defaults.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.17.2 – Redundancies'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 6 – Monitor workload resources'
-      - 'REL 12 – Test reliability'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Availability Management'
-      - 'Event Management'
-  - framework: 'CNCF Cloud Native Security'
-    controls:
-      - 'Runtime Security – Health and Readiness'
+- framework: ISO 27001:2022
+  controls:
+  - A.17.2 – Redundancies
+- framework: ITIL 4
+  controls:
+  - Availability Management
+  - Event Management
 checks:
-  - id: waf-rel-020.tf.aws.alb-target-group-health-check
-    engine: terraform
-    automated: true
-    title: 'AWS ALB target group must have explicit health check configuration'
-    provider: aws
-    description: 'AWS Application Load Balancer target groups must define an explicit health_check block with a non-default path, interval, timeout, and healthy/unhealthy thresholds.'
-    expected: 'true'
-    remediation: 'Add a health_check block to the aws_lb_target_group resource. Define path, interval, timeout, healthy_threshold, and unhealthy_threshold explicitly.\n'
-    example:
-      compliant: |
-        resource "aws_lb_target_group" "api" {
-          name     = "payment-api-tg"
-          port     = 8080
-          protocol = "HTTP"
-          vpc_id   = var.vpc_id
-        
-          health_check {
-            enabled             = true
-            path                = "/health/ready"
-            interval            = 15
-            timeout             = 5
-            healthy_threshold   = 2
-            unhealthy_threshold = 3
-            matcher             = "200"
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_lb_target_group" "api" {
-          name     = "payment-api-tg"
-          port     = 8080
-          protocol = "HTTP"
-          vpc_id   = var.vpc_id
-          # Missing: health_check block – uses cloud defaults
-          # WAF-REL-020 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lb_target_group
-    assertions:
-      - attribute: 'health_check'
-        op: 'attribute_exists'
-        message: 'Target group must define a health_check block.'
-      - attribute: 'health_check.path'
-        op: 'not_empty'
-        message: "Health check path must be explicitly defined (not default '/')."
-      - attribute: 'health_check.interval'
-        op: 'attribute_exists'
-        message: 'Health check interval must be explicitly defined.'
-      - attribute: 'health_check.healthy_threshold'
-        op: 'attribute_exists'
-        message: 'Healthy threshold must be explicitly defined.'
-    on_fail: violation
-  - id: waf-rel-020.tf.azurerm.lb-probe
-    engine: terraform
-    automated: true
-    title: 'Azure Load Balancer must have a health probe configured'
-    provider: azurerm
-    description: 'Azure Load Balancer or Application Gateway backends must have explicit health probes defined with non-default paths and intervals.'
-    expected: 'true'
-    remediation: 'Define an azurerm_lb_probe resource with protocol, port, request_path, interval_in_seconds, and number_of_probes configured.\n'
-    example:
-      compliant: |
-        resource "azurerm_lb_probe" "api_health" {
-          loadbalancer_id     = azurerm_lb.main.id
-          name                = "api-health-probe"
-          protocol            = "Http"
-          port                = 8080
-          request_path        = "/health/ready"
-          interval_in_seconds = 15
-          number_of_probes    = 2
-        }
-        
-      non_compliant: |
-        resource "azurerm_lb_probe" "probe" {
-          loadbalancer_id = azurerm_lb.main.id
-          name            = "probe"
-          protocol        = "Tcp"
-          port            = 80
-          # Missing: request_path – TCP probe does not validate application health
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_lb_probe
-        - azurerm_application_gateway
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Health probe must have a name.'
-      - attribute: 'protocol'
-        op: 'not_empty'
-        message: 'Health probe protocol must be specified.'
-      - attribute: 'request_path'
-        op: 'not_empty'
-        message: 'Health probe request path must be explicitly configured.'
-    on_fail: violation
-  - id: waf-rel-020.tf.google.compute-health-check
-    engine: terraform
-    automated: true
-    title: 'GCP Compute health check must be configured for managed instance groups'
-    provider: google
-    description: 'GCP managed instance groups and load balancers must use explicit health checks with HTTP paths and defined thresholds.'
-    expected: 'true'
-    remediation: 'Define a google_compute_health_check with http_health_check specifying the request_path, check_interval_sec, timeout_sec, and thresholds.\n'
-    example:
-      compliant: |
-        resource "google_compute_health_check" "api" {
-          name                = "payment-api-health"
-          check_interval_sec  = 15
-          timeout_sec         = 5
-          healthy_threshold   = 2
-          unhealthy_threshold = 3
-        
-          http_health_check {
-            port         = 8080
-            request_path = "/health/ready"
-          }
-        }
-        
-      non_compliant: |
-        resource "google_compute_health_check" "api" {
-          name = "health-check"
-          tcp_health_check {
-            port = 80
-          }
-          # Missing: http_health_check with request_path
-          # Missing: explicit thresholds and intervals
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_health_check
-        - google_compute_backend_service
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Health check must have a name.'
-      - attribute: 'http_health_check'
-        op: 'attribute_exists'
-        message: 'HTTP health check configuration must be defined.'
-      - attribute: 'check_interval_sec'
-        op: 'attribute_exists'
-        message: 'Health check interval must be explicitly defined.'
-    on_fail: violation
+- id: waf-rel-020.tf.aws.alb-target-group-health-check
+  engine: terraform
+  automated: true
+  title: AWS ALB target group must have explicit health check configuration
+  provider: aws
+  description: AWS Application Load Balancer target groups must define an explicit health_check block with a non-default path,
+    interval, timeout, and healthy/unhealthy thresholds.
+  expected: 'true'
+  remediation: Add a health_check block to the aws_lb_target_group resource. Define path, interval, timeout, healthy_threshold,
+    and unhealthy_threshold explicitly.\n
+  example:
+    compliant: "resource \"aws_lb_target_group\" \"api\" {\n  name     = \"payment-api-tg\"\n  port     = 8080\n  protocol\
+      \ = \"HTTP\"\n  vpc_id   = var.vpc_id\n\n  health_check {\n    enabled             = true\n    path                =\
+      \ \"/health/ready\"\n    interval            = 15\n    timeout             = 5\n    healthy_threshold   = 2\n    unhealthy_threshold\
+      \ = 3\n    matcher             = \"200\"\n  }\n}\n"
+    non_compliant: "resource \"aws_lb_target_group\" \"api\" {\n  name     = \"payment-api-tg\"\n  port     = 8080\n  protocol\
+      \ = \"HTTP\"\n  vpc_id   = var.vpc_id\n  # Missing: health_check block – uses cloud defaults\n  # WAF-REL-020 violation\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lb_target_group
+  assertions:
+  - attribute: health_check
+    op: attribute_exists
+    message: Target group must define a health_check block.
+  - attribute: health_check.path
+    op: not_empty
+    message: Health check path must be explicitly defined (not default '/').
+  - attribute: health_check.interval
+    op: attribute_exists
+    message: Health check interval must be explicitly defined.
+  - attribute: health_check.healthy_threshold
+    op: attribute_exists
+    message: Healthy threshold must be explicitly defined.
+  on_fail: violation
+- id: waf-rel-020.tf.azurerm.lb-probe
+  engine: terraform
+  automated: true
+  title: Azure Load Balancer must have a health probe configured
+  provider: azurerm
+  description: Azure Load Balancer or Application Gateway backends must have explicit health probes defined with non-default
+    paths and intervals.
+  expected: 'true'
+  remediation: Define an azurerm_lb_probe resource with protocol, port, request_path, interval_in_seconds, and number_of_probes
+    configured.\n
+  example:
+    compliant: "resource \"azurerm_lb_probe\" \"api_health\" {\n  loadbalancer_id     = azurerm_lb.main.id\n  name       \
+      \         = \"api-health-probe\"\n  protocol            = \"Http\"\n  port                = 8080\n  request_path   \
+      \     = \"/health/ready\"\n  interval_in_seconds = 15\n  number_of_probes    = 2\n}\n"
+    non_compliant: "resource \"azurerm_lb_probe\" \"probe\" {\n  loadbalancer_id = azurerm_lb.main.id\n  name            =\
+      \ \"probe\"\n  protocol        = \"Tcp\"\n  port            = 80\n  # Missing: request_path – TCP probe does not validate\
+      \ application health\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_lb_probe
+    - azurerm_application_gateway
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Health probe must have a name.
+  - attribute: protocol
+    op: not_empty
+    message: Health probe protocol must be specified.
+  - attribute: request_path
+    op: not_empty
+    message: Health probe request path must be explicitly configured.
+  on_fail: violation
+- id: waf-rel-020.tf.google.compute-health-check
+  engine: terraform
+  automated: true
+  title: GCP Compute health check must be configured for managed instance groups
+  provider: google
+  description: GCP managed instance groups and load balancers must use explicit health checks with HTTP paths and defined
+    thresholds.
+  expected: 'true'
+  remediation: Define a google_compute_health_check with http_health_check specifying the request_path, check_interval_sec,
+    timeout_sec, and thresholds.\n
+  example:
+    compliant: "resource \"google_compute_health_check\" \"api\" {\n  name                = \"payment-api-health\"\n  check_interval_sec\
+      \  = 15\n  timeout_sec         = 5\n  healthy_threshold   = 2\n  unhealthy_threshold = 3\n\n  http_health_check {\n\
+      \    port         = 8080\n    request_path = \"/health/ready\"\n  }\n}\n"
+    non_compliant: "resource \"google_compute_health_check\" \"api\" {\n  name = \"health-check\"\n  tcp_health_check {\n\
+      \    port = 80\n  }\n  # Missing: http_health_check with request_path\n  # Missing: explicit thresholds and intervals\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_health_check
+    - google_compute_backend_service
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Health check must have a name.
+  - attribute: http_health_check
+    op: attribute_exists
+    message: HTTP health check configuration must be defined.
+  - attribute: check_interval_sec
+    op: attribute_exists
+    message: Health check interval must be explicitly defined.
+  on_fail: violation
+- id: waf-rel-020.tf.stackit.failure-mode-analyzed
+  engine: terraform
+  automated: true
+  title: All production services for stackit
+  provider: stackit
+  description: All production services must be documented in IaC via a failure-mode-analyzed tag/label on stackit_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a failure-mode-analyzed tag/label to the stackit_project resource to show the stackit implementation of
+    WAF-REL-020 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    failure-mode-analyzed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing failure-mode-analyzed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: failure-mode-analyzed
+    message: stackit_project is missing the failure-mode-analyzed tag/label.
+  on_fail: violation
+- id: waf-rel-020.tf.ovh.failure-mode-analyzed
+  engine: terraform
+  automated: true
+  title: All production services for ovh
+  provider: ovh
+  description: All production services must be documented in IaC via a failure-mode-analyzed tag/label on ovh_cloud_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a failure-mode-analyzed tag/label to the ovh_cloud_project resource to show the ovh implementation of
+    WAF-REL-020 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    failure-mode-analyzed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing failure-mode-analyzed tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: failure-mode-analyzed
+    message: ovh_cloud_project is missing the failure-mode-analyzed tag/label.
+  on_fail: violation
+- id: waf-rel-020.tf.hcloud.failure-mode-analyzed
+  engine: terraform
+  automated: true
+  title: All production services for hcloud
+  provider: hcloud
+  description: All production services must be documented in IaC via a failure-mode-analyzed tag/label on hcloud_server. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a failure-mode-analyzed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-020
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    failure-mode-analyzed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing failure-mode-analyzed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: failure-mode-analyzed
+    message: hcloud_server is missing the failure-mode-analyzed tag/label.
+  on_fail: violation

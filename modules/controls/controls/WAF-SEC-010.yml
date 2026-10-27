@@ -1,260 +1,433 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SEC-010
 id: WAF-SEC-010
-title: 'All AWS accounts MUST enforce MFA for all IAM users with console access'
+title: All AWS accounts MUST enforce MFA for all IAM users with console access
 status: active
 tags:
-  - security
-  - critical
-  - governance
-  - configuration
+- security
+- critical
+- governance
+- configuration
 pillar: security
 severity: critical
 type:
-  - governance
-  - configuration
-
-category: 'identity-access'
-rationale: |
-  All AWS accounts MUST enforce MFA for all IAM users with console access.
+- governance
+- configuration
+category: identity-access
+rationale: Uncontrolled identities and excessive permissions enable data theft, lateral movement, and unauthorized changes
+  to production systems. This control addresses the requirements of the 'Identity and Access Management' area and ensures
+  that All AWS accounts MUST enforce MFA for all IAM users with console access. Root account usage MUST be prohibited for
+  day-to-day operations.
 threat:
-  - 'Overly permissive or shared credentials allow unauthorized access and privilege escalation.'
-  - 'Weak authentication policies increase the risk of account takeover.'
+- Accounts without MFA can be compromised through stolen passwords or phishing.
+- Permanent root or user access keys enable undetected persistence and data exfiltration.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-security/pages/controls/WAF-SEC-010.adoc'
-  related_controls: []
+  narrative: modules/pillar-security/pages/controls/WAF-SEC-010.adoc
+  related_controls:
+  - WAF-SEC-020
+  - WAF-SEC-030
+  - WAF-SEC-060
+  - WAF-SEC-040
+  - WAF-SEC-080
+  - WAF-SEC-120
+  - WAF-SEC-130
+  - WAF-SEC-090
+  - WAF-SEC-100
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+description: 'All AWS accounts MUST enforce MFA for all IAM users with console access. Root account usage MUST be prohibited
+  for day-to-day operations. IAM password policy MUST meet minimum security requirements: minimum length of 14 characters,
+  complexity requirements, password reuse prevention of at least 5 prior passwords, and maximum password age of 90 days. Service
+  accounts MUST use IAM roles with temporary credentials rather than long-lived access keys wherever possible.
 
-description: |
-  All AWS accounts MUST enforce MFA for all IAM users with console access. Root account usage MUST be prohibited for day-to-day operations. IAM password policy MUST meet minimum security requirements: minimum length of 14 characters, complexity requirements, password reuse prevention of at least 5 prior passwords, and maximum password age of 90 days. Service accounts MUST use IAM roles with temporary credentials rather than long-lived access keys wherever possible.
+  '
 regulatory_mapping:
-  - framework: 'ISO 27001:2022'
-    controls:
-      - 'A.8.2 – Privileged access rights'
-      - 'A.8.5 – Secure authentication'
-      - 'A.5.17 – Authentication information'
-      - 'A.5.15 – Access control'
-  - framework: 'ISO 27017'
-    controls:
-      - 'CLD.9.5 – Segregation in virtual computing environments'
-  - framework: 'CIS Controls v8'
-    controls:
-      - 'CIS 5 – Account Management'
-      - 'CIS 6 – Access Control Management'
-  - framework: 'CSA STAR'
-    controls:
-      - 'CCM IAM-01 – Identity and Access Management Policy'
-      - 'CCM IAM-02 – Strong Password Policy and Procedures'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Req 7 – Restrict access by business need to know'
-      - 'Req 8 – Identify and authenticate access'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC6.1 – Logical and physical access controls'
-      - 'CC6.2 – Provisioning and removal of access'
-      - 'CC6.3 – Authentication mechanisms'
-  - framework: 'COBIT 2019'
-    controls:
-      - 'DSS05.04 – Manage user identity and logical access'
-  - framework: 'GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-      - 'Art. 5(1)(f) – Integrity and confidentiality'
-  - framework: 'NIS2'
-    controls:
-      - 'Art. 21(2)(i) – Human resources security and access control'
-  - framework: 'DORA'
-    controls:
-      - 'Art. 9 – Protection and prevention'
-  - framework: 'EUCS (ENISA)'
-    controls:
-      - 'IAM-01 – Identity and access management'
-      - 'IAM-02 – Authentication controls'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'IDM-01 – Identity and access management policy'
-      - 'IDM-02 – Authentication of users'
-      - 'IDM-09 – Privileged access rights'
-  - framework: 'IT-Grundschutz'
-    controls:
-      - 'ORP.4 – Identitäts- und Berechtigungsmanagement'
-  - framework: 'TISAX'
-    controls:
-      - 'Information security – Identity and access management requirements'
-  - framework: 'ANSSI SecNumCloud'
-    controls:
-      - 'Domain – Identity and access management'
-  - framework: 'BIO'
-    controls:
-      - 'BIO – Logische toegangsbeveiliging (logical access control)'
-  - framework: 'ENS High'
-    controls:
-      - 'op.acc.5 – Mecanismo de autenticación'
-      - 'op.acc.7 – Gestión de privilegios'
-  - framework: 'UK Cyber Essentials'
-    controls:
-      - 'CE.UAC – User access control'
-  - framework: 'UK NCSC CAF'
-    controls:
-      - 'B2 – Identity and access control'
-  - framework: 'UK GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-  - framework: 'NIST SP 800-53'
-    controls:
-      - 'AC-2 – Account Management'
-      - 'IA-2 – Identification and Authentication'
-      - 'IA-5 – Authenticator Management'
-  - framework: 'NIST CSF 2.0'
-    controls:
-      - 'PR.AA-01 – Identities and credentials are managed'
-      - 'PR.AA-03 – Users, services and hardware are authenticated'
-  - framework: 'FedRAMP'
-    controls:
-      - 'AC-2, IA-2, IA-5 (Moderate/High baseline)'
-  - framework: 'CMMC 2.0'
-    controls:
-      - 'AC.L2-3.1.1 – Limit system access to authorized users'
-      - 'IA.L2-3.5.3 – Multifactor authentication'
-  - framework: 'ASD Essential 8'
-    controls:
-      - 'E8.5 – Restrict administrative privileges'
-      - 'E8.7 – Multi-factor authentication'
-  - framework: 'IRAP'
-    controls:
-      - 'ISM – Identification and authentication'
-  - framework: 'CCCS PBMM'
-    controls:
-      - 'AC-2, IA-2, IA-5 – Account and authenticator management'
-  - framework: 'MAS TRM'
-    controls:
-      - 'Ch.6 – Access control'
-  - framework: 'ISMAP'
-    controls:
-      - 'Identity and access management controls'
-  - framework: 'FISC'
-    controls:
-      - 'Technical measures – User authentication and access control'
+- framework: ISO 27001:2022
+  controls:
+  - A.8.2 – Privileged access rights
+  - A.8.5 – Secure authentication
+  - A.5.17 – Authentication information
+  - A.5.15 – Access control
+- framework: ISO 27017
+  controls:
+  - CLD.9.5 – Segregation in virtual computing environments
+- framework: CIS Controls v8
+  controls:
+  - CIS 5 – Account Management
+  - CIS 6 – Access Control Management
+- framework: CSA STAR
+  controls:
+  - CCM IAM-01 – Identity and Access Management Policy
+  - CCM IAM-02 – Strong Password Policy and Procedures
+- framework: PCI DSS v4.0
+  controls:
+  - Req 7 – Restrict access by business need to know
+  - Req 8 – Identify and authenticate access
+- framework: SOC 2 Type II
+  controls:
+  - CC6.1 – Logical and physical access controls
+  - CC6.2 – Provisioning and removal of access
+  - CC6.3 – Authentication mechanisms
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+  - Art. 5(1)(f) – Integrity and confidentiality
+- framework: NIS2
+  controls:
+  - Art. 21(2)(i) – Human resources security and access control
+- framework: DORA
+  controls:
+  - Art. 9 – Protection and prevention
+- framework: EUCS (ENISA)
+  controls:
+  - IAM-01 – Identity and access management
+  - IAM-02 – Authentication controls
+- framework: BSI C5:2020
+  controls:
+  - IDM-01 – Identity and access management policy
+  - IDM-02 – Authentication of users
+  - IDM-09 – Privileged access rights
+- framework: IT-Grundschutz
+  controls:
+  - ORP.4 – Identitäts- und Berechtigungsmanagement
+- framework: TISAX
+  controls:
+  - Information security – Identity and access management requirements
+- framework: ANSSI SecNumCloud
+  controls:
+  - Domain – Identity and access management
+- framework: BIO
+  controls:
+  - BIO – Logische toegangsbeveiliging (logical access control)
+- framework: ENS High
+  controls:
+  - op.acc.5 – Mecanismo de autenticación
+  - op.acc.7 – Gestión de privilegios
+- framework: UK Cyber Essentials
+  controls:
+  - CE.UAC – User access control
+- framework: UK NCSC CAF
+  controls:
+  - B2 – Identity and access control
+- framework: UK GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: NIST SP 800-53
+  controls:
+  - AC-2 – Account Management
+  - IA-2 – Identification and Authentication
+  - IA-5 – Authenticator Management
+- framework: NIST CSF 2.0
+  controls:
+  - PR.AA-01 – Identities and credentials are managed
+  - PR.AA-03 – Users, services and hardware are authenticated
+- framework: FedRAMP
+  controls:
+  - AC-2, IA-2, IA-5 (Moderate/High baseline)
+- framework: CMMC 2.0
+  controls:
+  - AC.L2-3.1.1 – Limit system access to authorized users
+  - IA.L2-3.5.3 – Multifactor authentication
+- framework: ASD Essential 8
+  controls:
+  - E8.5 – Restrict administrative privileges
+  - E8.7 – Multi-factor authentication
+- framework: IRAP
+  controls:
+  - ISM – Identification and authentication
+- framework: CCCS PBMM
+  controls:
+  - AC-2, IA-2, IA-5 – Account and authenticator management
+- framework: MAS TRM
+  controls:
+  - Ch.6 – Access control
+- framework: ISMAP
+  controls:
+  - Identity and access management controls
+- framework: FISC
+  controls:
+  - Technical measures – User authentication and access control
 checks:
-  - id: waf-sec-010.tf.aws.iam-password-policy-mfa
-    engine: terraform
-    automated: true
-    title: 'AWS IAM account password policy must meet minimum security requirements'
-    provider: aws
-    description: 'The aws_iam_account_password_policy resource must enforce a minimum password length of 14, all character class requirements, a minimum of 5 passwords in reuse prevention history, and a maximum password age of 90 days.'
-    expected: 'true'
-    remediation: 'Define an aws_iam_account_password_policy resource with all required attributes set. Ensure minimum_password_length >= 14, all require_* flags are true, password_reuse_prevention >= 5, and max_password_age <= 90.\n'
-    example:
-      compliant: |
-        resource "aws_iam_account_password_policy" "strict" {
-          minimum_password_length        = 14
-          require_uppercase_characters   = true
-          require_lowercase_characters   = true
-          require_numbers                = true
-          require_symbols                = true
-          allow_users_to_change_password = true
-          max_password_age               = 90
-          password_reuse_prevention      = 5
-          hard_expiry                    = false
-        }
-        
-      non_compliant: |
-        resource "aws_iam_account_password_policy" "weak" {
-          minimum_password_length      = 8
-          require_uppercase_characters = false
-          require_symbols              = false
-          # Missing password_reuse_prevention and max_password_age
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_iam_account_password_policy
-    assertions:
-      - attribute: 'minimum_password_length'
-        op: 'greater_than_or_equal'
-        message: 'IAM password policy must require a minimum of 14 characters.'
-        expected: 14
-      - attribute: 'require_uppercase_characters'
-        op: 'is_true'
-        message: 'IAM password policy must require uppercase characters.'
-      - attribute: 'require_lowercase_characters'
-        op: 'is_true'
-        message: 'IAM password policy must require lowercase characters.'
-      - attribute: 'require_numbers'
-        op: 'is_true'
-        message: 'IAM password policy must require numbers.'
-      - attribute: 'require_symbols'
-        op: 'is_true'
-        message: 'IAM password policy must require symbols.'
-      - attribute: 'password_reuse_prevention'
-        op: 'greater_than_or_equal'
-        message: 'IAM password policy must prevent reuse of at least 5 prior passwords.'
-        expected: 5
-      - attribute: 'max_password_age'
-        op: 'less_than_or_equal'
-        message: 'IAM password policy must set maximum password age to 90 days or less.'
-        expected: 90
-    on_fail: violation
-  - id: waf-sec-010.tf.aws.no-root-access-keys
-    engine: terraform
-    automated: true
-    title: 'Root account must not have active access keys'
-    provider: aws
-    description: 'The AWS root account must not have active programmatic access keys. This cannot be fully checked in Terraform state but must be validated via AWS IAM credential report or Security Hub control IAM.4.'
-    expected: 'true'
-    remediation: 'Navigate to AWS IAM > Security Credentials for the root account and delete all access keys. Enable MFA on the root account. Restrict root account usage to only tasks that absolutely require it (e.g., account closure, enabling MFA for the first time).\n'
-    example:
-      compliant: |
-        # Root access keys are removed via AWS Console – not representable in Terraform.
-        # Verify with: aws iam get-account-summary | grep AccountAccessKeysPresent
-        # Expected: "AccountAccessKeysPresent": 0
-        
-      non_compliant: |
-        # Root account has active access keys visible in AWS IAM > Security Credentials.
-        # aws iam get-account-summary output shows "AccountAccessKeysPresent": 1
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_iam_user
-    assertions:
-      - attribute: 'name'
-        op: 'not_equals'
-        message: 'Root account must not be managed as a regular IAM user resource. Remove root access keys via AWS Console.'
-        expected: 'root'
-    on_fail: violation
+- id: waf-sec-010.tf.aws.iam-password-policy-mfa
+  engine: terraform
+  automated: true
+  title: AWS IAM account password policy must meet minimum security requirements
+  provider: aws
+  description: The aws_iam_account_password_policy resource must enforce a minimum password length of 14, all character class
+    requirements, a minimum of 5 passwords in reuse prevention history, and a maximum password age of 90 days.
+  expected: 'true'
+  remediation: Define an aws_iam_account_password_policy resource with all required attributes set. Ensure minimum_password_length
+    >= 14, all require_* flags are true, password_reuse_prevention >= 5, and max_password_age <= 90.\n
+  example:
+    compliant: "resource \"aws_iam_account_password_policy\" \"strict\" {\n  minimum_password_length        = 14\n  require_uppercase_characters\
+      \   = true\n  require_lowercase_characters   = true\n  require_numbers                = true\n  require_symbols    \
+      \            = true\n  allow_users_to_change_password = true\n  max_password_age               = 90\n  password_reuse_prevention\
+      \      = 5\n  hard_expiry                    = false\n}\n"
+    non_compliant: "resource \"aws_iam_account_password_policy\" \"weak\" {\n  minimum_password_length      = 8\n  require_uppercase_characters\
+      \ = false\n  require_symbols              = false\n  # Missing password_reuse_prevention and max_password_age\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_iam_account_password_policy
+  assertions:
+  - attribute: minimum_password_length
+    op: greater_than_or_equal
+    message: IAM password policy must require a minimum of 14 characters.
+    expected: 14
+  - attribute: require_uppercase_characters
+    op: is_true
+    message: IAM password policy must require uppercase characters.
+  - attribute: require_lowercase_characters
+    op: is_true
+    message: IAM password policy must require lowercase characters.
+  - attribute: require_numbers
+    op: is_true
+    message: IAM password policy must require numbers.
+  - attribute: require_symbols
+    op: is_true
+    message: IAM password policy must require symbols.
+  - attribute: password_reuse_prevention
+    op: greater_than_or_equal
+    message: IAM password policy must prevent reuse of at least 5 prior passwords.
+    expected: 5
+  - attribute: max_password_age
+    op: less_than_or_equal
+    message: IAM password policy must set maximum password age to 90 days or less.
+    expected: 90
+  on_fail: violation
+- id: waf-sec-010.tf.aws.no-root-access-keys
+  engine: terraform
+  automated: true
+  title: Root account must not have active access keys
+  provider: aws
+  description: The AWS root account must not have active programmatic access keys. This cannot be fully checked in Terraform
+    state but must be validated via AWS IAM credential report or Security Hub control IAM.4.
+  expected: 'true'
+  remediation: Navigate to AWS IAM > Security Credentials for the root account and delete all access keys. Enable MFA on the
+    root account. Restrict root account usage to only tasks that absolutely require it (e.g., account closure, enabling MFA
+    for the first time).\n
+  example:
+    compliant: '# Root access keys are removed via AWS Console – not representable in Terraform.
+
+      # Verify with: aws iam get-account-summary | grep AccountAccessKeysPresent
+
+      # Expected: "AccountAccessKeysPresent": 0
+
+      '
+    non_compliant: '# Root account has active access keys visible in AWS IAM > Security Credentials.
+
+      # aws iam get-account-summary output shows "AccountAccessKeysPresent": 1
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_iam_user
+  assertions:
+  - attribute: name
+    op: not_equals
+    message: Root account must not be managed as a regular IAM user resource. Remove root access keys via AWS Console.
+    expected: root
+  on_fail: violation
+- id: waf-sec-010.tf.azurerm.conditional-access-mfa
+  engine: terraform
+  automated: true
+  title: Azure AD Conditional Access must require MFA for privileged directory roles
+  provider: azurerm
+  description: An azuread_conditional_access_policy resource must target privileged Entra ID directory roles and require multi-factor
+    authentication via grant_controls.
+  expected: 'true'
+  remediation: Create an azuread_conditional_access_policy that includes privileged directory roles (e.g., Global Administrator,
+    Privileged Role Administrator) and sets grant_controls built_in_controls to "mfa". Keep the policy state set to "enabled".\n
+  example:
+    compliant: "resource \"azuread_conditional_access_policy\" \"privileged_mfa\" {\n  display_name = \"MFA for privileged\
+      \ roles\"\n  state        = \"enabled\"\n  conditions {\n    users {\n      included_roles = [\n        \"62e90394-69f5-4237-9190-012177145e10\"\
+      ,\n        \"e8611ab8-c189-46df-93df-1fe90f8e42a1\",\n      ]\n    }\n    applications {\n      included_applications\
+      \ = [\"All\"]\n    }\n  }\n  grant_controls {\n    operator          = \"OR\"\n    built_in_controls = [\"mfa\"]\n \
+      \ }\n}\n"
+    non_compliant: '# No azuread_conditional_access_policy requires MFA for privileged directory roles.
+
+      # WAF-SEC-010 violation: privileged Entra ID accounts lack mandatory MFA
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - azuread_conditional_access_policy
+  assertions:
+  - attribute: state
+    op: equals
+    message: Conditional Access policy must be enabled.
+    expected: enabled
+  - attribute: grant_controls
+    op: attribute_exists
+    message: Conditional Access policy must define grant_controls requiring MFA.
+  on_fail: violation
+- id: waf-sec-010.tf.google.project-owner-binding-mfa-ready
+  engine: terraform
+  automated: true
+  title: GCP project Owner bindings must be limited and coupled with documented MFA enforcement
+  provider: google
+  description: GCP does not represent MFA policy directly in Terraform, but IAM policy bindings for project owners must be
+    explicitly listed and limited to a small set of principals. A guardrail google_organization_policy can restrict domain
+    sharing, and identities must come from a workspace/Cloud Identity tenant where 2-Step Verification is enforced.
+  expected: 'true'
+  remediation: Limit google_project_iam_binding and google_project_iam_member resources using the Owner role (roles/owner)
+    to a small whitelist. Enforce 2-Step Verification at the Cloud Identity / Workspace level. Document the exception and
+    review process.\n
+  example:
+    compliant: "data \"google_iam_policy\" \"project\" {\n  binding {\n    role = \"roles/owner\"\n    members = [\n     \
+      \ \"user:admin@example.com\",\n    ]\n  }\n}\n\nresource \"google_project_iam_policy\" \"policy\" {\n  project     =\
+      \ var.project_id\n  policy_data = data.google_iam_policy.project.policy_data\n}\n\n# Enforced in Workspace Admin console:\n\
+      # Security > Authentication > 2-Step Verification > Enforcement > ON\n"
+    non_compliant: "resource \"google_project_iam_binding\" \"owner\" {\n  project = var.project_id\n  role    = \"roles/owner\"\
+      \n  members = [\n    \"user:anyone@example.com\",\n    \"serviceAccount:sa@example.iam.gserviceaccount.com\",\n  ]\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_project_iam_policy
+    - google_project_iam_binding
+    - google_project_iam_member
+  assertions:
+  - attribute: role
+    op: not_equals
+    message: GCP project-level Owner role should not be assigned via Terraform; prefer fine-grained roles.
+    expected: roles/owner
+  - attribute: members
+    op: attribute_exists
+    message: IAM binding must enumerate members explicitly so ownership is auditable.
+  on_fail: finding
+- id: waf-sec-010.tf.stackit.organization-owner-limit
+  engine: terraform
+  automated: true
+  title: STACKIT organization and project owners must be limited and documented
+  provider: stackit
+  description: STACKIT Owner and Organization Owner roles grant full administrative access. These bindings must be explicitly
+    declared in Terraform and restricted to a small set of principals. MFA is enforced at STACKIT console level and reviewed
+    via quarterly access review.
+  expected: 'true'
+  remediation: Limit stackit_resourcemanager_project_membership and stackit_authorization_grant resources that assign Owner
+    or Organization Owner roles. Maintain a version-controlled allowlist and review it quarterly.\n
+  example:
+    compliant: "resource \"stackit_authorization_grant\" \"org_owner\" {\n  resource_id = var.stackit_organization_id\n  subject\
+      \     = \"user:admin@example.com\"\n  role        = \"Organization Owner\"\n}\n\n# MFA is mandatory in STACKIT IAM settings\
+      \ for console users.\n# Review documented in docs/security/access-reviews.md\n"
+    non_compliant: "resource \"stackit_authorization_grant\" \"org_owner\" {\n  resource_id = var.stackit_organization_id\n\
+      \  subject     = \"group:all-employees@example.com\"\n  role        = \"Organization Owner\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_authorization_grant
+    - stackit_resourcemanager_project_membership
+  assertions:
+  - attribute: role
+    op: not_in
+    message: STACKIT Owner/Organization Owner role must not be assigned to broad groups.
+    expected:
+    - Owner
+    - Organization Owner
+  - attribute: subject
+    op: not_matches
+    message: STACKIT owner grants must target individual users, not generic groups.
+    pattern: '^group:'
+  on_fail: violation
+- id: waf-sec-010.tf.ovh.account-mfa-via-policy
+  engine: terraform
+  automated: true
+  title: OVHcloud IAM policy must enforce MFA for sensitive operations
+  provider: ovh
+  description: OVHcloud IAM policies can require MFA for sensitive actions (e.g., managing payment, identity, or critical
+    services). Terraform ovh_me_identity_policy resources must include an MFA condition for actions affecting account security.
+  expected: 'true'
+  remediation: Create an OVHcloud IAM policy with a condition requiring MFA for critical actions. Document the policy and
+    the list of protected actions in a version-controlled standard.\n
+  example:
+    compliant: "resource \"ovh_me_identity_policy\" \"sensitive_mfa\" {\n  name = \"sensitive-ops-mfa\"\n  identities = [\n\
+      \    \"user:admin@example.com\",\n  ]\n  rules {\n    action = \"account:.*\"\n    effect = \"allow\"\n    resources\
+      \ {\n      resource {\n        id    = \"*\"\n        type  = \"account\"\n        label = \"*\"\n      }\n    }\n \
+      \ }\n  rules {\n    action    = \".*\"\n    effect    = \"deny\"\n    resources { resource { id = \"*\"; type = \"*\"\
+      ; label = \"*\" } }\n  }\n  # MFA is required by an organization-wide setting documented in docs/security/ovh-iam.md\n\
+      }\n"
+    non_compliant: '# No OVHcloud IAM policy requires MFA for sensitive account actions.
+
+      # MFA is not documented as enforced in the OVHcloud Control Panel.
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_me_identity_policy
+  assertions:
+  - attribute: identities
+    op: attribute_exists
+    message: OVHcloud identity policy must enumerate identities explicitly.
+  - attribute: rules
+    op: attribute_exists
+    message: OVHcloud identity policy must define rules.
+  on_fail: violation
+- id: waf-sec-010.tf.hcloud.console-mfa-ready
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud project members must be individual users with MFA documented
+  provider: hcloud
+  description: Hetzner Cloud projects do not expose MFA state in Terraform, but project memberships must target individual
+    users (not robots) and be limited to required roles. MFA is enforced in the Hetzner Cloud Console and confirmed by quarterly
+    access review.
+  expected: 'true'
+  remediation: Declare hcloud_project_membership resources only for named user accounts with minimum required roles. Disable
+    or remove inactive members. Document MFA enablement and review cadence.\n
+  example:
+    compliant: "resource \"hcloud_project\" \"prod\" {\n  name        = \"production\"\n  description = \"Production workloads\"\
+      \n}\n\nresource \"hcloud_project_membership\" \"admin\" {\n  project_id = hcloud_project.prod.id\n  user_email = \"\
+      admin@example.com\"\n  role       = \"admin\"\n}\n\n# MFA enabled for all project members via Hetzner Cloud Console.\n\
+      # Quarterly review recorded in docs/security/access-reviews.md\n"
+    non_compliant: "resource \"hcloud_project_membership\" \"admin\" {\n  project_id = hcloud_project.prod.id\n  user_email\
+      \ = \"shared-inbox@example.com\"\n  role       = \"admin\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_project_membership
+  assertions:
+  - attribute: user_email
+    op: not_matches
+    message: Hetzner Cloud project membership must not use shared mailboxes.
+    pattern: ^shared-.*|.*@.*-shared\.
+  - attribute: role
+    op: not_equals
+    message: Hetzner Cloud project membership should use the minimum role; avoid 'admin' where possible.
+    expected: admin
+  on_fail: finding

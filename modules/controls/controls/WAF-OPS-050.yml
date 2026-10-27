@@ -1,175 +1,254 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-050
 id: WAF-OPS-050
-title: 'All changes to production systems MUST go through a defined change...'
+title: All changes to production systems MUST go through a defined change...
 status: active
 tags:
-  - operational
-  - medium
-  - governance
-  - configuration
-pillar: operational
+- operational
+- medium
+- governance
+- configuration
+pillar: excellence
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'deployment-automation'
-rationale: |
-  All changes to production systems MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk...
+- governance
+- configuration
+category: deployment-automation
+rationale: Manual deployments and missing quality gates increase the risk of outages, human error, and non-reproducible environments.
+  This control addresses the requirements of the 'Deployment Automation' area and ensures that All changes to production systems
+  MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk changes,.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Undocumented changes to production systems complicate rollbacks and audits.
+- Missing approval gates enable unauthorized or untested deployments.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-050.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-050.adoc
+  related_controls:
+  - WAF-OPS-010
+  - WAF-OPS-080
+  - WAF-OPS-040
+  - WAF-OPS-030
+  - WAF-OPS-020
+  - WAF-OPS-090
+  - WAF-OPS-070
+  - WAF-SUS-060
+  - WAF-OPS-100
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'All changes to production systems MUST go through a defined change management process that includes risk assessment,
+  approval workflow for high-risk changes, deployment freeze policies for critical periods, and post-deployment verification.
+  Change records MUST be linked to deployment artifacts and stored with sufficient context for audit.
 
-description: |
-  All changes to production systems MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk changes, deployment freeze policies for critical periods, and post-deployment verification. Change records MUST be linked to deployment artifacts and stored with sufficient context for audit.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Change and deployment management'
-      - 'Release and deployment management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Change enablement'
-      - 'Release management'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC8.1 – Change Management – Authorized Changes'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 6: How do you deploy your workload?'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Requirement 6.5: Changes to all system components are managed securely'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Change and deployment management
+  - Release and deployment management
+- framework: ITIL 4
+  controls:
+  - Change enablement
+  - Release management
+- framework: SOC 2 Type II
+  controls:
+  - CC8.1 – Change Management – Authorized Changes
+- framework: PCI DSS v4.0
+  controls:
+  - 'Requirement 6.5: Changes to all system components are managed securely'
 checks:
-  - id: waf-ops-050.tf.aws.codepipeline-manual-approval
-    engine: terraform
-    automated: true
-    title: 'Production CodePipeline must include a manual approval stage before deployment'
-    provider: aws
-    description: 'AWS CodePipeline pipelines deploying to production MUST include a manual approval action before the production deploy stage to enforce change review.'
-    expected: 'true'
-    remediation: 'Add a stage with an Approval action before the production Deploy stage in your CodePipeline. Set the approval SNS topic and add a message referencing the change ticket.\n'
-    example:
-      compliant: |
-        resource "aws_codepipeline" "app_pipeline" {
-          name     = "payment-service-pipeline"
-          role_arn = aws_iam_role.codepipeline_role.arn
-        
-          artifact_store {
-            location = aws_s3_bucket.artifacts.bucket
-            type     = "S3"
-          }
-        
-          stage { name = "Source" /* ... */ }
-          stage { name = "Build"  /* ... */ }
-          stage { name = "Deploy-Staging" /* ... */ }
-        
-          stage {
-            name = "Approval-Production"
-            action {
-              name     = "ManualApproval"
-              category = "Approval"
-              owner    = "AWS"
-              provider = "Manual"
-              version  = "1"
-              configuration = {
-                NotificationArn = aws_sns_topic.approvals.arn
-                CustomData      = "Review checklist: https://wiki/deploy-checklist"
-              }
-            }
-          }
-        
-          stage { name = "Deploy-Production" /* ... */ }
-        }
-        
-      non_compliant: |
-        resource "aws_codepipeline" "app_pipeline" {
-          # Pipeline goes directly from staging to production
-          # with no approval gate – WAF-OPS-050 Violation
-          stage { name = "Source" }
-          stage { name = "Build" }
-          stage { name = "Deploy-Production" }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_codepipeline
-    assertions:
-      - attribute: 'stage'
-        op: 'attribute_exists'
-        message: 'Pipeline must define at least one stage with approval action.'
-    on_fail: violation
-  - id: waf-ops-050.tf.azurerm.devops-environment-approval
-    engine: terraform
-    automated: true
-    title: 'Azure DevOps production environment must require approval checks'
-    provider: azurerm
-    description: 'Azure DevOps environments used for production deployments MUST have approval checks configured to enforce the change review process.'
-    expected: 'true'
-    remediation: 'Configure approval checks on the azuredevops_environment used for production via azuredevops_check_approval or the Azure DevOps portal after environment creation.\n'
-    example:
-      compliant: |
-        resource "azuredevops_environment" "production" {
-          project_id  = azuredevops_project.main.id
-          name        = "production"
-          description = "Production environment – requires approval before deployment"
-        }
-        
-        # Configure approval check via API or portal:
-        # Approvers: tech-lead group, minimum 1 approval required
-        
-      non_compliant: |
-        resource "azuredevops_environment" "production" {
-          project_id = azuredevops_project.main.id
-          name       = "production"
-          # No approval check configured – WAF-OPS-050 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azuredevops_environment
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Azure DevOps environment must have a name.'
-    on_fail: violation
+- id: waf-ops-050.tf.aws.codepipeline-manual-approval
+  engine: terraform
+  automated: true
+  title: Production CodePipeline must include a manual approval stage before deployment
+  provider: aws
+  description: AWS CodePipeline pipelines deploying to production MUST include a manual approval action before the production
+    deploy stage to enforce change review.
+  expected: 'true'
+  remediation: Add a stage with an Approval action before the production Deploy stage in your CodePipeline. Set the approval
+    SNS topic and add a message referencing the change ticket.\n
+  example:
+    compliant: "resource \"aws_codepipeline\" \"app_pipeline\" {\n  name     = \"payment-service-pipeline\"\n  role_arn =\
+      \ aws_iam_role.codepipeline_role.arn\n\n  artifact_store {\n    location = aws_s3_bucket.artifacts.bucket\n    type\
+      \     = \"S3\"\n  }\n\n  stage { name = \"Source\" /* ... */ }\n  stage { name = \"Build\"  /* ... */ }\n  stage { name\
+      \ = \"Deploy-Staging\" /* ... */ }\n\n  stage {\n    name = \"Approval-Production\"\n    action {\n      name     =\
+      \ \"ManualApproval\"\n      category = \"Approval\"\n      owner    = \"AWS\"\n      provider = \"Manual\"\n      version\
+      \  = \"1\"\n      configuration = {\n        NotificationArn = aws_sns_topic.approvals.arn\n        CustomData     \
+      \ = \"Review checklist: https://wiki/deploy-checklist\"\n      }\n    }\n  }\n\n  stage { name = \"Deploy-Production\"\
+      \ /* ... */ }\n}\n"
+    non_compliant: "resource \"aws_codepipeline\" \"app_pipeline\" {\n  # Pipeline goes directly from staging to production\n\
+      \  # with no approval gate – WAF-OPS-050 Violation\n  stage { name = \"Source\" }\n  stage { name = \"Build\" }\n  stage\
+      \ { name = \"Deploy-Production\" }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_codepipeline
+  assertions:
+  - attribute: stage
+    op: attribute_exists
+    message: Pipeline must define at least one stage with approval action.
+  on_fail: violation
+- id: waf-ops-050.tf.azurerm.devops-environment-approval
+  engine: terraform
+  automated: true
+  title: Azure DevOps production environment must require approval checks
+  provider: azurerm
+  description: Azure DevOps environments used for production deployments MUST have approval checks configured to enforce the
+    change review process.
+  expected: 'true'
+  remediation: Configure approval checks on the azuredevops_environment used for production via azuredevops_check_approval
+    or the Azure DevOps portal after environment creation.\n
+  example:
+    compliant: "resource \"azuredevops_environment\" \"production\" {\n  project_id  = azuredevops_project.main.id\n  name\
+      \        = \"production\"\n  description = \"Production environment – requires approval before deployment\"\n}\n\n#\
+      \ Configure approval check via API or portal:\n# Approvers: tech-lead group, minimum 1 approval required\n"
+    non_compliant: "resource \"azuredevops_environment\" \"production\" {\n  project_id = azuredevops_project.main.id\n  name\
+      \       = \"production\"\n  # No approval check configured – WAF-OPS-050 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azuredevops_environment
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Azure DevOps environment must have a name.
+  on_fail: violation
+- id: waf-ops-050.tf.google.cloud-build-approval
+  engine: terraform
+  automated: true
+  title: GCP Cloud Build production trigger must require manual approval
+  provider: google
+  description: GCP Cloud Build triggers deploying to production MUST include a manual approval step or be gated by a release
+    promotion workflow that enforces change review before production deployment.
+  expected: 'true'
+  remediation: Configure a Cloud Build approval configuration or use a release promotion pipeline where production deployments
+    require at least one reviewer approval. Document the approval process in a version-controlled change-management policy.\n
+  example:
+    compliant: "resource \"google_cloudbuild_trigger\" \"prod_deploy\" {\n  name     = \"deploy-to-production\"\n  project\
+      \  = var.project_id\n  filename = \"cloudbuild-prod.yaml\"\n\n  approval_config {\n    approval_required = true\n  }\n\
+      \n  substitutions = {\n    _ENVIRONMENT = \"production\"\n  }\n}\n"
+    non_compliant: "resource \"google_cloudbuild_trigger\" \"prod_deploy\" {\n  name     = \"deploy-to-production\"\n  project\
+      \  = var.project_id\n  filename = \"cloudbuild-prod.yaml\"\n  # No approval_config – production deployment proceeds\
+      \ automatically\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloudbuild_trigger
+  assertions:
+  - attribute: approval_config
+    op: attribute_exists
+    message: GCP Cloud Build production trigger must require manual approval.
+  on_fail: finding
+- id: waf-ops-050.tf.stackit.pipeline-defined
+  engine: terraform
+  automated: true
+  title: STACKIT infrastructure changes must go through a pipeline
+  provider: stackit
+  description: STACKIT infrastructure changes must go through a pipeline. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n\
+      \  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_ske_cluster
+  assertions:
+  - attribute: labels.deployment-pipeline
+    op: key_exists
+    key: deployment-pipeline
+    message: STACKIT SKE cluster is missing the 'deployment-pipeline' label.
+  on_fail: violation
+- id: waf-ops-050.tf.ovh.pipeline-defined
+  engine: terraform
+  automated: true
+  title: OVHcloud infrastructure changes must go through a pipeline
+  provider: ovh
+  description: OVHcloud infrastructure changes must go through a pipeline. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_kube\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_kube\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_kube_nodepool
+  assertions:
+  - attribute: tags.deployment-pipeline
+    op: key_exists
+    key: deployment-pipeline
+    message: OVHcloud Kubernetes resource is missing the 'deployment-pipeline' tag.
+  on_fail: violation
+- id: waf-ops-050.tf.hcloud.pipeline-defined
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud infrastructure changes must go through a pipeline
+  provider: hcloud
+  description: Hetzner Cloud infrastructure changes must go through a pipeline. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.deployment-pipeline
+    op: key_exists
+    key: deployment-pipeline
+    message: Hetzner Cloud server is missing the 'deployment-pipeline' label.
+  on_fail: violation

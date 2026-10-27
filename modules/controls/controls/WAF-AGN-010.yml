@@ -1,289 +1,371 @@
-# ID: WAF-AGN-010
 id: WAF-AGN-010
-title: 'Every agent must be identifiable, authenticatable, and traceable'
+title: Every agent must be identifiable, authenticatable, and traceable
 status: active
 tags:
-  - agentic
-  - high
-  - governance
-  - configuration
+- agentic
+- high
+- governance
+- configuration
 pillar: agentic
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'identity-access'
-rationale: |
-  Every agent must be identifiable, authenticatable, and traceable.
+- governance
+- configuration
+category: identity-access
+rationale: Uncontrolled identities and excessive permissions enable data theft, lateral movement, and unauthorized changes
+  to production systems. This control addresses the requirements of the 'Identity and Access Management' area and ensures
+  that Every agent must be identifiable, authenticatable, and traceable. Agents MUST have unique, stable IDs.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Non-identifiable agents cannot be traced or held accountable for their actions.
+- Missing agent authentication enables identity spoofing and non-attributable changes.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-agentic/pages/controls/WAF-AGN-010.adoc'
-  related_controls: []
+  narrative: modules/pillar-agentic/pages/controls/WAF-AGN-010.adoc
+  related_controls:
+  - WAF-AGN-080
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-COST-040
+  - WAF-COST-090
+  - WAF-SEC-030
+  - WAF-SEC-040
+  - WAF-SEC-080
+  - WAF-SEC-120
+description: 'Every agent must be identifiable, authenticatable, and traceable. Agents MUST have unique, stable IDs. Authentication
+  via token or certificate is mandatory for all agent communications. All agent interactions MUST be logged in an audit trail
+  for security and compliance.
 
-description: |
-  Every agent must be identifiable, authenticatable, and traceable. Agents MUST have unique, stable IDs. Authentication via token or certificate is mandatory for all agent communications. All agent interactions MUST be logged in an audit trail for security and compliance.
+  '
 regulatory_mapping:
-  - framework: 'ISO 27001:2022'
-    controls:
-      - 'A.8.2 – Privileged access rights'
-      - 'A.8.5 – Secure authentication'
-      - 'A.5.17 – Authentication information'
-  - framework: 'ISO 27017'
-    controls:
-      - 'CLD.9.5 – Segregation in virtual computing environments'
-  - framework: 'CIS Controls v8'
-    controls:
-      - 'CIS 5 – Account Management'
-      - 'CIS 6 – Access Control Management'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC6.1 – Logical and physical access controls'
-      - 'CC6.2 – Provisioning and removal of access'
-  - framework: 'NIST SP 800-53'
-    controls:
-      - 'AC-2 – Account Management'
-      - 'IA-2 – Identification and Authentication'
-  - framework: 'NIST CSF 2.0'
-    controls:
-      - 'PR.AA-01 – Identities and credentials are managed'
-      - 'PR.AA-03 – Users, services and hardware are authenticated'
-  - framework: 'GDPR'
-    controls:
-      - 'Art. 32 – Security of processing'
-      - 'Art. 5(1)(f) – Integrity and confidentiality'
-  - framework: 'PCI DSS v4.0'
-    controls:
-      - 'Req 7 – Restrict access by business need to know'
-      - 'Req 8 – Identify and authenticate access'
-  - framework: 'CSA STAR'
-    controls:
-      - 'CCM IAM-01 – Identity and Access Management Policy'
-      - 'CCM IAM-02 – Strong Password Policy and Procedures'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'IDM-01 – Identity and access management policy'
-      - 'IDM-02 – Authentication of users'
-  - framework: 'TISAX'
-    controls:
-      - 'Information security – Identity and access management requirements'
-  - framework: 'ANSSI SecNumCloud'
-    controls:
-      - 'Domain – Identity and access management'
-  - framework: 'BIO'
-    controls:
-      - 'BIO – Logische toegangsbeveiliging (logical access control)'
-  - framework: 'ENS High'
-    controls:
-      - 'op.acc.5 – Mecanismo de autenticación'
-      - 'op.acc.7 – Gestión de privilegios'
-  - framework: 'UK NCSC CAF'
-    controls:
-      - 'B2 – Identity and access control'
-  - framework: 'FedRAMP'
-    controls:
-      - 'AC-2, IA-2 (Moderate/High baseline)'
-  - framework: 'CMMC 2.0'
-    controls:
-      - 'AC.L2-3.1.1 – Limit system access to authorized users'
-      - 'IA.L2-3.5.3 – Multifactor authentication'
-  - framework: 'IT-Grundschutz'
-    controls:
-      - 'ORP.4 – Identitäts- und Berechtigungsmanagement'
-  - framework: 'IRAP'
-    controls:
-      - 'ISM – Identification and authentication'
-  - framework: 'CCCS PBMM'
-    controls:
-      - 'AC-2, IA-2 – Account and authenticator management'
-  - framework: 'MAS TRM'
-    controls:
-      - 'Ch.6 – Access control'
-  - framework: 'ISMAP'
-    controls:
-      - 'Identity and access management controls'
-  - framework: 'FISC'
-    controls:
-      - 'Technical measures – User authentication and access control'
-  - framework: 'DORA'
-    controls:
-      - 'Art. 9 – Protection and prevention'
-  - framework: 'EUCS (ENISA)'
-    controls:
-      - 'IAM-01 – Identity and access management'
-      - 'IAM-02 – Authentication controls'
+- framework: ISO 27001:2022
+  controls:
+  - A.8.2 – Privileged access rights
+  - A.8.5 – Secure authentication
+  - A.5.17 – Authentication information
+- framework: ISO 27017
+  controls:
+  - CLD.9.5 – Segregation in virtual computing environments
+- framework: CIS Controls v8
+  controls:
+  - CIS 5 – Account Management
+  - CIS 6 – Access Control Management
+- framework: SOC 2 Type II
+  controls:
+  - CC6.1 – Logical and physical access controls
+  - CC6.2 – Provisioning and removal of access
+- framework: NIST SP 800-53
+  controls:
+  - AC-2 – Account Management
+  - IA-2 – Identification and Authentication
+- framework: NIST CSF 2.0
+  controls:
+  - PR.AA-01 – Identities and credentials are managed
+  - PR.AA-03 – Users, services and hardware are authenticated
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+  - Art. 5(1)(f) – Integrity and confidentiality
+- framework: PCI DSS v4.0
+  controls:
+  - Req 7 – Restrict access by business need to know
+  - Req 8 – Identify and authenticate access
+- framework: CSA STAR
+  controls:
+  - CCM IAM-01 – Identity and Access Management Policy
+  - CCM IAM-02 – Strong Password Policy and Procedures
+- framework: BSI C5:2020
+  controls:
+  - IDM-01 – Identity and access management policy
+  - IDM-02 – Authentication of users
+- framework: TISAX
+  controls:
+  - Information security – Identity and access management requirements
+- framework: ANSSI SecNumCloud
+  controls:
+  - Domain – Identity and access management
+- framework: BIO
+  controls:
+  - BIO – Logische toegangsbeveiliging (logical access control)
+- framework: ENS High
+  controls:
+  - op.acc.5 – Mecanismo de autenticación
+  - op.acc.7 – Gestión de privilegios
+- framework: UK NCSC CAF
+  controls:
+  - B2 – Identity and access control
+- framework: FedRAMP
+  controls:
+  - AC-2, IA-2 (Moderate/High baseline)
+- framework: CMMC 2.0
+  controls:
+  - AC.L2-3.1.1 – Limit system access to authorized users
+  - IA.L2-3.5.3 – Multifactor authentication
+- framework: IT-Grundschutz
+  controls:
+  - ORP.4 – Identitäts- und Berechtigungsmanagement
+- framework: IRAP
+  controls:
+  - ISM – Identification and authentication
+- framework: CCCS PBMM
+  controls:
+  - AC-2, IA-2 – Account and authenticator management
+- framework: MAS TRM
+  controls:
+  - Ch.6 – Access control
+- framework: ISMAP
+  controls:
+  - Identity and access management controls
+- framework: FISC
+  controls:
+  - Technical measures – User authentication and access control
+- framework: EUCS (ENISA)
+  controls:
+  - IAM-01 – Identity and access management
+  - IAM-02 – Authentication controls
 checks:
-  - id: waf-agn-010.tf.aws.bedrock-agent-id-defined
-    engine: terraform
-    automated: true
-    title: 'AWS Bedrock agents must have unique identifiers and authentication'
-    provider: aws
-    description: 'AWS Bedrock agents must have a unique, stable agent_id and authentication via IAM roles or API keys. All agent interactions must be logged via CloudWatch.'
-    expected: 'true'
-    remediation: 'Define an aws_bedrockagent resource with a unique agent_id and associate it with an IAM role for authentication. Enable CloudWatch logging for agent interactions.\n'
-    example:
-      compliant: |
-        resource "aws_bedrockagent" "customer_support_agent" {
-          agent_name = "customer-support-agent"
-          description = "Agent for customer support inquiries"
-          agent_resources = [{
-            model_arn = aws_bedrock_foundation_model.claude.arn
-          }]
-          # Unique agent_id automatically assigned
-          # Authentication via IAM role
-        }
-        resource "aws_cloudwatch_log_group" "agent_logs" {
-          name = "/aws/bedrock/customer-support-agent"
-        }
-      non_compliant: |
-        # No agent defined – unauthenticated agent access
-        # WAF-AGN-010 Violation
-        # Agents without IDs and authentication are not permitted
+- id: waf-agn-010.tf.aws.bedrock-agent-id-defined
+  engine: terraform
+  automated: true
+  title: AWS Bedrock agents must have unique identifiers and authentication
+  provider: aws
+  description: AWS Bedrock agents must have a unique, stable agent_id and authentication via IAM roles or API keys. All agent
+    interactions must be logged via CloudWatch.
+  expected: 'true'
+  remediation: Define an aws_bedrockagent resource with a unique agent_id and associate it with an IAM role for authentication.
+    Enable CloudWatch logging for agent interactions.\n
+  example:
+    compliant: "resource \"aws_bedrockagent\" \"customer_support_agent\" {\n  agent_name = \"customer-support-agent\"\n  description\
+      \ = \"Agent for customer support inquiries\"\n  agent_resources = [{\n    model_arn = aws_bedrock_foundation_model.claude.arn\n\
+      \  }]\n  # Unique agent_id automatically assigned\n  # Authentication via IAM role\n}\nresource \"aws_cloudwatch_log_group\"\
+      \ \"agent_logs\" {\n  name = \"/aws/bedrock/customer-support-agent\"\n}\n"
+    non_compliant: '# No agent defined – unauthenticated agent access
 
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_bedrockagent
-    assertions:
-      - attribute: 'agent_name'
-        op: 'not_empty'
-        message: 'Agent must have a unique name/identifier.'
-      - attribute: 'agent_resources'
-        op: 'attribute_exists'
-        message: 'Agent must have resources configured.'
-    on_fail: violation
-  - id: waf-agn-010.tf.google.vertex-agent-id-defined
-    engine: terraform
-    automated: true
-    title: 'Google Vertex AI agents must have unique identifiers and authentication'
-    provider: google
-    description: 'Google Vertex AI agents must have unique agent_id and authentication via IAM service accounts. All interactions must be logged via Cloud Logging.'
-    expected: 'true'
-    remediation: 'Define a vertex_ai_agent resource with unique identifier and service account authentication. Configure Cloud Logging for agent interactions.\n'
-    example:
-      compliant: |
-        resource "google_vertex_ai_agent" "fraud_detection" {
-          display_name = "fraud-detection-agent"
-          description  = "Agent for fraud detection"
-          # Unique agent_id automatically assigned
-          # Authentication via service account
-        }
-        resource "google_logging_project_sink" "agent_logs" {
-          name = "agent-logs"
-          destination = "storage.googleapis.com/agent-logs-bucket"
-          filter = "resource.type=vertex_ai_agent"
-        }
-      non_compliant: |
-        # No agent defined – unauthenticated access
-        # WAF-AGN-010 Violation
+      # WAF-AGN-010 Violation
 
-    scope:
-      block_type: resource
-      resource_types:
-        - google_vertex_ai_agent
-    assertions:
-      - attribute: 'display_name'
-        op: 'not_empty'
-        message: 'Agent must have a display name/identifier.'
-    on_fail: violation
-  - id: waf-agn-010.tf.azurerm.ai-agent-id-defined
-    engine: terraform
-    automated: true
-    title: 'Azure AI agents must have unique identifiers and authentication'
-    provider: azurerm
-    description: 'Azure AI agents must have unique agent_id and authentication via Azure AD or Managed Identity. All interactions must be logged via Application Insights.'
-    expected: 'true'
-    remediation: 'Define an azure_ai_agent resource with unique identifier and Managed Identity authentication. Configure Application Insights for logging.\n'
-    example:
-      compliant: |
-        resource "azurerm_cognitive_deployment" "agent" {
-          name                       = "customer-service-agent"
-          cognitive_account_id       = azurerm_cognitive_account.main.id
-          model_name                 = "gpt-4"
-          format                     = "OpenAI"
-          # Authentication via Managed Identity
-        }
-        resource "azurerm_application_insights" "agent_ai" {
-          name                = "agent-insights"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          workspace_id        = azurerm_log_analytics_workspace.main.id
-        }
-      non_compliant: |
-        # No agent defined – unauthenticated access
-        # WAF-AGN-010 Violation
+      # Agents without IDs and authentication are not permitted
 
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_cognitive_deployment
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Agent must have a unique name/identifier.'
-    on_fail: violation
-  - id: waf-agn-010.config.multi.agent-interactions-logged
-    engine: config
-    automated: true
-    title: 'Agent interactions must be logged in audit trail'
-    provider: multi
-    description: 'All agent interactions (input, output, tool calls, decisions) must be logged to an audit trail. Logs must include timestamp, agent ID, user ID (if applicable), and result.'
-    expected: 'true'
-    remediation: 'Configure logging for all agent platforms (Bedrock, Vertex AI, Azure OpenAI) to send logs to a centralized audit system (CloudWatch, Cloud Logging, Application Insights).\n'
-    example:
-      compliant: |
-        # Agent logs are configured and flowing to audit system
-        # CloudWatch log group: /aws/bedrock/*
-        # Cloud Logging: vertex-ai-agent-logs
-        # Application Insights: agent-interaction-data
-      non_compliant: |
-        # No audit logging configured
-        # WAF-AGN-010 Violation
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_bedrockagent
+  assertions:
+  - attribute: agent_name
+    op: not_empty
+    message: Agent must have a unique name/identifier.
+  - attribute: agent_resources
+    op: attribute_exists
+    message: Agent must have resources configured.
+  on_fail: violation
+- id: waf-agn-010.tf.google.vertex-agent-id-defined
+  engine: terraform
+  automated: true
+  title: Google Vertex AI agents must have unique identifiers and authentication
+  provider: google
+  description: Google Vertex AI agents must have unique agent_id and authentication via IAM service accounts. All interactions
+    must be logged via Cloud Logging.
+  expected: 'true'
+  remediation: Define a vertex_ai_agent resource with unique identifier and service account authentication. Configure Cloud
+    Logging for agent interactions.\n
+  example:
+    compliant: "resource \"google_vertex_ai_agent\" \"fraud_detection\" {\n  display_name = \"fraud-detection-agent\"\n  description\
+      \  = \"Agent for fraud detection\"\n  # Unique agent_id automatically assigned\n  # Authentication via service account\n\
+      }\nresource \"google_logging_project_sink\" \"agent_logs\" {\n  name = \"agent-logs\"\n  destination = \"storage.googleapis.com/agent-logs-bucket\"\
+      \n  filter = \"resource.type=vertex_ai_agent\"\n}\n"
+    non_compliant: '# No agent defined – unauthenticated access
 
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_log_group
-        - google_logging_project_sink
-        - azurerm_application_insights
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Audit logging must be configured.'
-    on_fail: violation
+      # WAF-AGN-010 Violation
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_vertex_ai_agent
+  assertions:
+  - attribute: display_name
+    op: not_empty
+    message: Agent must have a display name/identifier.
+  on_fail: violation
+- id: waf-agn-010.tf.azurerm.ai-agent-id-defined
+  engine: terraform
+  automated: true
+  title: Azure AI agents must have unique identifiers and authentication
+  provider: azurerm
+  description: Azure AI agents must have unique agent_id and authentication via Azure AD or Managed Identity. All interactions
+    must be logged via Application Insights.
+  expected: 'true'
+  remediation: Define an azure_ai_agent resource with unique identifier and Managed Identity authentication. Configure Application
+    Insights for logging.\n
+  example:
+    compliant: "resource \"azurerm_cognitive_deployment\" \"agent\" {\n  name                       = \"customer-service-agent\"\
+      \n  cognitive_account_id       = azurerm_cognitive_account.main.id\n  model_name                 = \"gpt-4\"\n  format\
+      \                     = \"OpenAI\"\n  # Authentication via Managed Identity\n}\nresource \"azurerm_application_insights\"\
+      \ \"agent_ai\" {\n  name                = \"agent-insights\"\n  resource_group_name = azurerm_resource_group.main.name\n\
+      \  location            = azurerm_resource_group.main.location\n  workspace_id        = azurerm_log_analytics_workspace.main.id\n\
+      }\n"
+    non_compliant: '# No agent defined – unauthenticated access
+
+      # WAF-AGN-010 Violation
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_cognitive_deployment
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Agent must have a unique name/identifier.
+  on_fail: violation
+- id: waf-agn-010.config.multi.identity-access
+  engine: config
+  automated: true
+  title: Agent interactions must be logged in audit trail
+  provider: multi
+  description: A version-controlled policy document must exist at `docs/agentic/waf-agn-010-identity-access.md` and document
+    the cross-provider implementation of this control. The checker validates that the file exists and contains a normative
+    requirement statement (MUST/SHALL/required/mandatory).
+  expected: 'true'
+  remediation: 'Create or update `docs/agentic/waf-agn-010-identity-access.md`. State the requirement, how it is implemented
+    for cross-provider, the review cadence, and the owner.
+
+    '
+  example:
+    compliant: '|
+
+      docs/agentic/waf-agn-010-identity-access.md:
+
+      - The cross-provider implementation of WAF-AGN-010 is documented.
+
+      - Implementation status and owner are recorded.
+
+      - Review cadence is defined (e.g. quarterly).
+
+      '
+    non_compliant: '|
+
+      # `docs/agentic/waf-agn-010-identity-access.md` is missing or does not contain a normative requirement.
+
+      # WAF-AGN-010 violation: cross-provider control is not documented
+
+      '
+  scope:
+    block_type: file
+    path_pattern: docs/agentic/waf-agn-010-identity-access.md
+  assertions:
+  - attribute: content
+    op: matches
+    pattern: (?i)MUST|SHALL|required|mandatory|enforced|documented
+    message: Policy file `docs/agentic/waf-agn-010-identity-access.md` must contain a normative requirement statement.
+  on_fail: violation
+- id: waf-agn-010.tf.stackit.agentic-audit-logged
+  engine: terraform
+  automated: true
+  title: Every agent must be identifiable, authenticatable, and traceable for stackit
+  provider: stackit
+  description: Every agent must be identifiable, authenticatable, and traceable must be documented in IaC via a agentic-audit-logged
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-audit-logged tag/label to the stackit_project resource to show the stackit implementation of
+    WAF-AGN-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    agentic-audit-logged = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing agentic-audit-logged labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: agentic-audit-logged
+    message: stackit_project is missing the agentic-audit-logged tag/label.
+  on_fail: violation
+- id: waf-agn-010.tf.ovh.agentic-audit-logged
+  engine: terraform
+  automated: true
+  title: Every agent must be identifiable, authenticatable, and traceable for ovh
+  provider: ovh
+  description: Every agent must be identifiable, authenticatable, and traceable must be documented in IaC via a agentic-audit-logged
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-audit-logged tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-AGN-010
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    agentic-audit-logged = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing agentic-audit-logged tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: agentic-audit-logged
+    message: ovh_cloud_project is missing the agentic-audit-logged tag/label.
+  on_fail: violation
+- id: waf-agn-010.tf.hcloud.agentic-audit-logged
+  engine: terraform
+  automated: true
+  title: Every agent must be identifiable, authenticatable, and traceable for hcloud
+  provider: hcloud
+  description: Every agent must be identifiable, authenticatable, and traceable must be documented in IaC via a agentic-audit-logged
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a agentic-audit-logged tag/label to the hcloud_server resource to show the hcloud implementation of WAF-AGN-010
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    agentic-audit-logged = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing agentic-audit-logged labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: agentic-audit-logged
+    message: hcloud_server is missing the agentic-audit-logged tag/label.
+  on_fail: violation

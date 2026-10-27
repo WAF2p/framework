@@ -1,245 +1,269 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-040
 id: WAF-OPS-040
-title: 'All production alerting MUST be based on user-visible symptoms (elevated...'
+title: All production alerting MUST be based on user-visible symptoms (elevated...
 status: active
 tags:
-  - operational
-  - high
-  - governance
-  - configuration
-pillar: operational
+- operational
+- high
+- governance
+- configuration
+pillar: excellence
 severity: high
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  All production alerting MUST be based on user-visible symptoms (elevated error rates, latency exceeding SLO thresholds, availability degradation) rather...
+- governance
+- configuration
+category: logging-monitoring
+rationale: Insufficient observability delays incident detection, complicates troubleshooting, and prevents effective audit
+  evidence. This control addresses the requirements of the 'Logging and Monitoring' area and ensures that All production alerting
+  MUST be based on user-visible symptoms (elevated error rates, latency exceeding SLO thresholds, availability degradation)
+  rather than.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Alerting on infrastructure instead of symptom metrics creates alert fatigue and misses customer-impacting outages.
+- Missing action assignment on alerts prolongs time to resolution.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-040.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-040.adoc
+  related_controls:
+  - WAF-OPS-030
+  - WAF-OPS-090
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-REL-060
+  - WAF-SOV-030
+  - WAF-SUS-040
+description: 'All production alerting MUST be based on user-visible symptoms (elevated error rates, latency exceeding SLO
+  thresholds, availability degradation) rather than internal causes (CPU usage, memory consumption, disk I/O). Every alert
+  that pages an on-call engineer MUST be actionable and MUST have a linked runbook. Alert fatigue through non-actionable alerts
+  MUST be actively managed and reduced.
 
-description: |
-  All production alerting MUST be based on user-visible symptoms (elevated error rates, latency exceeding SLO thresholds, availability degradation) rather than internal causes (CPU usage, memory consumption, disk I/O). Every alert that pages an on-call engineer MUST be actionable and MUST have a linked runbook. Alert fatigue through non-actionable alerts MUST be actively managed and reduced.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Incident management'
-      - 'Monitoring, measurement, analysis, and evaluation'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Monitoring and event management'
-      - 'Incident management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 8: How do you understand the health of your operations?'
-  - framework: 'Google SRE Book'
-    controls:
-      - 'Chapter 6: Monitoring Distributed Systems – Four Golden Signals'
-      - 'Chapter 5: Eliminating Toil'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Incident management
+  - Monitoring, measurement, analysis, and evaluation
+- framework: ITIL 4
+  controls:
+  - Monitoring and event management
+  - Incident management
+- framework: SRE Book (Google)
+  controls:
+  - 'Chapter 6: Monitoring Distributed Systems – Four Golden Signals'
+  - 'Chapter 5: Eliminating Toil'
 checks:
-  - id: waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based
-    engine: terraform
-    automated: true
-    title: 'CloudWatch alarms must use symptom-based metrics'
-    provider: aws
-    description: 'CloudWatch alarms MUST use application-level symptom metrics (error rates, latency, request counts) rather than exclusively infrastructure metrics. Alarms MUST include alarm_description with actionable information.'
-    expected: 'true'
-    remediation: 'Add alarm_description with symptom description and runbook link. Ensure alarm_actions routes to an SNS topic connected to on-call alerting.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
-          alarm_name          = "payment-service-high-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 2
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApplicationELB"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          alarm_description   = "Payment service 5XX error rate > 10/min. Runbook: https://wiki/runbooks/payment-errors"
-          alarm_actions       = [aws_sns_topic.pagerduty.arn]
-          dimensions = {
-            LoadBalancer = aws_lb.main.arn_suffix
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "high_cpu" {
-          alarm_name          = "high-cpu"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 1
-          metric_name         = "CPUUtilization"
-          namespace           = "AWS/EC2"
-          period              = 300
-          statistic           = "Average"
-          threshold           = 80
-          # No alarm_description, no runbook link – WAF-OPS-040 Violation
-          # Cause-based metric, not symptom-based
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_metric_alarm
-    assertions:
-      - attribute: 'alarm_description'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have a non-empty alarm_description explaining the symptom and action.'
-      - attribute: 'alarm_actions'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have at least one alarm_action (SNS topic, Auto Scaling, etc.).'
-    on_fail: violation
-  - id: waf-ops-040.tf.azurerm.monitor-alert-symptom
-    engine: terraform
-    automated: true
-    title: 'Azure Monitor metric alerts must include symptom description and action group'
-    provider: azurerm
-    description: 'Azure Monitor metric alerts for production workloads MUST include a descriptive name indicating the symptom and MUST reference an action group for notification.'
-    expected: 'true'
-    remediation: 'Add a description field explaining the user-visible symptom and runbook location. Reference an azurerm_monitor_action_group in the action block.\n'
-    example:
-      compliant: |
-        resource "azurerm_monitor_metric_alert" "error_rate" {
-          name                = "payment-service-error-rate-high"
-          resource_group_name = azurerm_resource_group.main.name
-          scopes              = [azurerm_application_insights.main.id]
-          description         = "Payment service error rate > 1%. Runbook: https://wiki/runbooks/payment-errors"
-        
-          criteria {
-            metric_namespace = "Microsoft.Insights/Components"
-            metric_name      = "requests/failed"
-            aggregation      = "Count"
-            operator         = "GreaterThan"
-            threshold        = 10
-          }
-        
-          action {
-            action_group_id = azurerm_monitor_action_group.oncall.id
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_monitor_metric_alert" "cpu_alert" {
-          name                = "cpu-high"
-          resource_group_name = azurerm_resource_group.main.name
-          scopes              = [azurerm_virtual_machine.app.id]
-          # No description, no action group – WAF-OPS-040 Violation
-          criteria {
-            metric_namespace = "Microsoft.Compute/virtualMachines"
-            metric_name      = "Percentage CPU"
-            aggregation      = "Average"
-            operator         = "GreaterThan"
-            threshold        = 80
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_monitor_metric_alert
-    assertions:
-      - attribute: 'description'
-        op: 'not_empty'
-        message: 'Azure Monitor alert must have a description explaining the symptom.'
-      - attribute: 'action'
-        op: 'attribute_exists'
-        message: 'Azure Monitor alert must reference at least one action group.'
-    on_fail: violation
-  - id: waf-ops-040.tf.google.monitoring-alert-symptom
-    engine: terraform
-    automated: true
-    title: 'GCP Monitoring alert policies must use symptom-based conditions'
-    provider: google
-    description: 'GCP Monitoring alert policies MUST include a user_labels field identifying the service and symptom type, and MUST have notification channels configured.'
-    expected: 'true'
-    remediation: "Add notification_channels referencing PagerDuty, Slack, or email channels. Name the alert with the service and symptom (e.g., 'payment-service-high-latency').\n"
-    example:
-      compliant: |
-        resource "google_monitoring_alert_policy" "latency_alert" {
-          display_name = "payment-service-latency-p99-high"
-          combiner     = "OR"
-        
-          conditions {
-            display_name = "p99 latency > 500ms"
-            condition_threshold {
-              filter          = "metric.type=\"custom.googleapis.com/payment/latency_p99\""
-              comparison      = "COMPARISON_GT"
-              threshold_value = 500
-              duration        = "60s"
-            }
-          }
-        
-          notification_channels = [google_monitoring_notification_channel.pagerduty.name]
-        
-          documentation {
-            content = "Payment service p99 latency exceeded 500ms. Runbook: https://wiki/runbooks/payment-latency"
-          }
-        }
-        
-      non_compliant: |
-        resource "google_monitoring_alert_policy" "cpu_alert" {
-          display_name = "high-cpu"
-          combiner     = "OR"
-          conditions {
-            display_name = "CPU > 80%"
-            condition_threshold {
-              filter     = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\""
-              comparison = "COMPARISON_GT"
-              threshold_value = 0.8
-            }
-          }
-          # No notification channels – WAF-OPS-040 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_monitoring_alert_policy
-    assertions:
-      - attribute: 'display_name'
-        op: 'not_empty'
-        message: 'Alert policy must have a descriptive display_name.'
-      - attribute: 'notification_channels'
-        op: 'not_empty'
-        message: 'Alert policy must have at least one notification channel.'
-    on_fail: violation
+- id: waf-ops-040.tf.aws.cloudwatch-alarm-symptom-based
+  engine: terraform
+  automated: true
+  title: CloudWatch alarms must use symptom-based metrics
+  provider: aws
+  description: CloudWatch alarms MUST use application-level symptom metrics (error rates, latency, request counts) rather
+    than exclusively infrastructure metrics. Alarms MUST include alarm_description with actionable information.
+  expected: 'true'
+  remediation: Add alarm_description with symptom description and runbook link. Ensure alarm_actions routes to an SNS topic
+    connected to on-call alerting.\n
+  example:
+    compliant: "resource \"aws_cloudwatch_metric_alarm\" \"high_error_rate\" {\n  alarm_name          = \"payment-service-high-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 2\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApplicationELB\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  alarm_description   = \"Payment service 5XX error rate > 10/min. Runbook: https://wiki/runbooks/payment-errors\"\
+      \n  alarm_actions       = [aws_sns_topic.pagerduty.arn]\n  dimensions = {\n    LoadBalancer = aws_lb.main.arn_suffix\n\
+      \  }\n}\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"high_cpu\" {\n  alarm_name          = \"high-cpu\"\n  comparison_operator\
+      \ = \"GreaterThanThreshold\"\n  evaluation_periods  = 1\n  metric_name         = \"CPUUtilization\"\n  namespace   \
+      \        = \"AWS/EC2\"\n  period              = 300\n  statistic           = \"Average\"\n  threshold           = 80\n\
+      \  # No alarm_description, no runbook link – WAF-OPS-040 Violation\n  # Cause-based metric, not symptom-based\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_metric_alarm
+  assertions:
+  - attribute: alarm_description
+    op: not_empty
+    message: CloudWatch alarm must have a non-empty alarm_description explaining the symptom and action.
+  - attribute: alarm_actions
+    op: not_empty
+    message: CloudWatch alarm must have at least one alarm_action (SNS topic, Auto Scaling, etc.).
+  on_fail: violation
+- id: waf-ops-040.tf.azurerm.monitor-alert-symptom
+  engine: terraform
+  automated: true
+  title: Azure Monitor metric alerts must include symptom description and action group
+  provider: azurerm
+  description: Azure Monitor metric alerts for production workloads MUST include a descriptive name indicating the symptom
+    and MUST reference an action group for notification.
+  expected: 'true'
+  remediation: Add a description field explaining the user-visible symptom and runbook location. Reference an azurerm_monitor_action_group
+    in the action block.\n
+  example:
+    compliant: "resource \"azurerm_monitor_metric_alert\" \"error_rate\" {\n  name                = \"payment-service-error-rate-high\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  scopes              = [azurerm_application_insights.main.id]\n\
+      \  description         = \"Payment service error rate > 1%. Runbook: https://wiki/runbooks/payment-errors\"\n\n  criteria\
+      \ {\n    metric_namespace = \"Microsoft.Insights/Components\"\n    metric_name      = \"requests/failed\"\n    aggregation\
+      \      = \"Count\"\n    operator         = \"GreaterThan\"\n    threshold        = 10\n  }\n\n  action {\n    action_group_id\
+      \ = azurerm_monitor_action_group.oncall.id\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_metric_alert\" \"cpu_alert\" {\n  name                = \"cpu-high\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  scopes              = [azurerm_virtual_machine.app.id]\n  # No description,\
+      \ no action group – WAF-OPS-040 Violation\n  criteria {\n    metric_namespace = \"Microsoft.Compute/virtualMachines\"\
+      \n    metric_name      = \"Percentage CPU\"\n    aggregation      = \"Average\"\n    operator         = \"GreaterThan\"\
+      \n    threshold        = 80\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_metric_alert
+  assertions:
+  - attribute: description
+    op: not_empty
+    message: Azure Monitor alert must have a description explaining the symptom.
+  - attribute: action
+    op: attribute_exists
+    message: Azure Monitor alert must reference at least one action group.
+  on_fail: violation
+- id: waf-ops-040.tf.google.monitoring-alert-symptom
+  engine: terraform
+  automated: true
+  title: GCP Monitoring alert policies must use symptom-based conditions
+  provider: google
+  description: GCP Monitoring alert policies MUST include a user_labels field identifying the service and symptom type, and
+    MUST have notification channels configured.
+  expected: 'true'
+  remediation: 'Add notification_channels referencing PagerDuty, Slack, or email channels. Name the alert with the service
+    and symptom (e.g., ''payment-service-high-latency'').
+
+    '
+  example:
+    compliant: "resource \"google_monitoring_alert_policy\" \"latency_alert\" {\n  display_name = \"payment-service-latency-p99-high\"\
+      \n  combiner     = \"OR\"\n\n  conditions {\n    display_name = \"p99 latency > 500ms\"\n    condition_threshold {\n\
+      \      filter          = \"metric.type=\\\"custom.googleapis.com/payment/latency_p99\\\"\"\n      comparison      =\
+      \ \"COMPARISON_GT\"\n      threshold_value = 500\n      duration        = \"60s\"\n    }\n  }\n\n  notification_channels\
+      \ = [google_monitoring_notification_channel.pagerduty.name]\n\n  documentation {\n    content = \"Payment service p99\
+      \ latency exceeded 500ms. Runbook: https://wiki/runbooks/payment-latency\"\n  }\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"cpu_alert\" {\n  display_name = \"high-cpu\"\n  combiner\
+      \     = \"OR\"\n  conditions {\n    display_name = \"CPU > 80%\"\n    condition_threshold {\n      filter     = \"metric.type=\\\
+      \"compute.googleapis.com/instance/cpu/utilization\\\"\"\n      comparison = \"COMPARISON_GT\"\n      threshold_value\
+      \ = 0.8\n    }\n  }\n  # No notification channels – WAF-OPS-040 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: display_name
+    op: not_empty
+    message: Alert policy must have a descriptive display_name.
+  - attribute: notification_channels
+    op: not_empty
+    message: Alert policy must have at least one notification channel.
+  on_fail: violation
+- id: waf-ops-040.tf.stackit.observability-dashboard
+  engine: terraform
+  automated: true
+  title: All production alerting for stackit
+  provider: stackit
+  description: All production alerting must be documented in IaC via a observability-dashboard tag/label on stackit_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a observability-dashboard tag/label to the stackit_project resource to show the stackit implementation
+    of WAF-OPS-040 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    observability-dashboard = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing observability-dashboard labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: observability-dashboard
+    message: stackit_project is missing the observability-dashboard tag/label.
+  on_fail: violation
+- id: waf-ops-040.tf.ovh.observability-dashboard
+  engine: terraform
+  automated: true
+  title: All production alerting for ovh
+  provider: ovh
+  description: All production alerting must be documented in IaC via a observability-dashboard tag/label on ovh_cloud_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a observability-dashboard tag/label to the ovh_cloud_project resource to show the ovh implementation of
+    WAF-OPS-040 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    observability-dashboard = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing observability-dashboard tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: observability-dashboard
+    message: ovh_cloud_project is missing the observability-dashboard tag/label.
+  on_fail: violation
+- id: waf-ops-040.tf.hcloud.observability-dashboard
+  engine: terraform
+  automated: true
+  title: All production alerting for hcloud
+  provider: hcloud
+  description: All production alerting must be documented in IaC via a observability-dashboard tag/label on hcloud_server.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a observability-dashboard tag/label to the hcloud_server resource to show the hcloud implementation of
+    WAF-OPS-040 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    observability-dashboard = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing observability-dashboard labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: observability-dashboard
+    message: hcloud_server is missing the observability-dashboard tag/label.
+  on_fail: violation

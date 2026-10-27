@@ -1,141 +1,245 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-100
 id: WAF-COST-100
-title: 'A structured Cost Debt Register MUST exist as a version-controlled file in...'
+title: A structured Cost Debt Register MUST exist as a version-controlled file in...
 status: active
 tags:
-  - cost
-  - medium
-  - governance
+- cost
+- medium
+- governance
 pillar: cost
 severity: medium
 type:
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  A structured Cost Debt Register MUST exist as a version-controlled file in the repository.
+- governance
+category: cost-governance
+rationale: Lack of cost transparency and governance leads to budget overruns, cloud waste, and unaccountable spending. This
+  control addresses the requirements of the 'Cost Governance' area and ensures that A structured Cost Debt Register MUST exist
+  as a version-controlled file in the repository.
 threat:
-  - 'Uncontrolled cloud spend erodes budget and project viability.'
-  - 'High lock-in or debt decisions are made without financial impact visibility.'
+- Uncontrolled cloud spend erodes budget and project viability.
+- High lock-in or debt decisions are made without financial impact visibility.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Implementation is regularly reviewed and evidenced in reviews.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-100.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-100.adoc
+  related_controls:
+  - WAF-COST-050
+  - WAF-COST-060
+  - WAF-SUS-020
+  - WAF-PERF-100
+  - WAF-COST-080
+  - WAF-COST-070
+  - WAF-SUS-100
+  - WAF-COST-020
+  - WAF-COST-010
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'A structured Cost Debt Register MUST exist as a version-controlled file in the repository. Each entry MUST document:
+  unique ID, title, description, owner (team), estimated annual impact (EUR), detection date, target resolution date, status
+  (monitoring/paydown/accepted), and either a paydown plan or a documented acceptance rationale. A quarterly Architecture
+  Board review entry covering cost debt status MUST exist for the current quarter. This control governs the ongoing management
+  of Architectural Cost Debt.
 
-description: |
-  A structured Cost Debt Register MUST exist as a version-controlled file in the repository. Each entry MUST document: unique ID, title, description, owner (team), estimated annual impact (EUR), detection date, target resolution date, status (monitoring/paydown/accepted), and either a paydown plan or a documented acceptance rationale. A quarterly Architecture Board review entry covering cost debt status MUST exist for the current quarter. This control governs the ongoing management of Architectural Cost Debt.
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Operate Phase – Cost Governance and Accountability'
-      - 'FinOps Principles – A FinOps Practice is About More Than Saving Money'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Architecture Governance – Cost Debt Management'
-      - 'Cloud Cost Governance Policy – Quarterly Cost Debt Review Mandatory'
+- framework: FinOps Foundation
+  controls:
+  - Operate Phase – Cost Governance and Accountability
+  - FinOps Principles – A FinOps Practice is About More Than Saving Money
 checks:
-  - id: waf-cost-100.config.any.cost-debt-register-file-exists
-    engine: config
-    automated: true
-    title: 'Cost Debt Register file must exist in repository'
-    provider: any
-    description: 'A cost-debt-register.yml (or cost-debt-register.md) file must exist in the docs/ directory of the repository. This is a process control validated through CI pipeline file existence check or repository audit. The file must be version-controlled.'
-    expected: 'true'
-    assertions:
-      - operator: equals
-        expected: 'true'
-    remediation: 'Create docs/cost-debt-register.yml in the repository. Use the format documented in bp-cost-debt.adoc. Initialize with at least the brownfield discovery entries or a note that no cost debt has been identified yet (with review date).\n'
-    example:
-      compliant: |
-        # docs/cost-debt-register.yml
-        version: "1.0"
-        last_reviewed: "2025-03-01"
-        reviewed_by: "Architecture Board"
-        next_review: "2025-06-01"
-        
-        entries:
-          - id: CD-2025-001
-            title: "Multi-AZ PostgreSQL without SLO basis"
-            category: "ha-over-engineering"
-            owner: "platform-team"
-            estimated_annual_impact_eur: 22000
-            status: "paydown"
-            paydown_plan: "SLO review by 2025-04-15; downgrade if SLO <= 99.5%"
-            target_resolution: "2025-06-30"
-        
-      non_compliant: |
-        # docs/cost-debt-register.yml does not exist in repository
-        # Architectural cost debt is untracked and unmanaged
-        
-    scope:
-      block_type: resource
-    on_fail: violation
-  - id: waf-cost-100.config.any.quarterly-review-entry-current
-    engine: config
-    automated: true
-    title: 'Quarterly Architecture Board review entry must exist for current quarter'
-    provider: any
-    description: 'The cost-debt-register.yml must contain a quarterly review entry for the current quarter (or the most recently completed quarter). An absent review entry for more than one quarter indicates the mandatory quarterly review cadence is not being maintained.'
-    expected: 'true'
-    assertions:
-      - operator: equals
-        expected: 'true'
-    remediation: 'After the quarterly Architecture Board review, add a review record to docs/cost-debt-reviews/<YYYY-Q[1-4]>-review.yml (or equivalent location). The review record must include: date, attendees, new entries, paydown updates, acceptance decisions, and Architecture Board sign-off.\n'
-    example:
-      compliant: |
-        # docs/cost-debt-reviews/2025-Q1-review.yml
-        quarter: "2025-Q1"
-        date: "2025-03-01"
-        attendees:
-          - "CTO"
-          - "Principal Engineer Platform"
-          - "FinOps Lead"
-        new_entries:
-          - id: CD-2025-003
-            decision: "Accepted with exit plan requirement by Q2 2025"
-        paydown_updates:
-          - id: CD-2025-002
-            progress: "COMPLETED. Savings: 100 EUR/month confirmed."
-        sign_off: "Architecture Board"
-        next_review: "2025-06-01"
-        
-      non_compliant: |
-        # No quarterly review entry for 2025-Q1 exists
-        # Mandatory Architecture Board review not conducted – WAF-COST-100 violation
-        
-    scope:
-      block_type: resource
-    on_fail: finding
+- id: waf-cost-100.config.any.cost-governance
+  engine: config
+  automated: true
+  title: Cost Debt Register file must exist in repository
+  provider: any
+  description: A version-controlled policy document must exist at `docs/cost/waf-cost-100-cost-governance.md` and document
+    the provider-agnostic implementation of this control. The checker validates that the file exists and contains a normative
+    requirement statement (MUST/SHALL/required/mandatory).
+  expected: 'true'
+  remediation: 'Create or update `docs/cost/waf-cost-100-cost-governance.md`. State the requirement, how it is implemented
+    for provider-agnostic, the review cadence, and the owner.
+
+    '
+  example:
+    compliant: '|
+
+      docs/cost/waf-cost-100-cost-governance.md:
+
+      - The provider-agnostic implementation of WAF-COST-100 is documented.
+
+      - Implementation status and owner are recorded.
+
+      - Review cadence is defined (e.g. quarterly).
+
+      '
+    non_compliant: '|
+
+      # `docs/cost/waf-cost-100-cost-governance.md` is missing or does not contain a normative requirement.
+
+      # WAF-COST-100 violation: provider-agnostic control is not documented
+
+      '
+  scope:
+    block_type: file
+    path_pattern: docs/cost/waf-cost-100-cost-governance.md
+  assertions:
+  - attribute: content
+    op: matches
+    pattern: (?i)MUST|SHALL|required|mandatory|enforced|documented
+    message: Policy file `docs/cost/waf-cost-100-cost-governance.md` must contain a normative requirement statement.
+  on_fail: violation
+- id: waf-cost-100.config.azurerm.cost-debt-register
+  engine: config
+  automated: true
+  title: Azure-specific Cost Debt Register must exist
+  provider: azurerm
+  description: A version-controlled register must exist at `docs/cost/waf-cost-100-azure-cost-debt-register.md` documenting
+    Azure-specific cost debt items with ID, title, description, owner, estimated annual impact, detection date, target resolution
+    date, status, and paydown plan or acceptance rationale.
+  expected: 'true'
+  remediation: 'Create or update `docs/cost/waf-cost-100-azure-cost-debt-register.md`. Record each Azure cost debt item, its
+    owner, financial impact, target date, and paydown/acceptance rationale. Add a quarterly Architecture Board review entry
+    for the current quarter.
+
+    '
+  example:
+    compliant: '|
+
+      docs/cost/waf-cost-100-azure-cost-debt-register.md:
+
+      - Azure cost debt items have unique IDs, owners, and target resolution dates.
+
+      - Quarterly Architecture Board review entry exists for the current quarter.
+
+      - Status is monitoring, paydown, or accepted with rationale.
+
+      '
+    non_compliant: '|
+
+      # `docs/cost/waf-cost-100-azure-cost-debt-register.md` is missing or does not contain a normative requirement.
+
+      # WAF-COST-100 violation: Azure Cost Debt Register is not documented
+
+      '
+  scope:
+    block_type: file
+    path_pattern: docs/cost/waf-cost-100-azure-cost-debt-register.md
+  assertions:
+  - attribute: content
+    op: matches
+    pattern: (?i)MUST|SHALL|required|mandatory|enforced|documented
+    message: Policy file `docs/cost/waf-cost-100-azure-cost-debt-register.md` must contain a normative requirement statement.
+  on_fail: violation
+- id: waf-cost-100.config.google.cost-debt-register
+  engine: config
+  automated: true
+  title: GCP-specific Cost Debt Register must exist
+  provider: google
+  description: A version-controlled register must exist at `docs/cost/waf-cost-100-gcp-cost-debt-register.md` documenting
+    GCP-specific cost debt items with ID, title, description, owner, estimated annual impact, detection date, target resolution
+    date, status, and paydown plan or acceptance rationale.
+  expected: 'true'
+  remediation: 'Create or update `docs/cost/waf-cost-100-gcp-cost-debt-register.md`. Record each GCP cost debt item, its owner,
+    financial impact, target date, and paydown/acceptance rationale. Add a quarterly Architecture Board review entry for the
+    current quarter.
+
+    '
+  example:
+    compliant: '|
+
+      docs/cost/waf-cost-100-gcp-cost-debt-register.md:
+
+      - GCP cost debt items have unique IDs, owners, and target resolution dates.
+
+      - Quarterly Architecture Board review entry exists for the current quarter.
+
+      - Status is monitoring, paydown, or accepted with rationale.
+
+      '
+    non_compliant: '|
+
+      # `docs/cost/waf-cost-100-gcp-cost-debt-register.md` is missing or does not contain a normative requirement.
+
+      # WAF-COST-100 violation: GCP Cost Debt Register is not documented
+
+      '
+  scope:
+    block_type: file
+    path_pattern: docs/cost/waf-cost-100-gcp-cost-debt-register.md
+  assertions:
+  - attribute: content
+    op: matches
+    pattern: (?i)MUST|SHALL|required|mandatory|enforced|documented
+    message: Policy file `docs/cost/waf-cost-100-gcp-cost-debt-register.md` must contain a normative requirement statement.
+  on_fail: violation
+- id: waf-cost-100.config.any.quarterly-review-entry
+  engine: config
+  automated: true
+  title: Quarterly Architecture Board review entry must exist for current quarter
+  provider: any
+  description: A version-controlled policy document must exist at `docs/cost/waf-cost-100-cost-governance.md` and document
+    the provider-agnostic implementation of this control. The checker validates that the file exists and contains a normative
+    requirement statement (MUST/SHALL/required/mandatory).
+  expected: 'true'
+  remediation: 'Create or update `docs/cost/waf-cost-100-cost-governance.md`. State the requirement, how it is implemented
+    for provider-agnostic, the review cadence, and the owner.
+
+    '
+  example:
+    compliant: '|
+
+      docs/cost/waf-cost-100-cost-governance.md:
+
+      - The provider-agnostic implementation of WAF-COST-100 is documented.
+
+      - Implementation status and owner are recorded.
+
+      - Review cadence is defined (e.g. quarterly).
+
+      '
+    non_compliant: '|
+
+      # `docs/cost/waf-cost-100-cost-governance.md` is missing or does not contain a normative requirement.
+
+      # WAF-COST-100 violation: provider-agnostic control is not documented
+
+      '
+  scope:
+    block_type: file
+    path_pattern: docs/cost/waf-cost-100-cost-governance.md
+  assertions:
+  - attribute: content
+    op: matches
+    pattern: (?i)MUST|SHALL|required|mandatory|enforced|documented
+    message: Policy file `docs/cost/waf-cost-100-cost-governance.md` must contain a normative requirement statement.
+  on_fail: finding

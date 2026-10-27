@@ -1,221 +1,197 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-050
 id: WAF-SUS-050
-title: 'All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS...'
+title: All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS...
 status: active
 tags:
-  - sustainability
-  - medium
-  - configuration
-  - governance
+- sustainability
+- medium
+- configuration
+- governance
 pillar: sustainability
 severity: medium
 type:
-  - configuration
-  - governance
-
-category: 'backup-recovery'
-rationale: |
-  All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS buckets) MUST have lifecycle policies defined.
+- configuration
+- governance
+category: backup-recovery
+rationale: Missing or untested recovery plans prolong downtime, increase data loss, and endanger business continuity. This
+  control addresses the requirements of the 'Backup and Recovery' area and ensures that All storage resources (S3 buckets,
+  EBS volumes, Azure Blob Storage, GCS buckets) MUST have lifecycle policies defined.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Unstructured storage lifecycles leave data on expensive, energy-intensive tiers.
+- Missing tiering strategies prevent automatic migration of less-used data.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-050.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-050.adoc
+  related_controls:
+  - WAF-REL-070
+  - WAF-SUS-010
+  - WAF-SUS-030
+  - WAF-COST-010
+  - WAF-OPS-020
+  - WAF-REL-050
+description: 'All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS buckets) MUST have lifecycle policies
+  defined. Data MUST be automatically tiered to cost- and energy-efficient cold storage after defined activity thresholds.
+  Log data MUST have retention limits. Temporary data (build artifacts, test data, cache) MUST have explicit expiration. Unattached
+  EBS volumes and unused snapshots MUST be detected and purged. Organizations MUST apply the principle of data minimization:
+  store only what is needed, for as long as needed, in the most efficient tier.
 
-description: |
-  All storage resources (S3 buckets, EBS volumes, Azure Blob Storage, GCS buckets) MUST have lifecycle policies defined. Data MUST be automatically tiered to cost- and energy-efficient cold storage after defined activity thresholds. Log data MUST have retention limits. Temporary data (build artifacts, test data, cache) MUST have explicit expiration. Unattached EBS volumes and unused snapshots MUST be detected and purged. Organizations MUST apply the principle of data minimization: store only what is needed, for as long as needed, in the most efficient tier.
+  '
 regulatory_mapping:
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS E1 – Climate Change – resource efficiency in IT operations'
-  - framework: 'GDPR'
-    controls:
-      - 'Article 5(1)(e) – Storage limitation principle'
-      - 'Article 25 – Data protection by design and by default'
-  - framework: 'GHG Protocol'
-    controls:
-      - 'Scope 3 Category 11 – reducing storage-related cloud emissions'
-  - framework: 'Green Software Foundation'
-    controls:
-      - 'Hardware Efficiency – minimize data stored in high-energy tiers'
-      - 'Energy Efficiency – data tiering and lifecycle management'
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change – resource efficiency in IT operations
+- framework: GDPR
+  controls:
+  - Article 5(1)(e) – Storage limitation principle
+  - Article 25 – Data protection by design and by default
+- framework: GHG Protocol
+  controls:
+  - Scope 3 Category 11 – reducing storage-related cloud emissions
+- framework: Green Software Foundation
+  controls:
+  - Hardware Efficiency – minimize data stored in high-energy tiers
+  - Energy Efficiency – data tiering and lifecycle management
 checks:
-  - id: waf-sus-050.tf.aws.s3-lifecycle-required
-    engine: terraform
-    automated: true
-    title: 'S3 buckets must have lifecycle configuration'
-    provider: aws
-    description: 'Every S3 bucket must have an associated aws_s3_bucket_lifecycle_configuration resource with at least one transition and expiration rule. Buckets without lifecycle rules accumulate data indefinitely in the highest-energy storage tier.'
-    expected: 'true'
-    remediation: 'Add lifecycle rules to all S3 buckets. Minimum recommended configuration: Transition to STANDARD_IA after 30 days, GLACIER after 90 days, expire after retention-policy-defined period. Enable S3 Intelligent-Tiering for unpredictable access pattern buckets as an alternative.\n'
-    example:
-      compliant: |
-        resource "aws_s3_bucket_lifecycle_configuration" "app_data" {
-          bucket = aws_s3_bucket.app_data.id
-        
-          rule {
-            id     = "data-lifecycle"
-            status = "Enabled"
-        
-            transition {
-              days          = 30
-              storage_class = "STANDARD_IA"
-            }
-            transition {
-              days          = 90
-              storage_class = "GLACIER"
-            }
-            expiration {
-              days = 730  # 2 years – adjust per data retention policy
-            }
-          }
-        
-          rule {
-            id     = "expire-incomplete-multipart"
-            status = "Enabled"
-            abort_incomplete_multipart_upload {
-              days_after_initiation = 7
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_s3_bucket" "app_data" {
-          bucket = "acme-app-data"
-          # No lifecycle configuration – WAF-SUS-050 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_s3_bucket_lifecycle_configuration
-    assertions:
-      - attribute: 'rule'
-        op: 'not_empty'
-        message: 'S3 lifecycle configuration has no rules defined.'
-    on_fail: violation
-  - id: waf-sus-050.tf.aws.ebs-no-orphan
-    engine: terraform
-    automated: true
-    title: 'EBS volumes should be set to delete on instance termination'
-    provider: aws
-    description: 'EBS volumes must have delete_on_termination = true unless there is a specific need for data persistence beyond instance lifetime. This prevents orphaned volumes from accumulating energy consumption after instances are terminated.'
-    expected: 'true'
-    remediation: 'Set delete_on_termination = true on root_block_device for EC2 instances unless you have an explicit requirement to retain root volumes. For data volumes, use separate aws_ebs_volume resources with lifecycle management.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu_arm.id
-          instance_type = "m7g.large"
-        
-          root_block_device {
-            volume_size           = 20
-            volume_type           = "gp3"
-            delete_on_termination = true  # prevent orphaned volumes
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "m4.large"
-        
-          root_block_device {
-            volume_size           = 20
-            delete_on_termination = false  # WAF-SUS-050 Warning: orphaned volume risk
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-    assertions:
-      - attribute: 'root_block_device.delete_on_termination'
-        op: 'is_true'
-        message: 'Root EBS volume should be set to delete on termination to prevent orphaned volumes.'
-    on_fail: advisory
-  - id: waf-sus-050.tf.azurerm.blob-lifecycle
-    engine: terraform
-    automated: true
-    title: 'Azure storage accounts should have blob lifecycle management policies'
-    provider: azurerm
-    description: 'Azure Storage accounts must have lifecycle management policies to tier blobs to Cool and Archive tiers after appropriate activity thresholds. This reduces energy consumption in hot storage tiers.'
-    expected: 'true'
-    remediation: 'Add lifecycle management rules to Azure Storage accounts. Transition blobs to Cool tier after 30 days, Archive tier after 90 days. Configure delete rules based on data retention policy. Use azurerm_storage_management_policy resource.\n'
-    example:
-      compliant: |
-        resource "azurerm_storage_management_policy" "app_data" {
-          storage_account_id = azurerm_storage_account.app.id
-        
-          rule {
-            name    = "data-lifecycle"
-            enabled = true
-            filters {
-              blob_types = ["blockBlob"]
-            }
-            actions {
-              base_blob {
-                tier_to_cool_after_days_since_modification_greater_than    = 30
-                tier_to_archive_after_days_since_modification_greater_than = 90
-                delete_after_days_since_modification_greater_than          = 730
-              }
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_storage_account" "app" {
-          name                     = "acmeappstorage"
-          resource_group_name      = var.resource_group_name
-          location                 = var.location
-          account_tier             = "Standard"
-          account_replication_type = "LRS"
-          # No lifecycle policy – WAF-SUS-050 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_storage_management_policy
-    assertions:
-      - attribute: 'rule'
-        op: 'not_empty'
-        message: 'Azure storage management policy has no lifecycle rules.'
-    on_fail: violation
+- id: waf-sus-050.tf.aws.s3-lifecycle-required
+  engine: terraform
+  automated: true
+  title: S3 buckets must have lifecycle configuration
+  provider: aws
+  description: Every S3 bucket must have an associated aws_s3_bucket_lifecycle_configuration resource with at least one transition
+    and expiration rule. Buckets without lifecycle rules accumulate data indefinitely in the highest-energy storage tier.
+  expected: 'true'
+  remediation: 'Add lifecycle rules to all S3 buckets. Minimum recommended configuration: Transition to STANDARD_IA after
+    30 days, GLACIER after 90 days, expire after retention-policy-defined period. Enable S3 Intelligent-Tiering for unpredictable
+    access pattern buckets as an alternative.\n'
+  example:
+    compliant: "resource \"aws_s3_bucket_lifecycle_configuration\" \"app_data\" {\n  bucket = aws_s3_bucket.app_data.id\n\n\
+      \  rule {\n    id     = \"data-lifecycle\"\n    status = \"Enabled\"\n\n    transition {\n      days          = 30\n\
+      \      storage_class = \"STANDARD_IA\"\n    }\n    transition {\n      days          = 90\n      storage_class = \"\
+      GLACIER\"\n    }\n    expiration {\n      days = 730  # 2 years – adjust per data retention policy\n    }\n  }\n\n \
+      \ rule {\n    id     = \"expire-incomplete-multipart\"\n    status = \"Enabled\"\n    abort_incomplete_multipart_upload\
+      \ {\n      days_after_initiation = 7\n    }\n  }\n}\n"
+    non_compliant: "resource \"aws_s3_bucket\" \"app_data\" {\n  bucket = \"acme-app-data\"\n  # No lifecycle configuration\
+      \ – WAF-SUS-050 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_s3_bucket_lifecycle_configuration
+  assertions:
+  - attribute: rule
+    op: not_empty
+    message: S3 lifecycle configuration has no rules defined.
+  on_fail: violation
+- id: waf-sus-050.tf.aws.ebs-no-orphan
+  engine: terraform
+  automated: true
+  title: EBS volumes should be set to delete on instance termination
+  provider: aws
+  description: EBS volumes must have delete_on_termination = true unless there is a specific need for data persistence beyond
+    instance lifetime. This prevents orphaned volumes from accumulating energy consumption after instances are terminated.
+  expected: 'true'
+  remediation: Set delete_on_termination = true on root_block_device for EC2 instances unless you have an explicit requirement
+    to retain root volumes. For data volumes, use separate aws_ebs_volume resources with lifecycle management.\n
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu_arm.id\n  instance_type = \"m7g.large\"\
+      \n\n  root_block_device {\n    volume_size           = 20\n    volume_type           = \"gp3\"\n    delete_on_termination\
+      \ = true  # prevent orphaned volumes\n  }\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"m4.large\"\
+      \n\n  root_block_device {\n    volume_size           = 20\n    delete_on_termination = false  # WAF-SUS-050 Warning:\
+      \ orphaned volume risk\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+  assertions:
+  - attribute: root_block_device.delete_on_termination
+    op: is_true
+    message: Root EBS volume should be set to delete on termination to prevent orphaned volumes.
+  on_fail: advisory
+- id: waf-sus-050.tf.azurerm.blob-lifecycle
+  engine: terraform
+  automated: true
+  title: Azure storage accounts should have blob lifecycle management policies
+  provider: azurerm
+  description: Azure Storage accounts must have lifecycle management policies to tier blobs to Cool and Archive tiers after
+    appropriate activity thresholds. This reduces energy consumption in hot storage tiers.
+  expected: 'true'
+  remediation: Add lifecycle management rules to Azure Storage accounts. Transition blobs to Cool tier after 30 days, Archive
+    tier after 90 days. Configure delete rules based on data retention policy. Use azurerm_storage_management_policy resource.\n
+  example:
+    compliant: "resource \"azurerm_storage_management_policy\" \"app_data\" {\n  storage_account_id = azurerm_storage_account.app.id\n\
+      \n  rule {\n    name    = \"data-lifecycle\"\n    enabled = true\n    filters {\n      blob_types = [\"blockBlob\"]\n\
+      \    }\n    actions {\n      base_blob {\n        tier_to_cool_after_days_since_modification_greater_than    = 30\n\
+      \        tier_to_archive_after_days_since_modification_greater_than = 90\n        delete_after_days_since_modification_greater_than\
+      \          = 730\n      }\n    }\n  }\n}\n"
+    non_compliant: "resource \"azurerm_storage_account\" \"app\" {\n  name                     = \"acmeappstorage\"\n  resource_group_name\
+      \      = var.resource_group_name\n  location                 = var.location\n  account_tier             = \"Standard\"\
+      \n  account_replication_type = \"LRS\"\n  # No lifecycle policy – WAF-SUS-050 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_storage_management_policy
+  assertions:
+  - attribute: rule
+    op: not_empty
+    message: Azure storage management policy has no lifecycle rules.
+  on_fail: violation
+- id: waf-sus-050.tf.google.storage-lifecycle
+  engine: terraform
+  automated: true
+  title: GCS buckets must have lifecycle rules to transition or expire objects
+  provider: google
+  description: Google Cloud Storage buckets must define lifecycle rules that transition objects to cheaper storage classes
+    and expire stale objects to reduce storage emissions and cost.
+  expected: 'true'
+  remediation: 'Add lifecycle_rule blocks to google_storage_bucket with age-based transitions to NEARLINE, COLDLINE, ARCHIVE
+    and expiration for old objects.
+
+    '
+  example:
+    compliant: "resource \"google_storage_bucket\" \"data\" {\n  name          = \"acme-data\"\n  location      = \"EU\"\n\
+      \  lifecycle_rule {\n    action {\n      type = \"SetStorageClass\"\n      storage_class = \"NEARLINE\"\n    }\n   \
+      \ condition {\n      age = 30\n    }\n  }\n  lifecycle_rule {\n    action {\n      type = \"Delete\"\n    }\n    condition\
+      \ {\n      age = 2555\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_storage_bucket\" \"data\" {\n  name     = \"acme-data\"\n  location = \"EU\"\n  # No\
+      \ lifecycle rules configured\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_storage_bucket
+  assertions:
+  - attribute: lifecycle_rule
+    op: not_empty
+    message: GCS bucket must have at least one lifecycle rule to manage object retention.
+  on_fail: violation

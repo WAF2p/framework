@@ -1,246 +1,282 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-030
 id: WAF-REL-030
-title: 'All production stateful and stateless workloads MUST be deployed across a...'
+title: All production stateful and stateless workloads MUST be deployed across a...
 status: active
 tags:
-  - reliability
-  - high
-  - configuration
+- reliability
+- high
+- configuration
 pillar: reliability
 severity: high
 type:
-  - configuration
-
-category: 'network-encryption'
-rationale: |
-  All production stateful and stateless workloads MUST be deployed across a minimum of two Availability Zones (AZs).
+- configuration
+category: network-encryption
+rationale: Unencrypted data transfer enables eavesdropping, man-in-the-middle attacks, and violations of data-protection and
+  compliance requirements. This control addresses the requirements of the 'Network Encryption' area and ensures that All production
+  stateful and stateless workloads MUST be deployed across a minimum of two Availability Zones (AZs).
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Single-AZ deployments become completely unreachable during zone failures.
+- Missing multi-AZ strategies violate availability requirements for critical workloads.
 implementation_guidance:
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
-  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+- Implement the required configuration as code in Terraform or equivalent IaC.
+- Add an automated check to CI/CD so deviations are caught before deployment.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - The requirement is documented; initial resources show the intended configuration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-030.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-030.adoc
+  related_controls:
+  - WAF-REL-020
+  - WAF-REL-050
+  - WAF-PERF-070
+  - WAF-SUS-080
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-COST-010
+description: 'All production stateful and stateless workloads MUST be deployed across a minimum of two Availability Zones
+  (AZs). Databases, caches, and message queues MUST use multi-AZ configurations with automatic failover. Load balancers MUST
+  span at least two AZs. Auto-scaling groups and Kubernetes clusters MUST distribute nodes and pods across AZs. Single-AZ
+  deployments in production are not acceptable without explicit documented risk acceptance.
 
-description: |
-  All production stateful and stateless workloads MUST be deployed across a minimum of two Availability Zones (AZs). Databases, caches, and message queues MUST use multi-AZ configurations with automatic failover. Load balancers MUST span at least two AZs. Auto-scaling groups and Kubernetes clusters MUST distribute nodes and pods across AZs. Single-AZ deployments in production are not acceptable without explicit documented risk acceptance.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.17.1 – Information security continuity'
-      - 'A.17.2 – Redundancies'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 10 – Use fault isolation to protect your workload'
-      - 'REL 13 – Test resiliency'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Availability Management'
-      - 'Service Continuity Management'
-  - framework: 'BSI C5:2022'
-    controls:
-      - 'RB-01 – Availability and Redundancy'
+- framework: ISO 27001:2022
+  controls:
+  - A.17.1 – Information security continuity
+  - A.17.2 – Redundancies
+- framework: ITIL 4
+  controls:
+  - Availability Management
+  - Service Continuity Management
+- framework: BSI C5:2020
+  controls:
+  - RB-01 – Availability and Redundancy
 checks:
-  - id: waf-rel-030.tf.aws.rds-multi-az
-    engine: terraform
-    automated: true
-    title: 'AWS RDS instances must have Multi-AZ enabled'
-    provider: aws
-    description: 'Production RDS instances must have multi_az = true to enable automatic failover to a standby replica in a different AZ on failure.'
-    expected: 'true'
-    remediation: 'Set multi_az = true on the aws_db_instance resource. This creates a synchronous standby replica in a different AZ. Failover is automatic and typically completes within 1-2 minutes.\n'
-    example:
-      compliant: |
-        resource "aws_db_instance" "main" {
-          identifier        = "payment-db-prod"
-          engine            = "postgres"
-          engine_version    = "15.4"
-          instance_class    = "db.t3.medium"
-          allocated_storage = 100
-          multi_az          = true
-          db_subnet_group_name = aws_db_subnet_group.main.name
-          tags = var.mandatory_tags
-        }
-        
-      non_compliant: |
-        resource "aws_db_instance" "main" {
-          identifier        = "payment-db-prod"
-          engine            = "postgres"
-          instance_class    = "db.t3.medium"
-          allocated_storage = 100
-          multi_az          = false  # WAF-REL-030 violation
-          db_subnet_group_name = aws_db_subnet_group.main.name
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_db_instance
-    assertions:
-      - attribute: 'multi_az'
-        op: 'is_true'
-        message: 'RDS instance must have multi_az = true for production availability.'
-    on_fail: violation
-  - id: waf-rel-030.tf.aws.autoscaling-multi-az
-    engine: terraform
-    automated: true
-    title: 'AWS Auto Scaling Group must span at least 2 availability zones'
-    provider: aws
-    description: 'Auto Scaling Groups in production must reference subnets in at least 2 different AZs to ensure compute redundancy.'
-    expected: 'true'
-    remediation: 'Set vpc_zone_identifier to a list containing subnet IDs from at least 2 AZs. Increase min_size to 2 to ensure at least one instance per AZ during failures.\n'
-    example:
-      compliant: |
-        resource "aws_autoscaling_group" "api" {
-          name               = "payment-api-asg"
-          min_size           = 2
-          max_size           = 10
-          desired_capacity   = 2
-          vpc_zone_identifier = [
-            aws_subnet.private_az1.id,
-            aws_subnet.private_az2.id,
-          ]
-        }
-        
-      non_compliant: |
-        resource "aws_autoscaling_group" "api" {
-          name               = "payment-api-asg"
-          min_size           = 1
-          max_size           = 4
-          desired_capacity   = 1
-          vpc_zone_identifier = [aws_subnet.private_az1.id]
-          # Single AZ – WAF-REL-030 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_autoscaling_group
-    assertions:
-      - attribute: 'vpc_zone_identifier'
-        op: 'not_empty'
-        message: 'Auto Scaling Group must specify VPC subnets across multiple AZs.'
-      - attribute: 'min_size'
-        op: 'greater_than_or_equal'
-        message: 'Auto Scaling Group minimum size must be at least 2 for HA.'
-    on_fail: violation
-  - id: waf-rel-030.tf.azurerm.db-availability-zone
-    engine: terraform
-    automated: true
-    title: 'Azure database services must use zone-redundant configuration'
-    provider: azurerm
-    description: 'Azure SQL Database, PostgreSQL Flexible Server, and other managed databases must use zone_redundant = true or configure standby_availability_zone.'
-    expected: 'true'
-    remediation: 'Add a high_availability block with mode = "ZoneRedundant" and configure standby_availability_zone to a different zone than the primary.\n'
-    example:
-      compliant: |
-        resource "azurerm_postgresql_flexible_server" "main" {
-          name                = "payment-db-prod"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          version             = "15"
-          sku_name            = "GP_Standard_D2s_v3"
-          availability_zone   = "1"
-        
-          high_availability {
-            mode                      = "ZoneRedundant"
-            standby_availability_zone = "2"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_postgresql_flexible_server" "main" {
-          name                = "payment-db-prod"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          version             = "15"
-          sku_name            = "GP_Standard_D2s_v3"
-          # Missing: high_availability – single zone deployment
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_postgresql_flexible_server
-        - azurerm_mssql_database
-        - azurerm_mysql_flexible_server
-    assertions:
-      - attribute: 'high_availability'
-        op: 'attribute_exists'
-        message: 'Database must define high_availability block with zone-redundant configuration.'
-    on_fail: violation
-  - id: waf-rel-030.tf.google.sql-availability-type
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud SQL must use REGIONAL availability type'
-    provider: google
-    description: 'GCP Cloud SQL instances must use availability_type = REGIONAL for automatic failover across zones in the same region.'
-    expected: 'true'
-    remediation: 'Set availability_type = "REGIONAL" in the settings block of google_sql_database_instance to enable automatic failover to a different zone.\n'
-    example:
-      compliant: |
-        resource "google_sql_database_instance" "main" {
-          name             = "payment-db-prod"
-          database_version = "POSTGRES_15"
-          settings {
-            tier              = "db-custom-2-7680"
-            availability_type = "REGIONAL"
-            backup_configuration {
-              enabled    = true
-              start_time = "02:00"
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_sql_database_instance" "main" {
-          name             = "payment-db-prod"
-          database_version = "POSTGRES_15"
-          settings {
-            tier              = "db-custom-2-7680"
-            availability_type = "ZONAL"  # WAF-REL-030 violation
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_sql_database_instance
-    assertions:
-      - attribute: 'settings.availability_type'
-        op: 'equals'
-        message: 'Cloud SQL must use REGIONAL availability type, not ZONAL.'
-    on_fail: violation
+- id: waf-rel-030.tf.aws.rds-multi-az
+  engine: terraform
+  automated: true
+  title: AWS RDS instances must have Multi-AZ enabled
+  provider: aws
+  description: Production RDS instances must have multi_az = true to enable automatic failover to a standby replica in a different
+    AZ on failure.
+  expected: 'true'
+  remediation: Set multi_az = true on the aws_db_instance resource. This creates a synchronous standby replica in a different
+    AZ. Failover is automatic and typically completes within 1-2 minutes.\n
+  example:
+    compliant: "resource \"aws_db_instance\" \"main\" {\n  identifier        = \"payment-db-prod\"\n  engine            =\
+      \ \"postgres\"\n  engine_version    = \"15.4\"\n  instance_class    = \"db.t3.medium\"\n  allocated_storage = 100\n\
+      \  multi_az          = true\n  db_subnet_group_name = aws_db_subnet_group.main.name\n  tags = var.mandatory_tags\n}\n"
+    non_compliant: "resource \"aws_db_instance\" \"main\" {\n  identifier        = \"payment-db-prod\"\n  engine         \
+      \   = \"postgres\"\n  instance_class    = \"db.t3.medium\"\n  allocated_storage = 100\n  multi_az          = false \
+      \ # WAF-REL-030 violation\n  db_subnet_group_name = aws_db_subnet_group.main.name\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_db_instance
+  assertions:
+  - attribute: multi_az
+    op: is_true
+    message: RDS instance must have multi_az = true for production availability.
+  on_fail: violation
+- id: waf-rel-030.tf.aws.autoscaling-multi-az
+  engine: terraform
+  automated: true
+  title: AWS Auto Scaling Group must span at least 2 availability zones
+  provider: aws
+  description: Auto Scaling Groups in production must reference subnets in at least 2 different AZs to ensure compute redundancy.
+  expected: 'true'
+  remediation: Set vpc_zone_identifier to a list containing subnet IDs from at least 2 AZs. Increase min_size to 2 to ensure
+    at least one instance per AZ during failures.\n
+  example:
+    compliant: "resource \"aws_autoscaling_group\" \"api\" {\n  name               = \"payment-api-asg\"\n  min_size     \
+      \      = 2\n  max_size           = 10\n  desired_capacity   = 2\n  vpc_zone_identifier = [\n    aws_subnet.private_az1.id,\n\
+      \    aws_subnet.private_az2.id,\n  ]\n}\n"
+    non_compliant: "resource \"aws_autoscaling_group\" \"api\" {\n  name               = \"payment-api-asg\"\n  min_size \
+      \          = 1\n  max_size           = 4\n  desired_capacity   = 1\n  vpc_zone_identifier = [aws_subnet.private_az1.id]\n\
+      \  # Single AZ – WAF-REL-030 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_autoscaling_group
+  assertions:
+  - attribute: vpc_zone_identifier
+    op: not_empty
+    message: Auto Scaling Group must specify VPC subnets across multiple AZs.
+  - attribute: min_size
+    op: greater_than_or_equal
+    message: Auto Scaling Group minimum size must be at least 2 for HA.
+    expected: 1
+  on_fail: violation
+- id: waf-rel-030.tf.azurerm.db-availability-zone
+  engine: terraform
+  automated: true
+  title: Azure database services must use zone-redundant configuration
+  provider: azurerm
+  description: Azure SQL Database, PostgreSQL Flexible Server, and other managed databases must use zone_redundant = true
+    or configure standby_availability_zone.
+  expected: 'true'
+  remediation: Add a high_availability block with mode = "ZoneRedundant" and configure standby_availability_zone to a different
+    zone than the primary.\n
+  example:
+    compliant: "resource \"azurerm_postgresql_flexible_server\" \"main\" {\n  name                = \"payment-db-prod\"\n\
+      \  resource_group_name = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n\
+      \  version             = \"15\"\n  sku_name            = \"GP_Standard_D2s_v3\"\n  availability_zone   = \"1\"\n\n \
+      \ high_availability {\n    mode                      = \"ZoneRedundant\"\n    standby_availability_zone = \"2\"\n  }\n\
+      }\n"
+    non_compliant: "resource \"azurerm_postgresql_flexible_server\" \"main\" {\n  name                = \"payment-db-prod\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n\
+      \  version             = \"15\"\n  sku_name            = \"GP_Standard_D2s_v3\"\n  # Missing: high_availability – single\
+      \ zone deployment\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_postgresql_flexible_server
+    - azurerm_mssql_database
+    - azurerm_mysql_flexible_server
+  assertions:
+  - attribute: high_availability
+    op: attribute_exists
+    message: Database must define high_availability block with zone-redundant configuration.
+  on_fail: violation
+- id: waf-rel-030.tf.google.sql-availability-type
+  engine: terraform
+  automated: true
+  title: GCP Cloud SQL must use REGIONAL availability type
+  provider: google
+  description: GCP Cloud SQL instances must use availability_type = REGIONAL for automatic failover across zones in the same
+    region.
+  expected: 'true'
+  remediation: Set availability_type = "REGIONAL" in the settings block of google_sql_database_instance to enable automatic
+    failover to a different zone.\n
+  example:
+    compliant: "resource \"google_sql_database_instance\" \"main\" {\n  name             = \"payment-db-prod\"\n  database_version\
+      \ = \"POSTGRES_15\"\n  settings {\n    tier              = \"db-custom-2-7680\"\n    availability_type = \"REGIONAL\"\
+      \n    backup_configuration {\n      enabled    = true\n      start_time = \"02:00\"\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_sql_database_instance\" \"main\" {\n  name             = \"payment-db-prod\"\n  database_version\
+      \ = \"POSTGRES_15\"\n  settings {\n    tier              = \"db-custom-2-7680\"\n    availability_type = \"ZONAL\" \
+      \ # WAF-REL-030 violation\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_sql_database_instance
+  assertions:
+  - attribute: settings.availability_type
+    op: equals
+    message: Cloud SQL must use REGIONAL availability type, not ZONAL.
+    expected: REGIONAL
+  on_fail: violation
+- id: waf-rel-030.tf.stackit.ske-backup-enabled
+  engine: terraform
+  automated: true
+  title: STACKIT managed services must have backup configured
+  provider: stackit
+  description: STACKIT managed services must have backup configured. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_postgres_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_postgres_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_postgres_instance
+    - stackit_mysql_instance
+    - stackit_mariadb_instance
+    - stackit_ske_cluster
+  assertions:
+  - attribute: backup_schedule
+    op: attribute_exists
+    message: STACKIT managed service must define a backup schedule.
+  on_fail: violation
+- id: waf-rel-030.tf.ovh.database-backup-enabled
+  engine: terraform
+  automated: true
+  title: OVHcloud managed databases must have backup configured
+  provider: ovh
+  description: OVHcloud managed databases must have backup configured. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_database_postgresql\" \"example\"\
+      \ {\n  # required attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_database_postgresql\"\
+      \ \"example\" {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_database_postgresql
+    - ovh_cloud_project_database_mysql
+  assertions:
+  - attribute: backup_regions
+    op: attribute_exists
+    message: OVHcloud managed database must configure backup regions.
+  on_fail: violation
+- id: waf-rel-030.tf.hcloud.server-backup-plan
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud servers must have a backup plan configured
+  provider: hcloud
+  description: Hetzner Cloud servers must have a backup plan configured. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+    - hcloud_volume
+  assertions:
+  - attribute: labels.backup-plan
+    op: key_exists
+    key: backup-plan
+    message: Hetzner Cloud server/volume must declare a backup-plan label.
+  on_fail: violation

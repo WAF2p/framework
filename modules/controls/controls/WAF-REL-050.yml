@@ -1,225 +1,260 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-050
 id: WAF-REL-050
-title: 'All inter-service and downstream HTTP/gRPC calls MUST define explicit...'
+title: All inter-service and downstream HTTP/gRPC calls MUST define explicit...
 status: active
 tags:
-  - reliability
-  - high
-  - configuration
+- reliability
+- high
+- configuration
 pillar: reliability
 severity: high
 type:
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values.
+- configuration
+category: data-governance
+rationale: Missing data classification, ownership, and lifecycle control increase compliance risk, cost, and the likelihood
+  of data loss. This control addresses the requirements of the 'Data Governance' area and ensures that All inter-service and
+  downstream HTTP/gRPC calls MUST define explicit timeout values. Critical service dependencies MUST implement circuit breaker
+  patterns.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Unbounded timeouts and retries cascade failures into downstream systems and extend outages.
+- Missing circuit breakers let workloads remain in perpetual failure states when downstream breaks.
 implementation_guidance:
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
-  - 'Add an automated check to CI/CD so deviations are caught before deployment.'
+- Implement the required configuration as code in Terraform or equivalent IaC.
+- Add an automated check to CI/CD so deviations are caught before deployment.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - The requirement is documented; initial resources show the intended configuration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-050.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-050.adoc
+  related_controls:
+  - WAF-REL-040
+  - WAF-COST-010
+  - WAF-OPS-020
+  - WAF-SUS-010
+  - WAF-REL-010
+  - WAF-REL-060
+  - WAF-COST-080
+  - WAF-OPS-070
+  - WAF-OPS-100
+  - WAF-SUS-030
+  - WAF-REL-090
+  - WAF-AGN-040
+description: 'All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values. Critical service dependencies
+  MUST implement circuit breaker patterns. Retry logic MUST use exponential backoff with jitter. Connection pools MUST have
+  defined maximum sizes. Services MUST implement bulkhead isolation for different dependency classes. No service may rely
+  on default (infinite or undefined) timeouts for external calls.
 
-description: |
-  All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values. Critical service dependencies MUST implement circuit breaker patterns. Retry logic MUST use exponential backoff with jitter. Connection pools MUST have defined maximum sizes. Services MUST implement bulkhead isolation for different dependency classes. No service may rely on default (infinite or undefined) timeouts for external calls.
+  '
 regulatory_mapping:
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 7 – Deploy using immutable infrastructure'
-      - 'REL 10 – Use fault isolation to protect your workload'
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.17.1 – Information security continuity'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service Continuity Management'
-      - 'Problem Management'
-  - framework: 'SRE Book (Google)'
-    controls:
-      - 'Chapter 22 – Addressing Cascading Failures'
+- framework: ISO 27001:2022
+  controls:
+  - A.17.1 – Information security continuity
+- framework: ITIL 4
+  controls:
+  - Service Continuity Management
+  - Problem Management
+- framework: SRE Book (Google)
+  controls:
+  - Chapter 22 – Addressing Cascading Failures
 checks:
-  - id: waf-rel-050.tf.aws.alb-idle-timeout
-    engine: terraform
-    automated: true
-    title: 'AWS ALB idle timeout must be explicitly configured'
-    provider: aws
-    description: 'ALB idle_timeout must be set to a value appropriate for the workload, not relying on the default 60 seconds which may be too long or too short.'
-    expected: 'true'
-    remediation: 'Set idle_timeout on the aws_lb resource. Typical values: 30s for APIs, 300s for file uploads. Align with client-side timeout configuration.\n'
-    example:
-      compliant: |
-        resource "aws_lb" "api" {
-          name               = "payment-api-alb"
-          internal           = false
-          load_balancer_type = "application"
-          security_groups    = [aws_security_group.alb.id]
-          subnets            = var.public_subnet_ids
-          idle_timeout       = 30
-        
-          tags = var.mandatory_tags
-        }
-        
-      non_compliant: |
-        resource "aws_lb" "api" {
-          name               = "payment-api-alb"
-          internal           = false
-          load_balancer_type = "application"
-          security_groups    = [aws_security_group.alb.id]
-          subnets            = var.public_subnet_ids
-          # Missing: idle_timeout – using AWS default of 60s
-          # WAF-REL-050 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_lb
-    assertions:
-      - attribute: 'idle_timeout'
-        op: 'attribute_exists'
-        message: 'ALB idle_timeout must be explicitly configured, not using default.'
-      - attribute: 'load_balancer_type'
-        op: 'equals'
-        message: 'This check applies to Application Load Balancers.'
-    on_fail: violation
-  - id: waf-rel-050.tf.azurerm.app-gateway-timeout
-    engine: terraform
-    automated: true
-    title: 'Azure Application Gateway backend settings must define explicit timeouts'
-    provider: azurerm
-    description: 'Azure Application Gateway backend HTTP settings must define request_timeout_in_seconds rather than relying on defaults.'
-    expected: 'true'
-    remediation: 'Set request_timeout_in_seconds in the backend_http_settings block. Recommended values: 30 for APIs, 120 for batch operations.\n'
-    example:
-      compliant: |
-        resource "azurerm_application_gateway" "main" {
-          name                = "payment-appgw"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-        
-          backend_http_settings {
-            name                  = "api-backend-settings"
-            cookie_based_affinity = "Disabled"
-            port                  = 8080
-            protocol              = "Http"
-            request_timeout_in_seconds = 30
-          }
-          # ... other required blocks
-        }
-        
-      non_compliant: |
-        resource "azurerm_application_gateway" "main" {
-          name                = "payment-appgw"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-        
-          backend_http_settings {
-            name                  = "api-backend-settings"
-            cookie_based_affinity = "Disabled"
-            port                  = 8080
-            protocol              = "Http"
-            # Missing: request_timeout_in_seconds
-            # WAF-REL-050 violation
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_application_gateway
-    assertions:
-      - attribute: 'backend_http_settings'
-        op: 'attribute_exists'
-        message: 'Application Gateway must define backend_http_settings.'
-      - attribute: 'backend_http_settings.request_timeout_in_seconds'
-        op: 'attribute_exists'
-        message: 'Backend HTTP settings must define explicit request_timeout_in_seconds.'
-    on_fail: violation
-  - id: waf-rel-050.tf.google.cloud-run-timeout
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud Run services must define explicit request timeout'
-    provider: google
-    description: 'GCP Cloud Run service templates must define timeout_seconds to prevent runaway requests from consuming resources indefinitely.'
-    expected: 'true'
-    remediation: 'Set timeout_seconds in the template.spec block of google_cloud_run_service. Default is 300s; set to the appropriate value for your workload latency SLO.\n'
-    example:
-      compliant: |
-        resource "google_cloud_run_service" "api" {
-          name     = "payment-api"
-          location = var.region
-        
-          template {
-            spec {
-              timeout_seconds = 30
-              containers {
-                image = var.container_image
-                resources {
-                  limits = { cpu = "1000m", memory = "512Mi" }
-                }
-              }
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_cloud_run_service" "api" {
-          name     = "payment-api"
-          location = var.region
-        
-          template {
-            spec {
-              # Missing: timeout_seconds – using default 300s
-              # WAF-REL-050 violation
-              containers {
-                image = var.container_image
-              }
-            }
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_cloud_run_service
-        - google_cloud_run_v2_service
-    assertions:
-      - attribute: 'template.spec.timeout_seconds'
-        op: 'attribute_exists'
-        message: 'Cloud Run service must define timeout_seconds in the template spec.'
-    on_fail: violation
+- id: waf-rel-050.tf.aws.alb-idle-timeout
+  engine: terraform
+  automated: true
+  title: AWS ALB idle timeout must be explicitly configured
+  provider: aws
+  description: ALB idle_timeout must be set to a value appropriate for the workload, not relying on the default 60 seconds
+    which may be too long or too short.
+  expected: 'true'
+  remediation: 'Set idle_timeout on the aws_lb resource. Typical values: 30s for APIs, 300s for file uploads. Align with client-side
+    timeout configuration.\n'
+  example:
+    compliant: "resource \"aws_lb\" \"api\" {\n  name               = \"payment-api-alb\"\n  internal           = false\n\
+      \  load_balancer_type = \"application\"\n  security_groups    = [aws_security_group.alb.id]\n  subnets            =\
+      \ var.public_subnet_ids\n  idle_timeout       = 30\n\n  tags = var.mandatory_tags\n}\n"
+    non_compliant: "resource \"aws_lb\" \"api\" {\n  name               = \"payment-api-alb\"\n  internal           = false\n\
+      \  load_balancer_type = \"application\"\n  security_groups    = [aws_security_group.alb.id]\n  subnets            =\
+      \ var.public_subnet_ids\n  # Missing: idle_timeout – using AWS default of 60s\n  # WAF-REL-050 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_lb
+  assertions:
+  - attribute: idle_timeout
+    op: attribute_exists
+    message: ALB idle_timeout must be explicitly configured, not using default.
+  - attribute: load_balancer_type
+    op: equals
+    message: This check applies to Application Load Balancers.
+    expected: application
+  on_fail: violation
+- id: waf-rel-050.tf.azurerm.app-gateway-timeout
+  engine: terraform
+  automated: true
+  title: Azure Application Gateway backend settings must define explicit timeouts
+  provider: azurerm
+  description: Azure Application Gateway backend HTTP settings must define request_timeout_in_seconds rather than relying
+    on defaults.
+  expected: 'true'
+  remediation: 'Set request_timeout_in_seconds in the backend_http_settings block. Recommended values: 30 for APIs, 120 for
+    batch operations.\n'
+  example:
+    compliant: "resource \"azurerm_application_gateway\" \"main\" {\n  name                = \"payment-appgw\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n\n  backend_http_settings\
+      \ {\n    name                  = \"api-backend-settings\"\n    cookie_based_affinity = \"Disabled\"\n    port      \
+      \            = 8080\n    protocol              = \"Http\"\n    request_timeout_in_seconds = 30\n  }\n  # ... other required\
+      \ blocks\n}\n"
+    non_compliant: "resource \"azurerm_application_gateway\" \"main\" {\n  name                = \"payment-appgw\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n\n  backend_http_settings\
+      \ {\n    name                  = \"api-backend-settings\"\n    cookie_based_affinity = \"Disabled\"\n    port      \
+      \            = 8080\n    protocol              = \"Http\"\n    # Missing: request_timeout_in_seconds\n    # WAF-REL-050\
+      \ violation\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_application_gateway
+  assertions:
+  - attribute: backend_http_settings
+    op: attribute_exists
+    message: Application Gateway must define backend_http_settings.
+  - attribute: backend_http_settings.request_timeout_in_seconds
+    op: attribute_exists
+    message: Backend HTTP settings must define explicit request_timeout_in_seconds.
+  on_fail: violation
+- id: waf-rel-050.tf.google.cloud-run-timeout
+  engine: terraform
+  automated: true
+  title: GCP Cloud Run services must define explicit request timeout
+  provider: google
+  description: GCP Cloud Run service templates must define timeout_seconds to prevent runaway requests from consuming resources
+    indefinitely.
+  expected: 'true'
+  remediation: Set timeout_seconds in the template.spec block of google_cloud_run_service. Default is 300s; set to the appropriate
+    value for your workload latency SLO.\n
+  example:
+    compliant: "resource \"google_cloud_run_service\" \"api\" {\n  name     = \"payment-api\"\n  location = var.region\n\n\
+      \  template {\n    spec {\n      timeout_seconds = 30\n      containers {\n        image = var.container_image\n   \
+      \     resources {\n          limits = { cpu = \"1000m\", memory = \"512Mi\" }\n        }\n      }\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_cloud_run_service\" \"api\" {\n  name     = \"payment-api\"\n  location = var.region\n\
+      \n  template {\n    spec {\n      # Missing: timeout_seconds – using default 300s\n      # WAF-REL-050 violation\n \
+      \     containers {\n        image = var.container_image\n      }\n    }\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloud_run_service
+    - google_cloud_run_v2_service
+  assertions:
+  - attribute: template.spec.timeout_seconds
+    op: attribute_exists
+    message: Cloud Run service must define timeout_seconds in the template spec.
+  on_fail: violation
+- id: waf-rel-050.tf.stackit.multi-az-workloads
+  engine: terraform
+  automated: true
+  title: STACKIT production workloads must span multiple availability zones
+  provider: stackit
+  description: STACKIT production workloads must span multiple availability zones. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n\
+      \  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_ske_cluster
+    - stackit_ske_node_pool
+    - stackit_load_balancer
+  assertions:
+  - attribute: availability_zones
+    op: attribute_exists
+    message: STACKIT production workload must define availability zones.
+  on_fail: violation
+- id: waf-rel-050.tf.ovh.multi-region-workloads
+  engine: terraform
+  automated: true
+  title: OVHcloud production workloads must span multiple regions or zones
+  provider: ovh
+  description: OVHcloud production workloads must span multiple regions or zones. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_kube\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_kube\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_kube_nodepool
+    - ovh_cloud_project_instance
+  assertions:
+  - attribute: region
+    op: attribute_exists
+    message: OVHcloud production workload must define a region for resilience planning.
+  on_fail: violation
+- id: waf-rel-050.tf.hcloud.multi-location-workloads
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud production workloads must span multiple locations
+  provider: hcloud
+  description: Hetzner Cloud production workloads must span multiple locations. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+    - hcloud_placement_group
+    - hcloud_load_balancer
+  assertions:
+  - attribute: labels.resilience-zone
+    op: key_exists
+    key: resilience-zone
+    message: Hetzner Cloud production workload must declare a resilience-zone label.
+  on_fail: violation

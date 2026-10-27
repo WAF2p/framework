@@ -1,0 +1,138 @@
+id: WAF-SOV-110
+title: Cryptographic keys for sensitive data MUST be managed in HSM or sovereign key management services
+status: active
+tags:
+- configuration
+- critical
+- governance
+- sovereign
+pillar: sovereign
+severity: critical
+type:
+- governance
+- configuration
+category: encryption-key-management
+rationale: Schlüssel ohne HSM- oder Sovereign-KMS-Unterstützung unterliegen möglicherweise fremden Jurisdiktionen und schwächen
+  den Schutz sensibler Daten. Dieses Control adressiert die Anforderungen des Bereichs 'Encryption Key Management' und stellt
+  sicher, dass Keys for sensitive and classified data MUST be generated and stored in Hardware Security Modules (HS...
+threat:
+- Provider-managed keys may be accessible to cloud operators or subject to foreign jurisdiction.
+- Missing HSM backing weakens key protection and complicates compliance with sovereignty requirements.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-sovereign/pages/controls/WAF-SOV-110.adoc
+  related_controls:
+  - WAF-SOV-010
+  - WAF-SOV-020
+  - WAF-SOV-050
+  - WAF-SEC-030
+  - WAF-SEC-060
+  - WAF-SOV-120
+  - WAF-AGN-110
+description: Keys for sensitive and classified data MUST be generated and stored in Hardware Security Modules (HSM) or sovereign
+  managed key services. Key operations MUST enforce role separation, dual control, and audit logging. Key import, export,
+  and backup MUST follow documented and approved procedures. Cloud provider managed keys alone MUST NOT be used for sovereign
+  data classes.
+regulatory_mapping:
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: BSI C5:2020
+  controls:
+  - CRY-01 – Cryptography policy
+  - CRY-02 – Key management
+- framework: EUCS (ENISA)
+  controls:
+  - CRY-03 – Key management
+  - SOV-03 – Customer key control
+- framework: ISO 27001:2022
+  controls:
+  - A.8.24 – Use of cryptography
+checks:
+- id: waf-sov-110.tf.aws.kms-hsm
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS KMS keys for sensitive data must use HSM-backed CUSTOMER-managed keys
+  description: AWS KMS keys for sensitive data must use HSM-backed CUSTOMER-managed keys
+  expected: 'true'
+  remediation: AWS KMS keys for sensitive data must use HSM-backed CUSTOMER-managed keys
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_kms_key
+  assertions:
+  - attribute: customer_master_key_spec
+    op: attribute_exists
+    message: KMS key must define key spec.
+  on_fail: finding
+- id: waf-sov-110.tf.azurerm.hsm-keyvault
+  engine: terraform
+  provider: azurerm
+  automated: true
+  title: Azure Key Vault must use Premium SKU with HSM-backed keys
+  description: Azure Key Vault must use Premium SKU with HSM-backed keys
+  expected: 'true'
+  remediation: Azure Key Vault must use Premium SKU with HSM-backed keys
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_key_vault
+  assertions:
+  - attribute: sku_name
+    op: in
+    expected:
+    - premium
+    - Premium
+    message: Key Vault must use Premium SKU for HSM-backed keys.
+  on_fail: finding
+- id: waf-sov-110.tf.google.hsm-kms
+  engine: terraform
+  provider: google
+  automated: true
+  title: GCP KMS keys for sensitive data must use Cloud HSM
+  description: GCP KMS keys for sensitive data must use Cloud HSM
+  expected: 'true'
+  remediation: GCP KMS keys for sensitive data must use Cloud HSM
+  scope:
+    block_type: resource
+    resource_types:
+    - google_kms_crypto_key
+  assertions:
+  - attribute: key_ring
+    op: attribute_exists
+    message: Crypto key must be in a defined key ring.
+  on_fail: finding

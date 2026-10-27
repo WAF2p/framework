@@ -1,0 +1,52 @@
+name: WAF++ Documentation Validation
+
+on:
+  push:
+    branches: [main, feat/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Install Ruby and asciidoctor
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby-full
+          sudo gem install asciidoctor
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Validate YAML controls and cross-references
+        run: |
+          python scripts/validate.py
+
+      - name: Validate AsciiDoc syntax
+        run: |
+          find modules -name "*.adoc" -print0 | xargs -0 -n1 asciidoctor -o /dev/null
+
+      - name: Validate Terraform examples in dummy_code
+        run: |
+          if [ -d dummy_code ]; then
+            for d in dummy_code/*/; do
+              echo "Validating $d"
+              (cd "$d" && terraform init -backend=false && terraform validate)
+            done
+          fi

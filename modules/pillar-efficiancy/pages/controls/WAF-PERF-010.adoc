@@ -1,262 +1,340 @@
 = WAF-PERF-010 – Compute Instance Type & Sizing Validated
 :page-toc: right
 :control-id: WAF-PERF-010
-:pillar: performance
+:pillar: efficiancy
 :severity: high
-:category: compute-sizing
-:automated: high
-:description: WAF++ Performance Efficiency – Select compute instance types based on data and document sizing decisions.
+:category: container-security
+:automatable: High
+:description: All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured workload requirements and validated performance baselines. Instance type selection MUST be documented in architecture records or sizing sheets. Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Category:* Compute Sizing | *Automatable:* High
+*Pillar:* Efficiancy | *Severity:* High | *Category:* Container Security | *Automatable:* High
 
 == Description
 
-All compute resources MUST use current instance generations.
-Sizing decisions MUST be based on measured CPU/memory/network baselines, not on intuition.
-Over-provisioned resources (CPU avg < 20% sustained) and under-provisioned resources
-(CPU P95 > 80% for non-auto-scaling workloads) MUST be reviewed quarterly.
-
-No instance type upgrade without performance measurement. No instance type downgrade without risk analysis.
+All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured workload requirements and validated performance baselines. Instance type selection MUST be documented in architecture records or sizing sheets. Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
 
 == Rationale
-
-Incorrectly sized instances are the most common cause of simultaneous performance problems
-and cost waste. Over-provisioned instances waste budget; under-provisioned instances
-cause latency spikes under load. Previous-generation instances (t2, m4, c4) offer up to 30%
-worse price-performance than current generations and should be migrated.
-
-Cloud provider sizing recommendations (Compute Optimizer, Azure Advisor, GCP Recommender) provide
-data-driven rightsizing recommendations. These MUST be included in the quarterly review.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Performance Degradation Under Load*
-|Under-provisioned instances saturate CPU/memory during load spikes – timeouts and errors cascade.
+|*Risk* |Outdated or wrongly sized compute instances waste cost and miss performance targets.
 
-|*Cost Waste*
-|Over-provisioned instances with < 10% CPU utilization pay for unused capacity.
-
-|*Previous-Generation Risk*
-|t2/m4 instances have burst mechanics and worse baseline performance; t3/m6i are better and cheaper.
-
-|*Undocumented Sizing*
-|If nobody knows why an instance size was chosen, it will never be optimized.
+|*Risk* |Missing SKU reviews lead to resources that are neither efficient nor resilient.
 
 |===
 
-== Requirement
+== Requirements
 
-* All production compute resources MUST use current instance generations
-* Sizing decisions MUST be supported by measured baselines (sizing document or ADR)
-* Quarterly review MUST take place; result documented in a sizing report
-* Instance type selection MUST carry the `sizing-reviewed` tag with review date
+* All compute resources (virtual machines, container workloads, managed compute services) MUST be sized based on measured workload requirements and validated performance baselines.
+* Instance type selection MUST be documented in architecture records or sizing sheets.
+* Oversized resources (utilization < 20% sustained) and undersized resources (sustained CPU/memory > 80% for non-autoscaling workloads) MUST be flagged and reviewed on a quarterly basis.
 
 == Implementation Guidance
 
-. *Collect baseline metrics*: 2–4 weeks of CPU/memory/network data from CloudWatch/Azure Monitor/GCP Monitoring
-. *Activate Compute Optimizer*: Enable AWS Compute Optimizer, Azure Advisor or GCP Recommender
-. *Create sizing document*: `docs/sizing/<service>.yml` with measured values and rationale
-. *Update IaC*: Declare current instance generation in Terraform; set `sizing-reviewed` tag
-. *CI validation*: WAF++ check for previous-generation instances in CI pipeline
-. *Quarterly review*: Regular repetition; include cloud provider recommendations
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Ad-hoc Sizing
-|No sizing documentation; previous-generation instances widespread; no review process.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Experience-based
-|Instance size chosen from experience; occasional reviews; partially documented.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Measured Baseline
-|Data-driven sizing for production; ADR/sizing document; quarterly review; >= 90% current generation.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Continuous Optimization
-|Compute Optimizer integrated; automatic rightsizing tickets; 100% current generation.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Predictive Sizing
-|ML-based sizing; cost-per-request as metric; self-optimizing capacity.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-010.tf.aws.ec2-current-generation
-*Checks:* AWS EC2 instances must not use previous-generation types (t2, m4, c4, r4).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS EC2 instances must use current-generation instance types*
+
+EC2 instances must not use previous-generation instance types (t2, m4, c4, r4, i2, d2, etc.). Current-generation instance types provide significantly better price-performance. All instances must be documented with a sizing rationale.
+
+*Scope:* `resource` — `aws_instance`, `aws_launch_template`, `aws_launch_configuration`
+
+*Assertions:*
+* `instance_type` not matches pattern `^(t2|m4|c4|r4|i2|d2|hs1|m3|c3|cr1|cc2|g2|hi1)\\..*` — Instance is using a previous-generation type. Migrate to t3/t4g, m5/m6i, c5/c6i, or r5/r6i.
+* `instance_type` attribute exists — Instance type must be explicitly declared; no default allowed.
+
+*Remediation:* Replace previous-generation instance types with current-generation equivalents. t2.* → t3.* or t4g.*; m4.* → m6i.*; c4.* → c6i.*; r4.* → r6i.*. Run AWS Compute Optimizer to get right-sizing recommendations before migrating.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+  instance_type = "t3.medium"  # Current-generation, validated with Compute Optimizer
   tags = {
-    sizing-reviewed = "2026-03-18"
+    sizing-reviewed = "2026-01-15"
     workload        = "payment-api"
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t2.medium"
-  # Previous-Gen –
-  # WAF-PERF-010 Violation
+  instance_type = "t2.medium"  # Previous-generation – WAF-PERF-010 violation
 }
 ----
-|===
 
-*Remediation:* Migrate previous-generation instances: t2.* → t3.* or t4g.*, m4.* → m6i.*, c4.* → c6i.*.
-Consult Compute Optimizer before migration. Migration is online (stop/start of the instance).
+---
+
+=== waf-perf-010.tf.azurerm.vm-sizing-documented
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure VMs must use current-generation sizes and have sizing metadata*
+
+Azure virtual machines must not use deprecated or previous-generation VM sizes. Sizing metadata must be present as tags on the resource.
+
+*Scope:* `resource` — `azurerm_linux_virtual_machine`, `azurerm_windows_virtual_machine`, `azurerm_virtual_machine_scale_set`
+
+*Assertions:*
+* `size` not matches pattern `^Standard_(A|D1$|D2$|D3$|D4$|DS1$|DS2$|DS3$|DS4$)$` — VM is using a deprecated or previous-generation size. Upgrade to Dv5 or Ev5 series.
+* `tags` key exists — VM must have a 'sizing-reviewed' tag with the date of the last sizing review.
+
+*Remediation:* Replace deprecated VM sizes with current-generation equivalents (Dv5, Ev5, Bsv2, Dsv5). Use Azure Advisor recommendations for right-sizing guidance. Add a 'sizing-reviewed' tag with the review date.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name                = "vm-payment-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  size                = "Standard_D2s_v5"
+  tags = {
+    sizing-reviewed = "2026-01-15"
+    workload        = "payment-api"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name                = "vm-payment-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  size                = "Standard_D2"  # Deprecated size – WAF-PERF-010 violation
+}
+----
+
+---
 
 === waf-perf-010.tf.google.gce-machine-type-validated
-*Checks:* GCP compute instances must not use N1 series.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Compute Engine instances must use N2 or C2 series machine types*
+
+GCP VM instances must not use first-generation N1 machine types for production workloads. N2, N2D, C2, E2, or C3 series offer better performance and price-performance ratios.
+
+*Scope:* `resource` — `google_compute_instance`, `google_compute_instance_template`
+
+*Assertions:*
+* `machine_type` not matches pattern `^n1-(standard|highmem|highcpu)-.*` — GCP instance uses N1 machine type. Migrate to N2, N2D, C2, or E2 series for better performance.
+
+*Remediation:* Replace N1 machine types with current-generation equivalents. n1-standard-* → n2-standard-*; n1-highmem-* → n2-highmem-*; n1-highcpu-* → c2-standard-*. Use GCP Recommender for right-sizing analysis.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "google_compute_instance" "app" {
-  machine_type = "n2-standard-2"  # Current generation
-}
-# Non-Compliant
-resource "google_compute_instance" "app" {
-  machine_type = "n1-standard-2"  # N1 outdated – WAF-PERF-010 Violation
+  name         = "payment-api"
+  machine_type = "n2-standard-2"
+  zone         = "europe-west3-a"
+  boot_disk {
+    initialize_params { image = "debian-cloud/debian-11" }
+  }
 }
 ----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_compute_instance" "app" {
+  name         = "payment-api"
+  machine_type = "n1-standard-2"  # N1 series – WAF-PERF-010 violation
+  zone         = "europe-west3-a"
+}
+----
+
+---
+
+=== waf-perf-010.tf.stackit.performance-slo-defined
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*All compute resources (virtual machines, container workloads, managed... for stackit*
+
+All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the performance-slo-defined tag/label.
+
+*Remediation:* Add a performance-slo-defined tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    performance-slo-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing performance-slo-defined labels
+}
+----
+
+---
+
+=== waf-perf-010.tf.ovh.performance-slo-defined
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*All compute resources (virtual machines, container workloads, managed... for ovh*
+
+All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the performance-slo-defined tag/label.
+
+*Remediation:* Add a performance-slo-defined tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    performance-slo-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing performance-slo-defined tags
+}
+----
+
+---
+
+=== waf-perf-010.tf.hcloud.performance-slo-defined
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*All compute resources (virtual machines, container workloads, managed... for hcloud*
+
+All compute resources (virtual machines, container workloads, managed... must be documented in IaC via a performance-slo-defined tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the performance-slo-defined tag/label.
+
+*Remediation:* Add a performance-slo-defined tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    performance-slo-defined = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing performance-slo-defined labels
+}
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*Config*
-|✅ Required
-|Sizing document or ADR section with measured CPU/memory baselines.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Required
-|Terraform configuration with current instance generation and `sizing-reviewed` tag.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Quarterly sizing review report with rightsizing actions.
-
-|*Config*
-|Optional
-|Export from AWS Compute Optimizer, Azure Advisor or GCP Recommender.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-PERF-020.adoc[WAF-PERF-020 – Auto-Scaling Configured & Tested]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
+* xref:pillar-efficiancy:controls/WAF-PERF-080.adoc[WAF-PERF-080]
+* xref:pillar-security:controls/WAF-SEC-110.adoc[WAF-SEC-110]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-security:controls/WAF-SEC-070.adoc[WAF-SEC-070]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Select the right resource types and sizes
-
-|*Azure Well-Architected Framework*
-|Performance Efficiency – Choose the right resources
-
-|*Google Cloud Architecture Framework*
-|Performance optimization – Right-size your instances
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
-
-|*FedRAMP*
-|RA-2, RA-5 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
+* Performance Efficiency – Resource Utilization
+* Performance Efficiency – Capacity
 
 |===
-
-== Best Practice

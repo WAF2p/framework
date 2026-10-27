@@ -1,0 +1,117 @@
+id: WAF-SUS-110
+title: Regional carbon intensity MUST be considered and documented in location decisions
+status: active
+tags:
+- configuration
+- governance
+- medium
+- sustainability
+pillar: sustainability
+severity: medium
+type:
+- governance
+- configuration
+category: data-governance
+rationale: Fehlende Datenklassifizierung, Dokumentation oder Standortsteuerung erhöhen Compliance-Risiken, Kosten und Betriebsrisiken.
+  Dieses Control adressiert die Anforderungen des Bereichs 'Data Governance' und stellt sicher, dass New workloads and data
+  stores MUST document carbon intensity alongside latency, cost, and compliance...
+threat:
+- Ignoring grid carbon intensity when selecting regions increases emissions without business justification.
+- Undocumented region decisions prevent sustainability audits and optimization over time.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-110.adoc
+  related_controls:
+  - WAF-SUS-010
+  - WAF-SUS-020
+  - WAF-SUS-030
+  - WAF-SUS-120
+  - WAF-COST-010
+  - WAF-SOV-120
+description: New workloads and data stores MUST document carbon intensity alongside latency, cost, and compliance factors
+  when selecting regions. Region selection decisions MUST be captured in an Architecture Decision Record or equivalent register.
+  Batch and non-latency-sensitive workloads SHOULD prefer lower-carbon regions where data residency allows. Carbon intensity
+  assumptions MUST be revisited annually using current provider data.
+regulatory_mapping:
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change
+- framework: GHG Protocol
+  controls:
+  - 'Scope 3 – Category 11: purchased cloud services location factor'
+- framework: Green Software Foundation
+  controls:
+  - Carbon Aware Computing – location-based optimization
+- framework: ISO 14001
+  controls:
+  - 6.1.2 – Environmental aspects
+checks:
+- id: waf-sus-110.tf.aws.green-region
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS provider region should be a low-carbon region
+  description: AWS provider region should be a low-carbon region
+  expected: 'true'
+  remediation: AWS provider region should be a low-carbon region
+  scope:
+    block_type: provider
+    provider_name: aws
+  assertions:
+  - attribute: region
+    op: in
+    expected:
+    - us-west-2
+    - eu-north-1
+    - eu-west-1
+    message: AWS region has a high carbon intensity. Document justification or migrate.
+  on_fail: advisory
+- id: waf-sus-110.config.carbon-adr
+  engine: config
+  provider: any
+  automated: false
+  title: Carbon intensity region decision must be documented in ADR
+  description: Carbon intensity region decision must be documented in ADR
+  expected: 'true'
+  remediation: Carbon intensity region decision must be documented in ADR
+  scope:
+    block_type: file
+    path_pattern: docs/adr/*carbon*.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: ADR must document carbon intensity consideration.
+  on_fail: finding

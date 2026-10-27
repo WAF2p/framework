@@ -1,164 +1,296 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-090
 id: WAF-COST-090
-title: 'VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal...'
+title: VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal...
 status: active
 tags:
-  - cost
-  - high
-  - configuration
-  - network
-  - governance
+- cost
+- high
+- configuration
+- network
+- governance
 pillar: cost
 severity: high
 type:
-  - configuration
-  - network
-  - governance
-
-category: 'identity-access'
-rationale: |
-  VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary internet egress costs.
+- configuration
+- architecture
+- governance
+category: identity-access
+rationale: Uncontrolled identities and excessive permissions enable data theft, lateral movement, and unauthorized changes
+  to production systems. This control addresses the requirements of the 'Identity and Access Management' area and ensures
+  that VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary
+  internet egress costs.
 threat:
-  - 'Internet-facing resources or open management ports become direct attack vectors.'
-  - 'Lateral movement is easier when network segmentation and access rules are missing.'
+- Internet-facing resources or open management ports become direct attack vectors.
+- Lateral movement is easier when network segmentation and access rules are missing.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-090.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-090.adoc
+  related_controls:
+  - WAF-COST-040
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-SOV-020
+  - WAF-SOV-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-SEC-030
+  - WAF-SEC-040
+  - WAF-SEC-080
+  - WAF-SEC-120
+description: 'VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary
+  internet egress costs. Public IP addresses on internal compute resources (that do not serve public traffic) are prohibited.
+  CDN MUST be configured for all publicly accessible static assets. An egress cost budget alert MUST exist. Cross-region data
+  transfer MUST be minimized and documented when necessary.
 
-description: |
-  VPC endpoints MUST be deployed for S3, KMS, and other heavily-used internal cloud services to eliminate unnecessary internet egress costs. Public IP addresses on internal compute resources (that do not serve public traffic) are prohibited. CDN MUST be configured for all publicly accessible static assets. An egress cost budget alert MUST exist. Cross-region data transfer MUST be minimized and documented when necessary.
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Optimize Phase – Network Cost Optimization'
-      - 'Optimize Phase – Data Transfer Cost Reduction'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Cloud Cost Governance Policy – Egress Cost Target'
-      - 'Network Architecture Standard – VPC Endpoints Mandatory'
+- framework: FinOps Foundation
+  controls:
+  - Optimize Phase – Network Cost Optimization
+  - Optimize Phase – Data Transfer Cost Reduction
 checks:
-  - id: waf-cost-090.tf.aws.vpc-endpoint-s3-exists
-    engine: terraform
-    automated: true
-    title: 'VPC endpoint for S3 must exist in each production VPC'
-    provider: aws
-    description: 'An aws_vpc_endpoint resource with service_name matching S3 must exist for each production VPC. Without S3 VPC endpoints, all S3 traffic from EC2 instances flows through the internet gateway, generating unnecessary egress and data processing charges.'
-    expected: 'true'
-    remediation: 'Add an aws_vpc_endpoint resource for S3 to each production VPC. For S3: use vpc_endpoint_type = "Gateway" (free of charge). For interface endpoints (KMS, ECR, STS): vpc_endpoint_type = "Interface" (hourly charge but saves on data processing and egress from NAT gateway).\n'
-    example:
-      compliant: |
-        resource "aws_vpc_endpoint" "s3" {
-          vpc_id            = aws_vpc.main.id
-          service_name      = "com.amazonaws.${var.region}.s3"
-          vpc_endpoint_type = "Gateway"
-          route_table_ids   = [aws_route_table.private.id]
-        
-          tags = merge(module.mandatory_tags.tags, {
-            Name = "vpce-s3-${var.environment}"
-          })
-        }
-        
-        resource "aws_vpc_endpoint" "kms" {
-          vpc_id              = aws_vpc.main.id
-          service_name        = "com.amazonaws.${var.region}.kms"
-          vpc_endpoint_type   = "Interface"
-          subnet_ids          = aws_subnet.private[*].id
-          security_group_ids  = [aws_security_group.vpc_endpoint.id]
-          private_dns_enabled = true
-        
-          tags = merge(module.mandatory_tags.tags, {
-            Name = "vpce-kms-${var.environment}"
-          })
-        }
-        
-      non_compliant: |
-        resource "aws_vpc" "main" {
-          cidr_block = "10.0.0.0/16"
-          # No VPC endpoints defined – all S3/KMS traffic via internet gateway
-          # WAF-COST-090 violation: unnecessary egress charges
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_vpc_endpoint
-    assertions:
-      - attribute: 'service_name'
-        op: 'matches'
-        message: 'VPC endpoint for S3 (service_name ending in .s3) must exist.'
-        pattern: '.*\\.s3$'
-      - attribute: 'vpc_endpoint_type'
-        op: 'in'
-        message: 'VPC endpoint type must be Gateway or Interface.'
-    on_fail: violation
-  - id: waf-cost-090.tf.aws.no-public-ip-internal-compute
-    engine: terraform
-    automated: true
-    title: 'Internal compute resources must not have public IPs'
-    provider: aws
-    description: 'EC2 instances used for internal application workloads (not serving public traffic directly) must not have associate_public_ip_address = true. Internal compute should use private IPs with NAT Gateway for outbound internet access where needed.'
-    expected: 'true'
-    remediation: 'Set associate_public_ip_address = false on internal EC2 instances. Place instances in private subnets. Use NAT Gateway for outbound internet access. Use ALB/NLB with public IPs for load balancing inbound public traffic.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami                         = data.aws_ami.ubuntu.id
-          instance_type               = "t3.medium"
-          subnet_id                   = aws_subnet.private.id
-          associate_public_ip_address = false  # Internal compute, no public IP
-          tags                        = module.mandatory_tags.tags
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami                         = data.aws_ami.ubuntu.id
-          instance_type               = "t3.medium"
-          subnet_id                   = aws_subnet.public.id
-          associate_public_ip_address = true  # Unnecessary public IP for internal app server
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'associate_public_ip_address'
-        op: 'is_false'
-        message: 'Internal compute must not have public IP addresses. Use private subnets with NAT Gateway.'
-    on_fail: finding
+- id: waf-cost-090.tf.aws.vpc-endpoint-s3-exists
+  engine: terraform
+  automated: true
+  title: VPC endpoint for S3 must exist in each production VPC
+  provider: aws
+  description: An aws_vpc_endpoint resource with service_name matching S3 must exist for each production VPC. Without S3 VPC
+    endpoints, all S3 traffic from EC2 instances flows through the internet gateway, generating unnecessary egress and data
+    processing charges.
+  expected: 'true'
+  remediation: 'Add an aws_vpc_endpoint resource for S3 to each production VPC. For S3: use vpc_endpoint_type = "Gateway"
+    (free of charge). For interface endpoints (KMS, ECR, STS): vpc_endpoint_type = "Interface" (hourly charge but saves on
+    data processing and egress from NAT gateway).\n'
+  example:
+    compliant: "resource \"aws_vpc_endpoint\" \"s3\" {\n  vpc_id            = aws_vpc.main.id\n  service_name      = \"com.amazonaws.${var.region}.s3\"\
+      \n  vpc_endpoint_type = \"Gateway\"\n  route_table_ids   = [aws_route_table.private.id]\n\n  tags = merge(module.mandatory_tags.tags,\
+      \ {\n    Name = \"vpce-s3-${var.environment}\"\n  })\n}\n\nresource \"aws_vpc_endpoint\" \"kms\" {\n  vpc_id       \
+      \       = aws_vpc.main.id\n  service_name        = \"com.amazonaws.${var.region}.kms\"\n  vpc_endpoint_type   = \"Interface\"\
+      \n  subnet_ids          = aws_subnet.private[*].id\n  security_group_ids  = [aws_security_group.vpc_endpoint.id]\n \
+      \ private_dns_enabled = true\n\n  tags = merge(module.mandatory_tags.tags, {\n    Name = \"vpce-kms-${var.environment}\"\
+      \n  })\n}\n"
+    non_compliant: "resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n  # No VPC endpoints defined – all S3/KMS\
+      \ traffic via internet gateway\n  # WAF-COST-090 violation: unnecessary egress charges\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_vpc_endpoint
+  assertions:
+  - attribute: service_name
+    op: matches
+    message: VPC endpoint for S3 (service_name ending in .s3) must exist.
+    pattern: .*\\.s3$
+  - attribute: vpc_endpoint_type
+    op: in
+    message: VPC endpoint type must be Gateway or Interface.
+    expected:
+    - Gateway
+    - Interface
+  on_fail: violation
+- id: waf-cost-090.tf.aws.no-public-ip-internal-compute
+  engine: terraform
+  automated: true
+  title: Internal compute resources must not have public IPs
+  provider: aws
+  description: EC2 instances used for internal application workloads (not serving public traffic directly) must not have associate_public_ip_address
+    = true. Internal compute should use private IPs with NAT Gateway for outbound internet access where needed.
+  expected: 'true'
+  remediation: Set associate_public_ip_address = false on internal EC2 instances. Place instances in private subnets. Use
+    NAT Gateway for outbound internet access. Use ALB/NLB with public IPs for load balancing inbound public traffic.\n
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami                         = data.aws_ami.ubuntu.id\n  instance_type\
+      \               = \"t3.medium\"\n  subnet_id                   = aws_subnet.private.id\n  associate_public_ip_address\
+      \ = false  # Internal compute, no public IP\n  tags                        = module.mandatory_tags.tags\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami                         = data.aws_ami.ubuntu.id\n  instance_type\
+      \               = \"t3.medium\"\n  subnet_id                   = aws_subnet.public.id\n  associate_public_ip_address\
+      \ = true  # Unnecessary public IP for internal app server\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+  assertions:
+  - attribute: associate_public_ip_address
+    op: is_false
+    message: Internal compute must not have public IP addresses. Use private subnets with NAT Gateway.
+  on_fail: finding
+- id: waf-cost-090.tf.azurerm.private-endpoint-internal-services
+  engine: terraform
+  automated: true
+  title: Azure private endpoints must be used for internal PaaS services
+  provider: azurerm
+  description: azurerm_private_endpoint resources must route traffic to internal Azure PaaS services (e.g., Storage, Key Vault,
+    SQL) over the Azure backbone. Internal compute resources must not have public IPs.
+  expected: 'true'
+  remediation: Create azurerm_private_endpoint resources for Storage accounts, Key Vaults, and SQL databases. Set public_network_access_enabled
+    = false on those services where applicable. Place internal VMs in private subnets without public IPs.\n
+  example:
+    compliant: "resource \"azurerm_private_endpoint\" \"storage\" {\n  name                = \"pe-storage\"\n  location  \
+      \          = var.location\n  resource_group_name = azurerm_resource_group.main.name\n  subnet_id           = azurerm_subnet.private.id\n\
+      \n  private_service_connection {\n    name                           = \"psc-storage\"\n    private_connection_resource_id\
+      \ = azurerm_storage_account.data.id\n    subresource_names              = [\"blob\"]\n    is_manual_connection     \
+      \      = false\n  }\n}\n\nresource \"azurerm_storage_account\" \"data\" {\n  name                     = \"acmeappdata\"\
+      \n  resource_group_name      = azurerm_resource_group.main.name\n  location                 = var.location\n  account_tier\
+      \             = \"Standard\"\n  account_replication_type = \"LRS\"\n  public_network_access_enabled = false\n}\n"
+    non_compliant: "resource \"azurerm_storage_account\" \"data\" {\n  name                     = \"acmeappdata\"\n  resource_group_name\
+      \      = azurerm_resource_group.main.name\n  location                 = var.location\n  account_tier             = \"\
+      Standard\"\n  account_replication_type = \"LRS\"\n  public_network_access_enabled = true  # Traffic via public internet\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_private_endpoint
+  assertions:
+  - attribute: private_service_connection
+    op: attribute_exists
+    message: Azure private endpoint must define a private service connection.
+  on_fail: violation
+- id: waf-cost-090.tf.google.private-google-access
+  engine: terraform
+  automated: true
+  title: GCP internal VMs must use Private Google Access and VPC-SC
+  provider: google
+  description: GCP subnets must have private_ip_google_access enabled so internal VMs reach Google APIs without public IPs.
+    google_access_context_manager_service_perimeter resources should restrict access to sensitive APIs.
+  expected: 'true'
+  remediation: Enable private_ip_google_access on private subnets. Configure VPC Service Controls perimeters for Cloud Storage,
+    BigQuery, and KMS. Avoid public IPs on internal compute.\n
+  example:
+    compliant: "resource \"google_compute_subnetwork\" \"private\" {\n  name          = \"private-subnet\"\n  ip_cidr_range\
+      \ = \"10.0.1.0/24\"\n  region        = var.region\n  network       = google_compute_network.main.id\n\n  private_ip_google_access\
+      \ = true\n}\n"
+    non_compliant: "resource \"google_compute_subnetwork\" \"private\" {\n  name          = \"private-subnet\"\n  ip_cidr_range\
+      \ = \"10.0.1.0/24\"\n  region        = var.region\n  network       = google_compute_network.main.id\n  private_ip_google_access\
+      \ = false  # Internal VMs need public IPs for Google APIs\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_subnetwork
+  assertions:
+  - attribute: private_ip_google_access
+    op: is_true
+    message: GCP private subnet must enable Private Google Access to avoid public IP egress.
+  on_fail: finding
+- id: waf-cost-090.tf.stackit.private-network-services
+  engine: terraform
+  automated: true
+  title: STACKIT internal services must be reachable via private network
+  provider: stackit
+  description: STACKIT internal services must be reachable via private network. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_network\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_network\" \"example\" {\n  #\
+      \ Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_network
+    - stackit_object_storage_bucket
+    - stackit_postgres_instance
+    - stackit_mysql_instance
+    - stackit_redis_instance
+    - stackit_opensearch_instance
+  assertions:
+  - attribute: network_id
+    op: attribute_exists
+    message: STACKIT managed service should be attached to a private network.
+  on_fail: violation
+- id: waf-cost-090.tf.ovh.private-network-services
+  engine: terraform
+  automated: true
+  title: OVHcloud internal services must be reachable via private network
+  provider: ovh
+  description: OVHcloud internal services must be reachable via private network. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_network_private\" \"example\" {\n\
+      \  # required attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_network_private\" \"\
+      example\" {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_network_private
+    - ovh_cloud_project_instance
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_database_postgresql
+    - ovh_cloud_project_database_mysql
+  assertions:
+  - attribute: network_id
+    op: attribute_exists
+    message: OVHcloud internal service should reference a private network.
+  on_fail: violation
+- id: waf-cost-090.tf.hcloud.private-network-services
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud internal services must be reachable via private network
+  provider: hcloud
+  description: Hetzner Cloud internal services must be reachable via private network. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_network\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_network\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_network
+    - hcloud_server
+    - hcloud_load_balancer
+    - hcloud_volume
+  assertions:
+  - attribute: network_id
+    op: attribute_exists
+    message: Hetzner Cloud internal service should be attached to a private network.
+  on_fail: violation

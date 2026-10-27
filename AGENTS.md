@@ -299,8 +299,8 @@ The `antora.yml` file defines this documentation component:
 ```yaml
 name: wafpp
 title: WAF++
-version: '1.0.1-en'
-display_version: '1.0.1 (English)'
+version: '1.1.0-en'
+display_version: '1.1.0 (English)'
 prerelease: false
 start_page: ROOT:index.adoc
 asciidoc:
@@ -374,8 +374,8 @@ This repository is consumed as a **documentation component** by Antora:
 
 - **Website repo**: https://github.com/WAF2p/waf2p.github.io
 - **Build system**: Antora generates static HTML from this content
-- **URL structure**: `https://waf2p.dev/docs/wafpp/1.0.1-en/<module>/<page-path>`
-- **Version**: Currently `1.0.1-en` (defined in `antora.yml`)
+- **URL structure**: `https://waf2p.dev/docs/wafpp/1.1.0-en/<module>/<page-path>`
+- **Version**: Currently `1.1.0-en` (defined in `antora.yml`)
 
 ### AsciiDoc vs Markdown
 

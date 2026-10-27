@@ -1,179 +1,220 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-100
 id: WAF-PERF-100
-title: 'All known performance limitations, anti-patterns, and deferred optimizations...'
+title: All known performance limitations, anti-patterns, and deferred optimizations...
 status: active
 tags:
-  - performance
-  - medium
-  - governance
-  - configuration
-pillar: performance
+- performance
+- medium
+- governance
+- configuration
+pillar: efficiancy
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'cost-governance'
-rationale: |
-  All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register.
+- governance
+- configuration
+category: cost-governance
+rationale: Lack of cost transparency and governance leads to budget overruns, cloud waste, and unaccountable spending. This control addresses the requirements of the 'Cost Governance' area and ensures that All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register.
 threat:
-  - 'Poor user experience and missed SLAs result from unoptimised resources.'
-  - 'Unnecessary compute waste increases cost and carbon footprint.'
+- Poor user experience and missed SLAs result from unoptimised resources.
+- Unnecessary compute waste increases cost and carbon footprint.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-100.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-100.adoc
+  related_controls:
+  - WAF-COST-050
+  - WAF-SUS-020
+  - WAF-COST-060
+  - WAF-COST-100
+  - WAF-PERF-090
+  - WAF-PERF-050
+  - WAF-PERF-040
+  - WAF-SUS-100
+  - WAF-PERF-020
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+description: 'All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register. Each entry MUST include: ID, description of the performance issue, estimated impact (latency increase, throughput reduction, cost), affected services, owner, priority, and a remediation plan or acceptance rationale. The Performance Debt Register MUST be reviewed quarterly by engineering leadership. New performance anti-patterns identified in postmortems, load tests, or reviews MUST be added to the register within 30 days of identification.
 
-description: |
-  All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register. Each entry MUST include: ID, description of the performance issue, estimated impact (latency increase, throughput reduction, cost), affected services, owner, priority, and a remediation plan or acceptance rationale. The Performance Debt Register MUST be reviewed quarterly by engineering leadership. New performance anti-patterns identified in postmortems, load tests, or reviews MUST be added to the register within 30 days of identification.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Capacity'
-  - framework: 'ISO/IEC 12207'
-    controls:
-      - 'Software Maintenance – Risk Management'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service Level Management – Continual Improvement'
-  - framework: 'DORA'
-    controls:
-      - 'Continuous improvement – Technical debt management'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Capacity
 checks:
-  - id: waf-perf-100.tf.aws.config-performance-rules
-    engine: terraform
-    automated: true
-    title: 'AWS Config rules should include performance governance checks'
-    provider: aws
-    description: 'AWS Config should have rules configured that detect common performance anti-patterns such as previous-generation instance types, missing performance insights, or unencrypted volumes that reduce throughput. This enables automated detection of performance debt.'
-    expected: 'true'
-    remediation: 'Create AWS Config rules for performance governance: desired-instance-type, rds-enhanced-monitoring-enabled, ec2-ebs-encryption-by-default. Use AWS Security Hub for centralized findings aggregation.\n'
-    example:
-      compliant: |
-        resource "aws_config_config_rule" "rds_performance_insights" {
-          name        = "rds-performance-insights-enabled"
-          description = "WAF-PERF-040: Checks RDS instances have Performance Insights enabled"
-          source {
-            owner             = "AWS"
-            source_identifier = "RDS_INSTANCE_PUBLIC_ACCESS_CHECK"
-          }
-          tags = {
-            pillar  = "performance"
-            control = "WAF-PERF-040"
-          }
-        }
-        
-      non_compliant: |
-        # No AWS Config rules for performance governance
-        # Performance anti-patterns not automatically detected – WAF-PERF-100 advisory
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_config_config_rule
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'AWS Config rules must have descriptive names.'
-      - attribute: 'source'
-        op: 'not_empty'
-        message: 'AWS Config rules must have a source (AWS managed or custom Lambda).'
-    on_fail: advisory
-  - id: waf-perf-100.tf.azurerm.policy-performance-governance
-    engine: terraform
-    automated: true
-    title: 'Azure Policy should include performance governance initiatives'
-    provider: azurerm
-    description: 'Azure Policy should include policy definitions or initiatives that detect and audit performance anti-patterns such as non-Premium storage for databases or missing Application Insights deployments.'
-    expected: 'true'
-    remediation: 'Create Azure Policy assignments for performance governance. Use built-in policies like "Storage accounts should use geo-redundant storage" or custom policies for performance requirements specific to your organization.\n'
-    example:
-      compliant: |
-        resource "azurerm_resource_group_policy_assignment" "perf_monitoring" {
-          name                 = "require-application-insights"
-          resource_group_id    = azurerm_resource_group.main.id
-          policy_definition_id = var.require_app_insights_policy_id
-          description          = "WAF-PERF-050: Require Application Insights for all web applications"
-        }
-        
-      non_compliant: |
-        # No performance governance policies assigned
-        # Performance anti-patterns not systematically audited – WAF-PERF-100 advisory
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_resource_group_policy_assignment
-        - azurerm_subscription_policy_assignment
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Policy assignment must be named.'
-    on_fail: advisory
-  - id: waf-perf-100.tf.google.security-health-analytics
-    engine: terraform
-    automated: true
-    title: 'GCP Security Command Center should monitor performance governance findings'
-    provider: google
-    description: 'GCP Security Command Center or Cloud Asset Inventory should be configured to track performance governance findings and provide a consolidated view of performance risk.'
-    expected: 'true'
-    remediation: 'Enable Security Command Center findings export to Pub/Sub for performance-related findings. Configure asset inventory queries for performance governance.\n'
-    example:
-      compliant: |
-        resource "google_scc_notification_config" "performance_findings" {
-          config_id    = "perf-governance-notifications"
-          organization = var.org_id
-          description  = "Notifications for performance governance findings"
-          pubsub_topic = google_pubsub_topic.security_notifications.id
-          streaming_config {
-            filter = "category = \"INSTANCE_TYPE_RECOMMENDATION\" OR category = \"DISK_TYPE_RECOMMENDATION\""
-          }
-        }
-        
-      non_compliant: |
-        # No SCC notification config for performance findings
-        # Performance recommendations not surfaced to engineering – WAF-PERF-100 advisory
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_scc_notification_config
-    assertions:
-      - attribute: 'streaming_config'
-        op: 'not_empty'
-        message: 'SCC notification config must have streaming_config defined.'
-    on_fail: advisory
+- id: waf-perf-100.tf.aws.config-performance-rules
+  engine: terraform
+  automated: true
+  title: AWS Config rules should include performance governance checks
+  provider: aws
+  description: AWS Config should have rules configured that detect common performance anti-patterns such as previous-generation instance types, missing performance insights, or unencrypted volumes that reduce throughput. This enables automated detection of performance debt.
+  expected: 'true'
+  remediation: 'Create AWS Config rules for performance governance: desired-instance-type, rds-enhanced-monitoring-enabled, ec2-ebs-encryption-by-default. Use AWS Security Hub for centralized findings aggregation.\n'
+  example:
+    compliant: "resource \"aws_config_config_rule\" \"rds_performance_insights\" {\n  name        = \"rds-performance-insights-enabled\"\n  description = \"WAF-PERF-040: Checks RDS instances have Performance Insights enabled\"\n  source {\n    owner             = \"AWS\"\n    source_identifier = \"RDS_INSTANCE_PUBLIC_ACCESS_CHECK\"\n  }\n  tags = {\n    pillar  = \"performance\"\n    control = \"WAF-PERF-040\"\n  }\n}\n"
+    non_compliant: '# No AWS Config rules for performance governance
+
+      # Performance anti-patterns not automatically detected – WAF-PERF-100 advisory
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_config_config_rule
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: AWS Config rules must have descriptive names.
+  - attribute: source
+    op: not_empty
+    message: AWS Config rules must have a source (AWS managed or custom Lambda).
+  on_fail: advisory
+- id: waf-perf-100.tf.azurerm.policy-performance-governance
+  engine: terraform
+  automated: true
+  title: Azure Policy should include performance governance initiatives
+  provider: azurerm
+  description: Azure Policy should include policy definitions or initiatives that detect and audit performance anti-patterns such as non-Premium storage for databases or missing Application Insights deployments.
+  expected: 'true'
+  remediation: Create Azure Policy assignments for performance governance. Use built-in policies like "Storage accounts should use geo-redundant storage" or custom policies for performance requirements specific to your organization.\n
+  example:
+    compliant: "resource \"azurerm_resource_group_policy_assignment\" \"perf_monitoring\" {\n  name                 = \"require-application-insights\"\n  resource_group_id    = azurerm_resource_group.main.id\n  policy_definition_id = var.require_app_insights_policy_id\n  description          = \"WAF-PERF-050: Require Application Insights for all web applications\"\n}\n"
+    non_compliant: '# No performance governance policies assigned
+
+      # Performance anti-patterns not systematically audited – WAF-PERF-100 advisory
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_resource_group_policy_assignment
+    - azurerm_subscription_policy_assignment
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Policy assignment must be named.
+  on_fail: advisory
+- id: waf-perf-100.tf.google.security-health-analytics
+  engine: terraform
+  automated: true
+  title: GCP Security Command Center should monitor performance governance findings
+  provider: google
+  description: GCP Security Command Center or Cloud Asset Inventory should be configured to track performance governance findings and provide a consolidated view of performance risk.
+  expected: 'true'
+  remediation: Enable Security Command Center findings export to Pub/Sub for performance-related findings. Configure asset inventory queries for performance governance.\n
+  example:
+    compliant: "resource \"google_scc_notification_config\" \"performance_findings\" {\n  config_id    = \"perf-governance-notifications\"\n  organization = var.org_id\n  description  = \"Notifications for performance governance findings\"\n  pubsub_topic = google_pubsub_topic.security_notifications.id\n  streaming_config {\n    filter = \"category = \\\"INSTANCE_TYPE_RECOMMENDATION\\\" OR category = \\\"DISK_TYPE_RECOMMENDATION\\\"\"\n  }\n}\n"
+    non_compliant: '# No SCC notification config for performance findings
+
+      # Performance recommendations not surfaced to engineering – WAF-PERF-100 advisory
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_scc_notification_config
+  assertions:
+  - attribute: streaming_config
+    op: not_empty
+    message: SCC notification config must have streaming_config defined.
+  on_fail: advisory
+- id: waf-perf-100.tf.stackit.capacity-plan-reviewed
+  engine: terraform
+  automated: true
+  title: All known performance limitations, anti-patterns, and deferred optimizations... for stackit
+  provider: stackit
+  description: All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a capacity-plan-reviewed tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-100 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    capacity-plan-reviewed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing capacity-plan-reviewed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: capacity-plan-reviewed
+    message: stackit_project is missing the capacity-plan-reviewed tag/label.
+  on_fail: violation
+- id: waf-perf-100.tf.ovh.capacity-plan-reviewed
+  engine: terraform
+  automated: true
+  title: All known performance limitations, anti-patterns, and deferred optimizations... for ovh
+  provider: ovh
+  description: All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a capacity-plan-reviewed tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-100 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    capacity-plan-reviewed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing capacity-plan-reviewed tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: capacity-plan-reviewed
+    message: ovh_cloud_project is missing the capacity-plan-reviewed tag/label.
+  on_fail: violation
+- id: waf-perf-100.tf.hcloud.capacity-plan-reviewed
+  engine: terraform
+  automated: true
+  title: All known performance limitations, anti-patterns, and deferred optimizations... for hcloud
+  provider: hcloud
+  description: All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a capacity-plan-reviewed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-100 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    capacity-plan-reviewed = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing capacity-plan-reviewed labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: capacity-plan-reviewed
+    message: hcloud_server is missing the capacity-plan-reviewed tag/label.
+  on_fail: violation

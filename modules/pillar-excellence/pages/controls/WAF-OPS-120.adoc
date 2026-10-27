@@ -1,0 +1,140 @@
+= WAF-OPS-120 – Feature flags MUST be available and documented for high-risk changes
+:page-toc: right
+:control-id: WAF-OPS-120
+:pillar: excellence
+:severity: medium
+:category: deployment-automation
+:automatable: Medium
+:description: Risky or customer-visible feature rollouts MUST use feature flags with defined targeting and kill-switch capability. Feature flag configurations MUST be version-controlled and auditable. Flag lifecycle MUST be managed so temporary flags are removed after rollout completes. Critical paths MUST support immediate disablement without requiring a full deployment.
+
+[.metadata]
+*Pillar:* Excellence | *Severity:* 🟡 Medium | *Category:* Deployment Automation | *Automatable:* Medium
+
+== Description
+
+Risky or customer-visible feature rollouts MUST use feature flags with defined targeting and kill-switch capability. Feature flag configurations MUST be version-controlled and auditable. Flag lifecycle MUST be managed so temporary flags are removed after rollout completes. Critical paths MUST support immediate disablement without requiring a full deployment.
+
+== Rationale
+
+[cols="1,3"]
+|===
+|Risk |Description
+
+|*Risk* |Releases without feature flags force rollbacks for every production issue, increasing MTTR.
+
+|*Risk* |Orphaned feature flags create technical debt and unpredictable code paths.
+
+|===
+
+== Requirements
+
+* Risky or customer-visible feature rollouts MUST use feature flags with defined targeting and kill-switch capability.
+* Feature flag configurations MUST be version-controlled and auditable.
+* Flag lifecycle MUST be managed so temporary flags are removed after rollout completes.
+* Critical paths MUST support immediate disablement without requiring a full deployment.
+
+== Implementation Guidance
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Maturity Levels
+
+[cols="1,2,4"]
+|===
+|Level |Name |Criteria
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-ops-120.config.feature-flag-policy
+
+*Engine:* `config` | *Provider:* any | *Automated:* No
+
+*Feature flag policy must exist*
+
+Feature flag policy must exist
+
+*Scope:* `file` — `docs/devops/feature-flag-policy.md`
+
+*Assertions:*
+* `exists` attribute_exists — Feature flag policy must define kill-switch and lifecycle.
+
+*Remediation:* Feature flag policy must exist
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-ops-120.config.feature-flag-policy
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-ops-120.config.feature-flag-policy
+----
+
+---
+
+=== waf-ops-120.tf.aws.appconfig-flags
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*AWS AppConfig feature flags should be used*
+
+AWS AppConfig feature flags should be used
+
+*Scope:* `resource` — aws_appconfig_extension_association, aws_appconfig_configuration_profile
+
+*Assertions:*
+* `name` attribute_exists — AppConfig resources must exist for feature flags.
+
+*Remediation:* AWS AppConfig feature flags should be used
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-ops-120.tf.aws.appconfig-flags
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-ops-120.tf.aws.appconfig-flags
+----
+
+---
+
+
+== Evidence
+
+* Terraform configuration implementing the requirement.
+* Policy, ADR, or standard documenting the requirement.
+* Optional cloud console or API output confirming runtime state.
+
+== Related Controls
+
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-050.adoc[WAF-OPS-050]
+* xref:pillar-excellence:controls/WAF-OPS-110.adoc[WAF-OPS-110]
+* xref:pillar-reliability:controls/WAF-REL-110.adoc[WAF-REL-110]
+* xref:pillar-reliability:controls/WAF-REL-120.adoc[WAF-REL-120]
+== Regulatory Mapping
+
+* *SRE Book (Google)*: Chapter 16 – Debugging
+* *AWS Well-Architected Framework*: OPS 8 – Improve processes
+* *Azure Well-Architected Framework*: Operational Excellence – Safe deployment practices
+

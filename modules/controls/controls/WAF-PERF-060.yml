@@ -1,213 +1,243 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-060
 id: WAF-PERF-060
-title: 'All production services handling external or variable load MUST have load...'
+title: All production services handling external or variable load MUST have load...
 status: active
 tags:
-  - performance
-  - medium
-  - governance
-  - configuration
-pillar: performance
+- performance
+- medium
+- governance
+- configuration
+pillar: efficiancy
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'network-security'
-rationale: |
-  All production services handling external or variable load MUST have load tests defined and executed at least as part of staging or pre-production...
+- governance
+- configuration
+category: network-security
+rationale: Open networks and insufficient segmentation allow external attacks and the spread of threats inside the infrastructure.
+  This control addresses the requirements of the 'Network Security' area and ensures that All production services handling
+  external or variable load MUST have load tests defined and executed at least as part of staging or pre-production validation.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Workloads without load balancing are disproportionately impacted by node failure or traffic spikes.
+- Missing load-balancer configurations create single points of failure.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-060.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-060.adoc
+  related_controls:
+  - WAF-SEC-050
+  - WAF-SOV-040
+  - WAF-PERF-050
+  - WAF-PERF-040
+  - WAF-PERF-020
+  - WAF-PERF-070
+  - WAF-PERF-030
+  - WAF-PERF-090
+  - WAF-REL-010
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+description: 'All production services handling external or variable load MUST have load tests defined and executed at least
+  as part of staging or pre-production validation gates. Load tests MUST define explicit acceptance criteria (P95/P99 latency
+  thresholds, error rate limits, minimum throughput targets). Performance regression MUST be detected automatically by comparing
+  load test results against the established baseline. Critical services MUST be stress-tested to identify capacity limits
+  before production launches.
 
-description: |
-  All production services handling external or variable load MUST have load tests defined and executed at least as part of staging or pre-production validation gates. Load tests MUST define explicit acceptance criteria (P95/P99 latency thresholds, error rate limits, minimum throughput targets). Performance regression MUST be detected automatically by comparing load test results against the established baseline. Critical services MUST be stress-tested to identify capacity limits before production launches.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 29119'
-    controls:
-      - 'Software Testing – Performance Testing'
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Capacity'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 5 – How do you visualize and review performance?'
-      - 'REL 9 – How do you test reliability?'
-  - framework: 'DORA'
-    controls:
-      - 'Continuous testing as part of deployment pipelines'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Capacity
 checks:
-  - id: waf-perf-060.tf.aws.codepipeline-performance-stage
-    engine: terraform
-    automated: true
-    title: 'AWS CodePipeline should include a performance testing stage'
-    provider: aws
-    description: 'AWS CodePipeline deployment pipelines for production services should include a performance testing stage (using CodeBuild running k6/Gatling/Locust) before promoting to production. This check verifies that a performance stage is referenced in pipeline configuration.'
-    expected: 'true'
-    remediation: 'Add a performance testing stage to CodePipeline using CodeBuild to execute load tests. Configure the stage to block promotion to production when acceptance criteria are not met.\n'
-    example:
-      compliant: |
-        resource "aws_codepipeline" "app" {
-          name     = "pipeline-payment-api"
-          role_arn = aws_iam_role.pipeline.arn
-          artifact_store { location = aws_s3_bucket.artifacts.bucket; type = "S3" }
-          stage { name = "Source"; action { ... } }
-          stage { name = "Build";  action { ... } }
-          stage {
-            name = "PerformanceTest"
-            action {
-              name     = "LoadTest"
-              category = "Build"
-              owner    = "AWS"
-              provider = "CodeBuild"
-              configuration = {
-                ProjectName = aws_codebuild_project.load_test.name
-              }
-            }
-          }
-          stage { name = "Deploy"; action { ... } }
-        }
-        
-      non_compliant: |
-        resource "aws_codepipeline" "app" {
-          name = "pipeline-payment-api"
-          stage { name = "Source"; action { ... } }
-          stage { name = "Build";  action { ... } }
-          stage { name = "Deploy"; action { ... } }
-          # No performance test stage – WAF-PERF-060 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_codepipeline
-    assertions:
-      - attribute: 'stage'
-        op: 'not_empty'
-        message: 'CodePipeline must have at least 3 stages (Source, Build, Deploy) with performance validation included.'
-    on_fail: violation
-  - id: waf-perf-060.tf.azurerm.devops-pipeline-perf-gate
-    engine: terraform
-    automated: true
-    title: 'Azure DevOps pipelines should include performance validation gates'
-    provider: azurerm
-    description: 'Azure deployment pipelines should configure release gates or pre-deployment conditions that execute performance tests before production deployment.'
-    expected: 'true'
-    remediation: 'Configure Azure DevOps pipeline YAML with a performance test job that runs k6 or Gatling and fails the pipeline if acceptance criteria are not met. Reference load test scripts stored in the repository.\n'
-    example:
-      compliant: |
-        # azure-pipelines.yml (referenced by Terraform azuredevops_build_definition)
-        stages:
-          - stage: PerformanceTest
-            dependsOn: BuildAndPush
-            jobs:
-              - job: LoadTest
-                steps:
-                  - script: |
-                      k6 run --vus 50 --duration 5m \
-                        --env BASE_URL=$(STAGING_URL) \
-                        tests/performance/payment-api.js
-                    displayName: "Run k6 Load Tests"
-                  - task: PublishTestResults@2
-                    inputs:
-                      testResultsFormat: JUnit
-                      testResultsFiles: 'k6-results.xml'
-        
-      non_compliant: |
-        # azure-pipelines.yml without performance stage
-        stages:
-          - stage: Build
-          - stage: Deploy  # Direct deploy without performance gate – WAF-PERF-060 violation
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_resource_group_policy_assignment
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Policy assignments must be named descriptively.'
-    on_fail: advisory
-  - id: waf-perf-060.tf.google.cloud-build-perf-step
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud Build triggers should include performance test steps'
-    provider: google
-    description: 'GCP Cloud Build configurations for production deployments should include load test execution steps before deploying to production.'
-    expected: 'true'
-    remediation: 'Enable Cloud Build trigger and ensure the referenced cloudbuild.yaml includes a performance test step using k6 or Locust before the deploy step.\n'
-    example:
-      compliant: |
-        resource "google_cloudbuild_trigger" "deploy" {
-          name     = "deploy-payment-api"
-          filename = "cloudbuild.yaml"
-          disabled = false
-          github {
-            owner = var.github_owner
-            name  = var.github_repo
-            push { branch = "^main$" }
-          }
-        }
-        # cloudbuild.yaml includes:
-        # - id: 'performance-test'
-        #   name: 'grafana/k6'
-        #   args: ['run', 'tests/performance/payment-api.js']
-        
-      non_compliant: |
-        resource "google_cloudbuild_trigger" "deploy" {
-          name     = "deploy-payment-api"
-          disabled = true  # Trigger disabled – WAF-PERF-060 violation
-          filename = "cloudbuild.yaml"
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_cloudbuild_trigger
-    assertions:
-      - attribute: 'filename'
-        op: 'not_empty'
-        message: 'Cloud Build trigger must reference a cloudbuild.yaml file.'
-      - attribute: 'disabled'
-        op: 'is_false'
-        message: 'Cloud Build trigger must not be disabled.'
-    on_fail: violation
+- id: waf-perf-060.tf.aws.codepipeline-performance-stage
+  engine: terraform
+  automated: true
+  title: AWS CodePipeline should include a performance testing stage
+  provider: aws
+  description: AWS CodePipeline deployment pipelines for production services should include a performance testing stage (using
+    CodeBuild running k6/Gatling/Locust) before promoting to production. This check verifies that a performance stage is referenced
+    in pipeline configuration.
+  expected: 'true'
+  remediation: Add a performance testing stage to CodePipeline using CodeBuild to execute load tests. Configure the stage
+    to block promotion to production when acceptance criteria are not met.\n
+  example:
+    compliant: "resource \"aws_codepipeline\" \"app\" {\n  name     = \"pipeline-payment-api\"\n  role_arn = aws_iam_role.pipeline.arn\n\
+      \  artifact_store { location = aws_s3_bucket.artifacts.bucket; type = \"S3\" }\n  stage { name = \"Source\"; action\
+      \ { ... } }\n  stage { name = \"Build\";  action { ... } }\n  stage {\n    name = \"PerformanceTest\"\n    action {\n\
+      \      name     = \"LoadTest\"\n      category = \"Build\"\n      owner    = \"AWS\"\n      provider = \"CodeBuild\"\
+      \n      configuration = {\n        ProjectName = aws_codebuild_project.load_test.name\n      }\n    }\n  }\n  stage\
+      \ { name = \"Deploy\"; action { ... } }\n}\n"
+    non_compliant: "resource \"aws_codepipeline\" \"app\" {\n  name = \"pipeline-payment-api\"\n  stage { name = \"Source\"\
+      ; action { ... } }\n  stage { name = \"Build\";  action { ... } }\n  stage { name = \"Deploy\"; action { ... } }\n \
+      \ # No performance test stage – WAF-PERF-060 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_codepipeline
+  assertions:
+  - attribute: stage
+    op: not_empty
+    message: CodePipeline must have at least 3 stages (Source, Build, Deploy) with performance validation included.
+  on_fail: violation
+- id: waf-perf-060.tf.azurerm.devops-pipeline-perf-gate
+  engine: terraform
+  automated: true
+  title: Azure DevOps pipelines should include performance validation gates
+  provider: azurerm
+  description: Azure deployment pipelines should configure release gates or pre-deployment conditions that execute performance
+    tests before production deployment.
+  expected: 'true'
+  remediation: Configure Azure DevOps pipeline YAML with a performance test job that runs k6 or Gatling and fails the pipeline
+    if acceptance criteria are not met. Reference load test scripts stored in the repository.\n
+  example:
+    compliant: "# azure-pipelines.yml (referenced by Terraform azuredevops_build_definition)\nstages:\n  - stage: PerformanceTest\n\
+      \    dependsOn: BuildAndPush\n    jobs:\n      - job: LoadTest\n        steps:\n          - script: |\n            \
+      \  k6 run --vus 50 --duration 5m \\\n                --env BASE_URL=$(STAGING_URL) \\\n                tests/performance/payment-api.js\n\
+      \            displayName: \"Run k6 Load Tests\"\n          - task: PublishTestResults@2\n            inputs:\n     \
+      \         testResultsFormat: JUnit\n              testResultsFiles: 'k6-results.xml'\n"
+    non_compliant: "# azure-pipelines.yml without performance stage\nstages:\n  - stage: Build\n  - stage: Deploy  # Direct\
+      \ deploy without performance gate – WAF-PERF-060 violation\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_resource_group_policy_assignment
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Policy assignments must be named descriptively.
+  on_fail: advisory
+- id: waf-perf-060.tf.google.cloud-build-perf-step
+  engine: terraform
+  automated: true
+  title: GCP Cloud Build triggers should include performance test steps
+  provider: google
+  description: GCP Cloud Build configurations for production deployments should include load test execution steps before deploying
+    to production.
+  expected: 'true'
+  remediation: Enable Cloud Build trigger and ensure the referenced cloudbuild.yaml includes a performance test step using
+    k6 or Locust before the deploy step.\n
+  example:
+    compliant: "resource \"google_cloudbuild_trigger\" \"deploy\" {\n  name     = \"deploy-payment-api\"\n  filename = \"\
+      cloudbuild.yaml\"\n  disabled = false\n  github {\n    owner = var.github_owner\n    name  = var.github_repo\n    push\
+      \ { branch = \"^main$\" }\n  }\n}\n# cloudbuild.yaml includes:\n# - id: 'performance-test'\n#   name: 'grafana/k6'\n\
+      #   args: ['run', 'tests/performance/payment-api.js']\n"
+    non_compliant: "resource \"google_cloudbuild_trigger\" \"deploy\" {\n  name     = \"deploy-payment-api\"\n  disabled =\
+      \ true  # Trigger disabled – WAF-PERF-060 violation\n  filename = \"cloudbuild.yaml\"\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_cloudbuild_trigger
+  assertions:
+  - attribute: filename
+    op: not_empty
+    message: Cloud Build trigger must reference a cloudbuild.yaml file.
+  - attribute: disabled
+    op: is_false
+    message: Cloud Build trigger must not be disabled.
+  on_fail: violation
+- id: waf-perf-060.tf.stackit.caching-enabled
+  engine: terraform
+  automated: true
+  title: All production services handling external or variable load for stackit
+  provider: stackit
+  description: All production services handling external or variable load must be documented in IaC via a caching-enabled
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a caching-enabled tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    caching-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing caching-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: caching-enabled
+    message: stackit_project is missing the caching-enabled tag/label.
+  on_fail: violation
+- id: waf-perf-060.tf.ovh.caching-enabled
+  engine: terraform
+  automated: true
+  title: All production services handling external or variable load for ovh
+  provider: ovh
+  description: All production services handling external or variable load must be documented in IaC via a caching-enabled
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a caching-enabled tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    caching-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing caching-enabled tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: caching-enabled
+    message: ovh_cloud_project is missing the caching-enabled tag/label.
+  on_fail: violation
+- id: waf-perf-060.tf.hcloud.caching-enabled
+  engine: terraform
+  automated: true
+  title: All production services handling external or variable load for hcloud
+  provider: hcloud
+  description: All production services handling external or variable load must be documented in IaC via a caching-enabled
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a caching-enabled tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-060
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    caching-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing caching-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: caching-enabled
+    message: hcloud_server is missing the caching-enabled tag/label.
+  on_fail: violation

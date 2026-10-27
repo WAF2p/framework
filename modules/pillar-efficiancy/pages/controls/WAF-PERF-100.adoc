@@ -1,114 +1,87 @@
 = WAF-PERF-100 – Performance Debt Register & Quarterly Review
 :page-toc: right
 :control-id: WAF-PERF-100
-:pillar: performance
+:pillar: efficiancy
 :severity: medium
-:category: performance-governance
-:automated: low
-:description: WAF++ Performance Efficiency – Bekannte Performance-Einschränkungen dokumentieren und quartalsweise reviewen.
+:category: cost-governance
+:automatable: High
+:description: All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register. Each entry MUST include: ID, description of the performance issue, estimated impact (latency increase, throughput reduction, cost), affected services, owner, priority, and a remediation plan or acceptance rationale. The Performance Debt Register MUST be reviewed quarterly by engineering leadership. New performance anti-patterns identified in postmortems, load tests, or reviews MUST be added to the register within 30 days of identification.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Performance Governance | *Automatisierbar:* Niedrig
+*Pillar:* Efficiancy | *Severity:* Medium | *Category:* Cost Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle bekannten Performance-Limitierungen und bewusst akzeptierten Performance-Einschränkungen
-MÜSSEN in einem Performance-Schuld-Register dokumentiert werden.
-Jeder Eintrag MUSS enthalten: ID, Titel, Beschreibung, geschätzter Impact,
-betroffene Services, Owner, Priorität, Zieldatum und Remediation-Plan oder Akzeptanzrationale.
-Das Register MUSS quartalsweise von Engineering-Leadership reviewt werden.
-Jeder Performance-Incident MUSS innerhalb von 30 Tagen einen Register-Eintrag erzeugen.
+All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register. Each entry MUST include: ID, description of the performance issue, estimated impact (latency increase, throughput reduction, cost), affected services, owner, priority, and a remediation plan or acceptance rationale. The Performance Debt Register MUST be reviewed quarterly by engineering leadership. New performance anti-patterns identified in postmortems, load tests, or reviews MUST be added to the register within 30 days of identification.
 
 == Rationale
 
-Performance-Schuld verhält sich wie technische Schuld: Einzelne Entscheidungen sind rational,
-aber untracked werden sie zu unsichtbarem Risiko. Ein Team ohne Performance-Schuld-Register
-kann keine informierten Entscheidungen treffen über Performance-Investitionen vs. neue Features.
-Das Register erzeugt Transparenz, ermöglicht Priorisierung und verhindert Wissenverlust
-wenn Mitarbeitende das Unternehmen verlassen.
-
-Dokumentierte Performance-Schulden können priorisiert und abgebaut werden.
-Undokumentierte Performance-Schulden akkumulieren als stille Risiken.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Unsichtbare Risiko-Akkumulation*
-|Performance-Einschränkungen ohne Register bleiben unsichtbar und kumulieren.
+|*Risk* |Poor user experience and missed SLAs result from unoptimised resources.
 
-|*Wiederholende Incidents*
-|Gleiche Performance-Probleme treten wiederholt auf, weil Root Causes nicht dokumentiert wurden.
-
-|*Wissensverlust*
-|Engineer kennt Systemlimitation; verlässt Unternehmen; Limitation ist jetzt unbekannt.
-
-|*Fehlende Priorisierungsgrundlage*
-|Ohne Register kein Überblick: Wie viel Performance-Schuld haben wir? Was ist am riskantesten?
+|*Risk* |Unnecessary compute waste increases cost and carbon footprint.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Performance-Schuld-Register MUSS geführt werden mit allen Pflichtfeldern (ID, Beschreibung, Impact, Owner, Priorität)
-* Quarterly Reviews MÜSSEN stattfinden und protokolliert werden
-* Jeder Performance-Incident MUSS Register-Eintrag erzeugen (innerhalb 30 Tage)
-* Neue Features MÜSSEN auf Performance-Schuld-Entstehung bewertet werden (ADR-Performance-Sektion)
+* All known performance limitations, anti-patterns, and deferred optimizations MUST be documented in a Performance Debt Register.
+* Each entry MUST include: ID, description of the performance issue, estimated impact (latency increase, throughput reduction, cost), affected services, owner, priority, and a remediation plan or acceptance rationale.
+* The Performance Debt Register MUST be reviewed quarterly by engineering leadership.
+* New performance anti-patterns identified in postmortems, load tests, or reviews MUST be added to the register within 30 days of identification.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Register anlegen*: Wiki, Jira-Epic oder versioniertes YAML-Dokument; mindestens 6 Pflichtfelder
-. *Initiales Befüllen*: Workshop mit Engineering-Team: "Was wissen wir, aber haben nie aufgeschrieben?"
-. *Quarterly-Review-Termin*: Fixer Kalendertermin mit Engineering-Leadership; 60-Minuten-Meeting
-. *Postmortem-Integration*: Template erweitern: "Performance-Schuld-Eintrag erstellt? Y/N. Eintrag-ID: ?"
-. *ADR-Performance-Sektion*: ADR-Template erweitern mit "Performance Debt Created" Sektion
-. *Priorisierung*: High-Impact + High-Probability = Top-Priorität für Paydown
-. *Fortschritt messen*: Offene Einträge, Abbaurate, durchschnittliches Alter als KPIs
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Dokumentation
-|Bekannte Performance-Probleme sind Tribal Knowledge; kein Register.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Informelles Tracking
-|Performance-Issues in Tickets, aber kein strukturiertes Register; kein Quarterly Review.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Register + Quarterly Review
-|Register mit Pflichtfeldern; Quarterly Review etabliert; Postmortem-Integration.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Business-Impact sichtbar
-|Einträge mit quantifiziertem Business-Impact; Paydown im Sprint priorisiert; Trend-Tracking.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Proaktive Performance-Governance
-|Performance-Schuld-Budget definiert; automatische Debt-Erkennung; KPI in Engineering-Reviews.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-100.tf.aws.config-performance-rules
-*Prüft:* AWS Config sollte Performance-Governance-Regeln für automatische Debt-Erkennung haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS Config rules should include performance governance checks*
+
+AWS Config should have rules configured that detect common performance anti-patterns such as previous-generation instance types, missing performance insights, or unencrypted volumes that reduce throughput. This enables automated detection of performance debt.
+
+*Scope:* `resource` — `aws_config_config_rule`
+
+*Assertions:*
+* `name` not empty — AWS Config rules must have descriptive names.
+* `source` not empty — AWS Config rules must have a source (AWS managed or custom Lambda).
+
+*Remediation:* Create AWS Config rules for performance governance: desired-instance-type, rds-enhanced-monitoring-enabled, ec2-ebs-encryption-by-default. Use AWS Security Hub for centralized findings aggregation.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_config_config_rule" "rds_insights" {
+resource "aws_config_config_rule" "rds_performance_insights" {
   name        = "rds-performance-insights-enabled"
-  description = "WAF-PERF-040: Performance Insights check"
+  description = "WAF-PERF-040: Checks RDS instances have Performance Insights enabled"
   source {
     owner             = "AWS"
     source_identifier = "RDS_INSTANCE_PUBLIC_ACCESS_CHECK"
@@ -119,129 +92,239 @@ resource "aws_config_config_rule" "rds_insights" {
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-# Keine AWS Config Rules für
-# Performance-Governance definiert
-# Performance-Schulden nicht
-# automatisch detektierbar
-# WAF-PERF-100 Advisory
+# No AWS Config rules for performance governance
+# Performance anti-patterns not automatically detected – WAF-PERF-100 advisory
 ----
+
+---
+
+=== waf-perf-100.tf.azurerm.policy-performance-governance
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Policy should include performance governance initiatives*
+
+Azure Policy should include policy definitions or initiatives that detect and audit performance anti-patterns such as non-Premium storage for databases or missing Application Insights deployments.
+
+*Scope:* `resource` — `azurerm_resource_group_policy_assignment`, `azurerm_subscription_policy_assignment`
+
+*Assertions:*
+* `name` not empty — Policy assignment must be named.
+
+*Remediation:* Create Azure Policy assignments for performance governance. Use built-in policies like "Storage accounts should use geo-redundant storage" or custom policies for performance requirements specific to your organization.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_resource_group_policy_assignment" "perf_monitoring" {
+  name                 = "require-application-insights"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = var.require_app_insights_policy_id
+  description          = "WAF-PERF-050: Require Application Insights for all web applications"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No performance governance policies assigned
+# Performance anti-patterns not systematically audited – WAF-PERF-100 advisory
+----
+
+---
+
+=== waf-perf-100.tf.google.security-health-analytics
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Security Command Center should monitor performance governance findings*
+
+GCP Security Command Center or Cloud Asset Inventory should be configured to track performance governance findings and provide a consolidated view of performance risk.
+
+*Scope:* `resource` — `google_scc_notification_config`
+
+*Assertions:*
+* `streaming_config` not empty — SCC notification config must have streaming_config defined.
+
+*Remediation:* Enable Security Command Center findings export to Pub/Sub for performance-related findings. Configure asset inventory queries for performance governance.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_scc_notification_config" "performance_findings" {
+  config_id    = "perf-governance-notifications"
+  organization = var.org_id
+  description  = "Notifications for performance governance findings"
+  pubsub_topic = google_pubsub_topic.security_notifications.id
+  streaming_config {
+    filter = "category = \"INSTANCE_TYPE_RECOMMENDATION\" OR category = \"DISK_TYPE_RECOMMENDATION\""
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No SCC notification config for performance findings
+# Performance recommendations not surfaced to engineering – WAF-PERF-100 advisory
+----
+
+---
+
+=== waf-perf-100.tf.stackit.capacity-plan-reviewed
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*All known performance limitations, anti-patterns, and deferred optimizations... for stackit*
+
+All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the capacity-plan-reviewed tag/label.
+
+*Remediation:* Add a capacity-plan-reviewed tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-100 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    capacity-plan-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing capacity-plan-reviewed labels
+}
+----
+
+---
+
+=== waf-perf-100.tf.ovh.capacity-plan-reviewed
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*All known performance limitations, anti-patterns, and deferred optimizations... for ovh*
+
+All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the capacity-plan-reviewed tag/label.
+
+*Remediation:* Add a capacity-plan-reviewed tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-100 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    capacity-plan-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing capacity-plan-reviewed tags
+}
+----
+
+---
+
+=== waf-perf-100.tf.hcloud.capacity-plan-reviewed
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*All known performance limitations, anti-patterns, and deferred optimizations... for hcloud*
+
+All known performance limitations, anti-patterns, and deferred optimizations... must be documented in IaC via a capacity-plan-reviewed tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the capacity-plan-reviewed tag/label.
+
+*Remediation:* Add a capacity-plan-reviewed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-100 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    capacity-plan-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing capacity-plan-reviewed labels
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* AWS Config Rules für Performance-Governance erstellen.
-AWS Security Hub für zentralisiertes Findings-Management konfigurieren.
-Findings mit Performance-Schuld-Register verknüpfen.
+== Related Controls
 
-== Evidenz
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+* xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Governance*
-|✅ Pflicht
-|Performance-Schuld-Register mit allen Pflichtfeldern (ID, Impact, Owner, Priorität, Zieldatum).
-
-|*Process*
-|✅ Pflicht
-|Quarterly-Review-Meeting-Protokoll oder Kalendereinladung als Nachweis regulärer Reviews.
-
-|*Process*
-|Optional
-|Sprint-Backlog mit priorisierten Performance-Schuld-Tickets.
-
-|*Config*
-|Optional
-|Dashboard mit Performance-Schuld-Metriken (offene Items, Alter, Abbaurate).
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Select the right resource types and sizes
-
-|*Azure Well-Architected Framework*
-|Performance Efficiency – Choose the right resources
-
-|*Google Cloud Architecture Framework*
-|Performance optimization – Right-size your instances
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
-
-|*FedRAMP*
-|RA-2, RA-5 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
+|ISO/IEC 25010 |* Performance Efficiency – Capacity
 
 |===
-
-== Verwandte Controls

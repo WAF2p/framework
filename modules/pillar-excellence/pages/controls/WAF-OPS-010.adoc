@@ -1,251 +1,393 @@
 = WAF-OPS-010 – CI/CD Pipeline Defined & Automated
 :page-toc: right
 :control-id: WAF-OPS-010
-:pillar: operations
+:pillar: excellence
 :severity: high
 :category: deployment-automation
-:automated: high
-:description: WAF++ Operational Excellence – All production deployments must be performed automatically through a versioned CI/CD pipeline.
+:automatable: High
+:description: Every production workload MUST have a defined, version-controlled CI/CD pipeline that automates build, test, and deployment steps. Manual deployments to production MUST NOT be permitted. All pipeline definitions MUST be stored as code in the same repository as the application or infrastructure they deploy.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Category:* Deployment Automation | *Automatable:* High
+*Pillar:* Excellence | *Severity:* High | *Category:* Deployment Automation | *Automatable:* High
 
 == Description
 
-Every production workload MUST have a defined, versioned CI/CD pipeline.
-Manual deployments to production are not permitted.
-Pipeline definitions MUST be stored as code in the same repository as the application.
+Every production workload MUST have a defined, version-controlled CI/CD pipeline that automates build, test, and deployment steps. Manual deployments to production MUST NOT be permitted. All pipeline definitions MUST be stored as code in the same repository as the application or infrastructure they deploy.
 
 == Rationale
-
-Manual deployments are the most common cause of configuration drift, deployment errors,
-and undocumented changes. Automated pipelines enforce consistency, reduce
-human error, and provide an audit trail for every change.
-
-DORA Elite teams deploy multiple times daily with a Change Failure Rate below 5%.
-Manual processes cannot achieve this level of reliability.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Undocumented manual changes*
-|Manual deployments leave no audit trail; debugging after an incident is harder.
+|*Risk* |Missing CI/CD pipelines force manual deployments and increase the risk of human error.
 
-|*Inconsistent environments*
-|Manual deployment creates deviations between staging and production (snowflake problem).
-
-|*Missing rollback capability*
-|Without a pipeline, rollback is a new manual deployment process rather than an automated reversal.
-
-|*Compliance violation*
-|Change management requirements (SOC 2, ISO 20000) require documented change control.
+|*Risk* |Undocumented deployment processes lead to non-reproducible environments and longer outages.
 
 |===
 
 == Requirements
 
-* Pipeline definitions MUST be stored in version control
-* All production deployments MUST be executed through the pipeline
-* Direct SSH access or console deployments in production MUST be prohibited
-* Branch protection MUST prevent direct commits to `main` or production branches
-* Approval gates MUST be configured before production deployments
-* Artifacts MUST be versioned (Git SHA or semantic version, not `latest`)
+* Every production workload MUST have a defined, version-controlled CI/CD pipeline that automates build, test, and deployment steps.
+* Manual deployments to production MUST NOT be permitted.
+* All pipeline definitions MUST be stored as code in the same repository as the application or infrastructure they deploy.
 
 == Implementation Guidance
 
-. *Define pipeline-as-code:* `.github/workflows/`, `.gitlab-ci.yml`, `buildspec.yml` – in the repository, not externally
-. *Define stages:* Lint → Test → Security Scan → Build → Deploy Staging → Approval → Deploy Production
-. *Configure branch protection:* At least 1 reviewer, CODEOWNERS, direct commits prohibited
-. *Artifact versioning:* Git SHA as container image tag; `latest` prohibited in production
-. *Activate approval gate:* GitHub Environments, Azure DevOps Environment Checks, CodePipeline Manual Approval
-. *Deployment notifications:* Pipeline failure alerts to team channel (Slack, Teams)
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Manual Deployments
-|No pipeline; deployments via SSH or console; no audit trail.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basic Pipeline
-|CI pipeline exists for tests; deployments via script but triggered manually.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Full CI/CD with Gates
-|All deployments automated; branch protection; approval gate for production.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Metrics & Progressive Delivery
-|DORA metrics measured; canary/blue-green; auto-rollback on failure.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Continuous Deployment
-|Multiple times daily; Change Failure Rate < 5%; feature flags for low-risk releases.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-010.tf.aws.codepipeline-exists
-*Checks:* AWS CodePipeline with source, build, and deploy stage is defined.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS CodePipeline must be defined for application deployments*
+
+Production workloads deployed to AWS MUST use CodePipeline or equivalent IaC-defined pipeline. The pipeline must include at least source, build, and deploy stages.
+
+*Scope:* `resource` — `aws_codepipeline`
+
+*Assertions:*
+* `name` not empty — CodePipeline must have a non-empty name.
+* `stage` attribute exists — CodePipeline must define at least one stage.
+
+*Remediation:* Define an aws_codepipeline resource with source, build, and deploy stages. Reference CodeBuild projects and S3 artifact buckets explicitly.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_codepipeline" "app" {
-  name     = "payment-pipeline"
-  role_arn = aws_iam_role.cp_role.arn
+resource "aws_codepipeline" "app_pipeline" {
+  name     = "payment-service-pipeline"
+  role_arn = aws_iam_role.codepipeline_role.arn
+
   artifact_store {
     location = aws_s3_bucket.artifacts.bucket
     type     = "S3"
   }
-  stage { name = "Source" /* ... */ }
-  stage { name = "Build"  /* ... */ }
-  stage { name = "Deploy" /* ... */ }
-}
-----
-a|[source,hcl]
-----
-# No pipeline defined
-# Deployments via SSH/Console
-# WAF-OPS-010 Violation
-----
 
-|===
+  stage {
+    name = "Source"
+    action {
+      name             = "Source"
+      category         = "Source"
+      owner            = "AWS"
+      provider         = "CodeStarSourceConnection"
+      version          = "1"
+      output_artifacts = ["source_output"]
+      configuration = {
+        ConnectionArn    = aws_codestarconnections_connection.github.arn
+        FullRepositoryId = "myorg/payment-service"
+        BranchName       = "main"
+      }
+    }
+  }
 
-=== waf-ops-010.tf.google.cloudbuild-trigger-exists
-*Checks:* Google Cloud Build Trigger with build configuration file is defined.
+  stage {
+    name = "Build"
+    action {
+      name             = "Build"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      version          = "1"
+      input_artifacts  = ["source_output"]
+      output_artifacts = ["build_output"]
+      configuration = {
+        ProjectName = aws_codebuild_project.build.name
+      }
+    }
+  }
 
-[source,hcl]
-----
-# Compliant
-resource "google_cloudbuild_trigger" "app" {
-  name     = "payment-service-trigger"
-  filename = "cloudbuild.yaml"
-  github {
-    owner = "myorg"
-    name  = "payment-service"
-    push { branch = "^main$" }
+  stage {
+    name = "Deploy"
+    action {
+      name            = "Deploy"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "ECS"
+      version         = "1"
+      input_artifacts = ["build_output"]
+      configuration = {
+        ClusterName = aws_ecs_cluster.main.name
+        ServiceName = aws_ecs_service.app.name
+      }
+    }
   }
 }
 ----
 
-*Remediation:* Define an `aws_codepipeline`, `azuredevops_build_definition`, or
-`google_cloudbuild_trigger` resource with a repository reference and build configuration.
+.Non-Compliant
+
+[source,terraform]
+----
+# No pipeline defined – deployments performed manually
+# WAF-OPS-010 Violation: manual deployment without pipeline
+----
+
+---
+
+=== waf-ops-010.tf.azurerm.devops-pipeline-exists
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure DevOps pipeline must be defined for application workloads*
+
+Applications deployed to Azure MUST have an Azure DevOps pipeline defined as code. The pipeline definition must be stored in the application repository.
+
+*Scope:* `resource` — `azuredevops_build_definition`
+
+*Assertions:*
+* `name` not empty — Azure DevOps pipeline must have a non-empty name.
+* `repository` attribute exists — Pipeline must reference a source repository.
+
+*Remediation:* Define an azuredevops_build_definition resource linking to your repository and a YAML pipeline definition file (azure-pipelines.yml).
+
+.Compliant
+
+[source,terraform]
+----
+resource "azuredevops_build_definition" "app_pipeline" {
+  project_id = azuredevops_project.main.id
+  name       = "payment-service-ci-cd"
+
+  repository {
+    repo_type   = "TfsGit"
+    repo_id     = azuredevops_git_repository.app.id
+    branch_name = "refs/heads/main"
+    yml_path    = "azure-pipelines.yml"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No pipeline definition in Terraform
+# Deployments done manually via Azure Portal – WAF-OPS-010 Violation
+----
+
+---
+
+=== waf-ops-010.tf.google.cloudbuild-trigger-exists
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*Google Cloud Build trigger must be defined for CI/CD*
+
+GCP workloads MUST use Cloud Build triggers connected to source repositories. Build configuration must be stored as cloudbuild.yaml in the repository.
+
+*Scope:* `resource` — `google_cloudbuild_trigger`
+
+*Assertions:*
+* `name` not empty — Cloud Build trigger must have a non-empty name.
+* `filename` not empty — Cloud Build trigger must reference a build configuration file.
+
+*Remediation:* Define a google_cloudbuild_trigger resource that references a cloudbuild.yaml file and connects to the application source repository.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloudbuild_trigger" "app_trigger" {
+  name        = "payment-service-trigger"
+  description = "CI/CD trigger for payment service"
+
+  github {
+    owner = "myorg"
+    name  = "payment-service"
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "cloudbuild.yaml"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No Cloud Build trigger defined
+# WAF-OPS-010 Violation: no automated pipeline for GCP deployment
+----
+
+---
+
+=== waf-ops-010.tf.stackit.infrastructure-as-code
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*Every production workload for stackit*
+
+Every production workload must be documented in IaC via a infrastructure-as-code tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the infrastructure-as-code tag/label.
+
+*Remediation:* Add a infrastructure-as-code tag/label to the stackit_project resource to show the stackit implementation of WAF-OPS-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    infrastructure-as-code = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing infrastructure-as-code labels
+}
+----
+
+---
+
+=== waf-ops-010.tf.ovh.infrastructure-as-code
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*Every production workload for ovh*
+
+Every production workload must be documented in IaC via a infrastructure-as-code tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the infrastructure-as-code tag/label.
+
+*Remediation:* Add a infrastructure-as-code tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-OPS-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    infrastructure-as-code = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing infrastructure-as-code tags
+}
+----
+
+---
+
+=== waf-ops-010.tf.hcloud.infrastructure-as-code
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Every production workload for hcloud*
+
+Every production workload must be documented in IaC via a infrastructure-as-code tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the infrastructure-as-code tag/label.
+
+*Remediation:* Add a infrastructure-as-code tag/label to the hcloud_server resource to show the hcloud implementation of WAF-OPS-010 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    infrastructure-as-code = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing infrastructure-as-code labels
+}
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*IaC*
-|✅ Required
-|Pipeline definition files (.github/workflows/, .gitlab-ci.yml) in version control.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Required
-|Branch protection configuration (min. reviewer, CODEOWNERS, direct commits prohibited).
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|DORA metrics report (Deployment Frequency, Lead Time for Changes).
-
-|*Governance*
-|Optional
-|Change management policy that explicitly prohibits manual production deployments.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-OPS-020.adoc[WAF-OPS-020 – Infrastructure as Code Enforced]
-* xref:controls/WAF-OPS-050.adoc[WAF-OPS-050 – Change Management]
-* xref:controls/WAF-OPS-080.adoc[WAF-OPS-080 – Feature Flags & Safe Deployments]
+* xref:pillar-excellence:controls/WAF-OPS-050.adoc[WAF-OPS-050]
+* xref:pillar-excellence:controls/WAF-OPS-080.adoc[WAF-OPS-080]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-sustainability:controls/WAF-SUS-060.adoc[WAF-SUS-060]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+|ISO/IEC 20000-1 |* Change and deployment management
+* Release and deployment management
 
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
+|ITIL 4 |* Change enablement
+* Deployment management
 
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
+|CIS Controls v8 |* CIS-4.1: Establish and Maintain a Secure Configuration Process
 
 |===
-
-== Best Practice

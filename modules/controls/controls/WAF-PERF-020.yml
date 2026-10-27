@@ -1,250 +1,266 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-020
 id: WAF-PERF-020
-title: 'All stateless compute workloads handling variable or unpredictable traffic...'
+title: All stateless compute workloads handling variable or unpredictable traffic...
 status: active
 tags:
-  - performance
-  - high
-  - configuration
-  - governance
-pillar: performance
+- performance
+- high
+- configuration
+- governance
+pillar: efficiancy
 severity: high
 type:
-  - configuration
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired, and maximum...
+- configuration
+- governance
+category: logging-monitoring
+rationale: Insufficient observability delays incident detection, complicates troubleshooting, and prevents effective audit
+  evidence. This control addresses the requirements of the 'Logging and Monitoring' area and ensures that All stateless compute
+  workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired,
+  and maximum.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Stateless workloads without autoscaling fail under load spikes or waste resources in troughs.
+- Missing scaling policies force manual intervention and extend downtime.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-020.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-020.adoc
+  related_controls:
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-PERF-090
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured
+  with appropriate minimum, desired, and maximum capacity thresholds. Auto-scaling policies MUST be based on meaningful metrics
+  (CPU utilization, request latency, queue depth, or custom application metrics), not just time-based schedules. Auto-scaling
+  configurations MUST be tested under realistic load conditions before production deployment and re-validated after significant
+  architectural changes.
 
-description: |
-  All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired, and maximum capacity thresholds. Auto-scaling policies MUST be based on meaningful metrics (CPU utilization, request latency, queue depth, or custom application metrics), not just time-based schedules. Auto-scaling configurations MUST be tested under realistic load conditions before production deployment and re-validated after significant architectural changes.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Capacity'
-      - 'Reliability – Fault Tolerance'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 2 – How do you select and use scaling mechanisms?'
-      - 'REL 6 – How do you monitor workload resources?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Design for scaling'
-      - 'Reliability – Use automatic scaling'
-  - framework: 'Google Cloud Architecture Framework'
-    controls:
-      - 'Performance optimization – Use autoscaling'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Capacity
+  - Reliability – Fault Tolerance
 checks:
-  - id: waf-perf-020.tf.aws.autoscaling-group-policy
-    engine: terraform
-    automated: true
-    title: 'AWS Auto Scaling Groups must have scaling policies defined'
-    provider: aws
-    description: 'AWS Auto Scaling Groups must have at minimum one scaling policy defined. Groups without scaling policies rely on manual scaling only and cannot respond to traffic changes automatically.'
-    expected: 'true'
-    remediation: 'Add scaling policies to the Auto Scaling Group. At minimum, add target tracking scaling based on ALBRequestCountPerTarget or CPU utilization. Set min_size >= 1, max_size >= 2. Configure health checks to use ELB type for web applications.\n'
-    example:
-      compliant: |
-        resource "aws_autoscaling_group" "app" {
-          name                = "asg-payment-api"
-          min_size            = 2
-          max_size            = 10
-          desired_capacity    = 2
-          health_check_type   = "ELB"
-          target_group_arns   = [aws_lb_target_group.app.arn]
-          vpc_zone_identifier = var.private_subnet_ids
-          launch_template {
-            id      = aws_launch_template.app.id
-            version = "$Latest"
-          }
-          tag {
-            key                 = "workload"
-            value               = "payment-api"
-            propagate_at_launch = true
-          }
-        }
-        resource "aws_autoscaling_policy" "scale_out" {
-          name                   = "payment-api-target-tracking"
-          autoscaling_group_name = aws_autoscaling_group.app.name
-          policy_type            = "TargetTrackingScaling"
-          target_tracking_configuration {
-            predefined_metric_specification {
-              predefined_metric_type = "ALBRequestCountPerTarget"
-              resource_label         = "${aws_lb.app.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
-            }
-            target_value = 1000.0
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_autoscaling_group" "app" {
-          name             = "asg-payment-api"
-          min_size         = 1
-          max_size         = 1  # max == min, no scaling possible – WAF-PERF-020 violation
-          desired_capacity = 1
-          # No scaling policy – manual only
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_autoscaling_group
-    assertions:
-      - attribute: 'min_size'
-        op: 'greater_than_or_equal'
-        message: 'Auto Scaling Group min_size must be at least 1 to prevent cold starts in synchronous workloads.'
-      - attribute: 'max_size'
-        op: 'greater_than_or_equal'
-        message: 'Auto Scaling Group max_size must be at least 2 to enable actual scaling.'
-      - attribute: 'health_check_type'
-        op: 'not_empty'
-        message: 'Auto Scaling Group must have health_check_type configured (EC2 or ELB).'
-    on_fail: violation
-  - id: waf-perf-020.tf.azurerm.vmss-autoscale
-    engine: terraform
-    automated: true
-    title: 'Azure VMSS must have autoscale settings configured'
-    provider: azurerm
-    description: 'Azure Virtual Machine Scale Sets used for production workloads must have autoscale settings configured with at least one scale-out and one scale-in rule.'
-    expected: 'true'
-    remediation: 'Enable autoscale settings for the VMSS. Configure at least one profile with scale-out and scale-in rules based on CPU percentage or custom metrics.\n'
-    example:
-      compliant: |
-        resource "azurerm_monitor_autoscale_setting" "app" {
-          name                = "autoscale-payment-api"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = azurerm_resource_group.main.location
-          target_resource_id  = azurerm_linux_virtual_machine_scale_set.app.id
-          enabled             = true
-          profile {
-            name = "defaultProfile"
-            capacity {
-              default = 2
-              minimum = 2
-              maximum = 10
-            }
-            rule {
-              metric_trigger {
-                metric_name        = "Percentage CPU"
-                metric_resource_id = azurerm_linux_virtual_machine_scale_set.app.id
-                time_grain         = "PT1M"
-                statistic          = "Average"
-                time_window        = "PT5M"
-                time_aggregation   = "Average"
-                operator           = "GreaterThan"
-                threshold          = 70
-              }
-              scale_action {
-                direction = "Increase"
-                type      = "ChangeCount"
-                value     = "1"
-                cooldown  = "PT3M"
-              }
-            }
-          }
-        }
-        
-      non_compliant: |
-        # No azurerm_monitor_autoscale_setting resource defined
-        # VMSS deployed with fixed capacity – WAF-PERF-020 violation
-        resource "azurerm_linux_virtual_machine_scale_set" "app" {
-          instances = 2  # Static, no scaling
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_monitor_autoscale_setting
-    assertions:
-      - attribute: 'enabled'
-        op: 'is_true'
-        message: 'Autoscale setting must be enabled.'
-      - attribute: 'profile'
-        op: 'not_empty'
-        message: 'Autoscale setting must have at least one profile configured.'
-    on_fail: violation
-  - id: waf-perf-020.tf.google.managed-instance-group-autoscaler
-    engine: terraform
-    automated: true
-    title: 'GCP Managed Instance Groups must have autoscaler configured'
-    provider: google
-    description: 'GCP Managed Instance Groups used for production compute must have a google_compute_autoscaler resource configured with appropriate scaling policies.'
-    expected: 'true'
-    remediation: 'Add a google_compute_autoscaler resource targeting the Managed Instance Group. Configure autoscaling_policy with appropriate min_replicas, max_replicas, and cpu_utilization target or load_balancing_utilization.\n'
-    example:
-      compliant: |
-        resource "google_compute_autoscaler" "app" {
-          name   = "autoscaler-payment-api"
-          zone   = "europe-west3-a"
-          target = google_compute_instance_group_manager.app.id
-          autoscaling_policy {
-            max_replicas    = 10
-            min_replicas    = 2
-            cooldown_period = 60
-            cpu_utilization {
-              target = 0.6
-            }
-          }
-        }
-        
-      non_compliant: |
-        # No google_compute_autoscaler defined
-        resource "google_compute_instance_group_manager" "app" {
-          name               = "igm-payment-api"
-          base_instance_name = "payment-api"
-          zone               = "europe-west3-a"
-          # Static capacity, no autoscaler – WAF-PERF-020 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_autoscaler
-        - google_compute_region_autoscaler
-    assertions:
-      - attribute: 'autoscaling_policy'
-        op: 'not_empty'
-        message: 'Autoscaler must have autoscaling_policy defined with min and max replicas.'
-    on_fail: violation
+- id: waf-perf-020.tf.aws.autoscaling-group-policy
+  engine: terraform
+  automated: true
+  title: AWS Auto Scaling Groups must have scaling policies defined
+  provider: aws
+  description: AWS Auto Scaling Groups must have at minimum one scaling policy defined. Groups without scaling policies rely
+    on manual scaling only and cannot respond to traffic changes automatically.
+  expected: 'true'
+  remediation: Add scaling policies to the Auto Scaling Group. At minimum, add target tracking scaling based on ALBRequestCountPerTarget
+    or CPU utilization. Set min_size >= 1, max_size >= 2. Configure health checks to use ELB type for web applications.\n
+  example:
+    compliant: "resource \"aws_autoscaling_group\" \"app\" {\n  name                = \"asg-payment-api\"\n  min_size    \
+      \        = 2\n  max_size            = 10\n  desired_capacity    = 2\n  health_check_type   = \"ELB\"\n  target_group_arns\
+      \   = [aws_lb_target_group.app.arn]\n  vpc_zone_identifier = var.private_subnet_ids\n  launch_template {\n    id   \
+      \   = aws_launch_template.app.id\n    version = \"$Latest\"\n  }\n  tag {\n    key                 = \"workload\"\n\
+      \    value               = \"payment-api\"\n    propagate_at_launch = true\n  }\n}\nresource \"aws_autoscaling_policy\"\
+      \ \"scale_out\" {\n  name                   = \"payment-api-target-tracking\"\n  autoscaling_group_name = aws_autoscaling_group.app.name\n\
+      \  policy_type            = \"TargetTrackingScaling\"\n  target_tracking_configuration {\n    predefined_metric_specification\
+      \ {\n      predefined_metric_type = \"ALBRequestCountPerTarget\"\n      resource_label         = \"${aws_lb.app.arn_suffix}/${aws_lb_target_group.app.arn_suffix}\"\
+      \n    }\n    target_value = 1000.0\n  }\n}\n"
+    non_compliant: "resource \"aws_autoscaling_group\" \"app\" {\n  name             = \"asg-payment-api\"\n  min_size   \
+      \      = 1\n  max_size         = 1  # max == min, no scaling possible – WAF-PERF-020 violation\n  desired_capacity =\
+      \ 1\n  # No scaling policy – manual only\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_autoscaling_group
+  assertions:
+  - attribute: min_size
+    op: greater_than_or_equal
+    message: Auto Scaling Group min_size must be at least 1 to prevent cold starts in synchronous workloads.
+    expected: 1
+  - attribute: max_size
+    op: greater_than_or_equal
+    message: Auto Scaling Group max_size must be at least 2 to enable actual scaling.
+    expected: 1
+  - attribute: health_check_type
+    op: not_empty
+    message: Auto Scaling Group must have health_check_type configured (EC2 or ELB).
+  on_fail: violation
+- id: waf-perf-020.tf.azurerm.vmss-autoscale
+  engine: terraform
+  automated: true
+  title: Azure VMSS must have autoscale settings configured
+  provider: azurerm
+  description: Azure Virtual Machine Scale Sets used for production workloads must have autoscale settings configured with
+    at least one scale-out and one scale-in rule.
+  expected: 'true'
+  remediation: Enable autoscale settings for the VMSS. Configure at least one profile with scale-out and scale-in rules based
+    on CPU percentage or custom metrics.\n
+  example:
+    compliant: "resource \"azurerm_monitor_autoscale_setting\" \"app\" {\n  name                = \"autoscale-payment-api\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  location            = azurerm_resource_group.main.location\n\
+      \  target_resource_id  = azurerm_linux_virtual_machine_scale_set.app.id\n  enabled             = true\n  profile {\n\
+      \    name = \"defaultProfile\"\n    capacity {\n      default = 2\n      minimum = 2\n      maximum = 10\n    }\n  \
+      \  rule {\n      metric_trigger {\n        metric_name        = \"Percentage CPU\"\n        metric_resource_id = azurerm_linux_virtual_machine_scale_set.app.id\n\
+      \        time_grain         = \"PT1M\"\n        statistic          = \"Average\"\n        time_window        = \"PT5M\"\
+      \n        time_aggregation   = \"Average\"\n        operator           = \"GreaterThan\"\n        threshold        \
+      \  = 70\n      }\n      scale_action {\n        direction = \"Increase\"\n        type      = \"ChangeCount\"\n    \
+      \    value     = \"1\"\n        cooldown  = \"PT3M\"\n      }\n    }\n  }\n}\n"
+    non_compliant: "# No azurerm_monitor_autoscale_setting resource defined\n# VMSS deployed with fixed capacity – WAF-PERF-020\
+      \ violation\nresource \"azurerm_linux_virtual_machine_scale_set\" \"app\" {\n  instances = 2  # Static, no scaling\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_autoscale_setting
+  assertions:
+  - attribute: enabled
+    op: is_true
+    message: Autoscale setting must be enabled.
+  - attribute: profile
+    op: not_empty
+    message: Autoscale setting must have at least one profile configured.
+  on_fail: violation
+- id: waf-perf-020.tf.google.managed-instance-group-autoscaler
+  engine: terraform
+  automated: true
+  title: GCP Managed Instance Groups must have autoscaler configured
+  provider: google
+  description: GCP Managed Instance Groups used for production compute must have a google_compute_autoscaler resource configured
+    with appropriate scaling policies.
+  expected: 'true'
+  remediation: Add a google_compute_autoscaler resource targeting the Managed Instance Group. Configure autoscaling_policy
+    with appropriate min_replicas, max_replicas, and cpu_utilization target or load_balancing_utilization.\n
+  example:
+    compliant: "resource \"google_compute_autoscaler\" \"app\" {\n  name   = \"autoscaler-payment-api\"\n  zone   = \"europe-west3-a\"\
+      \n  target = google_compute_instance_group_manager.app.id\n  autoscaling_policy {\n    max_replicas    = 10\n    min_replicas\
+      \    = 2\n    cooldown_period = 60\n    cpu_utilization {\n      target = 0.6\n    }\n  }\n}\n"
+    non_compliant: "# No google_compute_autoscaler defined\nresource \"google_compute_instance_group_manager\" \"app\" {\n\
+      \  name               = \"igm-payment-api\"\n  base_instance_name = \"payment-api\"\n  zone               = \"europe-west3-a\"\
+      \n  # Static capacity, no autoscaler – WAF-PERF-020 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_autoscaler
+    - google_compute_region_autoscaler
+  assertions:
+  - attribute: autoscaling_policy
+    op: not_empty
+    message: Autoscaler must have autoscaling_policy defined with min and max replicas.
+  on_fail: violation
+- id: waf-perf-020.tf.stackit.compute-sku-review
+  engine: terraform
+  automated: true
+  title: STACKIT compute resources must use a reviewed and sized SKU
+  provider: stackit
+  description: STACKIT compute resources must use a reviewed and sized SKU. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_server
+    - stackit_ske_node_pool
+  assertions:
+  - attribute: machine_type
+    op: attribute_exists
+    message: STACKIT compute resource must specify a machine type.
+  on_fail: violation
+- id: waf-perf-020.tf.ovh.compute-flavor-review
+  engine: terraform
+  automated: true
+  title: OVHcloud compute resources must use a reviewed and sized flavor
+  provider: ovh
+  description: OVHcloud compute resources must use a reviewed and sized flavor. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_instance
+    - ovh_vps
+    - ovh_cloud_project_kube_nodepool
+  assertions:
+  - attribute: flavor_name
+    op: attribute_exists
+    message: OVHcloud compute resource must specify a flavor.
+  on_fail: violation
+- id: waf-perf-020.tf.hcloud.server-type-review
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud servers must use a reviewed and sized type
+  provider: hcloud
+  description: Hetzner Cloud servers must use a reviewed and sized type. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: server_type
+    op: attribute_exists
+    message: Hetzner Cloud server must specify a server type.
+  on_fail: violation

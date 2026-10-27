@@ -3,158 +3,101 @@
 :control-id: WAF-SOV-010
 :pillar: sovereign
 :severity: high
-:category: data-residency
-:automated: partial
-:description: WAF++ Sovereign – Documented and technically enforced data residency policy for all data categories.
+:category: identity-access
+:automatable: High
+:description: A documented data-residency policy MUST exist that explicitly defines allowed regions, data classifications, and storage rules for all data types: primary data, replicas, backups, logs, traces, metrics, and metadata. The policy MUST be version-controlled and technically reflected in IaC defaults and variable validation.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* High | *Category:* Data Residency | *Automatable:* Partially
+*Pillar:* Sovereign | *Severity:* High | *Category:* Identity Access | *Automatable:* High
 
 == Description
 
-A documented data residency policy MUST exist that explicitly defines permitted regions and data
-classes for all data categories (primary data, replication, backups, logs/traces/metrics,
-metadata) and all environments (prod/non-prod).
-
-The policy MUST be versioned and technically reflected in IaC defaults, provider configurations,
-and variable validation blocks. Tagging all data-holding resources with `data-residency` and
-`data-class` is mandatory.
+A documented data-residency policy MUST exist that explicitly defines allowed regions, data classifications, and storage rules for all data types: primary data, replicas, backups, logs, traces, metrics, and metadata. The policy MUST be version-controlled and technically reflected in IaC defaults and variable validation.
 
 == Rationale
-
-Without a documented and technically enforced residency policy, no other Sovereign control can
-be demonstrated. Without tagging and explicit region configurations in IaC, data can silently
-migrate into non-sovereign jurisdictions via backup replication, log exports, or third-party
-integrations.
-
-Compliance with GDPR, BSI C5, EUCS, and similar frameworks requires *demonstrable*
-geographical and jurisdictional control — not merely contractual assurances.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Data in wrong jurisdiction*
-|Unconstrained IaC defaults silently create resources in non-permitted regions.
+|*Risk* |Data may leave approved jurisdictions and violate regulatory requirements.
 
-|*Regulatory violation*
-|GDPR Art. 46, EUCS, BSI C5: Lack of demonstrability is treated as a violation even if data is factually stored correctly.
-
-|*Missing audit trail*
-|Unclassified data flows cannot be demonstrated during audits.
-
-|*Drift without detection*
-|New resources without a tagging policy remain invisible during compliance scans.
+|*Risk* |Vendor lock-in reduces future portability and sovereignty options.
 
 |===
 
-== Regulatory Mapping
+== Requirements
 
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*GDPR*
-|Art. 44 – General principles for transfers; Art. 46 – Appropriate safeguards; Art. 30 – Records of processing activities
-
-|*BSI C5:2020*
-|OPS-04 – Data management; SIM-01 – Security incident management
-
-|*EUCS (ENISA)*
-|DSP-01 – Data classification; IAM-04 – Access control policy
-
-|*ISO 27001:2022*
-|A.8.10 – Information deletion; A.5.12 – Classification of information; A.5.33 – Protection of records
-
-|*GAIA-X*
-|Sovereign Cloud – Requirements for data location and transparency
-
-|*BSI C3A:2026*
-|Dimension 4 – Data: Data residency, data classification
-
-|===
-
-== Requirement
-
-A data residency policy MUST:
-
-* identify all data categories (PII, health data, financial data, operational, public)
-* define permitted regions and jurisdictions per data category
-* cover primary data, replications, backups, logs, and metadata
-* apply to all environments (prod/non-prod)
-* exist in versioned form in the repository (not as a PDF in SharePoint)
-* be technically reflected in IaC defaults, variable validation, and mandatory tagging
+* A documented data-residency policy MUST exist that explicitly defines allowed regions, data classifications, and storage rules for all data types: primary data, replicas, backups, logs, traces, metrics, and metadata.
+* The policy MUST be version-controlled and technically reflected in IaC defaults and variable validation.
 
 == Implementation Guidance
 
-. *Create policy document*: Store as a machine-readable YAML file alongside Terraform code; use semantic versioning.
-. *Define data classes*: At minimum: `pii`, `financial`, `health`, `operational`, `public`.
-. *Set regions explicitly*: No vague "EU" designations; use concrete cloud region IDs (e.g. `eu-central-1`, `germanywestcentral`).
-. *Set IaC defaults*: Provider region must be explicit in all blocks; no fallback to environment variables.
-. *Add variable validation*: All region/location variables must have a `validation` block with allowed values.
-. *Introduce mandatory tagging module*: Central module that enforces `data-residency` and `data-class` tags.
-. *Activate CI gate*: Integrate WAF++ checker or OPA policy into CI pipeline.
-. *Quarterly review*: Review policy at least annually, preferably quarterly, for new data flows.
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Policy documented
-|Policy document exists and is versioned; primary regions defined.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|All data categories covered
-|Policy covers backups, logs, metadata; permitted regions per data category; annual review.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Technically reflected in IaC
-|IaC uses validation blocks; CI pipeline validates region settings; all data-holding resources correctly tagged.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Continuous drift detection
-|Automated scanning detects policy violations in live infrastructure; alerts on new unclassified resources.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Policy-as-code with auto-remediation
-|Policy fully machine-readable; violations are automatically remediated or blocked; audit evidence collected automatically.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sov-010.tf.any.resource-tag-data-residency
-*Checks:* Data-holding resources must carry `data-residency` and `data-class` tags.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
 
-a|[source,hcl]
+*Data resources must carry 'data-residency' tag*
+
+Primary data resources (object storage, relational DB, NoSQL, data warehouses) must be tagged with 'data-residency' to indicate the jurisdiction constraint for that resource.
+
+*Scope:* `resource` — `aws_s3_bucket`, `aws_rds_instance`, `aws_rds_cluster`, `aws_dynamodb_table`, `aws_elasticache_cluster`, `aws_elasticsearch_domain`, `aws_opensearch_domain`, `azurerm_storage_account`, `azurerm_sql_database`, `azurerm_cosmosdb_account`, `google_storage_bucket`, `google_sql_database_instance`, `google_bigtable_instance`, `stackit_container_registry`, `stackit_mysql_instance`, `stackit_opensearch_instance`, `stackit_redis_instance`, `stackit_secret_manager`, `ovh_cloud_project`, `ovh_vps`, `ovh_dedicated_server`, `ovh_ip_loadbalancing`, `hcloud_server`, `hcloud_volume`, `hcloud_network`, `hcloud_load_balancer`, `hcloud_dns_record`
+
+*Assertions:*
+* `tags` key exists — Resource is missing the 'data-residency' tag required by sovereignty policy.
+* `tags` key exists — Resource is missing the 'data-class' tag required by data classification policy.
+
+*Remediation:* Add 'data-residency' and 'data-class' tags to all data-storing resources. Acceptable values for 'data-residency': eu-only, de-only, ch-only, at-only, global-approved. Acceptable values for 'data-class': pii, health, financial, operational, public, restricted.
+
+.Compliant
+
+[source,terraform]
 ----
 # AWS
 resource "aws_s3_bucket" "customer_data" {
   bucket = "acme-customer-data-prod"
   tags = {
-    data-class     = "pii"
-    data-residency = "eu-only"
-    environment    = "production"
+    data-class      = "pii"
+    data-residency  = "eu-only"
+    environment     = "production"
+    owner           = "platform-team"
   }
 }
 
 # Azure
 resource "azurerm_storage_account" "customer_data" {
-  name                = "acmestorage"
+  name             = "acmestorage"
   resource_group_name = azurerm_resource_group.main.name
-  location            = "germanywestcentral"
+  location         = "germanywestcentral"
   tags = {
-    data-class     = "pii"
-    data-residency = "eu-only"
+    data-class      = "pii"
+    data-residency  = "eu-only"
+    environment     = "production"
+    owner           = "platform-team"
   }
 }
 
@@ -163,18 +106,20 @@ resource "google_storage_bucket" "customer_data" {
   name     = "acme-customer-data-prod"
   location = "europe-west3"
   labels = {
-    data-class     = "pii"
-    data-residency = "eu-only"
+    data-class      = "pii"
+    data-residency  = "eu-only"
+    environment     = "production"
+    owner           = "platform-team"
   }
 }
 
-# StackIT
+# StackIT (SchwarzIT)
 resource "stackit_container_registry" "customer_data" {
   project_id = stackit_project.main.id
   name       = "acme-registry"
   labels = {
-    data-class     = "pii"
-    data-residency = "eu-only"
+    data-class      = "pii"
+    data-residency  = "eu-only"
   }
 }
 
@@ -190,49 +135,53 @@ resource "hcloud_server" "customer_data" {
   server_type = "cx22"
   location    = "fsn1"
   labels = {
-    data-class     = "pii"
-    data-residency = "eu-only"
+    data-class      = "pii"
+    data-residency  = "eu-only"
   }
 }
 ----
 
-a|[source,hcl]
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket" "customer_data" {
   bucket = "acme-customer-data-prod"
+  # Missing data-residency and data-class tags
   tags = {
     environment = "production"
-    # Missing: data-residency, data-class
   }
 }
 ----
-|===
-
-*Remediation:* Add `data-residency` and `data-class` tags to all data-holding resources.
-Allowed values for `data-residency`: `eu-only`, `de-only`, `ch-only`, `global-approved`.
-
-*Supported providers:* AWS, Azure, GCP, **StackIT**, **OVH**, **Hetzner Cloud**
 
 ---
 
 === waf-sov-010.tf.aws.provider-region-explicit
-*Checks:* AWS Provider must set `region` explicitly (no fallback to `AWS_DEFAULT_REGION`).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS provider must have 'region' explicitly set*
+
+AWS provider blocks must have an explicit 'region' attribute set to prevent unintended deployments to non-sovereign regions via environment variable fallback.
+
+*Scope:* `provider` — `aws`
+
+*Assertions:*
+* `region` attribute exists — AWS provider block is missing explicit 'region' attribute.
+* `region` not empty — AWS provider 'region' must not be empty.
+
+*Remediation:* Set 'region' explicitly in all AWS provider blocks. Use a variable with a validation block to restrict to approved regions.
+
+.Compliant
+
+[source,terraform]
 ----
 variable "aws_region" {
   type    = string
   default = "eu-central-1"
   validation {
-    condition = contains(
-      ["eu-central-1", "eu-west-1"],
-      var.aws_region
-    )
-    error_message = "Only sovereign EU regions are allowed."
+    condition     = contains(["eu-central-1", "eu-west-1"], var.aws_region)
+    error_message = "Region must be in approved sovereign EU list."
   }
 }
 provider "aws" {
@@ -240,32 +189,43 @@ provider "aws" {
 }
 ----
 
-a|[source,hcl]
+.Non-Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  # No region – fallback to
-  # AWS_DEFAULT_REGION env variable
+  # No region set – defaults to AWS_DEFAULT_REGION env var
 }
 ----
-|===
 
 ---
 
 === waf-sov-010.tf.azurerm.location-explicit
-*Checks:* Azure resource groups and critical resources must set `location` explicitly.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure resource groups must have 'location' explicitly set*
+
+Azure resource groups (and key resources) must have an explicit 'location' attribute rather than inheriting from parent or relying on environment defaults.
+
+*Scope:* `resource` — `azurerm_resource_group`, `azurerm_storage_account`, `azurerm_sql_server`, `azurerm_kubernetes_cluster`
+
+*Assertions:*
+* `location` attribute exists — Azure resource is missing explicit 'location' attribute.
+* `location` not empty — Azure resource 'location' must not be empty.
+
+*Remediation:* Set 'location' explicitly on all Azure resources. Use a variable with a validation block to restrict to approved Azure regions.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 variable "azure_location" {
   type    = string
   default = "germanywestcentral"
   validation {
-    condition = contains(
-      ["germanywestcentral", "westeurope", "northeurope"],
-      var.azure_location
-    )
-    error_message = "Only sovereign Azure regions are allowed."
+    condition     = contains(["germanywestcentral", "westeurope", "northeurope"], var.azure_location)
+    error_message = "Location must be an approved sovereign Azure region."
   }
 }
 resource "azurerm_resource_group" "main" {
@@ -274,109 +234,253 @@ resource "azurerm_resource_group" "main" {
 }
 ----
 
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_resource_group" "main" {
+  name     = "rg-sovereign-prod"
+  # No location set
+}
+----
+
+---
+
+=== waf-sov-010.tf.google.region-explicit
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP resources must have 'region' or 'location' explicitly set*
+
+GCP resources must have 'region' or 'location' explicitly set to prevent unintended deployment to non-sovereign regions via provider-level defaults.
+
+*Scope:* `resource` — `google_storage_bucket`, `google_sql_database_instance`, `google_compute_instance`, `google_container_cluster`, `google_bigquery_dataset`
+
+*Assertions:*
+* `location` attribute exists or fallback (fallback `region`) — GCP resource is missing explicit 'region' or 'location' attribute.
+
+*Remediation:* Set 'location' or 'region' explicitly on all GCP data resources. Use a variable with validation to restrict to approved GCP regions.
+
+.Compliant
+
+[source,terraform]
+----
+variable "gcp_region" {
+  type    = string
+  default = "europe-west3"
+  validation {
+    condition     = startswith(var.gcp_region, "europe-")
+    error_message = "Only European GCP regions are approved for sovereign workloads."
+  }
+}
+resource "google_storage_bucket" "data" {
+  name     = "acme-sovereign-data"
+  location = var.gcp_region
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "data" {
+  name = "acme-sovereign-data"
+  # No location set – defaults to provider default
+}
+----
+
+---
+
+=== waf-sov-010.tf.stackit.region-explicit
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT resources must have an explicit region*
+
+STACKIT resources must have an explicit region. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_project`, `stackit_server`, `stackit_ske_cluster`, `stackit_object_storage_bucket`
+
+*Assertions:*
+* `region` attribute exists — STACKIT resource must have an explicit region.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_project" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_project" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-sov-010.config.ovh.data-residency-policy
+
+*Engine:* `config` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud data-residency policy must be documented*
+
+OVHcloud public-cloud resources do not expose a native region attribute consistently across all resource types. A version-controlled policy document must therefore define the approved OVHcloud regions, data classifications, and implementation rules for sovereign workloads.
+
+*Scope:* `file` — `docs/sovereign/waf-sov-010-ovh-data-residency.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|documented|approved` — OVHcloud data-residency policy file must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/sovereign/waf-sov-010-ovh-data-residency.md`. State the approved OVHcloud regions, data-class handling, review cadence, and owner.
+
+.Compliant
+
+[source,text]
+----
+docs/sovereign/waf-sov-010-ovh-data-residency.md:
+
+- Approved OVHcloud regions are documented (e.g. DE-FRA, DE-EDE, EU-CY).
+- Data-class and data-residency handling for OVHcloud is defined.
+- Owner and review cadence are recorded.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/sovereign/waf-sov-010-ovh-data-residency.md` is missing
+# WAF-SOV-010 violation: OVHcloud data-residency policy is not documented
+----
+
+---
+
+=== waf-sov-010.tf.hcloud.location-explicit
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud resources must have an explicit location*
+
+Hetzner Cloud resources must have an explicit location. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_volume`, `hcloud_network`, `hcloud_load_balancer`
+
+*Assertions:*
+* `location` attribute exists — Hetzner Cloud resource must have an explicit location.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*Governance*
-|✅ Required
-|Versioned data residency policy document; all data categories and permitted regions included.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Required
-|Terraform provider configurations and variable defaults with region validation.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Architecture*
-|Optional
-|Architecture diagrams with data flows, trust boundaries, and region labels.
-
-|*Process*
-|Optional
-|Change history and review records of the policy document.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-SOV-020.adoc[WAF-SOV-020 – Region Pinning Enforced]
-* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
-* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging & Telemetry Residency]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-sovereign:controls/WAF-SOV-070.adoc[WAF-SOV-070]
+* xref:pillar-sovereign:controls/WAF-SOV-090.adoc[WAF-SOV-090]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+|ISO 27001:2022 |* A.5.12 – Classification of information
+* A.5.33 – Protection of records
+* A.8.10 – Information deletion
+* A.5.34 – Privacy and PII protection
 
-|*BSI C5:2020*
-|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+|ISO 27017 |* CLD.6.3 – Shared roles and responsibilities for cloud
+* CLD.8.1 – Asset management for cloud customer data
 
-|*EUCS (ENISA)*
-|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+|ISO 27018 |* A.1 – Consent and choice for PII
+* A.11 – Information transfer and disclosure of PII
 
-|*ISO 27001:2022*
-|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+|GDPR |* Art. 30 – Records of processing activities
+* Art. 44 – General principle for transfers
+* Art. 46 – Transfers subject to appropriate safeguards
+* Art. 5(1)(a) – Lawfulness, fairness and transparency
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+|UK GDPR |* Art. 30 – Records of processing
+* Art. 44-46 – International transfers
 
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+|NIS2 |* Art. 21(2)(d) – Supply chain and data location requirements
 
-|*BSI C3A:2026*
-|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
+|DORA |* Art. 28 – ICT third-party risk management
 
-|*GAIA-X*
-|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
+|EUCS (ENISA) |* DSP-01 – Data classification and handling
+* GEO-01 – Data geographic location
 
-|*NIST SP 800-53*
-|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
+|BSI C5:2020 |* AM-04 – Data classification and handling
+* PI-02 – Location of data processing
 
-|*NIST CSF 2.0*
-|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
+|BSI C3A:2026 |* Dimension 4 – Data: Data residency, data classification
 
-|*FedRAMP*
-|SC-1, SC-7, SC-8 (High baseline)
+|ANSSI SecNumCloud |* Domain – Data localization and sovereignty
 
-|*TISAX*
-|Information security – Data protection; Prototype protection – Sensitive data handling
+|BIO |* BIO – Dataclassificatie en residentie
 
-|*ANSSI SecNumCloud*
-|Domain – Data protection; Domain – Cloud security
+|ENS High |* mp.info.1 – Datos de carácter personal
+* mp.info.6 – Limpieza de documentos
 
-|*BIO*
-|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
+|NIST SP 800-53 |* RA-2 – Security Categorization
+* AC-21 – Information Sharing
+* SC-7 – Boundary Protection
 
-|*ENS High*
-|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
+|FedRAMP |* RA-2, SC-7 (Moderate/High baseline – data location)
 
-|*UK NCSC CAF*
-|B3 – Understanding data; B4 – System security
+|MAS TRM |* Ch.13 – Cloud computing – data location
 
-|*CMMC 2.0*
-|SC.L2-3.13.16 – Protect CUI confidentiality at rest
-
-|*IRAP*
-|ISM – Data protection; ISM – Cloud security
-
-|*CCCS PBMM*
-|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
-
-|*ISMAP*
-|Data sovereignty and cloud security
-
-|*FISC*
-|Technical measures – Data protection
+|ISMAP |* Data location and residency requirements
 
 |===
-
-== Best Practice

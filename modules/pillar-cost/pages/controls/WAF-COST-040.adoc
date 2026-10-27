@@ -3,96 +3,77 @@
 :control-id: WAF-COST-040
 :pillar: cost
 :severity: high
-:category: retention-management
-:automated: high
-:description: WAF++ Cost Optimization – Explizite Lifecycle-Policies für alle Storage- und Log-Ressourcen; kein Infinite Retention.
+:category: identity-access
+:automatable: High
+:description: All storage resources (S3 buckets, Azure Storage accounts, GCS buckets) MUST have explicit lifecycle rules configured. All log groups (CloudWatch, Azure Log Analytics, GCP Cloud Logging) MUST have an explicit retention_in_days value that is not 0 (infinite) and not null. No storage or logging resource may be provisioned without an explicit, finite retention or lifecycle policy. Infinite retention is classified as Architectural Cost Debt.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Retention Management | *Automatisierbar:* Hoch
+*Pillar:* Cost | *Severity:* High | *Category:* Identity Access | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Storage-Ressourcen (S3-Buckets, Azure Storage, GCS-Buckets) MÜSSEN explizite Lifecycle-Regeln haben.
-Alle Log-Gruppen MÜSSEN `retention_in_days` != 0 und != null haben.
-Kein Storage- oder Log-Ressource darf ohne explizite, endliche Retention provisioniert werden.
-
-Infinite Retention wird als Architektonische Kostenschuld klassifiziert (xref:cost-debt.adoc[Kostenschuld]).
+All storage resources (S3 buckets, Azure Storage accounts, GCS buckets) MUST have explicit lifecycle rules configured. All log groups (CloudWatch, Azure Log Analytics, GCP Cloud Logging) MUST have an explicit retention_in_days value that is not 0 (infinite) and not null. No storage or logging resource may be provisioned without an explicit, finite retention or lifecycle policy. Infinite retention is classified as Architectural Cost Debt.
 
 == Rationale
 
-Storage-Kosten wachsen linear und ungebunden ohne Lifecycle-Policies.
-CloudWatch Log Groups mit `retention_in_days = 0` (der Default) speichern Logs unbegrenzt –
-ein Pattern, das in schlecht gemanagten Umgebungen dazu führt, dass Observability-Kosten
-die Compute-Kosten übersteigen.
-
-Lifecycle-Policies sind die kosteneffektivste präventive Maßnahme im Cloud-Cost-Management:
-Einmaliger IaC-Aufwand, dauerhafter und wachsender Einsparungseffekt.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Unbegrenzte Storage-Kosten*
-|S3-Buckets ohne Lifecycle akkumulieren Daten über Jahre; Kosten wachsen ohne Kontrolle.
+|*Risk* |Unlimited storage retention lets data grow unnecessarily and increases cost and deletion risk.
 
-|*Observability-Kostendominanz*
-|CloudWatch-Default (infinite) macht Log-Kosten zur größten Kostenposition nach Compute.
-
-|*Vergessene Snapshots*
-|EBS-Snapshots und RDS-Snapshots wachsen unbegrenzt, wenn kein Cleanup-Policy existiert.
-
-|*DSGVO-Risiko*
-|Daten, die länger als notwendig gespeichert werden, verstoßen gegen das Prinzip der Datensparsamkeit.
+|*Risk* |Missing lifecycle rules prevent automatic archiving or deletion by data classification.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Jede `aws_s3_bucket`-Ressource MUSS eine `aws_s3_bucket_lifecycle_configuration` haben
-* Jede `aws_cloudwatch_log_group` MUSS `retention_in_days` mit Wert >= 1 haben
-* 4-Tier-Modell MUSS dokumentiert sein: Hot (7–30d), Warm (30–90d), Cold (90–365d), Archive (>365d)
-* Unvollständige Multipart-Uploads MÜSSEN nach <= 3 Tagen abgebrochen werden
+* All storage resources (S3 buckets, Azure Storage accounts, GCS buckets) MUST have explicit lifecycle rules configured.
+* All log groups (CloudWatch, Azure Log Analytics, GCP Cloud Logging) MUST have an explicit retention_in_days value that is not 0 (infinite) and not null.
 
-== Reifegrad-Abstufung
+== Implementation Guidance
 
-[cols="1,2,3"]
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
+
+== Maturity Levels
+
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Lifecycle-Policies
-|S3-Buckets ohne Lifecycle; CloudWatch-Default (infinite).
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Einige Retention-Werte gesetzt
-|Größte Kostentreiber mit Retention konfiguriert; kein systematischer Ansatz.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Alle Ressourcen mit Lifecycle in IaC
-|Jeder S3-Bucket hat Lifecycle-Konfiguration; jede Log Group hat `retention_in_days` != 0.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Tiered Storage automatisiert
-|Log-Tiering implementiert; Storage-Kostentrend monatlich überwacht.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Value-basiertes Intelligent Tiering
-|S3 Intelligent-Tiering; Log-Value-Analyse; automatisierte Tiering-Optimierung.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-040.tf.aws.s3-lifecycle-rule-defined
-*Prüft:* S3-Buckets müssen eine Lifecycle-Configuration haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*S3 buckets must have explicit lifecycle configuration*
+
+Every aws_s3_bucket resource must have an associated aws_s3_bucket_lifecycle_configuration resource, or a lifecycle_rule block. S3 buckets without lifecycle rules accumulate data indefinitely, driving unbounded storage costs.
+
+*Scope:* `resource` — `aws_s3_bucket_lifecycle_configuration`
+
+*Assertions:*
+* `rule` not empty — S3 lifecycle configuration must contain at least one rule.
+
+*Remediation:* Add an aws_s3_bucket_lifecycle_configuration resource for every S3 bucket. Include at minimum: transition to STANDARD_IA after 30 days, GLACIER after 90 days, and an abort_incomplete_multipart_upload rule with days_after_initiation = 3.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket_lifecycle_configuration" "data" {
   bucket = aws_s3_bucket.data.id
@@ -123,90 +104,341 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket" "data" {
   bucket = "acme-application-data"
-  # Keine Lifecycle-Configuration
-  # Daten akkumulieren unbegrenzt
-  # WAF-COST-040 Violation
+  # No lifecycle configuration – WAF-COST-040 violation
+  # Data will accumulate indefinitely
 }
 ----
-|===
 
 ---
 
 === waf-cost-040.tf.aws.cloudwatch-log-retention-not-zero
-*Prüft:* CloudWatch Log Groups müssen `retention_in_days` >= 1 haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*CloudWatch Log Groups must not have infinite retention*
+
+All aws_cloudwatch_log_group resources must have retention_in_days set to a value greater than 0. The Terraform default (not setting retention_in_days) results in infinite retention, which is classified as Architectural Cost Debt in WAF++.
+
+*Scope:* `resource` — `aws_cloudwatch_log_group`
+
+*Assertions:*
+* `retention_in_days` attribute exists — CloudWatch Log Group is missing retention_in_days. Default is infinite retention (cost debt).
+* `retention_in_days` greater than or equal `1` — retention_in_days must be >= 1. Setting 0 means infinite retention (WAF-COST-040 violation).
+
+*Remediation:* Set retention_in_days on all aws_cloudwatch_log_group resources. Use the 4-tier model: operational=30, security-audit=365, compliance=2555 (7yr). Never use 0 (infinite) as this represents unconstrained cost debt.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "/app/production/payment"
-  retention_in_days = 30  # Hot-Tier
-  tags = merge(module.mandatory_tags.tags, {
-    log-tier = "hot"
-    log-type = "operational"
-  })
+resource "aws_cloudwatch_log_group" "application" {
+  name              = "/app/production/payment-service"
+  retention_in_days = 30  # Hot-tier: operational logs
+  kms_key_id        = aws_kms_key.logging.arn
+  tags              = module.mandatory_tags.tags
+}
+
+resource "aws_cloudwatch_log_group" "audit" {
+  name              = "/app/production/audit"
+  retention_in_days = 365  # Cold-tier: audit logs
+  kms_key_id        = aws_kms_key.logging.arn
+  tags              = module.mandatory_tags.tags
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_log_group" "app" {
-  name = "/app/production/payment"
-  # retention_in_days fehlt = unbegrenzt
-  # WAF-COST-040 Violation
+resource "aws_cloudwatch_log_group" "application" {
+  name = "/app/production/payment-service"
+  # retention_in_days not set = infinite retention = WAF-COST-040 violation
+}
+
+resource "aws_cloudwatch_log_group" "debug" {
+  name              = "/app/production/debug"
+  retention_in_days = 0  # Explicit infinite – also a violation
 }
 ----
+
+---
+
+=== waf-cost-040.tf.azurerm.storage-lifecycle-rule
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Storage accounts must have explicit lifecycle management policies*
+
+Every azurerm_storage_account used for blob storage must have an azurerm_storage_management_policy resource attached with at least one rule defining tiering or deletion. Log Analytics workspaces must have an explicit retention_in_days value.
+
+*Scope:* `resource` — `azurerm_storage_management_policy`, `azurerm_log_analytics_workspace`
+
+*Assertions:*
+* `rule` not empty — Azure storage management policy must contain at least one rule.
+
+*Remediation:* Add an azurerm_storage_management_policy for each storage account. Define rules to tier blobs to Cool/Archive and delete old versions. Set retention_in_days on azurerm_log_analytics_workspace resources to a finite value.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_management_policy" "data" {
+  storage_account_id = azurerm_storage_account.data.id
+
+  rule {
+    name    = "tier-and-delete"
+    enabled = true
+    filters {
+      prefix_match = ["container1"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        tier_to_cool_after_days_since_modification_greater_than    = 30
+        tier_to_archive_after_days_since_modification_greater_than = 90
+        delete_after_days_since_modification_greater_than        = 365
+      }
+    }
+  }
+}
+
+resource "azurerm_log_analytics_workspace" "logs" {
+  name                = "log-workspace"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  retention_in_days   = 30
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "data" {
+  name                     = "acmeappdata"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  # No azurerm_storage_management_policy attached
+}
+----
+
+---
+
+=== waf-cost-040.tf.google.gcs-lifecycle-rule
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCS buckets must have explicit lifecycle rules*
+
+Every google_storage_bucket resource must define a lifecycle_rules block. Cloud Logging buckets must have an explicit retention_days value to prevent infinite retention and unbounded cost.
+
+*Scope:* `resource` — `google_storage_bucket`
+
+*Assertions:*
+* `lifecycle_rule` attribute exists — GCS bucket must define at least one lifecycle rule.
+
+*Remediation:* Add lifecycle_rules to every google_storage_bucket. Include rules for transitions to Nearline/Coldline/Archive and deletion. Set retention_days on logging buckets to a finite value.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "data" {
+  name          = "acme-app-data"
+  location      = var.region
+  storage_class = "STANDARD"
+
+  lifecycle_rule {
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+    condition {
+      age = 30
+    }
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 365
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "data" {
+  name     = "acme-app-data"
+  location = var.region
+  # No lifecycle_rule defined – data accumulates indefinitely
+}
+----
+
+---
+
+=== waf-cost-040.tf.stackit.object-storage-lifecycle
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT object storage buckets must have a lifecycle rule*
+
+STACKIT object storage buckets must have a lifecycle rule. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_object_storage_bucket`
+
+*Assertions:*
+* `lifecycle_rule` attribute exists — STACKIT object storage bucket must define lifecycle rules.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_object_storage_bucket" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_object_storage_bucket" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-040.tf.ovh.object-storage-lifecycle
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud object storage containers must have a lifecycle rule*
+
+OVHcloud object storage containers must have a lifecycle rule. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_storage_object_container`
+
+*Assertions:*
+* `lifecycle_rule` attribute exists — OVHcloud object storage container must define lifecycle rules.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_storage_object_container" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_storage_object_container" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-040.tf.hcloud.volume-backup-policy
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud volumes must have a backup or lifecycle policy*
+
+Hetzner Cloud volumes must have a backup or lifecycle policy. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_volume`
+
+*Assertions:*
+* `labels.lifecycle-policy` key exists — Hetzner Cloud volume must declare a lifecycle-policy label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_volume" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_volume" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* `retention_in_days` auf alle Log Groups setzen.
-Empfohlen: operational=30, security-audit=365. Nie 0 oder leer lassen.
+== Related Controls
 
-== Evidenz
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+* xref:pillar-security:controls/WAF-SEC-120.adoc[WAF-SEC-120]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*IaC*
-|✅ Pflicht
-|Terraform Storage-Ressourcen mit expliziten Lifecycle-Regeln.
-
-|*IaC*
-|✅ Pflicht
-|Terraform CloudWatch Log Group-Ressourcen mit `retention_in_days` != 0.
-
-|*Governance*
-|Optional
-|Retention-Strategie-Dokument (`docs/retention-strategy.yml`).
-
-|*Config*
-|Optional
-|AWS Config-Report: S3-Buckets ohne Lifecycle-Policy (Ziel: 0).
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*FinOps Foundation*
-|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
+|FinOps Foundation |* Optimize Phase – Storage Optimization and Lifecycle Management
 
-|*ISO 20000*
-|Service financial management – cost allocation
-
-|*Internal Governance*
-|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
+|GDPR |* Art. 5(1)(e) – Storage limitation (data not kept longer than necessary)
+* Art. 17 – Right to erasure (lifecycle policies support GDPR deletion requirements)
 
 |===
-
-== Verwandte Controls

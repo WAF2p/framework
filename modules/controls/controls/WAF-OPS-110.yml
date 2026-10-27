@@ -1,0 +1,133 @@
+id: WAF-OPS-110
+title: GitOps-based deployments SHOULD be preferred for Kubernetes and container workloads
+status: active
+tags:
+- configuration
+- excellence
+- governance
+- medium
+pillar: excellence
+severity: medium
+type:
+- governance
+- configuration
+category: deployment-automation
+rationale: Fehlende GitOps-Praktiken und unverwaltete Feature Flags erhöhen das Risiko menschlicher Fehler und nicht reproduzierbarer
+  Deployments. Dieses Control adressiert die Anforderungen des Bereichs 'Deployment Automation' und stellt sicher, dass Kubernetes
+  and container workloads SHOULD be deployed via GitOps controllers that reconcile desired...
+threat:
+- Imperative cluster changes bypass audit trails and create drift between environments.
+- Missing GitOps reconciliation leaves clusters in undocumented, non-reproducible states.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-110.adoc
+  related_controls:
+  - WAF-OPS-020
+  - WAF-OPS-030
+  - WAF-OPS-050
+  - WAF-OPS-120
+  - WAF-SEC-090
+  - WAF-REL-110
+description: Kubernetes and container workloads SHOULD be deployed via GitOps controllers that reconcile desired state from
+  Git. GitOps repositories MUST enforce peer review, branch protection, and signed commits. Controllers MUST report sync status,
+  drift, and errors to observability systems. Manual imperative changes to clusters MUST be reconciled or rejected.
+regulatory_mapping:
+- framework: AWS Well-Architected Framework
+  controls:
+  - OPS 5 – Operate as a unified whole
+- framework: SRE Book (Google)
+  controls:
+  - Chapter 7 – The Evolution of Automation at Google
+- framework: NIST CSF 2.0
+  controls:
+  - PR.IP-01 – Baseline configurations
+checks:
+- id: waf-ops-110.tf.aws.eks-gitops-addon
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS EKS should deploy GitOps agent via EKS add-on or Helm
+  description: AWS EKS should deploy GitOps agent via EKS add-on or Helm
+  expected: 'true'
+  remediation: AWS EKS should deploy GitOps agent via EKS add-on or Helm
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_eks_addon
+    - helm_release
+  assertions:
+  - attribute: addon_name
+    op: in
+    expected:
+    - fluxcd
+    - argo-cd
+    message: EKS should have a GitOps add-on installed.
+  on_fail: advisory
+- id: waf-ops-110.tf.azurerm.gitops-extension
+  engine: terraform
+  provider: azurerm
+  automated: true
+  title: Azure AKS should use Flux extension for GitOps
+  description: Azure AKS should use Flux extension for GitOps
+  expected: 'true'
+  remediation: Azure AKS should use Flux extension for GitOps
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_kubernetes_cluster_extension
+  assertions:
+  - attribute: extension_type
+    op: in
+    expected:
+    - microsoft.flux
+    message: AKS should use microsoft.flux GitOps extension.
+  on_fail: advisory
+- id: waf-ops-110.config.gitops-policy
+  engine: config
+  provider: any
+  automated: false
+  title: GitOps policy must be documented
+  description: GitOps policy must be documented
+  expected: 'true'
+  remediation: GitOps policy must be documented
+  scope:
+    block_type: file
+    path_pattern: docs/devops/gitops-policy.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: GitOps policy must describe repository structure and reconciliation.
+  on_fail: finding

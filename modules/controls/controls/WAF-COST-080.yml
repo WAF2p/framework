@@ -1,170 +1,271 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-COST-080
 id: WAF-COST-080
-title: 'Compute resources with sustained utilization >= 70% over 30 days MUST be...'
+title: Compute resources with sustained utilization >= 70% over 30 days MUST be...
 status: active
 tags:
-  - cost
-  - medium
-  - governance
-  - configuration
+- cost
+- medium
+- governance
+- configuration
 pillar: cost
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans.
+- governance
+- configuration
+category: data-governance
+rationale: Missing data classification, ownership, and lifecycle control increase compliance risk, cost, and the likelihood
+  of data loss. This control addresses the requirements of the 'Data Governance' area and ensures that Compute resources with
+  sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- High sustained load without capacity planning leads to expensive on-demand resources and budget variance.
+- Missing reserved-instance or savings-plan documentation prevents optimization opportunities.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-cost/pages/controls/WAF-COST-080.adoc'
-  related_controls: []
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-080.adoc
+  related_controls:
+  - WAF-COST-010
+  - WAF-OPS-020
+  - WAF-REL-050
+  - WAF-SUS-010
+  - WAF-COST-050
+  - WAF-OPS-070
+  - WAF-OPS-100
+  - WAF-SUS-030
+  - WAF-COST-070
+  - WAF-COST-060
+  - WAF-COST-100
+  - WAF-COST-020
+description: 'Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings
+  Plans. All persistent on-demand compute resources MUST carry a ''capacity-commitment'' tag documenting their reservation
+  status and the date of the last commitment review. Spot/Preemptible Instances are the preferred option for variable and
+  interruptible workloads.
 
-description: |
-  Compute resources with sustained utilization >= 70% over 30 days MUST be covered by Reserved Instances or Savings Plans. All persistent on-demand compute resources MUST carry a 'capacity-commitment' tag documenting their reservation status and the date of the last commitment review. Spot/Preemptible Instances are the preferred option for variable and interruptible workloads.
+  '
 regulatory_mapping:
-  - framework: 'FinOps Foundation'
-    controls:
-      - 'Optimize Phase – Rate Optimization and Commitment Management'
-      - 'Operate Phase – Commitment Planning and Renewal Management'
-  - framework: 'Internal Governance'
-    controls:
-      - 'Cloud Cost Governance Policy – Minimum Reserved Instance Coverage for Baseline Workloads'
+- framework: FinOps Foundation
+  controls:
+  - Optimize Phase – Rate Optimization and Commitment Management
+  - Operate Phase – Commitment Planning and Renewal Management
 checks:
-  - id: waf-cost-080.tf.aws.ec2-capacity-commitment-tag
-    engine: terraform
-    automated: true
-    title: 'EC2 instances must declare their capacity commitment status'
-    provider: aws
-    description: "All EC2 instances must carry a 'capacity-commitment' tag documenting whether the instance is covered by a reservation, savings plan, spot pricing, or on-demand. This tag proves active commitment management and enables automated coverage reporting."
-    expected: 'true'
-    remediation: "Add 'capacity-commitment' tag to all EC2 instances. Value 'reserved' or 'savings-plan' = commitment exists. Value 'on-demand' = no commitment, flagged for review. Value 'reviewed' = reviewed and consciously left on-demand (needs date + justification).\n"
-    example:
-      compliant: |
-        # Baseline instance with savings plan coverage
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "c5.2xlarge"
-          tags = merge(module.mandatory_tags.tags, {
-            rightsizing-reviewed = "2025-03-01"
-            capacity-commitment  = "savings-plan"
-            commitment-type      = "compute-savings-plan-1yr"
-            commitment-expiry    = "2026-03-01"
-          })
-        }
-        
-        # Spot instance for CI/CD
-        resource "aws_instance" "ci_runner" {
-          ami                    = data.aws_ami.ubuntu.id
-          instance_type          = "c5.xlarge"
-          instance_market_options {
-            market_type = "spot"
-          }
-          tags = merge(module.mandatory_tags.tags, {
-            capacity-commitment = "spot"
-          })
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "c5.2xlarge"
-          tags = {
-            cost-center = "fintech-platform"
-            # Missing capacity-commitment – commitment status unknown
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_launch_template
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'capacity-commitment'
-        message: "EC2 instance missing 'capacity-commitment' tag. Reservation status must be declared."
-      - attribute: 'tags.capacity-commitment'
-        op: 'in'
-        message: 'capacity-commitment must be: reserved, savings-plan, spot, on-demand, or reviewed.'
-    on_fail: violation
-  - id: waf-cost-080.tf.azurerm.vm-commitment-tag
-    engine: terraform
-    automated: true
-    title: 'Azure VMs must declare their capacity commitment status'
-    provider: azurerm
-    description: "All Azure Virtual Machines must carry a 'capacity-commitment' tag documenting whether the VM is covered by a Reserved VM Instance, Azure Savings Plan, Spot pricing, or On-Demand. This enables automated coverage gap detection."
-    expected: 'true'
-    remediation: "Add 'capacity-commitment' tag to all Azure VM resources. Use Azure Advisor to identify baseline VMs that should have Reserved VM Instances.\n"
-    example:
-      compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-payment-app"
-          resource_group_name = azurerm_resource_group.main.name
-          location            = var.location
-          size                = "Standard_D4s_v3"
-          tags = merge(local.mandatory_tags, {
-            "capacity-commitment" = "reserved"
-            "commitment-type"     = "1yr-no-upfront"
-          })
-        }
-        
-      non_compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name     = "vm-payment-app"
-          location = var.location
-          size     = "Standard_D8s_v3"
-          # Missing: capacity-commitment tag
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_linux_virtual_machine
-        - azurerm_windows_virtual_machine
-        - azurerm_virtual_machine_scale_set
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'capacity-commitment'
-        message: "Azure VM missing 'capacity-commitment' tag."
-    on_fail: violation
+- id: waf-cost-080.tf.aws.ec2-capacity-commitment-tag
+  engine: terraform
+  automated: true
+  title: EC2 instances must declare their capacity commitment status
+  provider: aws
+  description: All EC2 instances must carry a 'capacity-commitment' tag documenting whether the instance is covered by a reservation,
+    savings plan, spot pricing, or on-demand. This tag proves active commitment management and enables automated coverage
+    reporting.
+  expected: 'true'
+  remediation: 'Add ''capacity-commitment'' tag to all EC2 instances. Value ''reserved'' or ''savings-plan'' = commitment
+    exists. Value ''on-demand'' = no commitment, flagged for review. Value ''reviewed'' = reviewed and consciously left on-demand
+    (needs date + justification).
+
+    '
+  example:
+    compliant: "# Baseline instance with savings plan coverage\nresource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n\
+      \  instance_type = \"c5.2xlarge\"\n  tags = merge(module.mandatory_tags.tags, {\n    rightsizing-reviewed = \"2025-03-01\"\
+      \n    capacity-commitment  = \"savings-plan\"\n    commitment-type      = \"compute-savings-plan-1yr\"\n    commitment-expiry\
+      \    = \"2026-03-01\"\n  })\n}\n\n# Spot instance for CI/CD\nresource \"aws_instance\" \"ci_runner\" {\n  ami      \
+      \              = data.aws_ami.ubuntu.id\n  instance_type          = \"c5.xlarge\"\n  instance_market_options {\n   \
+      \ market_type = \"spot\"\n  }\n  tags = merge(module.mandatory_tags.tags, {\n    capacity-commitment = \"spot\"\n  })\n\
+      }\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"c5.2xlarge\"\
+      \n  tags = {\n    cost-center = \"fintech-platform\"\n    # Missing capacity-commitment – commitment status unknown\n\
+      \  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_launch_template
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: capacity-commitment
+    message: EC2 instance missing 'capacity-commitment' tag. Reservation status must be declared.
+  - attribute: tags.capacity-commitment
+    op: in
+    message: 'capacity-commitment must be: reserved, savings-plan, spot, on-demand, or reviewed.'
+    expected:
+    - reserved
+    - savings-plan
+    - spot
+    - on-demand
+    - reviewed
+  on_fail: violation
+- id: waf-cost-080.tf.azurerm.vm-commitment-tag
+  engine: terraform
+  automated: true
+  title: Azure VMs must declare their capacity commitment status
+  provider: azurerm
+  description: All Azure Virtual Machines must carry a 'capacity-commitment' tag documenting whether the VM is covered by
+    a Reserved VM Instance, Azure Savings Plan, Spot pricing, or On-Demand. This enables automated coverage gap detection.
+  expected: 'true'
+  remediation: 'Add ''capacity-commitment'' tag to all Azure VM resources. Use Azure Advisor to identify baseline VMs that
+    should have Reserved VM Instances.
+
+    '
+  example:
+    compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-payment-app\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  location            = var.location\n  size                = \"Standard_D4s_v3\"\
+      \n  tags = merge(local.mandatory_tags, {\n    \"capacity-commitment\" = \"reserved\"\n    \"commitment-type\"     =\
+      \ \"1yr-no-upfront\"\n  })\n}\n"
+    non_compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name     = \"vm-payment-app\"\n  location = var.location\n\
+      \  size     = \"Standard_D8s_v3\"\n  # Missing: capacity-commitment tag\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_linux_virtual_machine
+    - azurerm_windows_virtual_machine
+    - azurerm_virtual_machine_scale_set
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: capacity-commitment
+    message: Azure VM missing 'capacity-commitment' tag.
+  on_fail: violation
+- id: waf-cost-080.tf.google.vm-capacity-commitment-label
+  engine: terraform
+  automated: true
+  title: GCP compute instances must declare capacity commitment status
+  provider: google
+  description: All persistent GCP Compute Engine instances and GKE node pools must carry a 'capacity-commitment' label documenting
+    whether the resource is covered by Committed Use Discounts, Spot/Preemptible pricing, or On-Demand.
+  expected: 'true'
+  remediation: 'Add ''capacity-commitment'' label to all google_compute_instance and google_container_node_pool resources.
+    Use CUD analysis to identify baseline workloads that should have Committed Use Discounts.
+
+    '
+  example:
+    compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"vm-payment-app\"\n  machine_type = \"e2-standard-4\"\
+      \n  zone         = var.zone\n\n  labels = merge(module.mandatory_tags.labels, {\n    capacity-commitment = \"cud-1yr\"\
+      \n    commitment-expiry   = \"2026-03-01\"\n  })\n}\n"
+    non_compliant: "resource \"google_compute_instance\" \"app\" {\n  name         = \"vm-payment-app\"\n  machine_type =\
+      \ \"e2-standard-4\"\n  zone         = var.zone\n  # Missing capacity-commitment label – on-demand assumed\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_instance
+    - google_container_node_pool
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: capacity-commitment
+    message: GCP compute instance missing 'capacity-commitment' label.
+  on_fail: finding
+- id: waf-cost-080.tf.stackit.server-capacity-commitment-label
+  engine: terraform
+  automated: true
+  title: STACKIT compute resources must document capacity commitment decision
+  provider: stackit
+  description: STACKIT compute resources must document capacity commitment decision. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_server
+    - stackit_ske_cluster
+    - stackit_ske_node_pool
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: capacity-commitment
+    message: STACKIT compute resource is missing the 'capacity-commitment' label.
+  on_fail: violation
+- id: waf-cost-080.tf.ovh.instance-capacity-commitment-tag
+  engine: terraform
+  automated: true
+  title: OVHcloud compute resources must document capacity commitment decision
+  provider: ovh
+  description: OVHcloud compute resources must document capacity commitment decision. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_instance\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_instance\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_instance
+    - ovh_vps
+    - ovh_dedicated_server
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: capacity-commitment
+    message: OVHcloud compute resource is missing the 'capacity-commitment' tag.
+  on_fail: violation
+- id: waf-cost-080.tf.hcloud.server-capacity-commitment-label
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud compute resources must document capacity commitment decision
+  provider: hcloud
+  description: Hetzner Cloud compute resources must document capacity commitment decision. This check validates the Terraform
+    configuration uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: capacity-commitment
+    message: Hetzner Cloud server is missing the 'capacity-commitment' label.
+  on_fail: violation

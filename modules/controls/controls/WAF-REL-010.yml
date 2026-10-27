@@ -1,253 +1,278 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-010
 id: WAF-REL-010
-title: 'Every production workload MUST have documented Service Level Objectives...'
+title: Every production workload MUST have documented Service Level Objectives...
 status: active
 tags:
-  - reliability
-  - critical
-  - governance
-  - configuration
+- reliability
+- critical
+- governance
+- configuration
 pillar: reliability
 severity: critical
 type:
-  - governance
-  - configuration
-
-category: 'logging-monitoring'
-rationale: |
-  Every production workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements (SLAs).
+- governance
+- configuration
+category: logging-monitoring
+rationale: Insufficient observability delays incident detection, complicates troubleshooting, and prevents effective audit
+  evidence. This control addresses the requirements of the 'Logging and Monitoring' area and ensures that Every production
+  workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements (SLAs).
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Workloads without documented SLOs cannot measure or communicate user impact.
+- Missing availability targets lead to inconsistent expectations between teams and stakeholders.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-010.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-010.adoc
+  related_controls:
+  - WAF-REL-060
+  - WAF-REL-090
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-SOV-030
+description: 'Every production workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements
+  (SLAs). SLOs must define availability, latency, error rate, and throughput targets with explicit measurement windows. SLAs
+  must reference SLOs and define consequences of non-compliance. Both documents must be version-controlled, reviewed quarterly,
+  and linked to monitoring dashboards with automated alerting when error budgets are consumed.
 
-description: |
-  Every production workload MUST have documented Service Level Objectives (SLOs) and Service Level Agreements (SLAs). SLOs must define availability, latency, error rate, and throughput targets with explicit measurement windows. SLAs must reference SLOs and define consequences of non-compliance. Both documents must be version-controlled, reviewed quarterly, and linked to monitoring dashboards with automated alerting when error budgets are consumed.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.17.1 – Information security continuity'
-      - 'A.17.2 – Redundancies'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Service Level Management'
-      - 'Service Continuity Management'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 1 – Manage service quotas and constraints'
-      - 'REL 10 – Use fault isolation to protect your workload'
-  - framework: 'SRE Book (Google)'
-    controls:
-      - 'Chapter 4 – Service Level Objectives'
-      - 'Chapter 5 – Eliminating Toil'
+- framework: ISO 27001:2022
+  controls:
+  - A.17.1 – Information security continuity
+  - A.17.2 – Redundancies
+- framework: ITIL 4
+  controls:
+  - Service Level Management
+  - Service Continuity Management
+- framework: SRE Book (Google)
+  controls:
+  - Chapter 4 – Service Level Objectives
+  - Chapter 5 – Eliminating Toil
 checks:
-  - id: waf-rel-010.tf.aws.cloudwatch-slo-alarm
-    engine: terraform
-    automated: true
-    title: 'AWS CloudWatch alarm must be configured for SLO availability monitoring'
-    provider: aws
-    description: 'An Amazon CloudWatch alarm must be defined to track availability and trigger when the error rate exceeds the SLO threshold. This acts as the automated enforcement of the SLO monitoring requirement.'
-    expected: 'true'
-    remediation: 'Define a CloudWatch alarm that monitors the primary SLO metric (e.g., error rate, latency). Configure alarm_actions to notify SNS topics used by on-call rotation.\n'
-    example:
-      compliant: |
-        resource "aws_cloudwatch_metric_alarm" "slo_error_rate" {
-          alarm_name          = "slo-payment-service-error-rate"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 5
-          metric_name         = "5XXError"
-          namespace           = "AWS/ApiGateway"
-          period              = 60
-          statistic           = "Sum"
-          threshold           = 10
-          alarm_description   = "SLO: error rate > 0.1% over 5 minutes"
-          alarm_actions       = [aws_sns_topic.oncall.arn]
-          ok_actions          = [aws_sns_topic.oncall.arn]
-          treat_missing_data  = "notBreaching"
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "error_alarm" {
-          alarm_name          = "errors"
-          comparison_operator = "GreaterThanThreshold"
-          evaluation_periods  = 1
-          metric_name         = "Errors"
-          namespace           = "AWS/Lambda"
-          period              = 300
-          statistic           = "Sum"
-          threshold           = 100
-          # Missing: alarm_actions – no one is notified
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_cloudwatch_metric_alarm
-    assertions:
-      - attribute: 'alarm_name'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have a descriptive name.'
-      - attribute: 'metric_name'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must specify the metric to monitor.'
-      - attribute: 'alarm_actions'
-        op: 'not_empty'
-        message: 'CloudWatch alarm must have at least one action configured.'
-      - attribute: 'threshold'
-        op: 'attribute_exists'
-        message: 'CloudWatch alarm must define a threshold value.'
-    on_fail: violation
-  - id: waf-rel-010.tf.azurerm.monitor-metric-alert-slo
-    engine: terraform
-    automated: true
-    title: 'Azure Monitor metric alert must be configured for SLO monitoring'
-    provider: azurerm
-    description: 'An Azure Monitor metric alert must be configured for each production workload to track availability and latency against SLO targets.'
-    expected: 'true'
-    remediation: 'Configure an azurerm_monitor_metric_alert with criteria referencing the SLO metric and an action block pointing to an azurerm_monitor_action_group that notifies on-call.\n'
-    example:
-      compliant: |
-        resource "azurerm_monitor_metric_alert" "slo_availability" {
-          name                = "slo-api-availability"
-          resource_group_name = azurerm_resource_group.main.name
-          scopes              = [azurerm_application_insights.main.id]
-          description         = "SLO: availability < 99.9%"
-          severity            = 1
-          criteria {
-            metric_namespace = "microsoft.insights/components"
-            metric_name      = "availabilityResults/availabilityPercentage"
-            aggregation      = "Average"
-            operator         = "LessThan"
-            threshold        = 99.9
-          }
-          action {
-            action_group_id = azurerm_monitor_action_group.oncall.id
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_monitor_metric_alert" "alert" {
-          name                = "alert"
-          resource_group_name = azurerm_resource_group.main.name
-          scopes              = [azurerm_application_insights.main.id]
-          criteria {
-            metric_namespace = "microsoft.insights/components"
-            metric_name      = "requests/failed"
-            aggregation      = "Count"
-            operator         = "GreaterThan"
-            threshold        = 100
-          }
-          # Missing: action – no notification configured
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_monitor_metric_alert
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Monitor alert must have a descriptive name.'
-      - attribute: 'criteria'
-        op: 'attribute_exists'
-        message: 'Monitor alert must define alert criteria.'
-      - attribute: 'action'
-        op: 'attribute_exists'
-        message: 'Monitor alert must have at least one action group configured.'
-    on_fail: violation
-  - id: waf-rel-010.tf.google.monitoring-alert-policy-slo
-    engine: terraform
-    automated: true
-    title: 'GCP Monitoring alert policy must be configured for SLO tracking'
-    provider: google
-    description: 'A Google Cloud Monitoring alert policy must be configured to track SLO compliance and notify on-call when error budget burn rate exceeds thresholds.'
-    expected: 'true'
-    remediation: 'Define a google_monitoring_alert_policy with conditions referencing the SLO metric and notification_channels pointing to configured channels (PagerDuty, email, etc.).\n'
-    example:
-      compliant: |
-        resource "google_monitoring_alert_policy" "slo_burn_rate" {
-          display_name = "SLO Error Budget Burn Rate – Payment API"
-          combiner     = "OR"
-          conditions {
-            display_name = "Fast burn: >14x for 1h"
-            condition_threshold {
-              filter          = "select_slo_burn_rate(\"projects/${var.project}/services/payment-api/serviceLevelObjectives/availability\", 3600)"
-              comparison      = "COMPARISON_GT"
-              threshold_value = 14.4
-              duration        = "0s"
-            }
-          }
-          notification_channels = [google_monitoring_notification_channel.oncall.name]
-          alert_strategy {
-            notification_rate_limit { period = "300s" }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_monitoring_alert_policy" "errors" {
-          display_name = "Errors"
-          combiner     = "OR"
-          conditions {
-            display_name = "Error count"
-            condition_threshold {
-              filter          = "metric.type=\"logging.googleapis.com/user/errors\""
-              comparison      = "COMPARISON_GT"
-              threshold_value = 100
-              duration        = "60s"
-            }
-          }
-          # Missing: notification_channels – alert fires silently
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_monitoring_alert_policy
-    assertions:
-      - attribute: 'display_name'
-        op: 'not_empty'
-        message: 'Alert policy must have a descriptive display name.'
-      - attribute: 'conditions'
-        op: 'not_empty'
-        message: 'Alert policy must define monitoring conditions.'
-      - attribute: 'notification_channels'
-        op: 'not_empty'
-        message: 'Alert policy must have notification channels configured.'
-    on_fail: violation
+- id: waf-rel-010.tf.aws.cloudwatch-slo-alarm
+  engine: terraform
+  automated: true
+  title: AWS CloudWatch alarm must be configured for SLO availability monitoring
+  provider: aws
+  description: An Amazon CloudWatch alarm must be defined to track availability and trigger when the error rate exceeds the
+    SLO threshold. This acts as the automated enforcement of the SLO monitoring requirement.
+  expected: 'true'
+  remediation: Define a CloudWatch alarm that monitors the primary SLO metric (e.g., error rate, latency). Configure alarm_actions
+    to notify SNS topics used by on-call rotation.\n
+  example:
+    compliant: "resource \"aws_cloudwatch_metric_alarm\" \"slo_error_rate\" {\n  alarm_name          = \"slo-payment-service-error-rate\"\
+      \n  comparison_operator = \"GreaterThanThreshold\"\n  evaluation_periods  = 5\n  metric_name         = \"5XXError\"\n\
+      \  namespace           = \"AWS/ApiGateway\"\n  period              = 60\n  statistic           = \"Sum\"\n  threshold\
+      \           = 10\n  alarm_description   = \"SLO: error rate > 0.1% over 5 minutes\"\n  alarm_actions       = [aws_sns_topic.oncall.arn]\n\
+      \  ok_actions          = [aws_sns_topic.oncall.arn]\n  treat_missing_data  = \"notBreaching\"\n}\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"error_alarm\" {\n  alarm_name          = \"errors\"\n  comparison_operator\
+      \ = \"GreaterThanThreshold\"\n  evaluation_periods  = 1\n  metric_name         = \"Errors\"\n  namespace           =\
+      \ \"AWS/Lambda\"\n  period              = 300\n  statistic           = \"Sum\"\n  threshold           = 100\n  # Missing:\
+      \ alarm_actions – no one is notified\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudwatch_metric_alarm
+  assertions:
+  - attribute: alarm_name
+    op: not_empty
+    message: CloudWatch alarm must have a descriptive name.
+  - attribute: metric_name
+    op: not_empty
+    message: CloudWatch alarm must specify the metric to monitor.
+  - attribute: alarm_actions
+    op: not_empty
+    message: CloudWatch alarm must have at least one action configured.
+  - attribute: threshold
+    op: attribute_exists
+    message: CloudWatch alarm must define a threshold value.
+  on_fail: violation
+- id: waf-rel-010.tf.azurerm.monitor-metric-alert-slo
+  engine: terraform
+  automated: true
+  title: Azure Monitor metric alert must be configured for SLO monitoring
+  provider: azurerm
+  description: An Azure Monitor metric alert must be configured for each production workload to track availability and latency
+    against SLO targets.
+  expected: 'true'
+  remediation: Configure an azurerm_monitor_metric_alert with criteria referencing the SLO metric and an action block pointing
+    to an azurerm_monitor_action_group that notifies on-call.\n
+  example:
+    compliant: "resource \"azurerm_monitor_metric_alert\" \"slo_availability\" {\n  name                = \"slo-api-availability\"\
+      \n  resource_group_name = azurerm_resource_group.main.name\n  scopes              = [azurerm_application_insights.main.id]\n\
+      \  description         = \"SLO: availability < 99.9%\"\n  severity            = 1\n  criteria {\n    metric_namespace\
+      \ = \"microsoft.insights/components\"\n    metric_name      = \"availabilityResults/availabilityPercentage\"\n    aggregation\
+      \      = \"Average\"\n    operator         = \"LessThan\"\n    threshold        = 99.9\n  }\n  action {\n    action_group_id\
+      \ = azurerm_monitor_action_group.oncall.id\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_metric_alert\" \"alert\" {\n  name                = \"alert\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  scopes              = [azurerm_application_insights.main.id]\n  criteria {\n\
+      \    metric_namespace = \"microsoft.insights/components\"\n    metric_name      = \"requests/failed\"\n    aggregation\
+      \      = \"Count\"\n    operator         = \"GreaterThan\"\n    threshold        = 100\n  }\n  # Missing: action – no\
+      \ notification configured\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_metric_alert
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Monitor alert must have a descriptive name.
+  - attribute: criteria
+    op: attribute_exists
+    message: Monitor alert must define alert criteria.
+  - attribute: action
+    op: attribute_exists
+    message: Monitor alert must have at least one action group configured.
+  on_fail: violation
+- id: waf-rel-010.tf.google.monitoring-alert-policy-slo
+  engine: terraform
+  automated: true
+  title: GCP Monitoring alert policy must be configured for SLO tracking
+  provider: google
+  description: A Google Cloud Monitoring alert policy must be configured to track SLO compliance and notify on-call when error
+    budget burn rate exceeds thresholds.
+  expected: 'true'
+  remediation: Define a google_monitoring_alert_policy with conditions referencing the SLO metric and notification_channels
+    pointing to configured channels (PagerDuty, email, etc.).\n
+  example:
+    compliant: "resource \"google_monitoring_alert_policy\" \"slo_burn_rate\" {\n  display_name = \"SLO Error Budget Burn\
+      \ Rate – Payment API\"\n  combiner     = \"OR\"\n  conditions {\n    display_name = \"Fast burn: >14x for 1h\"\n   \
+      \ condition_threshold {\n      filter          = \"select_slo_burn_rate(\\\"projects/${var.project}/services/payment-api/serviceLevelObjectives/availability\\\
+      \", 3600)\"\n      comparison      = \"COMPARISON_GT\"\n      threshold_value = 14.4\n      duration        = \"0s\"\
+      \n    }\n  }\n  notification_channels = [google_monitoring_notification_channel.oncall.name]\n  alert_strategy {\n \
+      \   notification_rate_limit { period = \"300s\" }\n  }\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"errors\" {\n  display_name = \"Errors\"\n  combiner    \
+      \ = \"OR\"\n  conditions {\n    display_name = \"Error count\"\n    condition_threshold {\n      filter          = \"\
+      metric.type=\\\"logging.googleapis.com/user/errors\\\"\"\n      comparison      = \"COMPARISON_GT\"\n      threshold_value\
+      \ = 100\n      duration        = \"60s\"\n    }\n  }\n  # Missing: notification_channels – alert fires silently\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: display_name
+    op: not_empty
+    message: Alert policy must have a descriptive display name.
+  - attribute: conditions
+    op: not_empty
+    message: Alert policy must define monitoring conditions.
+  - attribute: notification_channels
+    op: not_empty
+    message: Alert policy must have notification channels configured.
+  on_fail: violation
+- id: waf-rel-010.tf.stackit.availability-slo-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for stackit
+  provider: stackit
+  description: Every production workload must be documented in IaC via a availability-slo-defined tag/label on stackit_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a availability-slo-defined tag/label to the stackit_project resource to show the stackit implementation
+    of WAF-REL-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    availability-slo-defined = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing availability-slo-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: availability-slo-defined
+    message: stackit_project is missing the availability-slo-defined tag/label.
+  on_fail: violation
+- id: waf-rel-010.tf.ovh.availability-slo-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for ovh
+  provider: ovh
+  description: Every production workload must be documented in IaC via a availability-slo-defined tag/label on ovh_cloud_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a availability-slo-defined tag/label to the ovh_cloud_project resource to show the ovh implementation
+    of WAF-REL-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    availability-slo-defined = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing availability-slo-defined tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: availability-slo-defined
+    message: ovh_cloud_project is missing the availability-slo-defined tag/label.
+  on_fail: violation
+- id: waf-rel-010.tf.hcloud.availability-slo-defined
+  engine: terraform
+  automated: true
+  title: Every production workload for hcloud
+  provider: hcloud
+  description: Every production workload must be documented in IaC via a availability-slo-defined tag/label on hcloud_server.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a availability-slo-defined tag/label to the hcloud_server resource to show the hcloud implementation of
+    WAF-REL-010 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    availability-slo-defined = \"true\"\n  }\n\
+      }\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing availability-slo-defined labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: availability-slo-defined
+    message: hcloud_server is missing the availability-slo-defined tag/label.
+  on_fail: violation

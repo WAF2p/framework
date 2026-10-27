@@ -1,228 +1,262 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-PERF-040
 id: WAF-PERF-040
-title: 'All relational and document databases used in production MUST have a...'
+title: All relational and document databases used in production MUST have a...
 status: active
 tags:
-  - performance
-  - high
-  - configuration
-  - governance
-pillar: performance
+- performance
+- high
+- configuration
+- governance
+pillar: efficiancy
 severity: high
 type:
-  - configuration
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  All relational and document databases used in production MUST have a documented performance baseline including query execution times, I/O throughput, and...
+- configuration
+- governance
+category: logging-monitoring
+rationale: Insufficient observability delays incident detection, complicates troubleshooting, and prevents effective audit
+  evidence. This control addresses the requirements of the 'Logging and Monitoring' area and ensures that All relational and
+  document databases used in production MUST have a documented performance baseline including query execution times, I/O throughput,
+  and.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Databases without performance insights let slow queries and capacity bottlenecks go unnoticed.
+- Missing monitoring data complicates targeted optimization and capacity planning.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-performance/pages/controls/WAF-PERF-040.adoc'
-  related_controls: []
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-040.adoc
+  related_controls:
+  - WAF-PERF-050
+  - WAF-PERF-020
+  - WAF-PERF-090
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'All relational and document databases used in production MUST have a documented performance baseline including
+  query execution times, I/O throughput, and connection pool utilization. An index strategy MUST be defined and maintained
+  for all tables with significant read/write loads. Slow query logging MUST be enabled and reviewed regularly. Database performance
+  insights or equivalent monitoring MUST be active on all production database instances. Missing indexes on frequently queried
+  columns in high-traffic tables are treated as violations.
 
-description: |
-  All relational and document databases used in production MUST have a documented performance baseline including query execution times, I/O throughput, and connection pool utilization. An index strategy MUST be defined and maintained for all tables with significant read/write loads. Slow query logging MUST be enabled and reviewed regularly. Database performance insights or equivalent monitoring MUST be active on all production database instances. Missing indexes on frequently queried columns in high-traffic tables are treated as violations.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 25010'
-    controls:
-      - 'Performance Efficiency – Time Behavior'
-      - 'Performance Efficiency – Resource Utilization'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'PERF 4 – How do you select your database solution?'
-      - 'PERF 6 – How do you use tradeoffs to improve performance?'
-  - framework: 'Azure Well-Architected Framework'
-    controls:
-      - 'Performance Efficiency – Optimize database performance'
-  - framework: 'Google Cloud Architecture Framework'
-    controls:
-      - 'Performance optimization – Tune your database'
+- framework: ISO/IEC 25010
+  controls:
+  - Performance Efficiency – Time Behavior
+  - Performance Efficiency – Resource Utilization
 checks:
-  - id: waf-perf-040.tf.aws.rds-performance-insights
-    engine: terraform
-    automated: true
-    title: 'AWS RDS instances must have Performance Insights enabled'
-    provider: aws
-    description: 'RDS and Aurora instances must have Performance Insights enabled to allow query-level performance monitoring and diagnosis of slow queries and lock contention.'
-    expected: 'true'
-    remediation: 'Set performance_insights_enabled = true, monitoring_interval = 60 (or 1 for high-granularity). Set enabled_cloudwatch_logs_exports = ["slowquery", "error"] for MySQL or ["postgresql"] for PostgreSQL.\n'
-    example:
-      compliant: |
-        resource "aws_db_instance" "main" {
-          identifier             = "db-payment-api"
-          engine                 = "postgres"
-          instance_class         = "db.t3.medium"
-          allocated_storage      = 100
-          performance_insights_enabled          = true
-          performance_insights_retention_period = 7
-          monitoring_interval                   = 60
-          monitoring_role_arn                   = aws_iam_role.rds_monitoring.arn
-          enabled_cloudwatch_logs_exports        = ["postgresql"]
-          deletion_protection    = true
-        }
-        
-      non_compliant: |
-        resource "aws_db_instance" "main" {
-          identifier    = "db-payment-api"
-          engine        = "postgres"
-          instance_class = "db.t3.medium"
-          # Performance Insights disabled – WAF-PERF-040 violation
-          # No CloudWatch log exports
-          # No Enhanced Monitoring
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_db_instance
-        - aws_rds_cluster_instance
-    assertions:
-      - attribute: 'performance_insights_enabled'
-        op: 'is_true'
-        message: 'RDS instance must have Performance Insights enabled.'
-      - attribute: 'enabled_cloudwatch_logs_exports'
-        op: 'not_empty'
-        message: 'RDS instance must export logs to CloudWatch (slowquery, error, general).'
-      - attribute: 'monitoring_interval'
-        op: 'greater_than_or_equal'
-        message: 'Enhanced Monitoring must be enabled (monitoring_interval >= 1).'
-    on_fail: violation
-  - id: waf-perf-040.tf.azurerm.sql-query-insights
-    engine: terraform
-    automated: true
-    title: 'Azure SQL Database must have auditing and threat detection enabled'
-    provider: azurerm
-    description: 'Azure SQL Database must have auditing enabled which captures query execution data, and should have Query Performance Insight accessible via the portal.'
-    expected: 'true'
-    remediation: 'Set min_tls_version = "1.2" and public_network_access_enabled = false. Configure azurerm_mssql_server_extended_auditing_policy for query performance tracking.\n'
-    example:
-      compliant: |
-        resource "azurerm_mssql_server" "main" {
-          name                         = "sql-payment-api"
-          resource_group_name          = azurerm_resource_group.main.name
-          location                     = azurerm_resource_group.main.location
-          version                      = "12.0"
-          administrator_login          = var.db_admin_user
-          administrator_login_password = var.db_admin_password
-          minimum_tls_version          = "1.2"
-          public_network_access_enabled = false
-        }
-        resource "azurerm_mssql_server_extended_auditing_policy" "main" {
-          server_id              = azurerm_mssql_server.main.id
-          storage_endpoint       = azurerm_storage_account.audit.primary_blob_endpoint
-          retention_in_days      = 90
-          log_monitoring_enabled = true
-        }
-        
-      non_compliant: |
-        resource "azurerm_mssql_server" "main" {
-          name                          = "sql-payment-api"
-          minimum_tls_version           = "1.0"  # Old TLS – violation
-          public_network_access_enabled = true    # Publicly accessible – WAF-PERF-040 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_mssql_database
-        - azurerm_mssql_server
-    assertions:
-      - attribute: 'min_tls_version'
-        op: 'equals'
-        message: 'Azure SQL Server must enforce TLS 1.2.'
-      - attribute: 'public_network_access_enabled'
-        op: 'is_false'
-        message: 'Azure SQL Server must not be publicly accessible; use private endpoints.'
-    on_fail: violation
-  - id: waf-perf-040.tf.google.cloudsql-insights-enabled
-    engine: terraform
-    automated: true
-    title: 'GCP Cloud SQL must have Query Insights enabled'
-    provider: google
-    description: 'GCP Cloud SQL instances must have Query Insights enabled to track query performance, identify slow queries, and monitor database efficiency.'
-    expected: 'true'
-    remediation: 'Set insights_config { query_insights_enabled = true } in settings block. Enable backup_configuration and deletion_protection = true.\n'
-    example:
-      compliant: |
-        resource "google_sql_database_instance" "main" {
-          name             = "db-payment-api"
-          database_version = "POSTGRES_15"
-          deletion_protection = true
-          settings {
-            tier = "db-custom-2-4096"
-            backup_configuration {
-              enabled    = true
-              start_time = "03:00"
-            }
-            insights_config {
-              query_insights_enabled  = true
-              query_string_length     = 1024
-              record_application_tags = true
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "google_sql_database_instance" "main" {
-          name             = "db-payment-api"
-          database_version = "POSTGRES_15"
-          settings {
-            tier = "db-custom-2-4096"
-            # No insights_config – WAF-PERF-040 violation
-            # No backup_configuration
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_sql_database_instance
-    assertions:
-      - attribute: 'settings.insights_config.query_insights_enabled'
-        op: 'is_true'
-        message: 'Cloud SQL Query Insights must be enabled.'
-      - attribute: 'settings.backup_configuration.enabled'
-        op: 'is_true'
-        message: 'Cloud SQL automated backups must be enabled.'
-      - attribute: 'deletion_protection'
-        op: 'is_true'
-        message: 'Cloud SQL deletion protection must be enabled.'
-    on_fail: violation
+- id: waf-perf-040.tf.aws.rds-performance-insights
+  engine: terraform
+  automated: true
+  title: AWS RDS instances must have Performance Insights enabled
+  provider: aws
+  description: RDS and Aurora instances must have Performance Insights enabled to allow query-level performance monitoring
+    and diagnosis of slow queries and lock contention.
+  expected: 'true'
+  remediation: Set performance_insights_enabled = true, monitoring_interval = 60 (or 1 for high-granularity). Set enabled_cloudwatch_logs_exports
+    = ["slowquery", "error"] for MySQL or ["postgresql"] for PostgreSQL.\n
+  example:
+    compliant: "resource \"aws_db_instance\" \"main\" {\n  identifier             = \"db-payment-api\"\n  engine         \
+      \        = \"postgres\"\n  instance_class         = \"db.t3.medium\"\n  allocated_storage      = 100\n  performance_insights_enabled\
+      \          = true\n  performance_insights_retention_period = 7\n  monitoring_interval                   = 60\n  monitoring_role_arn\
+      \                   = aws_iam_role.rds_monitoring.arn\n  enabled_cloudwatch_logs_exports        = [\"postgresql\"]\n\
+      \  deletion_protection    = true\n}\n"
+    non_compliant: "resource \"aws_db_instance\" \"main\" {\n  identifier    = \"db-payment-api\"\n  engine        = \"postgres\"\
+      \n  instance_class = \"db.t3.medium\"\n  # Performance Insights disabled – WAF-PERF-040 violation\n  # No CloudWatch\
+      \ log exports\n  # No Enhanced Monitoring\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_db_instance
+    - aws_rds_cluster_instance
+  assertions:
+  - attribute: performance_insights_enabled
+    op: is_true
+    message: RDS instance must have Performance Insights enabled.
+  - attribute: enabled_cloudwatch_logs_exports
+    op: not_empty
+    message: RDS instance must export logs to CloudWatch (slowquery, error, general).
+  - attribute: monitoring_interval
+    op: greater_than_or_equal
+    message: Enhanced Monitoring must be enabled (monitoring_interval >= 1).
+    expected: 1
+  on_fail: violation
+- id: waf-perf-040.tf.azurerm.sql-query-insights
+  engine: terraform
+  automated: true
+  title: Azure SQL Database must have auditing and threat detection enabled
+  provider: azurerm
+  description: Azure SQL Database must have auditing enabled which captures query execution data, and should have Query Performance
+    Insight accessible via the portal.
+  expected: 'true'
+  remediation: Set min_tls_version = "1.2" and public_network_access_enabled = false. Configure azurerm_mssql_server_extended_auditing_policy
+    for query performance tracking.\n
+  example:
+    compliant: "resource \"azurerm_mssql_server\" \"main\" {\n  name                         = \"sql-payment-api\"\n  resource_group_name\
+      \          = azurerm_resource_group.main.name\n  location                     = azurerm_resource_group.main.location\n\
+      \  version                      = \"12.0\"\n  administrator_login          = var.db_admin_user\n  administrator_login_password\
+      \ = var.db_admin_password\n  minimum_tls_version          = \"1.2\"\n  public_network_access_enabled = false\n}\nresource\
+      \ \"azurerm_mssql_server_extended_auditing_policy\" \"main\" {\n  server_id              = azurerm_mssql_server.main.id\n\
+      \  storage_endpoint       = azurerm_storage_account.audit.primary_blob_endpoint\n  retention_in_days      = 90\n  log_monitoring_enabled\
+      \ = true\n}\n"
+    non_compliant: "resource \"azurerm_mssql_server\" \"main\" {\n  name                          = \"sql-payment-api\"\n\
+      \  minimum_tls_version           = \"1.0\"  # Old TLS – violation\n  public_network_access_enabled = true    # Publicly\
+      \ accessible – WAF-PERF-040 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_mssql_database
+    - azurerm_mssql_server
+  assertions:
+  - attribute: min_tls_version
+    op: equals
+    message: Azure SQL Server must enforce TLS 1.2.
+    expected: TLS1_2
+  - attribute: public_network_access_enabled
+    op: is_false
+    message: Azure SQL Server must not be publicly accessible; use private endpoints.
+  on_fail: violation
+- id: waf-perf-040.tf.google.cloudsql-insights-enabled
+  engine: terraform
+  automated: true
+  title: GCP Cloud SQL must have Query Insights enabled
+  provider: google
+  description: GCP Cloud SQL instances must have Query Insights enabled to track query performance, identify slow queries,
+    and monitor database efficiency.
+  expected: 'true'
+  remediation: Set insights_config { query_insights_enabled = true } in settings block. Enable backup_configuration and deletion_protection
+    = true.\n
+  example:
+    compliant: "resource \"google_sql_database_instance\" \"main\" {\n  name             = \"db-payment-api\"\n  database_version\
+      \ = \"POSTGRES_15\"\n  deletion_protection = true\n  settings {\n    tier = \"db-custom-2-4096\"\n    backup_configuration\
+      \ {\n      enabled    = true\n      start_time = \"03:00\"\n    }\n    insights_config {\n      query_insights_enabled\
+      \  = true\n      query_string_length     = 1024\n      record_application_tags = true\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_sql_database_instance\" \"main\" {\n  name             = \"db-payment-api\"\n  database_version\
+      \ = \"POSTGRES_15\"\n  settings {\n    tier = \"db-custom-2-4096\"\n    # No insights_config – WAF-PERF-040 violation\n\
+      \    # No backup_configuration\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_sql_database_instance
+  assertions:
+  - attribute: settings.insights_config.query_insights_enabled
+    op: is_true
+    message: Cloud SQL Query Insights must be enabled.
+  - attribute: settings.backup_configuration.enabled
+    op: is_true
+    message: Cloud SQL automated backups must be enabled.
+  - attribute: deletion_protection
+    op: is_true
+    message: Cloud SQL deletion protection must be enabled.
+  on_fail: violation
+- id: waf-perf-040.tf.stackit.auto-scaling-enabled
+  engine: terraform
+  automated: true
+  title: All relational and document databases used in production for stackit
+  provider: stackit
+  description: All relational and document databases used in production must be documented in IaC via a auto-scaling-enabled
+    tag/label on stackit_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-scaling-enabled tag/label to the stackit_project resource to show the stackit implementation of
+    WAF-PERF-040 is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    auto-scaling-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing auto-scaling-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: auto-scaling-enabled
+    message: stackit_project is missing the auto-scaling-enabled tag/label.
+  on_fail: violation
+- id: waf-perf-040.tf.ovh.auto-scaling-enabled
+  engine: terraform
+  automated: true
+  title: All relational and document databases used in production for ovh
+  provider: ovh
+  description: All relational and document databases used in production must be documented in IaC via a auto-scaling-enabled
+    tag/label on ovh_cloud_project. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-scaling-enabled tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-040
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    auto-scaling-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing auto-scaling-enabled tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: auto-scaling-enabled
+    message: ovh_cloud_project is missing the auto-scaling-enabled tag/label.
+  on_fail: violation
+- id: waf-perf-040.tf.hcloud.auto-scaling-enabled
+  engine: terraform
+  automated: true
+  title: All relational and document databases used in production for hcloud
+  provider: hcloud
+  description: All relational and document databases used in production must be documented in IaC via a auto-scaling-enabled
+    tag/label on hcloud_server. This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a auto-scaling-enabled tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-040
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    auto-scaling-enabled = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing auto-scaling-enabled labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: auto-scaling-enabled
+    message: hcloud_server is missing the auto-scaling-enabled tag/label.
+  on_fail: violation

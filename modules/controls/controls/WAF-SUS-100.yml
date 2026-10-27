@@ -1,212 +1,215 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-100
 id: WAF-SUS-100
-title: 'Organizations MUST maintain a Sustainability Debt Register documenting all...'
+title: Organizations MUST maintain a Sustainability Debt Register documenting all...
 status: active
 tags:
-  - sustainability
-  - low
-  - governance
-  - configuration
+- sustainability
+- low
+- governance
+- configuration
 pillar: sustainability
 severity: low
 type:
-  - governance
-  - configuration
-
-category: 'cost-governance'
-rationale: |
-  Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability posture and target state across all...
+- governance
+- configuration
+category: cost-governance
+rationale: Lack of cost transparency and governance leads to budget overruns, cloud waste, and unaccountable spending. This
+  control addresses the requirements of the 'Cost Governance' area and ensures that Organizations MUST maintain a Sustainability
+  Debt Register documenting all known gaps between current sustainability posture and target state across all.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Undocumented sustainability debt prevents targeted optimization and budget approvals.
+- Missing prioritization of green-debt items lets inefficient workloads run unchanged.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-100.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-100.adoc
+  related_controls:
+  - WAF-SUS-020
+  - WAF-COST-050
+  - WAF-COST-060
+  - WAF-COST-100
+  - WAF-PERF-100
+  - WAF-SUS-040
+  - WAF-SUS-010
+  - WAF-SUS-030
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-010
+description: 'Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability
+  posture and target state across all WAF-SUS controls. The register MUST be reviewed and updated at least quarterly. Each
+  entry MUST include: estimated carbon impact, remediation priority, owner, and target resolution date. Sustainability debt
+  MUST be treated as a governance risk item and reported in the organization''s ESG or sustainability report. Quarterly reviews
+  MUST produce measurable progress against reduction targets.
 
-description: |
-  Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability posture and target state across all WAF-SUS controls. The register MUST be reviewed and updated at least quarterly. Each entry MUST include: estimated carbon impact, remediation priority, owner, and target resolution date. Sustainability debt MUST be treated as a governance risk item and reported in the organization's ESG or sustainability report. Quarterly reviews MUST produce measurable progress against reduction targets.
+  '
 regulatory_mapping:
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS 2 – General Disclosures: Governance, strategy and management of sustainability matters'
-      - 'ESRS E1 – Climate Change: governance of climate-related risks and opportunities'
-  - framework: 'GHG Protocol'
-    controls:
-      - 'Corporate Standard – management and governance of GHG inventory'
-  - framework: 'SBTi (Science Based Targets initiative)'
-    controls:
-      - 'ICT Sector Guidance – progress tracking and governance'
-  - framework: 'ISO 14001'
-    controls:
-      - '10.3 – Continual improvement'
-      - '6.1 – Actions to address risks and opportunities'
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - 'ESRS 2 – General Disclosures: Governance, strategy and management of sustainability matters'
+  - 'ESRS E1 – Climate Change: governance of climate-related risks and opportunities'
+- framework: GHG Protocol
+  controls:
+  - Corporate Standard – management and governance of GHG inventory
+- framework: SBTi (Science Based Targets initiative)
+  controls:
+  - ICT Sector Guidance – progress tracking and governance
+- framework: ISO 14001
+  controls:
+  - 10.3 – Continual improvement
+  - 6.1 – Actions to address risks and opportunities
 checks:
-  - id: waf-sus-100.tf.aws.config-rule-sustainability-governance
-    engine: terraform
-    automated: true
-    title: 'AWS Config rules should be enabled for sustainability-relevant resource types'
-    provider: aws
-    description: 'AWS Config provides continuous monitoring of resource configuration compliance. Enabling Config rules for sustainability-relevant resource types (EC2 instance types, S3 lifecycle policies, CloudWatch log retention) enables automated detection of sustainability debt as it is created.'
-    expected: 'true'
-    remediation: 'Enable AWS Config and create managed rules for: required-tags, ec2-instance-managed-by-ssm, cloudwatch-log-group-retention-period-check, s3-lifecycle-policy-check. These rules provide continuous monitoring of the most common sources of sustainability debt.\n'
-    example:
-      compliant: |
-        resource "aws_config_config_rule" "log_retention" {
-          name        = "cloudwatch-log-group-retention-period-check"
-          description = "Checks that CloudWatch log groups have retention policy set (sustainability debt detection)"
-        
-          source {
-            owner             = "AWS"
-            source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
-          }
-        
-          input_parameters = jsonencode({
-            MinRetentionTime = "14"
-          })
-        
-          tags = {
-            purpose  = "sustainability-governance"
-            control  = "WAF-SUS-100"
-          }
-        }
-        
-      non_compliant: |
-        # No AWS Config rules configured – WAF-SUS-100 Warning
-        # Sustainability debt accumulates undetected without automated config compliance
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_config_config_rule
-    assertions:
-      - attribute: 'name'
-        op: 'attribute_exists'
-        message: 'AWS Config rule must have a name.'
-      - attribute: 'source'
-        op: 'attribute_exists'
-        message: 'AWS Config rule must have a source configuration.'
-    on_fail: advisory
-  - id: waf-sus-100.tf.aws.tag-sustainability-reviewed
-    engine: terraform
-    automated: true
-    title: 'Compute resources should have sustainability-reviewed tag to indicate review date'
-    provider: aws
-    description: "Resources tagged with 'sustainability-reviewed' demonstrate active governance: the sustainability posture of the resource was explicitly reviewed on the given date. This tag drives the sustainability debt register by identifying stale reviews."
-    expected: 'true'
-    remediation: 'Add sustainability-reviewed = "YYYY-MM-DD" tag to all major compute resources. Set up quarterly reminder to update this tag after sustainability review. Use AWS Config custom rule to alert when sustainability-reviewed tag is older than 180 days.\n'
-    example:
-      compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu_arm.id
-          instance_type = "m7g.large"
-        
-          tags = {
-            environment              = "production"
-            workload                 = "payment-service"
-            owner                    = "platform-team"
-            sustainability-reviewed  = "2026-01-15"  # quarterly review date
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_instance" "app" {
-          ami           = data.aws_ami.ubuntu.id
-          instance_type = "m4.large"
-        
-          tags = {
-            Name        = "payment-app"
-            # WAF-SUS-100 Warning: no sustainability-reviewed tag
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_instance
-        - aws_eks_cluster
-        - aws_ecs_cluster
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'sustainability-reviewed'
-        message: 'Resource has no sustainability-reviewed tag – add date of last sustainability review.'
-    on_fail: advisory
-  - id: waf-sus-100.tf.azurerm.sustainability-tag
-    engine: terraform
-    automated: true
-    title: 'Azure compute resources should have sustainability governance tags'
-    provider: azurerm
-    description: "Azure compute resources should carry a sustainability-reviewed tag indicating the last date the resource's sustainability posture was reviewed as part of the quarterly sustainability debt register process."
-    expected: 'true'
-    remediation: 'Add sustainability-reviewed tag with format YYYY-MM-DD to all Azure compute resources. Use Azure Policy to enforce tag presence on resource creation and flag resources where the date is older than 180 days.\n'
-    example:
-      compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-app-prod"
-          resource_group_name = var.resource_group_name
-          location            = var.location
-          size                = "Standard_D4ps_v5"
-        
-          tags = {
-            environment             = "production"
-            workload                = "payment-service"
-            sustainability-reviewed = "2026-01-15"
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_linux_virtual_machine" "app" {
-          name                = "vm-app-prod"
-          resource_group_name = var.resource_group_name
-          location            = var.location
-          size                = "Standard_D4_v3"
-          # WAF-SUS-100 Warning: old instance series AND no sustainability-reviewed tag
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_linux_virtual_machine
-        - azurerm_kubernetes_cluster
-        - azurerm_container_group
-    assertions:
-      - attribute: 'tags'
-        op: 'key_exists'
-        key: 'sustainability-reviewed'
-        message: 'Azure compute resource has no sustainability-reviewed tag – quarterly review required.'
-    on_fail: advisory
+- id: waf-sus-100.tf.aws.config-rule-sustainability-governance
+  engine: terraform
+  automated: true
+  title: AWS Config rules should be enabled for sustainability-relevant resource types
+  provider: aws
+  description: AWS Config provides continuous monitoring of resource configuration compliance. Enabling Config rules for sustainability-relevant
+    resource types (EC2 instance types, S3 lifecycle policies, CloudWatch log retention) enables automated detection of sustainability
+    debt as it is created.
+  expected: 'true'
+  remediation: 'Enable AWS Config and create managed rules for: required-tags, ec2-instance-managed-by-ssm, cloudwatch-log-group-retention-period-check,
+    s3-lifecycle-policy-check. These rules provide continuous monitoring of the most common sources of sustainability debt.\n'
+  example:
+    compliant: "resource \"aws_config_config_rule\" \"log_retention\" {\n  name        = \"cloudwatch-log-group-retention-period-check\"\
+      \n  description = \"Checks that CloudWatch log groups have retention policy set (sustainability debt detection)\"\n\n\
+      \  source {\n    owner             = \"AWS\"\n    source_identifier = \"CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK\"\
+      \n  }\n\n  input_parameters = jsonencode({\n    MinRetentionTime = \"14\"\n  })\n\n  tags = {\n    purpose  = \"sustainability-governance\"\
+      \n    control  = \"WAF-SUS-100\"\n  }\n}\n"
+    non_compliant: '# No AWS Config rules configured – WAF-SUS-100 Warning
+
+      # Sustainability debt accumulates undetected without automated config compliance
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_config_config_rule
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: AWS Config rule must have a name.
+  - attribute: source
+    op: attribute_exists
+    message: AWS Config rule must have a source configuration.
+  on_fail: advisory
+- id: waf-sus-100.tf.aws.tag-sustainability-reviewed
+  engine: terraform
+  automated: true
+  title: Compute resources should have sustainability-reviewed tag to indicate review date
+  provider: aws
+  description: 'Resources tagged with ''sustainability-reviewed'' demonstrate active governance: the sustainability posture
+    of the resource was explicitly reviewed on the given date. This tag drives the sustainability debt register by identifying
+    stale reviews.'
+  expected: 'true'
+  remediation: Add sustainability-reviewed = "YYYY-MM-DD" tag to all major compute resources. Set up quarterly reminder to
+    update this tag after sustainability review. Use AWS Config custom rule to alert when sustainability-reviewed tag is older
+    than 180 days.\n
+  example:
+    compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu_arm.id\n  instance_type = \"m7g.large\"\
+      \n\n  tags = {\n    environment              = \"production\"\n    workload                 = \"payment-service\"\n\
+      \    owner                    = \"platform-team\"\n    sustainability-reviewed  = \"2026-01-15\"  # quarterly review\
+      \ date\n  }\n}\n"
+    non_compliant: "resource \"aws_instance\" \"app\" {\n  ami           = data.aws_ami.ubuntu.id\n  instance_type = \"m4.large\"\
+      \n\n  tags = {\n    Name        = \"payment-app\"\n    # WAF-SUS-100 Warning: no sustainability-reviewed tag\n  }\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_instance
+    - aws_eks_cluster
+    - aws_ecs_cluster
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: sustainability-reviewed
+    message: Resource has no sustainability-reviewed tag – add date of last sustainability review.
+  on_fail: advisory
+- id: waf-sus-100.tf.azurerm.sustainability-tag
+  engine: terraform
+  automated: true
+  title: Azure compute resources should have sustainability governance tags
+  provider: azurerm
+  description: Azure compute resources should carry a sustainability-reviewed tag indicating the last date the resource's
+    sustainability posture was reviewed as part of the quarterly sustainability debt register process.
+  expected: 'true'
+  remediation: Add sustainability-reviewed tag with format YYYY-MM-DD to all Azure compute resources. Use Azure Policy to
+    enforce tag presence on resource creation and flag resources where the date is older than 180 days.\n
+  example:
+    compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-app-prod\"\n  resource_group_name\
+      \ = var.resource_group_name\n  location            = var.location\n  size                = \"Standard_D4ps_v5\"\n\n\
+      \  tags = {\n    environment             = \"production\"\n    workload                = \"payment-service\"\n    sustainability-reviewed\
+      \ = \"2026-01-15\"\n  }\n}\n"
+    non_compliant: "resource \"azurerm_linux_virtual_machine\" \"app\" {\n  name                = \"vm-app-prod\"\n  resource_group_name\
+      \ = var.resource_group_name\n  location            = var.location\n  size                = \"Standard_D4_v3\"\n  # WAF-SUS-100\
+      \ Warning: old instance series AND no sustainability-reviewed tag\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_linux_virtual_machine
+    - azurerm_kubernetes_cluster
+    - azurerm_container_group
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: sustainability-reviewed
+    message: Azure compute resource has no sustainability-reviewed tag – quarterly review required.
+  on_fail: advisory
+- id: waf-sus-100.tf.google.sustainability-debt-label
+  engine: terraform
+  automated: true
+  title: GCP project resources must track sustainability debt via labels
+  provider: google
+  description: GCP projects and compute resources should declare whether they carry known sustainability debt via a sustainability-debt-register
+    label, linking to the central register.
+  expected: 'true'
+  remediation: 'Add a sustainability-debt-register label to google_project resources. The label value should reference the
+    central Sustainability Debt Register document.
+
+    '
+  example:
+    compliant: "resource \"google_project\" \"app\" {\n  name       = \"Application Project\"\n  project_id = \"app-prod-123\"\
+      \n  labels = {\n    sustainability-debt-register = \"docs/sustainability/debt-register.md\"\n  }\n}\n"
+    non_compliant: "resource \"google_project\" \"app\" {\n  name       = \"Application Project\"\n  project_id = \"app-prod-123\"\
+      \n  # Missing sustainability-debt-register label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: sustainability-debt-register
+    message: GCP project must have a sustainability-debt-register label referencing the central register.
+  on_fail: finding

@@ -1,217 +1,181 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SUS-040
 id: WAF-SUS-040
-title: 'All cloud compute resources MUST be continuously monitored for utilization'
+title: All cloud compute resources MUST be continuously monitored for utilization
 status: active
 tags:
-  - sustainability
-  - high
-  - configuration
-  - governance
+- sustainability
+- high
+- configuration
+- governance
 pillar: sustainability
 severity: high
 type:
-  - configuration
-  - governance
-
-category: 'logging-monitoring'
-rationale: |
-  All cloud compute resources MUST be continuously monitored for utilization.
+- configuration
+- governance
+category: logging-monitoring
+rationale: Insufficient observability delays incident detection, complicates troubleshooting, and prevents effective audit evidence. This control addresses the requirements of the 'Logging and Monitoring' area and ensures that All cloud compute resources MUST be continuously monitored for utilization.
 threat:
-  - 'Security incidents go undetected without centralised, tamper-proof audit logs.'
-  - 'Forensic investigations are delayed or inconclusive when logs are missing.'
+- Security incidents go undetected without centralised, tamper-proof audit logs.
+- Forensic investigations are delayed or inconclusive when logs are missing.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sustainability/pages/controls/WAF-SUS-040.adoc'
-  related_controls: []
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-040.adoc
+  related_controls:
+  - WAF-REL-010
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-030
+  - WAF-OPS-040
+  - WAF-OPS-090
+  - WAF-PERF-020
+  - WAF-PERF-040
+  - WAF-PERF-050
+  - WAF-REL-060
+  - WAF-SOV-030
+description: 'All cloud compute resources MUST be continuously monitored for utilization. Resources with CPU utilization below 5% for 14 consecutive days MUST be flagged as idle and subject to a stop/terminate review. Non-production environments MUST have scheduled shutdown policies (evenings and weekends). Autoscaling groups MUST be configured for all stateless compute workloads to eliminate idle capacity during off-peak hours. EC2 instances with persistent idle state MUST be converted to spot instances, reserved capacity, or terminated.
 
-description: |
-  All cloud compute resources MUST be continuously monitored for utilization. Resources with CPU utilization below 5% for 14 consecutive days MUST be flagged as idle and subject to a stop/terminate review. Non-production environments MUST have scheduled shutdown policies (evenings and weekends). Autoscaling groups MUST be configured for all stateless compute workloads to eliminate idle capacity during off-peak hours. EC2 instances with persistent idle state MUST be converted to spot instances, reserved capacity, or terminated.
+  '
 regulatory_mapping:
-  - framework: 'Green Software Foundation'
-    controls:
-      - 'Hardware Efficiency – eliminate idle compute'
-      - 'Energy Efficiency – utilization-driven compute'
-  - framework: 'EU CSRD (Corporate Sustainability Reporting Directive)'
-    controls:
-      - 'ESRS E1 – Climate Change – resource efficiency measures'
-  - framework: 'GHG Protocol'
-    controls:
-      - 'Scope 3 Category 11 – reducing purchased cloud compute emissions'
-  - framework: 'ISO 14001'
-    controls:
-      - '6.1.2 – Environmental Aspects – resource consumption reduction'
-      - '8.1 – Operational planning and control'
+- framework: Green Software Foundation
+  controls:
+  - Hardware Efficiency – eliminate idle compute
+  - Energy Efficiency – utilization-driven compute
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change – resource efficiency measures
+- framework: GHG Protocol
+  controls:
+  - Scope 3 Category 11 – reducing purchased cloud compute emissions
+- framework: ISO 14001
+  controls:
+  - 6.1.2 – Environmental Aspects – resource consumption reduction
+  - 8.1 – Operational planning and control
 checks:
-  - id: waf-sus-040.tf.aws.autoscaling-enabled
-    engine: terraform
-    automated: true
-    title: 'AWS autoscaling groups must have scale-in enabled to eliminate idle capacity'
-    provider: aws
-    description: 'Autoscaling groups must have scale-in policies defined to reduce capacity during low utilization periods. Scale-in protection should not be enabled on all instances as it prevents idle capacity from being terminated.'
-    expected: 'true'
-    remediation: 'Configure autoscaling groups with target tracking scaling policies based on CPU or request count. Set min_size to 0 for non-production environments to allow complete scale-in during off hours. Use predictive scaling for production to balance performance and sustainability.\n'
-    example:
-      compliant: |
-        resource "aws_autoscaling_group" "app" {
-          name                = "app-asg"
-          min_size            = 0  # scale to zero in off-peak
-          max_size            = 10
-          desired_capacity    = 2
-          vpc_zone_identifier = var.private_subnets
-        
-          mixed_instances_policy {
-            instances_distribution {
-              on_demand_base_capacity                  = 1
-              on_demand_percentage_above_base_capacity = 20
-              spot_allocation_strategy                 = "capacity-optimized"
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_autoscaling_group" "app" {
-          name             = "app-asg"
-          min_size         = 5  # WAF-SUS-040: high minimum prevents scale-in
-          max_size         = 5  # fixed capacity, no scaling
-          desired_capacity = 5
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_autoscaling_group
-    assertions:
-      - attribute: 'min_size'
-        op: 'attribute_exists'
-        message: 'Autoscaling group has no min_size defined.'
-      - attribute: 'max_size'
-        op: 'attribute_exists'
-        message: 'Autoscaling group has no max_size defined.'
-    on_fail: violation
-  - id: waf-sus-040.tf.aws.spot-instances-for-dev
-    engine: terraform
-    automated: true
-    title: 'Non-production autoscaling groups should allow spot instances'
-    provider: aws
-    description: 'Spot instances use the same physical hardware as on-demand instances but allow AWS to reclaim unused capacity. Using spot for non-production reduces demand for dedicated on-demand capacity, improving overall data center energy efficiency.'
-    expected: 'true'
-    remediation: 'Add mixed_instances_policy with spot allocation for non-production environments. For production: use 20-40% spot on top of on-demand base capacity. For dev/test: use 100% spot with instance type diversification for resilience.\n'
-    example:
-      compliant: |
-        resource "aws_autoscaling_group" "dev" {
-          name = "dev-asg"
-        
-          mixed_instances_policy {
-            instances_distribution {
-              on_demand_base_capacity                  = 0
-              on_demand_percentage_above_base_capacity = 0  # 100% spot for dev
-              spot_allocation_strategy                 = "capacity-optimized"
-            }
-            launch_template {
-              launch_template_specification {
-                launch_template_id = aws_launch_template.app.id
-              }
-              override {
-                instance_type = "t4g.medium"
-              }
-              override {
-                instance_type = "t4g.large"
-              }
-            }
-          }
-        }
-        
-      non_compliant: |
-        resource "aws_autoscaling_group" "dev" {
-          name             = "dev-asg"
-          launch_template {
-            id      = aws_launch_template.app.id
-          }
-          # WAF-SUS-040 Warning: no spot instances configured for dev environment
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_autoscaling_group
-    assertions:
-      - attribute: 'mixed_instances_policy'
-        op: 'attribute_exists'
-        message: 'Autoscaling group uses no mixed instances policy – missing opportunity for spot instance sustainability optimization.'
-    on_fail: advisory
-  - id: waf-sus-040.tf.google.managed-instance-group-autoscaler
-    engine: terraform
-    automated: true
-    title: 'GCP managed instance groups must have autoscaler configured'
-    provider: google
-    description: 'GCP managed instance groups without autoscalers run at fixed capacity, consuming energy proportionally regardless of actual load. Autoscalers allow scale-to-minimum during low utilization periods.'
-    expected: 'true'
-    remediation: 'Configure google_compute_autoscaler with CPU utilization target of 60-70% and set min_replicas = 0 for non-production. For production, set min_replicas = 1 and max_replicas based on peak load testing.\n'
-    example:
-      compliant: |
-        resource "google_compute_autoscaler" "app" {
-          name   = "app-autoscaler"
-          zone   = var.zone
-          target = google_compute_instance_group_manager.app.id
-        
-          autoscaling_policy {
-            max_replicas    = 10
-            min_replicas    = 0  # scale to zero for non-prod
-            cooldown_period = 60
-        
-            cpu_utilization {
-              target = 0.65
-            }
-          }
-        }
-        
-      non_compliant: |
-        # google_compute_instance_group_manager with no autoscaler defined
-        # WAF-SUS-040 Violation: fixed capacity, no scale-in possible
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_autoscaler
-    assertions:
-      - attribute: 'autoscaling_policy'
-        op: 'attribute_exists'
-        message: 'GCP autoscaler has no autoscaling policy defined.'
-      - attribute: 'autoscaling_policy.min_replicas'
-        op: 'attribute_exists'
-        message: 'Autoscaler must have min_replicas defined to allow scale-in.'
-    on_fail: violation
+- id: waf-sus-040.tf.aws.autoscaling-enabled
+  engine: terraform
+  automated: true
+  title: AWS autoscaling groups must have scale-in enabled to eliminate idle capacity
+  provider: aws
+  description: Autoscaling groups must have scale-in policies defined to reduce capacity during low utilization periods. Scale-in protection should not be enabled on all instances as it prevents idle capacity from being terminated.
+  expected: 'true'
+  remediation: Configure autoscaling groups with target tracking scaling policies based on CPU or request count. Set min_size to 0 for non-production environments to allow complete scale-in during off hours. Use predictive scaling for production to balance performance and sustainability.\n
+  example:
+    compliant: "resource \"aws_autoscaling_group\" \"app\" {\n  name                = \"app-asg\"\n  min_size            = 0  # scale to zero in off-peak\n  max_size            = 10\n  desired_capacity    = 2\n  vpc_zone_identifier = var.private_subnets\n\n  mixed_instances_policy {\n    instances_distribution {\n      on_demand_base_capacity                  = 1\n      on_demand_percentage_above_base_capacity = 20\n      spot_allocation_strategy                 = \"capacity-optimized\"\n    }\n  }\n}\n"
+    non_compliant: "resource \"aws_autoscaling_group\" \"app\" {\n  name             = \"app-asg\"\n  min_size         = 5  # WAF-SUS-040: high minimum prevents scale-in\n  max_size         = 5  # fixed capacity, no scaling\n  desired_capacity = 5\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_autoscaling_group
+  assertions:
+  - attribute: min_size
+    op: attribute_exists
+    message: Autoscaling group has no min_size defined.
+  - attribute: max_size
+    op: attribute_exists
+    message: Autoscaling group has no max_size defined.
+  on_fail: violation
+- id: waf-sus-040.tf.aws.spot-instances-for-dev
+  engine: terraform
+  automated: true
+  title: Non-production autoscaling groups should allow spot instances
+  provider: aws
+  description: Spot instances use the same physical hardware as on-demand instances but allow AWS to reclaim unused capacity. Using spot for non-production reduces demand for dedicated on-demand capacity, improving overall data center energy efficiency.
+  expected: 'true'
+  remediation: 'Add mixed_instances_policy with spot allocation for non-production environments. For production: use 20-40% spot on top of on-demand base capacity. For dev/test: use 100% spot with instance type diversification for resilience.\n'
+  example:
+    compliant: "resource \"aws_autoscaling_group\" \"dev\" {\n  name = \"dev-asg\"\n\n  mixed_instances_policy {\n    instances_distribution {\n      on_demand_base_capacity                  = 0\n      on_demand_percentage_above_base_capacity = 0  # 100% spot for dev\n      spot_allocation_strategy                 = \"capacity-optimized\"\n    }\n    launch_template {\n      launch_template_specification {\n        launch_template_id = aws_launch_template.app.id\n      }\n      override {\n        instance_type = \"t4g.medium\"\n      }\n      override {\n        instance_type = \"t4g.large\"\n      }\n    }\n  }\n}\n"
+    non_compliant: "resource \"aws_autoscaling_group\" \"dev\" {\n  name             = \"dev-asg\"\n  launch_template {\n    id      = aws_launch_template.app.id\n  }\n  # WAF-SUS-040 Warning: no spot instances configured for dev environment\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_autoscaling_group
+  assertions:
+  - attribute: mixed_instances_policy
+    op: attribute_exists
+    message: Autoscaling group uses no mixed instances policy – missing opportunity for spot instance sustainability optimization.
+  on_fail: advisory
+- id: waf-sus-040.tf.google.managed-instance-group-autoscaler
+  engine: terraform
+  automated: true
+  title: GCP managed instance groups must have autoscaler configured
+  provider: google
+  description: GCP managed instance groups without autoscalers run at fixed capacity, consuming energy proportionally regardless of actual load. Autoscalers allow scale-to-minimum during low utilization periods.
+  expected: 'true'
+  remediation: Configure google_compute_autoscaler with CPU utilization target of 60-70% and set min_replicas = 0 for non-production. For production, set min_replicas = 1 and max_replicas based on peak load testing.\n
+  example:
+    compliant: "resource \"google_compute_autoscaler\" \"app\" {\n  name   = \"app-autoscaler\"\n  zone   = var.zone\n  target = google_compute_instance_group_manager.app.id\n\n  autoscaling_policy {\n    max_replicas    = 10\n    min_replicas    = 0  # scale to zero for non-prod\n    cooldown_period = 60\n\n    cpu_utilization {\n      target = 0.65\n    }\n  }\n}\n"
+    non_compliant: '# google_compute_instance_group_manager with no autoscaler defined
+
+      # WAF-SUS-040 Violation: fixed capacity, no scale-in possible
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_autoscaler
+  assertions:
+  - attribute: autoscaling_policy
+    op: attribute_exists
+    message: GCP autoscaler has no autoscaling policy defined.
+  - attribute: autoscaling_policy.min_replicas
+    op: attribute_exists
+    message: Autoscaler must have min_replicas defined to allow scale-in.
+  on_fail: violation
+- id: waf-sus-040.tf.azurerm.autoscale-setting-exists
+  engine: terraform
+  automated: true
+  title: Azure monitor autoscale settings must exist with scale rules
+  provider: azurerm
+  description: Azure compute resources must be continuously monitored for utilization. At least one azurerm_monitor_autoscale_setting must exist with profiles containing scale-out and scale-in rules to prevent idle over-provisioning.
+  expected: 'true'
+  remediation: 'Add an azurerm_monitor_autoscale_setting resource linked to VM scale sets or app service plans with profile capacity limits and metric-based scale rules.
+
+    '
+  example:
+    compliant: "resource \"azurerm_monitor_autoscale_setting\" \"workers\" {\n  name                = \"worker-autoscale\"\n  target_resource_id  = azurerm_linux_virtual_machine_scale_set.workers.id\n  location            = \"germanywestcentral\"\n  profile {\n    name = \"defaultProfile\"\n    capacity {\n      default = 2\n      minimum = 1\n      maximum = 10\n    }\n    rule {\n      metric_trigger {\n        metric_name      = \"Percentage CPU\"\n        operator         = \"GreaterThan\"\n        threshold        = 75\n        time_grain       = \"PT1M\"\n        statistic        = \"Average\"\n        time_window      = \"PT5M\"\n        time_aggregation = \"Average\"\n      }\n      scale_action {\n        direction = \"Increase\"\n        type      = \"ChangeCount\"\n        value     = \"1\"\n        cooldown  = \"PT1M\"\n      }\n    }\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_autoscale_setting\" \"workers\" {\n  name                = \"worker-autoscale\"\n  target_resource_id  = azurerm_linux_virtual_machine_scale_set.workers.id\n  location            = \"germanywestcentral\"\n  # No profile or scale rules configured\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_autoscale_setting
+  assertions:
+  - attribute: profile
+    op: not_empty
+    message: Autoscale setting must contain at least one profile.
+  - attribute: profile.rule
+    op: not_empty
+    message: Autoscale profile must contain scale rules for utilization-based scaling.
+  on_fail: finding

@@ -1,205 +1,254 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-REL-080
 id: WAF-REL-080
-title: 'All production workloads MUST maintain an up-to-date inventory of external...'
+title: All production workloads MUST maintain an up-to-date inventory of external...
 status: active
 tags:
-  - reliability
-  - medium
-  - governance
-  - configuration
+- reliability
+- medium
+- governance
+- configuration
 pillar: reliability
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'reliability-design'
-rationale: |
-  All production workloads MUST maintain an up-to-date inventory of external and internal service dependencies.
+- governance
+- configuration
+category: reliability-design
+rationale: Poor fault tolerance and planning lead to service interruptions, data loss, and loss of trust from customers and
+  stakeholders. This control addresses the requirements of the 'Reliability Design' area and ensures that All production workloads
+  MUST maintain an up-to-date inventory of external and internal service dependencies.
 threat:
-  - 'Autonomous agents take unreviewed actions when identity, logging, or boundaries are missing.'
-  - 'Sensitive data leaks through agent prompts, tool calls, or memory stores.'
+- Incomplete dependency inventories complicate impact analysis and emergency planning.
+- External dependencies without documentation are underestimated or overlooked during incidents.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-reliability/pages/controls/WAF-REL-080.adoc'
-  related_controls: []
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-080.adoc
+  related_controls:
+  - WAF-REL-100
+  - WAF-REL-070
+  - WAF-REL-060
+  - WAF-REL-010
+  - WAF-REL-090
+  - WAF-AGN-100
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-COST-020
+  - WAF-OPS-010
+  - WAF-OPS-030
+  - WAF-OPS-040
+description: 'All production workloads MUST maintain an up-to-date inventory of external and internal service dependencies.
+  Each dependency MUST be assessed for reliability risk: SLA provided, failure history, substitutability. Critical dependencies
+  MUST have defined fallback behaviors. Third-party API dependencies MUST implement graceful degradation when the upstream
+  is unavailable. Dependency inventory MUST be reviewed quarterly and updated after each significant architecture change.
 
-description: |
-  All production workloads MUST maintain an up-to-date inventory of external and internal service dependencies. Each dependency MUST be assessed for reliability risk: SLA provided, failure history, substitutability. Critical dependencies MUST have defined fallback behaviors. Third-party API dependencies MUST implement graceful degradation when the upstream is unavailable. Dependency inventory MUST be reviewed quarterly and updated after each significant architecture change.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 27001:2022'
-    controls:
-      - 'A.15.1 – Information security in supplier relationships'
-      - 'A.17.1 – Information security continuity'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'REL 4 – Manage dependencies'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Supplier Management'
-      - 'Service Configuration Management'
-  - framework: 'NIST SP 800-161'
-    controls:
-      - 'Supply Chain Risk Management'
+- framework: ISO 27001:2022
+  controls:
+  - A.15.1 – Information security in supplier relationships
+  - A.17.1 – Information security continuity
+- framework: ITIL 4
+  controls:
+  - Supplier Management
+  - Service Configuration Management
 checks:
-  - id: waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation
-    engine: terraform
-    automated: true
-    title: 'AWS services should use VPC endpoints to isolate AWS API dependencies'
-    provider: aws
-    description: 'Critical AWS API dependencies (S3, DynamoDB, SQS, etc.) should be accessed through VPC endpoints to reduce dependency on internet routing and improve reliability and security.'
-    expected: 'true'
-    remediation: 'Create aws_vpc_endpoint resources for S3, DynamoDB, and other heavily used AWS services. Interface endpoints are recommended for SQS, SNS, and SSM.\n'
-    example:
-      compliant: |
-        resource "aws_vpc_endpoint" "s3" {
-          vpc_id            = aws_vpc.main.id
-          service_name      = "com.amazonaws.${var.aws_region}.s3"
-          vpc_endpoint_type = "Gateway"
-          route_table_ids   = [aws_route_table.private.id]
-          tags = merge(var.mandatory_tags, { Name = "s3-vpc-endpoint" })
-        }
-        
-        resource "aws_vpc_endpoint" "dynamodb" {
-          vpc_id            = aws_vpc.main.id
-          service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
-          vpc_endpoint_type = "Gateway"
-          route_table_ids   = [aws_route_table.private.id]
-          tags = merge(var.mandatory_tags, { Name = "dynamodb-vpc-endpoint" })
-        }
-        
-      non_compliant: |
-        # No VPC endpoints configured – all AWS API calls traverse internet NAT gateway
-        # Dependency on NAT gateway availability and internet routing
-        # WAF-REL-080 violation for high-traffic AWS API dependencies
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_vpc_endpoint
-    assertions:
-      - attribute: 'vpc_id'
-        op: 'not_empty'
-        message: 'VPC endpoint must be associated with a VPC.'
-      - attribute: 'service_name'
-        op: 'not_empty'
-        message: 'VPC endpoint must specify the AWS service name.'
-    on_fail: violation
-  - id: waf-rel-080.tf.azurerm.private-endpoint-dependency
-    engine: terraform
-    automated: true
-    title: 'Azure private endpoints should be used for critical managed service dependencies'
-    provider: azurerm
-    description: 'Azure managed services (Storage, Key Vault, Service Bus) accessed by production workloads should use private endpoints to reduce dependency on public routing.'
-    expected: 'true'
-    remediation: 'Create azurerm_private_endpoint resources for each critical Azure managed service. Configure private_service_connection with the target resource ID and subresource names.\n'
-    example:
-      compliant: |
-        resource "azurerm_private_endpoint" "storage" {
-          name                = "storage-private-endpoint"
-          location            = azurerm_resource_group.main.location
-          resource_group_name = azurerm_resource_group.main.name
-          subnet_id           = azurerm_subnet.private.id
-        
-          private_service_connection {
-            name                           = "storage-connection"
-            private_connection_resource_id = azurerm_storage_account.main.id
-            is_manual_connection           = false
-            subresource_names              = ["blob"]
-          }
-        }
-        
-      non_compliant: |
-        # azurerm_storage_account accessed directly from public endpoint
-        # No private endpoint configured – WAF-REL-080 violation
-        resource "azurerm_storage_account" "main" {
-          name                     = "paymentdataprod"
-          resource_group_name      = azurerm_resource_group.main.name
-          location                 = azurerm_resource_group.main.location
-          account_tier             = "Standard"
-          account_replication_type = "GRS"
-          # public_network_access_enabled = true (default)
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_private_endpoint
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Private endpoint must have a name.'
-      - attribute: 'private_service_connection'
-        op: 'attribute_exists'
-        message: 'Private endpoint must define private_service_connection.'
-    on_fail: violation
-  - id: waf-rel-080.tf.google.vpc-sc-dependency-isolation
-    engine: terraform
-    automated: true
-    title: 'GCP services should use Private Service Connect for dependency isolation'
-    provider: google
-    description: 'GCP workloads should access Google APIs through Private Service Connect or private Google access to improve reliability by avoiding public internet routing.'
-    expected: 'true'
-    remediation: 'Set private_ip_google_access = true on google_compute_subnetwork resources to allow VMs without public IPs to access Google APIs reliably.\n'
-    example:
-      compliant: |
-        resource "google_compute_subnetwork" "private" {
-          name                     = "payment-private-subnet"
-          ip_cidr_range            = "10.0.0.0/24"
-          region                   = var.region
-          network                  = google_compute_network.main.id
-          private_ip_google_access = true
-        }
-        
-      non_compliant: |
-        resource "google_compute_subnetwork" "private" {
-          name                     = "payment-private-subnet"
-          ip_cidr_range            = "10.0.0.0/24"
-          region                   = var.region
-          network                  = google_compute_network.main.id
-          private_ip_google_access = false  # WAF-REL-080 violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - google_compute_subnetwork
-    assertions:
-      - attribute: 'private_ip_google_access'
-        op: 'is_true'
-        message: 'Subnetwork must enable private_ip_google_access for reliable Google API access.'
-    on_fail: violation
+- id: waf-rel-080.tf.aws.vpc-endpoint-dependency-isolation
+  engine: terraform
+  automated: true
+  title: AWS services should use VPC endpoints to isolate AWS API dependencies
+  provider: aws
+  description: Critical AWS API dependencies (S3, DynamoDB, SQS, etc.) should be accessed through VPC endpoints to reduce
+    dependency on internet routing and improve reliability and security.
+  expected: 'true'
+  remediation: Create aws_vpc_endpoint resources for S3, DynamoDB, and other heavily used AWS services. Interface endpoints
+    are recommended for SQS, SNS, and SSM.\n
+  example:
+    compliant: "resource \"aws_vpc_endpoint\" \"s3\" {\n  vpc_id            = aws_vpc.main.id\n  service_name      = \"com.amazonaws.${var.aws_region}.s3\"\
+      \n  vpc_endpoint_type = \"Gateway\"\n  route_table_ids   = [aws_route_table.private.id]\n  tags = merge(var.mandatory_tags,\
+      \ { Name = \"s3-vpc-endpoint\" })\n}\n\nresource \"aws_vpc_endpoint\" \"dynamodb\" {\n  vpc_id            = aws_vpc.main.id\n\
+      \  service_name      = \"com.amazonaws.${var.aws_region}.dynamodb\"\n  vpc_endpoint_type = \"Gateway\"\n  route_table_ids\
+      \   = [aws_route_table.private.id]\n  tags = merge(var.mandatory_tags, { Name = \"dynamodb-vpc-endpoint\" })\n}\n"
+    non_compliant: '# No VPC endpoints configured – all AWS API calls traverse internet NAT gateway
+
+      # Dependency on NAT gateway availability and internet routing
+
+      # WAF-REL-080 violation for high-traffic AWS API dependencies
+
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_vpc_endpoint
+  assertions:
+  - attribute: vpc_id
+    op: not_empty
+    message: VPC endpoint must be associated with a VPC.
+  - attribute: service_name
+    op: not_empty
+    message: VPC endpoint must specify the AWS service name.
+  on_fail: violation
+- id: waf-rel-080.tf.azurerm.private-endpoint-dependency
+  engine: terraform
+  automated: true
+  title: Azure private endpoints should be used for critical managed service dependencies
+  provider: azurerm
+  description: Azure managed services (Storage, Key Vault, Service Bus) accessed by production workloads should use private
+    endpoints to reduce dependency on public routing.
+  expected: 'true'
+  remediation: Create azurerm_private_endpoint resources for each critical Azure managed service. Configure private_service_connection
+    with the target resource ID and subresource names.\n
+  example:
+    compliant: "resource \"azurerm_private_endpoint\" \"storage\" {\n  name                = \"storage-private-endpoint\"\n\
+      \  location            = azurerm_resource_group.main.location\n  resource_group_name = azurerm_resource_group.main.name\n\
+      \  subnet_id           = azurerm_subnet.private.id\n\n  private_service_connection {\n    name                     \
+      \      = \"storage-connection\"\n    private_connection_resource_id = azurerm_storage_account.main.id\n    is_manual_connection\
+      \           = false\n    subresource_names              = [\"blob\"]\n  }\n}\n"
+    non_compliant: "# azurerm_storage_account accessed directly from public endpoint\n# No private endpoint configured – WAF-REL-080\
+      \ violation\nresource \"azurerm_storage_account\" \"main\" {\n  name                     = \"paymentdataprod\"\n  resource_group_name\
+      \      = azurerm_resource_group.main.name\n  location                 = azurerm_resource_group.main.location\n  account_tier\
+      \             = \"Standard\"\n  account_replication_type = \"GRS\"\n  # public_network_access_enabled = true (default)\n\
+      }\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_private_endpoint
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Private endpoint must have a name.
+  - attribute: private_service_connection
+    op: attribute_exists
+    message: Private endpoint must define private_service_connection.
+  on_fail: violation
+- id: waf-rel-080.tf.google.vpc-sc-dependency-isolation
+  engine: terraform
+  automated: true
+  title: GCP services should use Private Service Connect for dependency isolation
+  provider: google
+  description: GCP workloads should access Google APIs through Private Service Connect or private Google access to improve
+    reliability by avoiding public internet routing.
+  expected: 'true'
+  remediation: Set private_ip_google_access = true on google_compute_subnetwork resources to allow VMs without public IPs
+    to access Google APIs reliably.\n
+  example:
+    compliant: "resource \"google_compute_subnetwork\" \"private\" {\n  name                     = \"payment-private-subnet\"\
+      \n  ip_cidr_range            = \"10.0.0.0/24\"\n  region                   = var.region\n  network                 \
+      \ = google_compute_network.main.id\n  private_ip_google_access = true\n}\n"
+    non_compliant: "resource \"google_compute_subnetwork\" \"private\" {\n  name                     = \"payment-private-subnet\"\
+      \n  ip_cidr_range            = \"10.0.0.0/24\"\n  region                   = var.region\n  network                 \
+      \ = google_compute_network.main.id\n  private_ip_google_access = false  # WAF-REL-080 violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_subnetwork
+  assertions:
+  - attribute: private_ip_google_access
+    op: is_true
+    message: Subnetwork must enable private_ip_google_access for reliable Google API access.
+  on_fail: violation
+- id: waf-rel-080.tf.stackit.dependency-mapped
+  engine: terraform
+  automated: true
+  title: All production workloads for stackit
+  provider: stackit
+  description: All production workloads must be documented in IaC via a dependency-mapped tag/label on stackit_project. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a dependency-mapped tag/label to the stackit_project resource to show the stackit implementation of WAF-REL-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"stackit_project\" \"example\" {\n  labels = {\n    dependency-mapped = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"stackit_project\" \"example\" {\n  # Missing dependency-mapped labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_project
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: dependency-mapped
+    message: stackit_project is missing the dependency-mapped tag/label.
+  on_fail: violation
+- id: waf-rel-080.tf.ovh.dependency-mapped
+  engine: terraform
+  automated: true
+  title: All production workloads for ovh
+  provider: ovh
+  description: All production workloads must be documented in IaC via a dependency-mapped tag/label on ovh_cloud_project.
+    This validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a dependency-mapped tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-REL-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  tags = {\n    dependency-mapped = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"ovh_cloud_project\" \"example\" {\n  # Missing dependency-mapped tags\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project
+  assertions:
+  - attribute: tags
+    op: key_exists
+    key: dependency-mapped
+    message: ovh_cloud_project is missing the dependency-mapped tag/label.
+  on_fail: violation
+- id: waf-rel-080.tf.hcloud.dependency-mapped
+  engine: terraform
+  automated: true
+  title: All production workloads for hcloud
+  provider: hcloud
+  description: All production workloads must be documented in IaC via a dependency-mapped tag/label on hcloud_server. This
+    validates the control is tracked as code.
+  expected: 'true'
+  remediation: 'Add a dependency-mapped tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-080
+    is tracked in IaC.
+
+    '
+  example:
+    compliant: "|\nresource \"hcloud_server\" \"example\" {\n  labels = {\n    dependency-mapped = \"true\"\n  }\n}\n"
+    non_compliant: "|\nresource \"hcloud_server\" \"example\" {\n  # Missing dependency-mapped labels\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels
+    op: key_exists
+    key: dependency-mapped
+    message: hcloud_server is missing the dependency-mapped tag/label.
+  on_fail: violation

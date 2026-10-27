@@ -1,171 +1,259 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-OPS-070
 id: WAF-OPS-070
-title: 'Every production incident with user-visible impact or SLO violation MUST...'
+title: Every production incident with user-visible impact or SLO violation MUST...
 status: active
 tags:
-  - operational
-  - medium
-  - governance
-  - configuration
-pillar: operational
+- operational
+- medium
+- governance
+- configuration
+pillar: excellence
 severity: medium
 type:
-  - governance
-  - configuration
-
-category: 'data-governance'
-rationale: |
-  Every production incident with user-visible impact or SLO violation MUST trigger a post-incident review (postmortem) within 5 business days.
+- governance
+- configuration
+category: data-governance
+rationale: Missing data classification, ownership, and lifecycle control increase compliance risk, cost, and the likelihood
+  of data loss. This control addresses the requirements of the 'Data Governance' area and ensures that Every production incident
+  with user-visible impact or SLO violation MUST trigger a post-incident review (postmortem) within 5 business days.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Undocumented incidents prevent organizational learning and recurrence prevention.
+- Missing post-mortems leave systemic weaknesses unrecognized and uncorrected.
 implementation_guidance:
-  - 'Document the requirement in a version-controlled policy or standard.'
-  - 'Assign ownership and establish a review cadence (e.g., quarterly).'
-  - 'Implement the required configuration as code in Terraform or equivalent IaC.'
+- Document the requirement in a version-controlled policy or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - A documented policy or standard describes the requirement.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Terraform checks or IaC gates automatically validate the requirement in CI/CD.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-operational/pages/controls/WAF-OPS-070.adoc'
-  related_controls: []
+  narrative: modules/pillar-excellence/pages/controls/WAF-OPS-070.adoc
+  related_controls:
+  - WAF-OPS-020
+  - WAF-OPS-100
+  - WAF-COST-010
+  - WAF-REL-050
+  - WAF-SUS-010
+  - WAF-OPS-090
+  - WAF-COST-080
+  - WAF-OPS-040
+  - WAF-SUS-030
+  - WAF-OPS-030
+  - WAF-REL-010
+  - WAF-REL-040
+description: 'Every production incident with user-visible impact or SLO violation MUST trigger a post-incident review (postmortem)
+  within 5 business days. Postmortems MUST be blameless, structured, and result in documented action items with owners and
+  due dates tracked through completion. Postmortem findings MUST be shared across teams to prevent recurrence of the same
+  class of incidents.
 
-description: |
-  Every production incident with user-visible impact or SLO violation MUST trigger a post-incident review (postmortem) within 5 business days. Postmortems MUST be blameless, structured, and result in documented action items with owners and due dates tracked through completion. Postmortem findings MUST be shared across teams to prevent recurrence of the same class of incidents.
+  '
 regulatory_mapping:
-  - framework: 'ISO/IEC 20000-1'
-    controls:
-      - 'Incident management'
-      - 'Continual improvement'
-  - framework: 'ITIL 4'
-    controls:
-      - 'Problem management'
-      - 'Continual improvement'
-  - framework: 'AWS Well-Architected Framework'
-    controls:
-      - 'Operational Excellence Pillar – OPS 9: How do you understand how your operations are performing?'
-  - framework: 'Google SRE Book'
-    controls:
-      - 'Chapter 15: Postmortem Culture: Learning from Failure'
-  - framework: 'SOC 2 Type II'
-    controls:
-      - 'CC9.2 – Risk Assessment and Communication'
+- framework: ISO/IEC 20000-1
+  controls:
+  - Incident management
+  - Continual improvement
+- framework: ITIL 4
+  controls:
+  - Problem management
+  - Continual improvement
+- framework: SRE Book (Google)
+  controls:
+  - 'Chapter 15: Postmortem Culture: Learning from Failure'
+- framework: SOC 2 Type II
+  controls:
+  - CC9.2 – Risk Assessment and Communication
 checks:
-  - id: waf-ops-070.tf.aws.incident-management-sns-topic
-    engine: terraform
-    automated: true
-    title: 'SNS incident notification topic must be configured for production alarms'
-    provider: aws
-    description: 'An SNS topic for incident notifications MUST exist and MUST be referenced by production CloudWatch alarms. This ensures incidents are captured and tracked.'
-    expected: 'true'
-    remediation: 'Create an aws_sns_topic for incident notifications and reference it in all production CloudWatch alarm alarm_actions.\n'
-    example:
-      compliant: |
-        resource "aws_sns_topic" "incidents" {
-          name         = "production-incident-notifications"
-          display_name = "Production Incidents"
-        }
-        
-        resource "aws_sns_topic_subscription" "pagerduty" {
-          topic_arn = aws_sns_topic.incidents.arn
-          protocol  = "https"
-          endpoint  = var.pagerduty_endpoint
-        }
-        
-        resource "aws_cloudwatch_metric_alarm" "critical_error" {
-          alarm_name    = "payment-service-critical"
-          alarm_actions = [aws_sns_topic.incidents.arn]
-          /* ... */
-        }
-        
-      non_compliant: |
-        resource "aws_cloudwatch_metric_alarm" "critical_error" {
-          alarm_name = "payment-service-critical"
-          # No alarm_actions – incidents not captured
-          # WAF-OPS-070 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_sns_topic
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'SNS topic must have a non-empty name.'
-    on_fail: violation
-  - id: waf-ops-070.tf.azurerm.action-group-incident
-    engine: terraform
-    automated: true
-    title: 'Azure Monitor action group must be configured for incident routing'
-    provider: azurerm
-    description: 'Azure Monitor action groups for production incident routing MUST include at least one receiver (email, webhook, or PagerDuty) to ensure incidents are captured and reviewed.'
-    expected: 'true'
-    remediation: 'Define an azurerm_monitor_action_group with at least one receiver type (email_receiver, webhook_receiver, or azure_app_push_receiver).\n'
-    example:
-      compliant: |
-        resource "azurerm_monitor_action_group" "oncall" {
-          name                = "production-oncall"
-          resource_group_name = azurerm_resource_group.main.name
-          short_name          = "oncall"
-        
-          email_receiver {
-            name          = "oncall-engineer"
-            email_address = var.oncall_email
-          }
-        
-          webhook_receiver {
-            name        = "pagerduty"
-            service_uri = var.pagerduty_webhook_url
-          }
-        }
-        
-      non_compliant: |
-        resource "azurerm_monitor_action_group" "oncall" {
-          name                = "production-oncall"
-          resource_group_name = azurerm_resource_group.main.name
-          short_name          = "oncall"
-          # No receivers configured – incidents not routed
-          # WAF-OPS-070 Violation
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_monitor_action_group
-    assertions:
-      - attribute: 'name'
-        op: 'not_empty'
-        message: 'Action group must have a non-empty name.'
-      - attribute: 'short_name'
-        op: 'not_empty'
-        message: 'Action group must have a short_name for SMS notifications.'
-    on_fail: violation
+- id: waf-ops-070.tf.aws.incident-management-sns-topic
+  engine: terraform
+  automated: true
+  title: SNS incident notification topic must be configured for production alarms
+  provider: aws
+  description: An SNS topic for incident notifications MUST exist and MUST be referenced by production CloudWatch alarms.
+    This ensures incidents are captured and tracked.
+  expected: 'true'
+  remediation: Create an aws_sns_topic for incident notifications and reference it in all production CloudWatch alarm alarm_actions.\n
+  example:
+    compliant: "resource \"aws_sns_topic\" \"incidents\" {\n  name         = \"production-incident-notifications\"\n  display_name\
+      \ = \"Production Incidents\"\n}\n\nresource \"aws_sns_topic_subscription\" \"pagerduty\" {\n  topic_arn = aws_sns_topic.incidents.arn\n\
+      \  protocol  = \"https\"\n  endpoint  = var.pagerduty_endpoint\n}\n\nresource \"aws_cloudwatch_metric_alarm\" \"critical_error\"\
+      \ {\n  alarm_name    = \"payment-service-critical\"\n  alarm_actions = [aws_sns_topic.incidents.arn]\n  /* ... */\n\
+      }\n"
+    non_compliant: "resource \"aws_cloudwatch_metric_alarm\" \"critical_error\" {\n  alarm_name = \"payment-service-critical\"\
+      \n  # No alarm_actions – incidents not captured\n  # WAF-OPS-070 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_sns_topic
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: SNS topic must have a non-empty name.
+  on_fail: violation
+- id: waf-ops-070.tf.azurerm.action-group-incident
+  engine: terraform
+  automated: true
+  title: Azure Monitor action group must be configured for incident routing
+  provider: azurerm
+  description: Azure Monitor action groups for production incident routing MUST include at least one receiver (email, webhook,
+    or PagerDuty) to ensure incidents are captured and reviewed.
+  expected: 'true'
+  remediation: Define an azurerm_monitor_action_group with at least one receiver type (email_receiver, webhook_receiver, or
+    azure_app_push_receiver).\n
+  example:
+    compliant: "resource \"azurerm_monitor_action_group\" \"oncall\" {\n  name                = \"production-oncall\"\n  resource_group_name\
+      \ = azurerm_resource_group.main.name\n  short_name          = \"oncall\"\n\n  email_receiver {\n    name          =\
+      \ \"oncall-engineer\"\n    email_address = var.oncall_email\n  }\n\n  webhook_receiver {\n    name        = \"pagerduty\"\
+      \n    service_uri = var.pagerduty_webhook_url\n  }\n}\n"
+    non_compliant: "resource \"azurerm_monitor_action_group\" \"oncall\" {\n  name                = \"production-oncall\"\n\
+      \  resource_group_name = azurerm_resource_group.main.name\n  short_name          = \"oncall\"\n  # No receivers configured\
+      \ – incidents not routed\n  # WAF-OPS-070 Violation\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_monitor_action_group
+  assertions:
+  - attribute: name
+    op: not_empty
+    message: Action group must have a non-empty name.
+  - attribute: short_name
+    op: not_empty
+    message: Action group must have a short_name for SMS notifications.
+  on_fail: violation
+- id: waf-ops-070.tf.google.monitoring-notification-channel
+  engine: terraform
+  automated: true
+  title: GCP notification channel must route production alerts to on-call
+  provider: google
+  description: Every production google_monitoring_alert_policy MUST reference at least one google_monitoring_notification_channel
+    so that incidents with user-visible impact or SLO violations are captured and routed to on-call engineers.
+  expected: 'true'
+  remediation: Create google_monitoring_notification_channel resources for email, PagerDuty, or Slack and reference them in
+    google_monitoring_alert_policy notification_channels.\n
+  example:
+    compliant: "resource \"google_monitoring_notification_channel\" \"oncall\" {\n  display_name = \"On-call PagerDuty\"\n\
+      \  type         = \"pagerduty\"\n  labels = {\n    service_key = var.pagerduty_service_key\n  }\n}\n\nresource \"google_monitoring_alert_policy\"\
+      \ \"errors\" {\n  display_name = \"Payment Service High Error Rate\"\n  documentation {\n    content   = \"Runbook:\
+      \ https://wiki/runbooks/payment-errors\"\n    mime_type = \"text/markdown\"\n  }\n  notification_channels = [google_monitoring_notification_channel.oncall.id]\n\
+      \n  conditions {\n    display_name = \"5xx rate above threshold\"\n    condition_threshold {\n      filter         \
+      \ = \"metric.type=\\\"logging.googleapis.com/user/payment_service_5xx\\\"\"\n      duration        = \"300s\"\n    \
+      \  comparison      = \"COMPARISON_GT\"\n      threshold_value = 10\n    }\n  }\n}\n"
+    non_compliant: "resource \"google_monitoring_alert_policy\" \"errors\" {\n  display_name = \"Payment Service High Error\
+      \ Rate\"\n  # No notification_channels – incident never reaches on-call\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_monitoring_alert_policy
+  assertions:
+  - attribute: notification_channels
+    op: attribute_exists
+    message: GCP alert policy must route to at least one notification channel.
+  on_fail: finding
+- id: waf-ops-070.tf.stackit.incident-response-tag
+  engine: terraform
+  automated: true
+  title: STACKIT workloads must have an incident response tag
+  provider: stackit
+  description: STACKIT workloads must have an incident response tag. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"stackit_ske_cluster\" \"example\" {\n\
+      \  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_ske_cluster
+    - stackit_server
+  assertions:
+  - attribute: labels.incident-runbook
+    op: key_exists
+    key: incident-runbook
+    message: STACKIT workload is missing the 'incident-runbook' label.
+  on_fail: violation
+- id: waf-ops-070.tf.ovh.incident-response-tag
+  engine: terraform
+  automated: true
+  title: OVHcloud workloads must have an incident response tag
+  provider: ovh
+  description: OVHcloud workloads must have an incident response tag. This check validates the Terraform configuration uses
+    the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"ovh_cloud_project_kube\" \"example\" {\n  # required\
+      \ attribute/tag/label present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"ovh_cloud_project_kube\" \"example\"\
+      \ {\n  # Missing required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_kube
+    - ovh_cloud_project_instance
+  assertions:
+  - attribute: tags.incident-runbook
+    op: key_exists
+    key: incident-runbook
+    message: OVHcloud workload is missing the 'incident-runbook' tag.
+  on_fail: violation
+- id: waf-ops-070.tf.hcloud.incident-response-tag
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud workloads must have an incident response tag
+  provider: hcloud
+  description: Hetzner Cloud workloads must have an incident response tag. This check validates the Terraform configuration
+    uses the expected resource and attribute.
+  expected: 'true'
+  remediation: 'Review the Terraform configuration for the listed resource types and ensure the required attribute or tag
+    is present. See the control narrative for provider-specific guidance.
+
+    '
+  example:
+    compliant: "|\n# Example resource meets the requirement.\nresource \"hcloud_server\" \"example\" {\n  # required attribute/tag/label\
+      \ present\n}\n"
+    non_compliant: "|\n# Example resource does not meet the requirement.\nresource \"hcloud_server\" \"example\" {\n  # Missing\
+      \ required attribute/tag/label\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_server
+  assertions:
+  - attribute: labels.incident-runbook
+    op: key_exists
+    key: incident-runbook
+    message: Hetzner Cloud server is missing the 'incident-runbook' label.
+  on_fail: violation

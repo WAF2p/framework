@@ -3,227 +3,284 @@
 :control-id: WAF-SOV-020
 :pillar: sovereign
 :severity: critical
-:category: data-residency
-:automated: high
-:description: WAF++ Sovereign – Technical enforcement of region constraints via IaC validation, policy-as-code, and CI gates.
+:category: identity-access
+:automatable: High
+:description: Deployments MUST be restricted to approved sovereign regions through policy-as-code and IaC guardrails. Region constraints must be technically enforced—not merely documented. Violations must be blocked in CI or flagged as critical policy exceptions requiring explicit documented approval.
 
 [.metadata]
-*Pillar:* Sovereign | *Severity:* 🔴 Critical | *Category:* Data Residency | *Automatable:* High
+*Pillar:* Sovereign | *Severity:* Critical | *Category:* Identity Access | *Automatable:* High
 
 == Description
 
-Deployments MUST be restricted to permitted sovereign regions through policy-as-code and IaC
-guardrails. Region constraints must be technically enforced — not merely documented.
-
-Violations MUST be blocked in CI or immediately reported as critical policy exceptions.
-Every approved exception requires documented approval with a time limit.
+Deployments MUST be restricted to approved sovereign regions through policy-as-code and IaC guardrails. Region constraints must be technically enforced—not merely documented. Violations must be blocked in CI or flagged as critical policy exceptions requiring explicit documented approval.
 
 == Rationale
-
-Documentation alone cannot prevent accidental or intentional deployments into non-sovereign
-regions. A single unsecured provider configuration or environment variable can silently create
-workloads outside jurisdictional boundaries.
-
-Region pinning must be enforced on *every layer*:
-
-* *IaC level*: Variable validation in Terraform
-* *CI/CD level*: OPA/Sentinel policy gate in the build
-* *Organization level*: SCP / Azure Policy / GCP Org Policy as the last safety net
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Accidental deployment*
-|Wrong `AWS_DEFAULT_REGION` environment variable in the CI pipeline creates resources in US East.
+|*Risk* |Data may leave approved jurisdictions and violate regulatory requirements.
 
-|*Shadow infrastructure*
-|Developer account without SCP guardrails enables deployments to arbitrary regions.
-
-|*Provider default fallback*
-|Missing `region` attribute in the provider block falls back to an undocumented default.
-
-|*Terraform state leak*
-|State file with sensitive metadata stored in an S3 bucket outside the approved region.
+|*Risk* |Vendor lock-in reduces future portability and sovereignty options.
 
 |===
 
-== Regulatory Mapping
+== Requirements
 
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*GDPR*
-|Art. 44 – General principle for transfers; Art. 46 – Appropriate safeguards
-
-|*BSI C5:2020*
-|OPS-04 – Data management; INF-01 – Physical location of infrastructure
-
-|*EUCS (ENISA)*
-|SOV-01 – Data location; SOV-02 – Jurisdictional control
-
-|*GAIA-X*
-|Sovereign Cloud – Location transparency and data location
-
-|*ISO 27001:2022*
-|A.8.10 – Information deletion; A.5.29 – Information security during business disruption
-
-|*BSI C3A:2026*
-|Dimension 4 – Data: Location; Dimension 1 – Strategic: Jurisdictional alignment
-
-|===
-
-== Requirement
-
-* All provider blocks MUST contain an explicit `region`/`location`
-* All region/location variables MUST have a `validation` block with allowed values
-* A deny mechanism (SCP/Azure Policy/Org Policy) MUST be enabled at the organization level
-* The CI/CD process MUST block region violations — a warning alone is insufficient
-* Hardcoded non-sovereign regions (us-*, ap-*, sa-*) in IaC are prohibited
+* Deployments MUST be restricted to approved sovereign regions through policy-as-code and IaC guardrails.
+* Region constraints must be technically enforced—not merely documented.
+* Violations must be blocked in CI or flagged as critical policy exceptions requiring explicit documented approval.
 
 == Implementation Guidance
 
-. *Define allowed-regions list* as a shared variable or locals in a base module.
-. *Add variable validation* to every region/location parameter.
-. *Activate AWS SCP* with `DenyOutsideApprovedRegions` at organization level.
-. *Configure Azure Policy* or *GCP Org Policy* as the equivalent.
-. *Implement CI gate*: OPA or Sentinel validates the Terraform plan.
-. *Activate drift detection*: Scheduled scans find manually created resources.
-. *Formalize exceptions*: Every exception requires CISO/DPO approval, is time-limited, and documented.
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Region documented
-|Permitted regions listed in policy document; no technical enforcement.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|IaC region constraints set
-|All provider blocks have an explicit region; region variables with validation block.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Full enforcement
-|CI pipeline blocks non-sovereign deployments; OPA/SCP/Policy in effect; no undocumented exceptions.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Continuous drift monitoring
-|Scheduled scans detect resources outside approved regions; alerts within 1 hour; weekly compliance reports.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Automatic remediation
-|Non-compliant resources are automatically deleted or quarantined; full audit trail of every enforcement action.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sov-020.tf.aws.provider-region-in-allowed-list
-*Checks:* AWS Provider must set `region` explicitly.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS provider region must be explicitly set*
+
+Every AWS provider block must have a 'region' attribute explicitly set. Relying on AWS_DEFAULT_REGION environment variables or provider defaults is prohibited for sovereign workloads.
+
+*Scope:* `provider` — `aws`
+
+*Assertions:*
+* `region` attribute exists — AWS provider block is missing an explicit 'region' attribute.
+
+*Remediation:* Add 'region = var.aws_region' to all AWS provider blocks.
+
+.Compliant
+
+[source,terraform]
 ----
 provider "aws" {
   region = var.aws_region
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  # region via AWS_DEFAULT_REGION –
-  # not sovereign-safe
+  # region sourced from AWS_DEFAULT_REGION – not sovereign-safe
 }
 ----
-|===
 
 ---
 
 === waf-sov-020.tf.aws.region-variable-validation
-*Checks:* Region variables must have a `validation` block with allowed values.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS region variable must have a validation constraint*
+
+Any Terraform variable whose name contains 'region' or 'location' must have a validation block to restrict values to the organization's approved region list.
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — Region/location variable is missing a 'validation' block to restrict to approved values.
+
+*Remediation:* Add a validation block to region variables that uses 'contains()' or 'startswith()' to restrict values to the approved list.
+
+.Compliant
+
+[source,terraform]
 ----
 variable "aws_region" {
-  type    = string
-  default = "eu-central-1"
+  type        = string
+  description = "AWS region for sovereign deployments"
+  default     = "eu-central-1"
   validation {
-    condition = contains([
-      "eu-central-1",
-      "eu-west-1",
-      "eu-north-1"
-    ], var.aws_region)
-    error_message = <<-EOF
-      Region '${var.aws_region}' is not in the
-      approved sovereign region list.
-    EOF
+    condition     = contains(["eu-central-1", "eu-west-1", "eu-north-1"], var.aws_region)
+    error_message = "Must be an approved sovereign EU region."
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-  # No validation block –
-  # any region is accepted
+  type        = string
+  default     = "us-east-1"
+  # No validation – any region is accepted
 }
 ----
-|===
+
+---
+
+=== waf-sov-020.tf.azurerm.location-variable-validation
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure location variable must have a validation constraint*
+
+Any Terraform variable whose name contains 'location' or 'region' for Azure must have a validation block restricting to approved Azure regions.
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — Azure location variable is missing a 'validation' block.
+
+*Remediation:* Add a validation block restricting location to approved Azure sovereign regions.
+
+.Compliant
+
+[source,terraform]
+----
+variable "azure_location" {
+  type    = string
+  default = "germanywestcentral"
+  validation {
+    condition = contains(
+      ["germanywestcentral", "germanynorth", "westeurope", "northeurope", "switzerlandnorth"],
+      var.azure_location
+    )
+    error_message = "Azure location must be an approved sovereign region."
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+variable "azure_location" {
+  type    = string
+  default = "eastus"
+  # No validation block
+}
+----
+
+---
+
+=== waf-sov-020.tf.google.region-variable-validation
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP region variable must have a validation constraint*
+
+GCP region and location variables must have validation blocks restricting to approved European or sovereign GCP regions.
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — GCP region/location variable is missing a 'validation' block.
+
+*Remediation:* Add a validation block restricting GCP region to approved sovereign values.
+
+.Compliant
+
+[source,terraform]
+----
+variable "gcp_region" {
+  type    = string
+  default = "europe-west3"
+  validation {
+    condition     = startswith(var.gcp_region, "europe-")
+    error_message = "Only European GCP regions are approved for sovereign workloads."
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+variable "gcp_region" {
+  type    = string
+  default = "us-central1"
+  # No validation
+}
+----
 
 ---
 
 === waf-sov-020.tf.aws.no-hardcoded-non-sovereign-region
-*Checks:* No hardcoded non-sovereign region strings (e.g. `us-east-1`, `ap-southeast-1`) in IaC.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*No hardcoded non-sovereign AWS region in resource or provider blocks*
+
+Hardcoded AWS region strings referencing non-sovereign regions (e.g., us-east-1, ap-southeast-1) are forbidden in provider, resource, and data source blocks.
+
+*Scope:* `any` Terraform block
+
+*Assertions:*
+* `region` not matches pattern `^(us-|ap-|sa-|ca-|me-|af-)` — Hardcoded non-sovereign AWS region detected. Only EU/approved regions are permitted.
+
+*Remediation:* Replace hardcoded region values with variable references that have validation constraints.
+
+.Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  region = var.aws_region
-  # var.aws_region validated to EU
+  region = var.aws_region  # validated to eu-central-1 or eu-west-1
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  region = "us-east-1"  # ❌ Hardcoded
-                         # non-sovereign region
+  region = "us-east-1"  # Non-sovereign region hardcoded
 }
 ----
-|===
 
 ---
+
 === waf-sov-020.tf.stackit.region-validation
-*Checks:* StackIT region variables must have a `validation` block.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
 
-a|[source,hcl]
+*StackIT region variable must have a validation constraint*
+
+StackIT project region variables must have validation blocks restricting to approved sovereign regions. StackIT regions include: eu-central-1 (Karlsruhe), eu-west-1 (Strasbourg).
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — StackIT region/location variable is missing a 'validation' block.
+
+*Remediation:* Add a validation block restricting the StackIT region to approved sovereign values.
+
+.Compliant
+
+[source,terraform]
 ----
 variable "stackit_region" {
   type    = string
   default = "eu-central-1"
   validation {
-    condition = contains(["eu-central-1", "eu-west-1"], var.stackit_region)
+    condition     = contains(["eu-central-1", "eu-west-1"], var.stackit_region)
     error_message = "StackIT region must be an approved sovereign region."
   }
 }
@@ -231,7 +288,10 @@ provider "stackit" {
   region = var.stackit_region
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 variable "stackit_region" {
   type    = string
@@ -239,23 +299,33 @@ variable "stackit_region" {
   # No validation block
 }
 ----
-|===
 
 ---
+
 === waf-sov-020.tf.ovh.location-validation
-*Checks:* OVH location variables must have a `validation` block.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
 
-a|[source,hcl]
+*OVH location variable must have a validation constraint*
+
+OVH project location variables must have validation blocks restricting to approved sovereign regions. OVH regions include: DE-FRA (Frankfurt), DE-EDE (Ede), EU-CY (Cyprus).
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — OVH location variable is missing a 'validation' block.
+
+*Remediation:* Add a validation block restricting OVH location to approved sovereign regions.
+
+.Compliant
+
+[source,terraform]
 ----
 variable "ovh_location" {
   type    = string
   default = "DE-FRA"
   validation {
-    condition = contains(["DE-FRA", "DE-EDE", "EU-CY"], var.ovh_location)
+    condition     = contains(["DE-FRA", "DE-EDE", "EU-CY"], var.ovh_location)
     error_message = "OVH location must be an approved sovereign region."
   }
 }
@@ -263,7 +333,10 @@ provider "ovh" {
   endpoint = "ovh-eu"
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 variable "ovh_location" {
   type    = string
@@ -271,23 +344,33 @@ variable "ovh_location" {
   # No validation block
 }
 ----
-|===
 
 ---
+
 === waf-sov-020.tf.hcloud.location-validation
-*Checks:* Hetzner Cloud location variables must have a `validation` block.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
 
-a|[source,hcl]
+*Hetzner Cloud location variable must have a validation constraint*
+
+Hetzner Cloud location variables must have validation blocks restricting to approved sovereign regions. Hetzner regions include: fsn1 (Frankfurt), nbg1 (Nuremberg), hel1 (Helsinki).
+
+*Scope:* `variable`
+
+*Assertions:*
+* `validation` block exists — Hetzner Cloud location variable is missing a 'validation' block.
+
+*Remediation:* Add a validation block restricting Hetzner Cloud location to approved sovereign regions.
+
+.Compliant
+
+[source,terraform]
 ----
 variable "hcloud_location" {
   type    = string
   default = "fsn1"
   validation {
-    condition = contains(["fsn1", "nbg1", "hel1"], var.hcloud_location)
+    condition     = contains(["fsn1", "nbg1", "hel1"], var.hcloud_location)
     error_message = "Hetzner Cloud location must be an approved sovereign region."
   }
 }
@@ -297,7 +380,10 @@ resource "hcloud_server" "main" {
   location    = var.hcloud_location
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 variable "hcloud_location" {
   type    = string
@@ -305,139 +391,58 @@ variable "hcloud_location" {
   # No validation block
 }
 ----
-|===
 
 ---
 
-=== SCP Example (Organization Level)
-*Purpose:* Last safety net – prevents API calls outside approved regions.
-
-[source,json]
-----
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "DenyOutsideApprovedRegions",
-    "Effect": "Deny",
-    "NotAction": ["iam:*","sts:*","route53:*","cloudfront:*"],
-    "Resource": "*",
-    "Condition": {
-      "StringNotEquals": {
-        "aws:RequestedRegion": [
-          "eu-central-1",
-          "eu-west-1",
-          "eu-north-1"
-        ]
-      }
-    }
-  }]
-}
-----
-
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*IaC*
-|✅ Required
-|Terraform code with variable validation blocks for all region/location parameters.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Policy*
-|✅ Required
-|OPA/Sentinel rules, AWS SCP, Azure Policy, or GCP Org Policy with region restrictions.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Logs*
-|Optional
-|CI pipeline logs with blocked non-sovereign deployment attempt (as proof of function).
-
-|*Config*
-|Optional
-|Cloud provider org-policy export with active region restrictions.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-SOV-010.adoc[WAF-SOV-010 – Data Residency Policy Defined]
-* xref:controls/WAF-SOV-030.adoc[WAF-SOV-030 – Backup Location & Retention]
-* xref:controls/WAF-SOV-040.adoc[WAF-SOV-040 – Logging & Telemetry Residency]
-* xref:controls/WAF-SOV-090.adoc[WAF-SOV-090 – Egress Control]
+* xref:pillar-sovereign:controls/WAF-SOV-010.adoc[WAF-SOV-010]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-sovereign:controls/WAF-SOV-070.adoc[WAF-SOV-070]
+* xref:pillar-sovereign:controls/WAF-SOV-090.adoc[WAF-SOV-090]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*DSGVO*
-|Art. 44 – Allg. Grundsätze für Übermittlungen; Art. 46 – Geeignete Garantien; Art. 28 – Verarbeitungsvereinbarung
+|GDPR |* Art. 44 – General principle for transfers
+* Art. 46 – Transfers to third countries
 
-|*BSI C5:2020*
-|OPS-04 – Datenverwaltung; OPS-05 – Datenleakage-Prävention; SIM-01 – Sicherheitsvorfallmanagement
+|BSI C5:2020 |* OPS-04 – Data management
+* INF-01 – Physical location
 
-|*EUCS (ENISA)*
-|DSP-01 – Datenklassifikation; DSP-02 – Dateninventar und Datenfluss; DSP-03 – Datenverfügbarkeit; DSP-04 – Datenlöschung; IAM-01 – Identität und Zugriff
+|BSI C3A:2026 |* Dimension 4 – Data: Location of data processing
+* Dimension 1 – Strategic: Jurisdictional alignment
 
-|*ISO 27001:2022*
-|A.5.12 – Klassifizierung von Informationen; A.5.13 – Kennzeichnung von Informationen; A.5.33 – Schutz von Aufzeichnungen
+|EUCS (ENISA) |* SOV-01 – Data location
+* SOV-02 – Jurisdiction control
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+|GAIA-X |* Data Sovereignty – Location transparency
 
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
-
-|*BSI C3A:2026*
-|Domain – Datenhoheit; Domain – Cloud-Spezifische Anforderungen
-
-|*GAIA-X*
-|Sovereign Cloud – Anforderungen an Datenlokation und Transparenz
-
-|*NIST SP 800-53*
-|SC-1 – Cloud computing security; SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; GV.RM – Risk management; GV.SC – Cybersecurity supply chain risk management
-
-|*FedRAMP*
-|SC-1, SC-7, SC-8 (High baseline)
-
-|*TISAX*
-|Information security – Data protection; Prototype protection – Sensitive data handling
-
-|*ANSSI SecNumCloud*
-|Domain – Data protection; Domain – Cloud security
-
-|*BIO*
-|BIO – Gegevensbescherming; BIO – Cloudbeveiliging
-
-|*ENS High*
-|ds.info.1 – Datos personales; ds.info.2 – Calificación de la información
-
-|*UK NCSC CAF*
-|B3 – Understanding data; B4 – System security
-
-|*CMMC 2.0*
-|SC.L2-3.13.16 – Protect CUI confidentiality at rest
-
-|*IRAP*
-|ISM – Data protection; ISM – Cloud security
-
-|*CCCS PBMM*
-|SC-7 – Boundary protection; SC-8 – Transmission confidentiality
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance; Ch.8 – Cloud computing controls
-
-|*ISMAP*
-|Data sovereignty and cloud security
-
-|*FISC*
-|Technical measures – Data protection
+|ISO 27001:2022 |* A.8.10 – Information deletion
+* A.5.29 – Information security during disruption
 
 |===
-
-== Best Practice

@@ -1,309 +1,318 @@
-# Retrieved from wafpass-server: http://localhost:8000
-# ID: WAF-SOV-090
 id: WAF-SOV-090
-title: 'Outbound network traffic MUST be controlled using a default-deny or strict...'
+title: Outbound network traffic MUST be controlled using a default-deny or strict...
 status: active
 tags:
-  - sovereign
-  - high
-  - network
+- sovereign
+- high
+- network
 pillar: sovereign
 severity: high
 type:
-  - network
-
-category: 'identity-access'
-rationale: |
-  Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy.
+- architecture
+category: identity-access
+rationale: Uncontrolled identities and excessive permissions enable data theft, lateral movement, and unauthorized changes
+  to production systems. This control addresses the requirements of the 'Identity and Access Management' area and ensures
+  that Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy.
 threat:
-  - 'Non-compliance with this control creates exploitable weaknesses in the workload.'
-  - 'Audit and certification evidence is harder to produce when the control is missing.'
+- Open outbound traffic enables data exfiltration and command-and-control communication.
+- Missing default-deny network rules let attackers reach external services unhindered.
 implementation_guidance:
-  - 'Define the requirement in workload documentation.'
-  - 'Implement the control in the relevant tooling or process.'
-  - 'Validate compliance through automated tests or peer review.'
+- Define the requirement in workload documentation.
+- Implement the control in the relevant tooling or process.
+- Validate compliance through automated tests or peer review.
 maturity_levels:
   level_1:
-    description: 'Ad hoc – control not consistently applied'
+    description: Ad hoc – control not consistently applied
     criteria:
-      - 'Manual evidence exists for some workloads, but coverage is unknown.'
+    - The requirement is not consistently implemented; evidence exists only ad-hoc or is missing.
   level_2:
-    description: 'Standardised – policy defined and communicated'
+    description: Standardised – policy defined and communicated
     criteria:
-      - 'A version-controlled policy, ADR, or standard describes the requirement.'
+    - The requirement is documented; initial resources show the intended configuration.
   level_3:
-    description: 'Integrated – automated validation in CI/CD'
+    description: Integrated – automated validation in CI/CD
     criteria:
-      - 'Terraform checks run automatically on pull requests and report results.'
+    - Implementation is regularly reviewed and evidenced in reviews.
   level_4:
-    description: 'Auditable – metrics and exceptions tracked'
+    description: Auditable – metrics and exceptions tracked
     criteria:
-      - 'Control coverage, failures, and approved exceptions are reported quarterly.'
+    - Coverage, exceptions, and quality metrics are reported quarterly.
   level_5:
-    description: 'Optimised – continuous improvement based on data'
+    description: Optimised – continuous improvement based on data
     criteria:
-      - 'Control effectiveness is measured and iteratively improved.'
+    - Effectiveness is continuously measured and automatically improved.
 evidence:
   required:
-    - kind: 'iac'
-      description: 'Terraform configuration implementing the control.'
-    - kind: 'governance'
-      description: 'Policy, ADR, or standard documenting the requirement.'
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
   optional:
-    - kind: 'config'
-      description: 'Cloud console or API output confirming runtime state.'
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
 references:
-  narrative: 'modules/pillar-sovereign/pages/controls/WAF-SOV-090.adoc'
-  related_controls: []
+  narrative: modules/pillar-sovereign/pages/controls/WAF-SOV-090.adoc
+  related_controls:
+  - WAF-SOV-060
+  - WAF-SOV-070
+  - WAF-SOV-020
+  - WAF-SOV-010
+  - WAF-SEC-010
+  - WAF-SEC-020
+  - WAF-SEC-060
+  - WAF-AGN-010
+  - WAF-AGN-080
+  - WAF-COST-040
+  - WAF-COST-090
+  - WAF-SEC-030
+description: 'Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy. Security groups
+  must not permit unrestricted egress (0.0.0.0/0) without explicit justification. VPC endpoints MUST be used for access to
+  cloud provider APIs to keep traffic on the sovereign network. Data exfiltration detection MUST be established to alert on
+  anomalous outbound data volumes or unexpected destinations.
 
-description: |
-  Outbound network traffic MUST be controlled using a default-deny or strict allow-list policy. Security groups must not permit unrestricted egress (0.0.0.0/0) without explicit justification. VPC endpoints MUST be used for access to cloud provider APIs to keep traffic on the sovereign network. Data exfiltration detection MUST be established to alert on anomalous outbound data volumes or unexpected destinations.
+  '
 regulatory_mapping:
-  - framework: 'GDPR'
-    controls:
-      - 'Art. 32 – Security of processing (network security)'
-      - 'Art. 44-46 – Transfers to third countries'
-  - framework: 'BSI C5:2020'
-    controls:
-      - 'SIM-02 – Intrusion detection'
-      - 'OPS-04 – Data management'
-      - 'NET-01 – Network security'
-  - framework: 'BSI C3A:2026'
-    controls:
-      - 'Dimension 5 – Operational: Network security and monitoring'
-      - 'Dimension 5 – Operational: Disconnect and reconnect capability'
-  - framework: 'EUCS (ENISA)'
-    controls:
-      - 'IVS-09 – Network security'
-      - 'IVS-10 – Egress filtering'
-  - framework: 'ISO 27001:2022'
-    controls:
-      - 'A.8.20 – Networks security'
-      - 'A.8.21 – Security of network services'
-      - 'A.8.22 – Segregation of networks'
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing (network security)
+  - Art. 44-46 – Transfers to third countries
+- framework: BSI C5:2020
+  controls:
+  - SIM-02 – Intrusion detection
+  - OPS-04 – Data management
+  - NET-01 – Network security
+- framework: BSI C3A:2026
+  controls:
+  - 'Dimension 5 – Operational: Network security and monitoring'
+  - 'Dimension 5 – Operational: Disconnect and reconnect capability'
+- framework: EUCS (ENISA)
+  controls:
+  - IVS-09 – Network security
+  - IVS-10 – Egress filtering
+- framework: ISO 27001:2022
+  controls:
+  - A.8.20 – Networks security
+  - A.8.21 – Security of network services
+  - A.8.22 – Segregation of networks
 checks:
-  - id: waf-sov-090.tf.aws.no-unrestricted-egress
-    engine: terraform
-    automated: true
-    title: 'Security groups must not allow unrestricted egress to 0.0.0.0/0'
-    provider: aws
-    description: 'AWS security group rules with type=egress and cidr_blocks containing 0.0.0.0/0 or ::/0 should not exist without documented justification. Unrestricted egress enables data exfiltration and violates the principle of least-privilege networking.'
-    expected: 'true'
-    remediation: 'Replace 0.0.0.0/0 egress rules with specific CIDR ranges or prefix lists. Use VPC endpoints for cloud service access to eliminate the need for internet egress.\n'
-    example:
-      compliant: |
-        resource "aws_security_group" "app" {
-          name   = "app-sg"
-          vpc_id = aws_vpc.main.id
-          egress {
-            from_port   = 443
-            to_port     = 443
-            protocol    = "tcp"
-            cidr_blocks = ["10.0.0.0/8"]  # Internal only
-          }
-          # Outbound internet requires Network Firewall / explicit destination
-        }
-        
-      non_compliant: |
-        resource "aws_security_group" "app" {
-          name   = "app-sg"
-          vpc_id = aws_vpc.main.id
-          egress {
-            from_port   = 0
-            to_port     = 0
-            protocol    = "-1"
-            cidr_blocks = ["0.0.0.0/0"]  # Unrestricted outbound
-          }
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_security_group_rule
-        - aws_security_group
-    assertions:
-      - attribute: 'egress.cidr_blocks'
-        op: 'not_contains'
-        message: 'Security group allows unrestricted outbound access to 0.0.0.0/0. Restrict to specific destinations.'
-        expected: '0.0.0.0/0'
-      - attribute: 'egress.ipv6_cidr_blocks'
-        op: 'not_contains'
-        message: 'Security group allows unrestricted outbound access to ::/0 (all IPv6).'
-        expected: '::/0'
-    on_fail: advisory
-  - id: waf-sov-090.tf.aws.vpc-endpoint-s3
-    engine: terraform
-    automated: true
-    title: 'VPC must have a gateway endpoint for S3'
-    provider: aws
-    description: 'VPCs containing sovereign workloads should have a gateway endpoint for S3 to ensure S3 API traffic stays on the AWS network backbone, not the public internet. This is both a sovereignty and cost optimization control.'
-    expected: 'true'
-    remediation: 'Create an aws_vpc_endpoint resource for S3 (gateway type) in each VPC containing sovereign workloads.\n'
-    example:
-      compliant: |
-        resource "aws_vpc_endpoint" "s3" {
-          vpc_id            = aws_vpc.main.id
-          service_name      = "com.amazonaws.${var.aws_region}.s3"
-          vpc_endpoint_type = "Gateway"
-          route_table_ids   = [aws_route_table.private.id]
-          policy            = data.aws_iam_policy_document.s3_endpoint_policy.json
-        }
-        
-      non_compliant: |
-        resource "aws_vpc" "main" {
-          cidr_block = "10.0.0.0/16"
-          # No S3 VPC endpoint – all S3 traffic via public internet
-        }
-        
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_vpc
-    assertions:
-      - attribute: 'id'
-        op: 'has_associated_resource'
-        message: 'VPC does not have an S3 VPC endpoint. S3 traffic traverses the public internet.'
-    on_fail: violation
-  - id: waf-sov-090.tf.aws.vpc-flow-logs-enabled
-    engine: terraform
-    automated: true
-    title: 'VPC flow logs must be enabled for egress forensics'
-    provider: aws
-    description: 'Every aws_vpc must have VPC flow logs enabled to capture network traffic metadata. This is required for forensic investigation of data exfiltration events and for compliance with audit logging requirements.'
-    expected: 'true'
-    remediation: 'Create an aws_flow_log resource for each VPC targeting an approved log destination (S3 in sovereign region or CloudWatch with retention policy set).\n'
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_vpc
-    assertions:
-      - attribute: 'id'
-        op: 'has_associated_resource'
-        message: 'VPC does not have flow logs enabled. Network traffic cannot be audited.'
-    on_fail: violation
-  - id: waf-sov-090.tf.aws.network-acl-no-open-egress
-    engine: terraform
-    automated: true
-    title: 'Network ACLs should not have open egress rules on all ports'
-    provider: aws
-    description: 'Network ACL egress rules allowing all traffic (port 0-65535) to 0.0.0.0/0 provide no meaningful defense-in-depth for data exfiltration scenarios.'
-    expected: 'true'
-    remediation: 'Restrict network ACL egress rules to specific port ranges and destination CIDRs.\n'
-    scope:
-      block_type: resource
-      resource_types:
-        - aws_network_acl_rule
-    assertions:
-      - attribute: 'egress'
-        op: 'not_all_true_with'
-        message: 'Network ACL has unrestricted egress rule on all ports to 0.0.0.0/0.'
-    on_fail: advisory
-  - id: waf-sov-090.tf.azurerm.nsg-no-open-outbound
-    engine: terraform
-    automated: true
-    title: 'Azure NSG must not allow unrestricted outbound traffic'
-    provider: azurerm
-    description: "Azure Network Security Groups must not have outbound security rules allowing all traffic (Any/Any) to destination '*' (any destination)."
-    expected: 'true'
-    remediation: "Replace wildcard destination address prefix ('*') with specific CIDRs or service tags.\n"
-    scope:
-      block_type: resource
-      resource_types:
-        - azurerm_network_security_rule
-    assertions:
-      - attribute: 'direction'
-        op: 'not_equals_with_sibling'
-        message: 'Azure NSG has outbound rule allowing traffic to any destination (*).'
-    on_fail: advisory
-  - id: waf-sov-090.tf.stackit.network-no-unrestricted-egress
-    engine: terraform
-    automated: true
-    title: 'StackIT networks must not allow unrestricted egress'
-    provider: stackit
-    description: 'StackIT networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.'
-    expected: 'true'
-    remediation: 'Replace wildcard egress rules with specific CIDR ranges in StackIT network configurations.\n'
-    example:
-      compliant: |
-        resource "stackit_network" "main" {
-          project_id = stackit_project.main.id
-          name       = "sovereign-network"
-          cidr       = "10.0.0.0/16"
-          # Egress controlled via firewall rules
-        }
+- id: waf-sov-090.tf.aws.no-unrestricted-egress
+  engine: terraform
+  automated: true
+  title: Security groups must not allow unrestricted egress to 0.0.0.0/0
+  provider: aws
+  description: AWS security group rules with type=egress and cidr_blocks containing 0.0.0.0/0 or ::/0 should not exist without
+    documented justification. Unrestricted egress enables data exfiltration and violates the principle of least-privilege
+    networking.
+  expected: 'true'
+  remediation: Replace 0.0.0.0/0 egress rules with specific CIDR ranges or prefix lists. Use VPC endpoints for cloud service
+    access to eliminate the need for internet egress.\n
+  example:
+    compliant: "resource \"aws_security_group\" \"app\" {\n  name   = \"app-sg\"\n  vpc_id = aws_vpc.main.id\n  egress {\n\
+      \    from_port   = 443\n    to_port     = 443\n    protocol    = \"tcp\"\n    cidr_blocks = [\"10.0.0.0/8\"]  # Internal\
+      \ only\n  }\n  # Outbound internet requires Network Firewall / explicit destination\n}\n"
+    non_compliant: "resource \"aws_security_group\" \"app\" {\n  name   = \"app-sg\"\n  vpc_id = aws_vpc.main.id\n  egress\
+      \ {\n    from_port   = 0\n    to_port     = 0\n    protocol    = \"-1\"\n    cidr_blocks = [\"0.0.0.0/0\"]  # Unrestricted\
+      \ outbound\n  }\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_security_group_rule
+    - aws_security_group
+  assertions:
+  - attribute: egress.cidr_blocks
+    op: not_contains
+    message: Security group allows unrestricted outbound access to 0.0.0.0/0. Restrict to specific destinations.
+    expected: 0.0.0.0/0
+  - attribute: egress.ipv6_cidr_blocks
+    op: not_contains
+    message: Security group allows unrestricted outbound access to ::/0 (all IPv6).
+    expected: ::/0
+  on_fail: advisory
+- id: waf-sov-090.tf.aws.vpc-endpoint-s3
+  engine: terraform
+  automated: true
+  title: VPC must have a gateway endpoint for S3
+  provider: aws
+  description: VPCs containing sovereign workloads should have a gateway endpoint for S3 to ensure S3 API traffic stays on
+    the AWS network backbone, not the public internet. This is both a sovereignty and cost optimization control.
+  expected: 'true'
+  remediation: Create an aws_vpc_endpoint resource for S3 (gateway type) in each VPC containing sovereign workloads.\n
+  example:
+    compliant: "resource \"aws_vpc_endpoint\" \"s3\" {\n  vpc_id            = aws_vpc.main.id\n  service_name      = \"com.amazonaws.${var.aws_region}.s3\"\
+      \n  vpc_endpoint_type = \"Gateway\"\n  route_table_ids   = [aws_route_table.private.id]\n  policy            = data.aws_iam_policy_document.s3_endpoint_policy.json\n\
+      }\n"
+    non_compliant: "resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n  # No S3 VPC endpoint – all S3 traffic\
+      \ via public internet\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_vpc
+  assertions:
+  - attribute: id
+    op: has_associated_resource
+    message: VPC does not have an S3 VPC endpoint. S3 traffic traverses the public internet.
+  on_fail: violation
+- id: waf-sov-090.tf.aws.vpc-flow-logs-enabled
+  engine: terraform
+  automated: true
+  title: VPC flow logs must be enabled for egress forensics
+  provider: aws
+  description: Every aws_vpc must have VPC flow logs enabled to capture network traffic metadata. This is required for forensic
+    investigation of data exfiltration events and for compliance with audit logging requirements.
+  expected: 'true'
+  remediation: Create an aws_flow_log resource for each VPC targeting an approved log destination (S3 in sovereign region
+    or CloudWatch with retention policy set).\n
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_vpc
+  assertions:
+  - attribute: id
+    op: has_associated_resource
+    message: VPC does not have flow logs enabled. Network traffic cannot be audited.
+  on_fail: violation
+- id: waf-sov-090.tf.aws.network-acl-no-open-egress
+  engine: terraform
+  automated: true
+  title: Network ACLs should not have open egress rules on all ports
+  provider: aws
+  description: Network ACL egress rules allowing all traffic (port 0-65535) to 0.0.0.0/0 provide no meaningful defense-in-depth
+    for data exfiltration scenarios.
+  expected: 'true'
+  remediation: Restrict network ACL egress rules to specific port ranges and destination CIDRs.\n
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_network_acl_rule
+  assertions:
+  - attribute: egress
+    op: not_in
+    message: Network ACL has unrestricted egress rule on all ports to 0.0.0.0/0.
+    expected:
+    - 0.0.0.0/0
+  on_fail: advisory
+- id: waf-sov-090.tf.azurerm.nsg-no-open-outbound
+  engine: terraform
+  automated: true
+  title: Azure NSG must not allow unrestricted outbound traffic
+  provider: azurerm
+  description: Azure Network Security Groups must not have outbound security rules allowing all traffic (Any/Any) to destination
+    '*' (any destination).
+  expected: 'true'
+  remediation: 'Replace wildcard destination address prefix (''*'') with specific CIDRs or service tags.
 
-      non_compliant: |
-        resource "stackit_network" "main" {
-          project_id = stackit_project.main.id
-          name       = "network"
-          # Unrestricted egress rules
-        }
+    '
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_network_security_rule
+  assertions:
+  - attribute: destination_address_prefix
+    op: not_equals
+    expected: '*'
+    message: Azure NSG rule must not allow traffic to any destination (*).
+  on_fail: advisory
+- id: waf-sov-090.tf.stackit.network-no-unrestricted-egress
+  engine: terraform
+  automated: true
+  title: StackIT networks must not allow unrestricted egress
+  provider: stackit
+  description: StackIT networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.
+  expected: 'true'
+  remediation: Replace wildcard egress rules with specific CIDR ranges in StackIT network configurations.\n
+  example:
+    compliant: "resource \"stackit_network\" \"main\" {\n  project_id = stackit_project.main.id\n  name       = \"sovereign-network\"\
+      \n  cidr       = \"10.0.0.0/16\"\n  # Egress controlled via firewall rules\n}\n"
+    non_compliant: "resource \"stackit_network\" \"main\" {\n  project_id = stackit_project.main.id\n  name       = \"network\"\
+      \n  # Unrestricted egress rules\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - stackit_network
+  assertions:
+  - attribute: egress
+    op: not_equals
+    message: StackIT network has unrestricted egress. Define specific CIDR ranges.
+    expected: 0.0.0.0/0
+  on_fail: advisory
+- id: waf-sov-090.tf.ovh.network-no-unrestricted-egress
+  engine: terraform
+  automated: true
+  title: OVH networks must not allow unrestricted egress
+  provider: ovh
+  description: OVH cloud networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.
+  expected: 'true'
+  remediation: Replace wildcard egress rules with specific CIDR ranges in OVH network configurations.\n
+  example:
+    compliant: '# OVH networks with restricted egress defined
 
-    scope:
-      block_type: resource
-      resource_types:
-        - stackit_network
-    assertions:
-      - attribute: 'egress'
-        op: 'not_equals'
-        message: 'StackIT network has unrestricted egress. Define specific CIDR ranges.'
-        expected: '0.0.0.0/0'
-    on_fail: advisory
-  - id: waf-sov-090.tf.ovh.network-no-unrestricted-egress
-    engine: terraform
-    automated: true
-    title: 'OVH networks must not allow unrestricted egress'
-    provider: ovh
-    description: 'OVH cloud networks must not have unrestricted egress rules. Define specific CIDR ranges for outbound traffic.'
-    expected: 'true'
-    remediation: 'Replace wildcard egress rules with specific CIDR ranges in OVH network configurations.\n'
-    example:
-      compliant: |
-        # OVH networks with restricted egress defined
+      '
+    non_compliant: '# OVH networks with unrestricted egress
 
-      non_compliant: |
-        # OVH networks with unrestricted egress
+      '
+  scope:
+    block_type: resource
+    resource_types:
+    - ovh_cloud_project_network_private
+  assertions:
+  - attribute: egress
+    op: not_equals
+    message: OVH network has unrestricted egress. Define specific CIDR ranges.
+    expected: 0.0.0.0/0
+  on_fail: advisory
+- id: waf-sov-090.tf.hcloud.network-no-unrestricted-egress
+  engine: terraform
+  automated: true
+  title: Hetzner Cloud networks must not allow unrestricted egress
+  provider: hcloud
+  description: Hetzner Cloud networks must not have unrestricted egress rules. Define specific destination CIDR ranges.
+  expected: 'true'
+  remediation: Replace wildcard egress rules with specific CIDR ranges in Hetzner Cloud network configurations.\n
+  example:
+    compliant: "resource \"hcloud_network\" \"main\" {\n  name       = \"sovereign-network\"\n  ip_range   = \"10.0.0.0/16\"\
+      \n  # Egress controlled through firewall rules\n}\n"
+    non_compliant: "resource \"hcloud_network\" \"main\" {\n  name       = \"network\"\n  ip_range   = \"10.0.0.0/16\"\n \
+      \ # Unrestricted egress rules\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - hcloud_network
+  assertions:
+  - attribute: ip_range
+    op: not_equals
+    message: Hetzner Cloud network has unrestricted egress. Define specific CIDR ranges.
+    expected: 0.0.0.0/0
+  on_fail: advisory
+- id: waf-sov-090.tf.google.firewall-no-open-egress
+  engine: terraform
+  automated: true
+  title: GCP firewall rules must not allow unrestricted outbound traffic
+  provider: google
+  description: GCP compute firewall rules with direction = EGRESS must not allow destination_ranges of 0.0.0.0/0 unless explicitly
+    tagged and justified. Default-deny egress policies should be enforced at the VPC level.
+  expected: 'true'
+  remediation: 'Avoid 0.0.0.0/0 destination_ranges in egress firewall rules. Use google_compute_firewall_policy rules with
+    priority to deny all egress by default and allow only specific destinations/ports.
 
-    scope:
-      block_type: resource
-      resource_types:
-        - ovh_cloud_project_network_private
-    assertions:
-      - attribute: 'egress'
-        op: 'not_equals'
-        message: 'OVH network has unrestricted egress. Define specific CIDR ranges.'
-        expected: '0.0.0.0/0'
-    on_fail: advisory
-  - id: waf-sov-090.tf.hcloud.network-no-unrestricted-egress
-    engine: terraform
-    automated: true
-    title: 'Hetzner Cloud networks must not allow unrestricted egress'
-    provider: hcloud
-    description: 'Hetzner Cloud networks must not have unrestricted egress rules. Define specific destination CIDR ranges.'
-    expected: 'true'
-    remediation: 'Replace wildcard egress rules with specific CIDR ranges in Hetzner Cloud network configurations.\n'
-    example:
-      compliant: |
-        resource "hcloud_network" "main" {
-          name       = "sovereign-network"
-          ip_range   = "10.0.0.0/16"
-          # Egress controlled through firewall rules
-        }
-
-      non_compliant: |
-        resource "hcloud_network" "main" {
-          name       = "network"
-          ip_range   = "10.0.0.0/16"
-          # Unrestricted egress rules
-        }
-
-    scope:
-      block_type: resource
-      resource_types:
-        - hcloud_network
-    assertions:
-      - attribute: 'ip_range'
-        op: 'not_equals'
-        message: 'Hetzner Cloud network has unrestricted egress. Define specific CIDR ranges.'
-        expected: '0.0.0.0/0'
-    on_fail: advisory
+    '
+  example:
+    compliant: "resource \"google_compute_firewall\" \"deny_egress\" {\n  name          = \"deny-all-egress\"\n  network \
+      \      = google_compute_network.main.id\n  direction     = \"EGRESS\"\n  priority      = 1000\n  deny {\n    protocol\
+      \ = \"all\"\n  }\n  destination_ranges = [\"10.0.0.0/8\"]\n}\n"
+    non_compliant: "resource \"google_compute_firewall\" \"bad_egress\" {\n  name               = \"allow-all-egress\"\n \
+      \ network            = google_compute_network.main.id\n  direction          = \"EGRESS\"\n  allow {\n    protocol =\
+      \ \"all\"\n  }\n  destination_ranges = [\"0.0.0.0/0\"]\n}\n"
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_firewall
+  assertions:
+  - attribute: direction
+    op: equals
+    expected: EGRESS
+    message: Only egress firewall rules are checked for unrestricted outbound.
+  - attribute: destination_ranges
+    op: not_contains
+    expected: 0.0.0.0/0
+    message: GCP egress firewall rule must not allow unrestricted 0.0.0.0/0 destinations.
+  on_fail: violation

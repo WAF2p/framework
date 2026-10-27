@@ -3,85 +3,80 @@
 :control-id: WAF-AGN-070
 :pillar: agentic
 :severity: medium
-:category: observability
-:automated: high
-:description: WAF++ Agentic – Agent activities must be visible and measurable. Telemetry, metrics, and tracing must be configured.
+:category: logging-monitoring
+:automatable: High
+:description: Agent activities must be visible and measurable. Telemetry MUST be collected for all agents including tokens, latency, GPU utilization, and decision metrics. Metrics MUST be ingested into a monitoring system. Distributed tracing MUST link agent operations end-to-end.
 
 [.metadata]
-*Pillar:* Agentic | *Severity:* Medium | *Category:* Observability | *Automatable:* High
+*Pillar:* Agentic | *Severity:* Medium | *Category:* Logging Monitoring | *Automatable:* High
 
 == Description
 
-Agent activities must be visible and measurable. Telemetry must be collected for all agents including tokens, latency, GPU utilization, and decision metrics. Metrics must be ingested into a monitoring system. Distributed tracing must link agent operations end-to-end.
+Agent activities must be visible and measurable. Telemetry MUST be collected for all agents including tokens, latency, GPU utilization, and decision metrics. Metrics MUST be ingested into a monitoring system. Distributed tracing MUST link agent operations end-to-end.
 
 == Rationale
 
-Without observability, agent operations become a black box:
+[cols="1,3"]
+|===
+|Risk |Description
 
-*Performance issues:* Cannot detect latency spikes, token waste, or model degradation.
+|*Risk* |Invisible agent activity delays detection of misuse, drift, or attacks.
 
-*Cost overruns:* No visibility into token consumption leads to unexpected costs.
+|*Risk* |Without metrics, agent behavior cannot be governed or continuously improved.
 
-*Failed debugging:* Cannot identify root cause of agent failures without logs.
-
-*Compliance gaps:* Many frameworks require monitoring of automated systems.
-
-*Missed optimization opportunities:* Cannot identify improvement areas without metrics.
+|===
 
 == Requirements
 
-* Token usage metrics (input, output, total) must be collected
-* Latency metrics must be tracked and alert on anomalies
-* GPU/CPU utilization must be monitored for compute-heavy agents
-* Error rates and failure types must be tracked
-* Distributed tracing must link operations end-to-end
+* Agent activities must be visible and measurable.
+* Telemetry MUST be collected for all agents including tokens, latency, GPU utilization, and decision metrics.
+* Metrics MUST be ingested into a monitoring system.
+* Distributed tracing MUST link agent operations end-to-end.
 
 == Implementation Guidance
 
-. *Set up metrics collection:* Configure CloudWatch, Prometheus, or third-party monitoring
-. *Create dashboards:* Build agent health dashboards for monitoring teams
-. *Configure alerts:* Set alarms for unusual patterns (high latency, high errors)
-. *Implement tracing:* Use X-Ray or OpenTelemetry for request tracking
-. *Document baseline metrics:* Establish normal ranges for comparison
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|No Observability
-|No metrics. No logging. No visibility into agent operations.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basic Logging
-|Basic request/response logging. Minimal metrics.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Full Telemetry
-|Token metrics, latency, errors all collected. Dashboards configured.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Proactive Monitoring
-|Alerts on anomalies. Automated scaling based on load.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Predictive Observability
-|AI models predict issues before they occur.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-agn-070.tf.aws.metrics-configured
-*Checks:* Agent metrics are configured (tokens, latency, GPU utilization).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*Agent metrics must be configured (tokens, latency, GPU)*
+
+Agent telemetry must include token counts, inference latency, GPU utilization, and error rates. Metrics must be exported to CloudWatch or a third-party monitoring system.
+
+*Scope:* `resource` — `aws_cloudwatch_metric_alarm`, `aws_bedrockagent`
+
+*Assertions:*
+* `alarm_name` not empty — Metrics alarms must be configured for agent monitoring.
+
+*Remediation:* Configure Bedrock metrics export to CloudWatch. Use CloudWatch Insights to query agent metrics. Set up dashboards for token usage, latency, and error rates. Configure alarms for anomalies.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudwatch_metric_alarm" "agent_latency" {
   alarm_name          = "agent-latency-alarm"
@@ -93,6 +88,7 @@ resource "aws_cloudwatch_metric_alarm" "agent_latency" {
   statistic           = "Average"
   threshold           = 5000
   unit                = "Milliseconds"
+  alarm_description   = "Agent latency exceeds 5 seconds"
 }
 
 resource "aws_cloudwatch_metric_alarm" "agent_tokens" {
@@ -105,132 +101,421 @@ resource "aws_cloudwatch_metric_alarm" "agent_tokens" {
   statistic           = "Sum"
   threshold           = 100000
   unit                = "Count"
+  alarm_description   = "Agent token usage exceeds limit"
 }
 ----
-|No metrics alarms configured
-|===
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No metrics configured
+# WAF-AGN-070 Violation
+# No visibility into agent performance
+----
+
+---
 
 === waf-agn-070.tf.aws.distributed-tracing-enabled
-*Checks:* Distributed tracing (X-Ray) is enabled for agent operations.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Distributed tracing must be enabled for agent operations*
+
+Agent operations must be traced using AWS X-Ray. Traces must include agent ID, operation type, latency, input/output size, and decision path. X-Ray must link to CloudWatch Logs for full context.
+
+*Scope:* `resource` — `aws_lambda_function`, `aws_bedrockagent`
+
+*Assertions:*
+* `environment.variables.AWS_XRAY_TRACING_NAME` not empty — Distributed tracing (X-Ray) must be enabled.
+
+*Remediation:* Enable X-Ray tracing for Bedrock invocations. Use AWS SDK with X-Ray integration. Instrument agent code with X-Ray SDK for custom segments. Configure trace sampling.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "aws_lambda_function" "agent_traced" {
   function_name = "agent-traced"
   environment {
     variables = {
       AWS_XRAY_TRACING_NAME = "agent-service"
+      AWS_XRAY_DAEMON_ADDRESS = "127.0.0.1:2000"
     }
+  }
+}
+
+resource "aws_cloudwatch_log_group" "agent_trace_logs" {
+  name = "/aws/lambda/agent-traced"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_lambda_function" "agent_untraced" {
+  function_name = "agent-untraced"
+  # No X-Ray tracing
+  # WAF-AGN-070 Violation
+}
+----
+
+---
+
+=== waf-agn-070.tf.aws.log-integration-configured
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Agent logs must be integrated with monitoring system*
+
+Agent logs must be integrated with a centralized monitoring system. Logs must include agent ID, session ID, timestamp, operation type, input/output size, and result status.
+
+*Scope:* `resource` — `aws_cloudwatch_log_group`, `aws_cloudwatch_log_metric_filter`
+
+*Assertions:*
+* `name` not empty — Log integration with monitoring must be configured.
+
+*Remediation:* Configure CloudWatch Logs Insights queries for agent log analysis. Set up dashboards showing agent health, error rates, and performance trends. Configure alarms for error patterns.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_cloudwatch_log_group" "agent_logs" {
+  name = "/aws/bedrock/agent-logs"
+
+  retention_in_days = 90
+}
+
+resource "aws_cloudwatch_log_metric_filter" "agent_errors" {
+  name = "agent-error-metric"
+
+  pattern = "{ $.level = \"error\" || $.error != null }"
+
+  log_group_name = aws_cloudwatch_log_group.agent_logs.name
+
+  metric_transformations {
+    metric_name      = "AgentErrors"
+    metric_namespace = "AgentMonitoring"
+    metric_value     = "1"
   }
 }
 ----
 
-*Remediation:* Configure metrics for tokens and latency. Enable X-Ray tracing. Set up log integration with monitoring system.
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_cloudwatch_log_group" "agent_logs" {
+  name = "/aws/bedrock/agent-logs"
+  # No metric filter configured
+  # WAF-AGN-070 Violation
+}
+----
+
+---
+
+=== waf-agn-070.tf.azurerm.app-insights-agent
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Application Insights must monitor agent operations*
+
+Azure AI agent components must be monitored via Application Insights to collect latency, token usage, error rates, and distributed traces.
+
+*Scope:* `resource` — `azurerm_application_insights`, `azurerm_linux_function_app`
+
+*Assertions:*
+* `workspace_id` not empty — Application Insights must be linked to a Log Analytics workspace.
+* `app_settings.APPINSIGHTS_INSTRUMENTATIONKEY` attribute exists — Agent host must reference Application Insights instrumentation key.
+
+*Remediation:* Deploy azurerm_application_insights and connect it to agent hosting services (App Service, Container Apps, Functions).
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_application_insights" "agent_ai" {
+  name                = "agent-insights"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  workspace_id        = azurerm_log_analytics_workspace.ai_logs.id
+  application_type    = "web"
+}
+
+resource "azurerm_linux_function_app" "agent_host" {
+  name                = "agent-function"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  service_plan_id     = azurerm_service_plan.agent_plan.id
+
+  app_settings = {
+    "APPINSIGHTS_INSTRUMENTATIONKEY" = azurerm_application_insights.agent_ai.instrumentation_key
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_function_app" "agent_host" {
+  name = "agent-function"
+  # No Application Insights integration
+  # WAF-AGN-070 Violation
+}
+----
+
+---
+
+=== waf-agn-070.tf.google.monitoring-agent
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Cloud Monitoring must collect agent telemetry*
+
+GCP Vertex AI / Cloud Run agent services must have monitoring dashboards and alerting policies for latency, errors, and token usage.
+
+*Scope:* `resource` — `google_monitoring_alert_policy`
+
+*Assertions:*
+* `conditions` attribute exists — Cloud Monitoring alert policy must define conditions for agent metrics.
+* `notification_channels` attribute exists — Alert policy must route to notification channels.
+
+*Remediation:* Configure google_monitoring_alert_policy resources for agent services and google_monitoring_dashboard for agent metrics.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_monitoring_alert_policy" "agent_latency" {
+  display_name = "Agent high latency"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Latency > 5s"
+    condition_threshold {
+      filter          = "resource.type="cloud_run_revision" AND metric.type="run.googleapis.com/request_latencies""
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 5000
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.team.id]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "agent" {
+  name     = "agent-service"
+  location = "europe-west3"
+  # No Cloud Monitoring alert policies configured
+  # WAF-AGN-070 Violation
+}
+----
+
+---
+
+=== waf-agn-070.tf.stackit.agentic-observability
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*Agent activities must be visible and measurable for stackit*
+
+Agent activities must be visible and measurable must be documented in IaC via a agentic-observability tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the agentic-observability tag/label.
+
+*Remediation:* Add a agentic-observability tag/label to the stackit_project resource to show the stackit implementation of WAF-AGN-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    agentic-observability = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing agentic-observability labels
+}
+----
+
+---
+
+=== waf-agn-070.tf.ovh.agentic-observability
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*Agent activities must be visible and measurable for ovh*
+
+Agent activities must be visible and measurable must be documented in IaC via a agentic-observability tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the agentic-observability tag/label.
+
+*Remediation:* Add a agentic-observability tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-AGN-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    agentic-observability = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing agentic-observability tags
+}
+----
+
+---
+
+=== waf-agn-070.tf.hcloud.agentic-observability
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Agent activities must be visible and measurable for hcloud*
+
+Agent activities must be visible and measurable must be documented in IaC via a agentic-observability tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the agentic-observability tag/label.
+
+*Remediation:* Add a agentic-observability tag/label to the hcloud_server resource to show the hcloud implementation of WAF-AGN-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    agentic-observability = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing agentic-observability labels
+}
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*IaC*
-|✅ Required
-|CloudWatch alarms, X-Ray configuration, metric definitions.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Required
-|Monitoring dashboards, alert thresholds, sampling rates.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|✅ Required
-|Metric analysis reports, alert response runbooks, performance baselines.
-
-|*Governance*
-|✅ Required
-|Observability policy defining requirements and monitoring standards.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-AGN-030.adoc[WAF-AGN-030 – Reasoning Transparency]
-* xref:controls/WAF-AGN-040.adoc[WAF-AGN-040 – Memory & State Management]
-* xref:controls/WAF-AGN-090.adoc[WAF-AGN-090 – Cost & Performance Monitoring]
-
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-060.adoc[WAF-AGN-060]
+* xref:pillar-agentic:controls/WAF-AGN-090.adoc[WAF-AGN-090]
+* xref:pillar-agentic:controls/WAF-AGN-030.adoc[WAF-AGN-030]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
 == Regulatory Mapping
 
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO 27001:2022*
-|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+|ISO 27001:2022 |* A.8.1 – Information security roles and responsibilities
+* A.8.2 – Privileged access rights
 
-|*NIST SP 800-53*
-|AU-2 – Event logging; AU-3 – Event content; SI-4 – Information system monitoring
+|ISO 27017 |* CLD.9.5 – Segregation in virtual computing environments
 
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.DP – Data protection
+|CIS Controls v8 |* CIS 13 – Content Filtering
 
-|*GDPR*
-|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+|SOC 2 Type II |* CC4.1 – Monitoring activities
+* CC7.1 – Infrastructure and software monitoring
 
-|*PCI DSS v4.0*
-|Req 10 – Monitor and detect threats
+|NIST SP 800-53 |* AU-2 – Event logging
+* AU-3 – Event content
+* SI-4 – Information system monitoring
 
-|*TISAX*
-|Information security – Monitoring and logging
+|NIST CSF 2.0 |* DE.CM – Continuous monitoring
+* DE.DP – Data protection
 
-|*ANSSI SecNumCloud*
-|Domain – Logging and monitoring
+|GDPR |* Art. 32 – Security of processing
+* Art. 5(1)(f) – Integrity and confidentiality
 
-|*BIO*
-|BIO – Logboekhouding en monitoring
+|PCI DSS v4.0 |* Req 10 – Monitor and detect threats
 
-|*ENS High*
-|op.exp.6 – Gestión de cambios
+|CSA STAR |* CCM Logging and Monitoring
 
-|*UK NCSC CAF*
-|A4 – Policy and assurance
+|BSI C5:2020 |* OPS-01 – Operational monitoring
 
-|*FedRAMP*
-|AU-2, AU-3, SI-4 (Moderate baseline)
+|TISAX |* Information security – Monitoring and logging
 
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Flow audit logs to central log management
+|ANSSI SecNumCloud |* Domain – Logging and monitoring
 
-|*IT-Grundschutz*
-|ORP.1 – Informationstechnisch-related Angriffsschutz
+|BIO |* BIO – Logboekhouding en monitoring
 
-|*IRAP*
-|ISM – Logging and monitoring
+|ENS High |* op.exp.6 – Gestión de cambios
 
-|*CCCS PBMM*
-|AU-2, AU-3 – Logging and audit
+|UK NCSC CAF |* A4 – Policy and assurance
 
-|*MAS TRM*
-|Ch.9 – Change management
+|FedRAMP |* AU-2, AU-3, SI-4 (Moderate baseline)
 
-|*ISMAP*
-|Monitoring and logging controls
+|CMMC 2.0 |* AU.L2-3.8.1 – Flow audit logs to central log management
 
-|*FISC*
-|Technical measures – Logging and monitoring
+|IT-Grundschutz |* ORP.1 – Organisation
 
-|*AWS Well-Architected Framework*
-|Security Pillar – Logging and monitoring; Reliability Pillar – Monitoring
+|IRAP |* ISM – Logging and monitoring
 
-|*Google Cloud Architecture Framework*
-|Reliability – Monitoring; Security – Monitoring
+|CCCS PBMM |* AU-2, AU-3 – Logging and audit
 
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring
+|MAS TRM |* Ch.9 – Change management
 
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+|ISMAP |* Monitoring and logging controls
 
-|*CSA STAR*
-|CCM Logging and Monitoring
+|FISC |* Technical measures – Logging and monitoring
 
 |===

@@ -3,230 +3,379 @@
 :control-id: WAF-REL-070
 :pillar: reliability
 :severity: high
-:category: disaster-recovery
-:automated: partial
-:description: WAF++ Reliability – Dokumentierte DR-Tests mit gemessenem RTO/RPO, mindestens zweimal jährlich.
+:category: backup-recovery
+:automatable: High
+:description: All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year. DR tests MUST validate actual RTO and RPO targets defined in the DR plan. Tests MUST cover complete failure scenarios: full region failover, database restore, and service reconstruction from IaC. Results MUST be documented and deviation from targets MUST trigger remediation within 30 days. DR plans MUST be reviewed and updated after every significant architecture change.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Disaster Recovery | *Automatisierbar:* Teilweise
+*Pillar:* Reliability | *Severity:* High | *Category:* Backup Recovery | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle als kritisch oder High-Availability klassifizierten Produktions-Workloads MÜSSEN
-mindestens zweimal jährlich dokumentierte Disaster Recovery Tests durchführen. DR-Tests
-MÜSSEN das tatsächlich erreichte RTO und RPO messen und mit den Zielen vergleichen.
-Abweichungen MÜSSEN innerhalb von 30 Tagen adressiert werden. DR-Pläne MÜSSEN nach
-signifikanten Architekturänderungen aktualisiert werden.
+All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year. DR tests MUST validate actual RTO and RPO targets defined in the DR plan. Tests MUST cover complete failure scenarios: full region failover, database restore, and service reconstruction from IaC. Results MUST be documented and deviation from targets MUST trigger remediation within 30 days. DR plans MUST be reviewed and updated after every significant architecture change.
 
 == Rationale
 
-Ein untesteter DR-Plan ist eine unvalidierte Hypothese. DR-Pläne, die nie getestet wurden,
-scheitern in realen Katastrophen systematisch: veraltete Runbooks, fehlende Automatisierung,
-Infrastruktur-Drift und undokumentierte manuelle Schritte. Nur regelmäßiges Testen
-validiert, dass RTO-Ziele tatsächlich erreichbar sind.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Ungetesteter DR-Plan*
-|DR-Plan 18 Monate alt; Architektur hat sich geändert; Recovery dauert 4x länger als RTO.
+|*Risk* |Critical workloads without disaster-recovery plans may remain unreachable for a long time during regional outages.
 
-|*Fehlende DB-Restore-Schritte*
-|Restore-Prozedur scheitert an nicht-dokumentiertem manuellem Schritt.
-
-|*Verschlüsselungsschlüssel nicht verfügbar*
-|KMS-Schlüssel im ausgefallenen Account gespeichert; Backup nicht entschlüsselbar.
-
-|*IaC-Abhängigkeiten fehlen*
-|Terraform nimmt Ressourcen an, die im Ziel-Account nicht existieren.
+|*Risk* |Missing failover mechanisms prevent recovery in the secondary location.
 
 |===
 
-== Anforderung
+== Requirements
 
-* DR-Plan mit RTO/RPO-Zielen pro Workload, versioniert
-* Halbjährliche DR-Tests mit gemessenem RTO/RPO und dokumentierten Ergebnissen
-* Abweichungen von RTO/RPO-Zielen: Remediation-Plan innerhalb 30 Tage
-* DR-Plan aktualisiert nach jeder signifikanten Architekturänderung
-* Automatisierte DR-Failover-Prozeduren via IaC wo möglich
-* Route 53 oder Traffic Manager Failover Routing für kritische DNS-Einträge
+* All production workloads classified as critical or high availability MUST undergo documented Disaster Recovery (DR) testing at minimum twice per year.
+* DR tests MUST validate actual RTO and RPO targets defined in the DR plan.
+* Tests MUST cover complete failure scenarios: full region failover, database restore, and service reconstruction from IaC.
+* Results MUST be documented and deviation from targets MUST trigger remediation within 30 days.
+* DR plans MUST be reviewed and updated after every significant architecture change.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *DR-Scope definieren*: Welche Szenarien (AZ, Region, Account-Kompromittierung)?
-. *RTO/RPO messen*: Aktuellen Baseline-RTO durch Test ermitteln; Ziel daraus ableiten
-. *DNS-Failover vorbereiten*: Route 53 Health Check + Failover Record oder Traffic Manager
-. *IaC für DR*: Failover-Procedure via Terraform automatisieren
-. *Test dokumentieren*: Vorlage: Startzeit, Endzeit, tatsächliches RTO, Probleme, Unterschrift
-. *Testkalender*: Halbjährliche Tests im Kalender; nach jeder Major-Architecture-Änderung
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Kein DR-Plan
-|Keine dokumentierte Recovery-Strategie.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Plan dokumentiert, jährlich getestet
-|DR-Plan vorhanden; jährlicher Test; Ergebnisse nicht systematisch dokumentiert.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Halbjährlich + dokumentiert
-|DR-Tests mind. 2x/Jahr; Ergebnisse dokumentiert mit RTO/RPO; Deviations tracked.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Quartalsweise automatisiert
-|DR-Prozeduren via IaC automatisiert; quartalsweise Tests < 2h; GameDay jährlich.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Kontinuierliche Validierung
-|RTO < 15 Minuten nachgewiesen; automatisierte monatliche Komponententests.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-rel-070.tf.aws.route53-health-check-failover
-*Prüft:* Route 53 Health Check mit explizitem `failure_threshold` und `request_interval`.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS Route 53 failover routing must be configured for DR*
+
+Production DNS entries for critical workloads must use Route 53 health check failover routing policies to enable automated DNS failover during regional events.
+
+*Scope:* `resource` — `aws_route53_health_check`
+
+*Assertions:*
+* `type` not empty — Route 53 health check type must be specified.
+* `failure_threshold` attribute exists — Health check failure threshold must be explicitly defined.
+* `request_interval` attribute exists — Health check request interval must be defined.
+
+*Remediation:* Configure aws_route53_health_check with type, fqdn, port, resource_path, failure_threshold, and request_interval. Link to Route 53 failover records.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_route53_health_check"
-    "primary" {
-  fqdn              = "api.example.com"
+resource "aws_route53_health_check" "primary" {
+  fqdn              = "api.payment-service.example.com"
   port              = 443
   type              = "HTTPS"
   resource_path     = "/health/ready"
   failure_threshold = 3
   request_interval  = 10
   tags = {
-    Name = "payment-api-hc"
+    Name = "payment-api-health-check"
+  }
+}
+
+resource "aws_route53_record" "primary" {
+  zone_id = var.hosted_zone_id
+  name    = "api.payment-service.example.com"
+  type    = "A"
+  failover_routing_policy {
+    type = "PRIMARY"
+  }
+  set_identifier  = "primary"
+  health_check_id = aws_route53_health_check.primary.id
+  alias {
+    name                   = aws_lb.primary.dns_name
+    zone_id                = aws_lb.primary.zone_id
+    evaluate_target_health = true
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_route53_record" "api" {
   zone_id = var.hosted_zone_id
-  name    = "api.example.com"
+  name    = "api.payment-service.example.com"
   type    = "A"
   ttl     = 300
   records = [var.primary_ip]
-  # Kein Failover Routing,
-  # kein Health Check
-  # WAF-REL-070 Violation
+  # No failover routing, no health check – WAF-REL-070 violation
 }
 ----
+
+---
+
+=== waf-rel-070.tf.azurerm.traffic-manager-profile
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Traffic Manager must be configured for failover routing*
+
+Azure Traffic Manager profiles for critical workloads must use failover or performance routing methods with health checks enabled on all endpoints.
+
+*Scope:* `resource` — `azurerm_traffic_manager_profile`
+
+*Assertions:*
+* `traffic_routing_method` not in `['0.0.0.0/0', '']` — Traffic Manager should use Failover or Priority routing for DR, not only Weighted.
+* `monitor_config` attribute exists — Traffic Manager must define monitor_config for endpoint health checking.
+
+*Remediation:* Configure azurerm_traffic_manager_profile with traffic_routing_method = "Priority" and a monitor_config block with protocol, port, and path for health checks.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_traffic_manager_profile" "main" {
+  name                   = "payment-api-dr"
+  resource_group_name    = azurerm_resource_group.main.name
+  traffic_routing_method = "Priority"
+
+  dns_config {
+    relative_name = "payment-api"
+    ttl           = 30
+  }
+
+  monitor_config {
+    protocol                     = "HTTPS"
+    port                         = 443
+    path                         = "/health/ready"
+    interval_in_seconds          = 10
+    timeout_in_seconds           = 9
+    tolerated_number_of_failures = 3
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_traffic_manager_profile" "main" {
+  name                   = "payment-api-dr"
+  resource_group_name    = azurerm_resource_group.main.name
+  traffic_routing_method = "Weighted"
+  dns_config {
+    relative_name = "payment-api"
+    ttl           = 300
+  }
+  # Missing: monitor_config – no health checking
+  # WAF-REL-070 violation
+}
+----
+
+---
+
+=== waf-rel-070.tf.google.dns-managed-zone-failover
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Cloud DNS must have low TTL for disaster recovery scenarios*
+
+GCP Cloud DNS records for production services must use TTL values <= 60 seconds to enable rapid DNS-based failover during disaster recovery.
+
+*Scope:* `resource` — `google_dns_record_set`
+
+*Assertions:*
+* `ttl` less than or equal `60` — DNS record TTL must be <= 60 seconds for DR scenarios to enable rapid failover.
+
+*Remediation:* Set ttl = 30 on google_dns_record_set for production service endpoints. Lower TTL reduces the DNS propagation window during failover events.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_dns_record_set" "api" {
+  name         = "api.payment-service.example.com."
+  type         = "A"
+  ttl          = 30
+  managed_zone = google_dns_managed_zone.main.name
+  rrdatas      = [google_compute_global_forwarding_rule.primary.ip_address]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_dns_record_set" "api" {
+  name         = "api.payment-service.example.com."
+  type         = "A"
+  ttl          = 3600  # WAF-REL-070 violation: 1 hour TTL prevents rapid DR
+  managed_zone = google_dns_managed_zone.main.name
+  rrdatas      = [var.primary_ip]
+}
+----
+
+---
+
+=== waf-rel-070.tf.stackit.chaos-tested
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*All production workloads classified as critical or high availability for stackit*
+
+All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the chaos-tested tag/label.
+
+*Remediation:* Add a chaos-tested tag/label to the stackit_project resource to show the stackit implementation of WAF-REL-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    chaos-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing chaos-tested labels
+}
+----
+
+---
+
+=== waf-rel-070.tf.ovh.chaos-tested
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*All production workloads classified as critical or high availability for ovh*
+
+All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the chaos-tested tag/label.
+
+*Remediation:* Add a chaos-tested tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-REL-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    chaos-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing chaos-tested tags
+}
+----
+
+---
+
+=== waf-rel-070.tf.hcloud.chaos-tested
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*All production workloads classified as critical or high availability for hcloud*
+
+All production workloads classified as critical or high availability must be documented in IaC via a chaos-tested tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the chaos-tested tag/label.
+
+*Remediation:* Add a chaos-tested tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    chaos-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing chaos-tested labels
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* Route 53 Failover Routing Policy mit Health Check konfigurieren.
-DNS-TTL auf 30s reduzieren für schnelles Failover.
+== Related Controls
 
-== Evidenz
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-050.adoc[WAF-SUS-050]
+* xref:pillar-reliability:controls/WAF-REL-080.adoc[WAF-REL-080]
+* xref:pillar-reliability:controls/WAF-REL-100.adoc[WAF-REL-100]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Process*
-|✅ Pflicht
-|DR-Testberichte letzter 12 Monate: RTO/RPO erreicht, Probleme, Unterschrift.
-
-|*Governance*
-|✅ Pflicht
-|DR-Plan mit RTO/RPO-Zielen, Testplan und Datum der letzten Aktualisierung.
-
-|*IaC*
-|Optional
-|Automatisierungsskripte oder Terraform für DR-Failover-Prozeduren.
-
-|*Process*
-|Optional
-|DR-Testkalender für die nächsten 12 Monate.
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents
+|ISO 27001:2022 |* A.17.1.3 – Verify, review and evaluate information security continuity
 
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
+|GDPR |* Article 32 – Security of processing (resilience and recovery testing)
 
-|*AWS Well-Architected Framework*
-|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor
+|BSI C5:2020 |* RB-04 – Data Backup and Recovery
+* RB-05 – Disaster Recovery
 
-|*SRE Book (Google)*
-|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring
-
-|*CNCF Cloud Native Security*
-|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
-
-|*BSI C5:2022*
-|SIM-01 – Security incident management; SIM-02 – Security information and event management
-
-|*GDPR*
-|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
-
-|*NIST SP 800-161*
-|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
-
-|*DORA*
-|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools
-
-|*COBIT 2019*
-|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity
-
-|*TISAX*
-|Information security – Incident response
-
-|*ANSSI SecNumCloud*
-|Domain – Incident response; Domain – Business continuity
-
-|*BIO*
-|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
-
-|*ENS High*
-|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
-
-|*UK NCSC CAF*
-|D1 – Response and recovery planning; D2 – Lessons learned
-
-|*CMMC 2.0*
-|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
-
-|*IRAP*
-|ISM – Incident management; ISM – Business continuity
-
-|*CCCS PBMM*
-|IR-4 – Incident handling; IR-8 – Incident response plan
-
-|*MAS TRM*
-|Ch.10 – Security incident management; Ch.11 – Business continuity
-
-|*ISMAP*
-|Reliability and incident management
-
-|*FISC*
-|Operational measures – Incident response
+|ITIL 4 |* Service Continuity Management
 
 |===
-
-== Verwandte Controls
