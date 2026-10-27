@@ -1,13 +1,14 @@
-## Projekt-Maintainer
+# Maintainers
 
-Die folgenden Personen/Teams sind für Review, Richtung und Qualität des Projekts verantwortlich:
+The WAF++ project and WAFpass tool stack are maintained by the following core contributors in accordance with CNCF governance guidelines.
 
-* **Core Maintainer**: WAF++ Core Team
-* **Governance & Community**: Community Working Group
-* **Technische Inhalte / Säulen**: Domain Owner pro Säule
+| Name | GitHub Handle | Organization / Affiliation | Country |
+| :--- | :--- | :--- | :--- |
+| Sascha Lewandowski | @lewandos | LGT Capital Partners | Switzerland |
+| Artem Lajko | @ArtemLajko | iits-consulting | Germany |
+| Tim Urlaub | @t1murl | Aldi DX | Germany |
+| Sebastian Meyer | @SebastianMeyer | Rossmann | Germany |
 
-## Review-Regeln
+## Responsibilities & Governance
+Refer to the governance documentation in the main `framework` repository for information on becoming a maintainer, review processes, and voting rights.
 
-* Mindestens ein Maintainer-Review für Merge
-* Größere Änderungen sollten vorab diskutiert werden
-* Maintainer können Labels setzen und Issues priorisieren
