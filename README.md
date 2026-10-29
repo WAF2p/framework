@@ -1,10 +1,10 @@
-# WAF++ Framework Dokumentation
+# Wombat Framework Dokumentation
 
 [![Build Status](https://github.com/WAF2p/waf2p.github.io/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/WAF2p/waf2p.github.io/actions/workflows/jekyll-gh-pages.yml)
 
-Dies ist die Antora-Dokumentationskomponente für das **WAF++** (Well-Architected Framework++) Projekt – ein community-geführtes, cloud-agnostisches Framework für souveräne, sichere und nachhaltige Cloud-Architekturen.
+Dies ist die Antora-Dokumentationskomponente für das **Wombat**-Projekt (früher WAF++) – ein community-geführtes, cloud-agnostisches Framework für souveräne, sichere und nachhaltige Cloud-Architekturen.
 
-Die Dokumentation wird in die Haupt-Website unter https://waf2p.dev/docs/wafpp/1.1.0-de/ eingebunden.
+Die Dokumentation wird in die Haupt-Website unter https://www.wombat-gov.dev/docs/wafpp/1.1.0-de/ eingebunden.
 
 ---
 
@@ -119,7 +119,7 @@ Die Dokumentation wird **nicht direkt** in diesem Repository gebaut, sondern:
 1. Das **Website-Repository** (`waf2p.github.io`) nutzt Antora
 2. Antora liest dieses Repository als **Content-Quelle**
 3. Antora generiert HTML und integriert es in die Jekyll-Website
-4. Ausgabe erfolgt unter: `https://waf2p.dev/docs/wafpp/1.1.0-de/`
+4. Ausgabe erfolgt unter: `https://www.wombat-gov.dev/docs/wafpp/1.1.0-de/`
 
 ### Antora-Komponentenkonfiguration
 
@@ -130,7 +130,7 @@ name: wafpp
 version: '1.1.0-de'
 display_version: '1.1.0 (Deutsch)'
 prerelease: false
-title: WAF++
+title: Wombat
 start_page: ROOT:index.adoc
 nav:
   - modules/ROOT/nav.adoc
@@ -204,8 +204,8 @@ Workflow-Datei: `.github/workflows/jekyll-gh-pages.yml` im Website-Repository
 
 Nach erfolgreichem Deployment:
 
-- **Hauptseite**: https://waf2p.dev/docs/wafpp/1.1.0-de/
-- **Beispiel-Seite**: https://waf2p.dev/docs/wafpp/1.1.0-de/pillar-security/index.html
+- **Hauptseite**: https://www.wombat-gov.dev/docs/wafpp/1.1.0-de/
+- **Beispiel-Seite**: https://www.wombat-gov.dev/docs/wafpp/1.1.0-de/pillar-security/index.html
 
 ### Entwickler-Guidelines
 
@@ -270,7 +270,7 @@ framework/
 - **Antora-Dokumentation**: https://docs.antora.org/
 - **AsciiDoc-Syntax**: https://docs.asciidoctor.org/asciidoc/latest/
 - **Website-Repository**: https://github.com/WAF2p/waf2p.github.io
-- **Live-Site**: https://waf2p.dev/
+- **Live-Site**: https://www.wombat-gov.dev/
 
 ---
 
@@ -287,4 +287,4 @@ Bei Fragen zur Struktur oder zum Build-Prozess siehe `AGENTS.md`.
 
 ---
 
-**WAF++ Community** | https://waf2p.dev/
+**Wombat Community** | https://www.wombat-gov.dev/

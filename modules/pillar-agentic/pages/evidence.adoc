@@ -1,16 +1,16 @@
 = Agentic – Evidenz & Audit
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Agentic – Evidenzanforderungen für Audits, Nachweisformate, Retention-Perioden und häufige Audit-Findings mit WAF++-Lösungsansätzen.
+:description: Wombat Agentic – Evidenzanforderungen für Audits, Nachweisformate, Retention-Perioden und häufige Audit-Findings mit Wombat-Lösungsansätzen.
 
 == Überblick: Evidenz im Agentic-Kontext
 
-Evidenz ist der *Nachweis*, dass ein Agentic-Control nicht nur dokumentiert, sondern tatsächlich implementiert und wirksam ist. WAF++ unterscheidet zwei Klassen:
+Evidenz ist der *Nachweis*, dass ein Agentic-Control nicht nur dokumentiert, sondern tatsächlich implementiert und wirksam ist. Wombat unterscheidet zwei Klassen:
 
 * *Pflicht-Evidenz (Required)*: Muss für jeden Control vorhanden sein; Fehlen ist ein Audit-Finding
 * *Optionale Evidenz (Optional)*: Empfohlen für höhere Reifegrade und regulierte Umgebungen
 
-Evidenz wird idealerweise *automatisch generiert* – durch den WAF++ Checker, Terraform-Outputs, Agent-Tracing-Systeme, CloudWatch-Exports oder SIEM-Berichte.
+Evidenz wird idealerweise *automatisch generiert* – durch den Wombat Checker, Terraform-Outputs, Agent-Tracing-Systeme, CloudWatch-Exports oder SIEM-Berichte.
 
 == Evidenzarten für Agentic-Systeme
 
@@ -63,7 +63,7 @@ Evidenz wird idealerweise *automatisch generiert* – durch den WAF++ Checker, T
 
 === Vor dem Audit (4–6 Wochen vorher)
 
-* [ ] WAF++ Checker gegen alle Agentic-IaC ausführen und Findings adressieren
+* [ ] Wombat Checker gegen alle Agentic-IaC ausführen und Findings adressieren
 * [ ] Agenten-Interaktions-Logs auf Vollständigkeit prüfen (Agent-ID, Timestamp, Ergebnis)
 * [ ] Tool-Use-Logs der letzten 90 Tage auf Genehmigung und Konformität reviewen
 * [ ] Guardrail-Testberichte der letzten 90 Tage erzeugen und Ausreißer dokumentieren
@@ -73,41 +73,41 @@ Evidenz wird idealerweise *automatisch generiert* – durch den WAF++ Checker, T
 === Evidenz-Sammlung
 
 * [ ] Terraform-Code exportieren und Commit-Hash dokumentieren
-* [ ] WAF++ Checker-Report als PDF exportieren
+* [ ] Wombat Checker-Report als PDF exportieren
 * [ ] Agenten-Logs für den Audit-Zeitraum als JSON/CSV exportieren
 * [ ] Reasoning-Traces für kritische Entscheidungen archivieren
 * [ ] Tool-Use-Audit-Logs aus SIEM oder Objekt-Storage extrahieren
 * [ ] HIL-Genehmigungs-Export für sensible Entscheidungen erstellen
 * [ ] Guardrail-Test- und Alignment-Check-Ergebnisse zusammenführen
 
-=== Häufige Auditor-Fragen und WAF++-Antworten
+=== Häufige Auditor-Fragen und Wombat-Antworten
 
 [cols="2,3"]
 |===
-|Auditor-Frage |WAF++-Nachweis
+|Auditor-Frage |Wombat-Nachweis
 
 |„Wie stellen Sie sicher, dass jeder Agent eindeutig identifizierbar ist?" |Agenten-Inventar (WAF-AGN-010); Terraform-IDs; IAM-/Service-Account-Bindings
-|„Wie verhindern Sie unautorisierte Werkzeugnutzung?" |Tool-Whitelist und IAM-Policies (WAF-AGN-020); Tool-Use-Audit-Logs; WAF++ Checker-Gate
+|„Wie verhindern Sie unautorisierte Werkzeugnutzung?" |Tool-Whitelist und IAM-Policies (WAF-AGN-020); Tool-Use-Audit-Logs; Wombat Checker-Gate
 |„Wie erklären Sie Agenten-Entscheidungen?" |Reasoning-Traces mit Chain-of-Thought (WAF-AGN-030); unveränderlicher Audit-Trail
 |„Wie schützen Sie Memory und State?" |Versionierter Storage, Backups, Point-in-Time-Recovery (WAF-AGN-040)
 |„Wie stellen Sie menschliche Prüfung sensibler Entscheidungen sicher?" |HIL-Workflow mit Audit-Trail (WAF-AGN-080); Genehmiger-Listen und Not-Intervention
 |===
 
-== Evidenz aus wafpass generieren
+== Evidenz aus WOMBATpass generieren
 
-Der WAF++ Checker (`wafpass`) kann Evidenz direkt für Audits exportieren:
+Der Wombat Checker (`wombat`) kann Evidenz direkt für Audits exportieren:
 
 [source,bash]
 ----
 # Alle Agentic-Controls prüfen und PDF-Report generieren
-wafpass check \
+wombat check \
   --pillar agentic \
   --path ./infrastructure \
   --format pdf \
-  --output audit-evidence/wafpass-agentic-$(date +%Y%m%d).pdf
+  --output audit-evidence/wombat-agentic-$(date +%Y%m%d).pdf
 
 # Reasoning-Traces als maschinenlesbaren Nachweis exportieren
-wafpass check \
+wombat check \
   --pillar agentic \
   --control WAF-AGN-030 \
   --path ./infrastructure \
@@ -115,17 +115,17 @@ wafpass check \
   --output audit-evidence/agentic-reasoning-$(date +%Y%m%d).json
 
 # Einzelnen Control prüfen
-wafpass check \
+wombat check \
   --control WAF-AGN-050 \
   --path ./infrastructure \
   --format github-annotations
 ----
 
-== Häufige Audit-Findings und WAF++-Lösungen
+== Häufige Audit-Findings und Wombat-Lösungen
 
 [cols="2,1,3"]
 |===
-|Audit-Finding |Control |WAF++-Lösung
+|Audit-Finding |Control |Wombat-Lösung
 
 |Agenten ohne eindeutige ID oder Auth |WAF-AGN-010 |Stabile IDs in Terraform; IAM/Service-Account-Bindings; Inventar-Register
 |Unbeschränkte Werkzeugnutzung |WAF-AGN-020 |Tool-Whitelist und Schemas; IAM-Policies; Tool-Use-Logging

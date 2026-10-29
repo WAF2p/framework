@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate 17 new WAF++ controls (100 total) across all 8 pillars.
+"""Generate 17 new Wombat controls (100 total) across all 8 pillars.
 
 Creates YAML control files in both German and English repositories, plus narrative
 .adoc pages, nav entries, and catalog updates.

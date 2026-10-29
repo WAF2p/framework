@@ -1,6 +1,6 @@
-# Agent-Guidelines für das WAF++ Framework Repository
+# Agent-Guidelines für das Wombat Framework Repository
 
-Dieses Repository enthält die **WAF++** (Well-Architected Framework++) Dokumentation – ein community-getriebenes Framework für souveränes, cloud-agnostisches Cloud-Engineering. Die Dokumentation wird mit **Antora**, einem Multi-Repository-Dokumentationsgenerator, aus AsciiDoc-Dateien erzeugt.
+Dieses Repository enthält die **Wombat**-Dokumentation (früher WAF++) – ein community-getriebenes Framework für souveränes, cloud-agnostisches Cloud-Engineering. Die Dokumentation wird mit **Antora**, einem Multi-Repository-Dokumentationsgenerator, aus AsciiDoc-Dateien erzeugt.
 
 ## Projektübersicht
 
@@ -299,7 +299,7 @@ Die `antora.yml` definiert diese Dokumentationskomponente:
 
 ```yaml
 name: wafpp
-title: WAF++
+title: Wombat
 version: '1.1.0-de'
 display_version: '1.1.0 (Deutsch)'
 prerelease: false
@@ -375,7 +375,7 @@ Dieses Repository wird als **Dokumentationskomponente** von Antora konsumiert:
 
 - **Website-Repo**: https://github.com/WAF2p/waf2p.github.io
 - **Build-System**: Antora generiert statisches HTML aus diesem Inhalt
-- **URL-Struktur**: `https://waf2p.dev/docs/wafpp/1.1.0-de/<module>/<page-path>`
+- **URL-Struktur**: `https://www.wombat-gov.dev/docs/wafpp/1.1.0-de/<module>/<page-path>`
 - **Version**: Aktuell `1.1.0-de` (in `antora.yml` definiert)
 
 ### AsciiDoc vs Markdown

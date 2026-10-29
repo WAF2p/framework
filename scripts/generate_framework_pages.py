@@ -2,7 +2,7 @@
 """Generate framework-specific catalog pages from YAML controls.
 
 Creates one AsciiDoc page per target framework under
-modules/controls/pages/frameworks/, listing every WAF++ control that maps to
+modules/controls/pages/frameworks/, listing every Wombat control that maps to
 that framework together with severity, pillar and category.
 """
 import glob
@@ -53,10 +53,10 @@ PAGE_TITLES = {
 
 SECTION_LABELS = {
     "de": {
-        "intro": "Diese Seite zeigt für {framework}, welche WAF++ Controls welche Anforderungen dieses Rahmenwerks abdecken.",
+        "intro": "Diese Seite zeigt für {framework}, welche Wombat Controls welche Anforderungen dieses Rahmenwerks abdecken.",
         "table_control": "Framework-Control",
         "table_requirement": "Anforderung",
-        "table_waf_controls": "WAF++ Controls",
+        "table_waf_controls": "Wombat Controls",
         "table_severity": "Schweregrad",
         "table_pillar": "Säule",
         "table_category": "Kategorie",
@@ -65,10 +65,10 @@ SECTION_LABELS = {
         "central_mapping": "Zentrales regulatorisches Mapping",
     },
     "en": {
-        "intro": "This page shows which WAF++ controls cover which requirements of {framework}.",
+        "intro": "This page shows which Wombat controls cover which requirements of {framework}.",
         "table_control": "Framework Control",
         "table_requirement": "Requirement",
-        "table_waf_controls": "WAF++ Controls",
+        "table_waf_controls": "Wombat Controls",
         "table_severity": "Severity",
         "table_pillar": "Pillar",
         "table_category": "Category",

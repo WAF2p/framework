@@ -104,10 +104,10 @@ def generate_dashboard(controls, lang):
     labels = {
         "de": {
             "title": "Compliance-Dashboard",
-            "intro": "Diese Seite zeigt, wie gut der WAF++ Control-Katalog die wichtigsten Compliance-Rahmenwerke abdeckt, und hilft Auditoren bei der Gap-Analyse.",
+            "intro": "Diese Seite zeigt, wie gut der Wombat Control-Katalog die wichtigsten Compliance-Rahmenwerke abdeckt, und hilft Auditoren bei der Gap-Analyse.",
             "summary": "Zusammenfassung",
             "frameworks": "Frameworks",
-            "total_controls": "WAF++ Controls insgesamt",
+            "total_controls": "Wombat Controls insgesamt",
             "avg_coverage": "Durchschnittliche Abdeckung",
             "coverage_table": "Abdeckung pro Framework",
             "col_framework": "Framework",
@@ -120,14 +120,14 @@ def generate_dashboard(controls, lang):
             "no_gaps": "Alle priorisierten Frameworks erreichen mindestens 10 % Abdeckung. Fokus liegt auf ISO 27001, BSI C5, GDPR und SOC 2 als Kernthemen.",
             "see_frameworks": "Framework-spezifische Mappings",
             "see_central": "Zentrales regulatorisches Mapping",
-            "footnote": "Abdeckung = Anteil der WAF++ Controls, die mindestens eine Anforderung des Frameworks abbilden.",
+            "footnote": "Abdeckung = Anteil der Wombat Controls, die mindestens eine Anforderung des Frameworks abbilden.",
         },
         "en": {
             "title": "Compliance Dashboard",
-            "intro": "This page shows how well the WAF++ control catalog covers the most important compliance frameworks and helps auditors with gap analysis.",
+            "intro": "This page shows how well the Wombat control catalog covers the most important compliance frameworks and helps auditors with gap analysis.",
             "summary": "Summary",
             "frameworks": "Frameworks",
-            "total_controls": "Total WAF++ controls",
+            "total_controls": "Total Wombat controls",
             "avg_coverage": "Average coverage",
             "coverage_table": "Coverage per framework",
             "col_framework": "Framework",
@@ -140,7 +140,7 @@ def generate_dashboard(controls, lang):
             "no_gaps": "All prioritized frameworks reach at least 10 % coverage. Focus is on ISO 27001, BSI C5, GDPR, and SOC 2 as core themes.",
             "see_frameworks": "Framework-specific mappings",
             "see_central": "Central regulatory mapping",
-            "footnote": "Coverage = share of WAF++ controls that map to at least one requirement of the framework.",
+            "footnote": "Coverage = share of Wombat controls that map to at least one requirement of the framework.",
         },
     }[lang]
 

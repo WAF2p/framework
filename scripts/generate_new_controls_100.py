@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the 17 new controls that expand WAF++ from 83 to 100 controls.
+"""Generate the 17 new controls that expand Wombat from 83 to 100 controls.
 
 Creates machine-readable YAML controls in both framework/ and framework-en/,
 and matching narrative .adoc pages in German and English. Also updates

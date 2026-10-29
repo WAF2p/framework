@@ -1,17 +1,17 @@
 = Evidenz & Audit (Security)
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Security – Evidenzanforderungen für Audits, Nachweisformate, Retention-Perioden und häufige Audit-Findings mit WAF++-Lösungsansätzen.
+:description: Wombat Security – Evidenzanforderungen für Audits, Nachweisformate, Retention-Perioden und häufige Audit-Findings mit Wombat-Lösungsansätzen.
 
-== Überblick: Evidenz im WAF++-Kontext
+== Überblick: Evidenz im Wombat-Kontext
 
 Evidenz ist der *Nachweis*, dass ein Security-Control nicht nur dokumentiert, sondern tatsächlich
-implementiert und wirksam ist. WAF++ unterscheidet zwei Evidenzklassen:
+implementiert und wirksam ist. Wombat unterscheidet zwei Evidenzklassen:
 
 * *Pflicht-Evidenz (Required)*: Muss für jeden Control vorhanden sein; Fehlen ist ein Audit-Finding
 * *Optionale Evidenz (Optional)*: Empfohlen für höhere Reifegrade und regulierte Umgebungen
 
-Evidenz wird idealerweise *automatisch generiert* – durch den WAF++ Checker, Terraform-Outputs,
+Evidenz wird idealerweise *automatisch generiert* – durch den Wombat Checker, Terraform-Outputs,
 CloudWatch-Exports oder SIEM-Berichte.
 
 == Evidenztabelle: Alle WAF-SEC Controls
@@ -38,7 +38,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |WAF-SEC-020
 |IaC
 |Terraform IAM-Policies: Keine `Action: *` mit `Resource: *` Kombination
-|HCL-Dateien, WAF++ Checker-Report
+|HCL-Dateien, Wombat Checker-Report
 
 |WAF-SEC-020
 |Review-Protokoll
@@ -53,7 +53,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |WAF-SEC-030
 |IaC
 |Terraform: KMS CMK-Konfiguration, Rotation aktiviert, alle Storage-Ressourcen mit KMS
-|HCL-Dateien, WAF++ Checker-Report
+|HCL-Dateien, Wombat Checker-Report
 
 |WAF-SEC-030
 |KMS-Export (optional)
@@ -63,7 +63,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |WAF-SEC-040
 |IaC
 |Terraform: ALB/NLB Security Policy, API Gateway TLS, CloudFront TLS Policy
-|HCL-Dateien, WAF++ Checker-Report
+|HCL-Dateien, Wombat Checker-Report
 
 |WAF-SEC-040
 |SSL-Test (optional)
@@ -73,7 +73,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |WAF-SEC-050
 |IaC
 |Terraform: VPC-Design, Security Group-Konfigurationen, kein 0.0.0.0/0
-|HCL-Dateien, WAF++ Checker-Report
+|HCL-Dateien, Wombat Checker-Report
 
 |WAF-SEC-050
 |Netzwerkdiagramm (optional)
@@ -103,7 +103,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |WAF-SEC-080
 |IaC
 |Terraform: GuardDuty aktiviert, CloudTrail multi-region, CloudWatch Alarms
-|HCL-Dateien, WAF++ Checker-Report
+|HCL-Dateien, Wombat Checker-Report
 
 |WAF-SEC-080
 |GuardDuty-Report (optional)
@@ -112,7 +112,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 
 |WAF-SEC-090
 |CI/CD-Log
-|Pipeline-Runs: WAF++ Checker, tfsec, checkov – alle bestanden oder Findings adressiert
+|Pipeline-Runs: Wombat Checker, tfsec, checkov – alle bestanden oder Findings adressiert
 |GitHub Actions Log-Export / Artifact
 
 |WAF-SEC-090
@@ -136,7 +136,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 
 === Vor dem Audit (4-6 Wochen vorher)
 
-* [ ] WAF++ Checker gegen alle Produktions-IaC ausführen und alle Findings adressieren
+* [ ] Wombat Checker gegen alle Produktions-IaC ausführen und alle Findings adressieren
 * [ ] CloudTrail-Konfiguration prüfen: Multi-Region, Log-File-Validation, kein öffentlicher S3-Bucket
 * [ ] GuardDuty-Findings der letzten 90 Tage reviewed und geschlossen
 * [ ] IAM Access Review durchführen und dokumentieren
@@ -147,18 +147,18 @@ CloudWatch-Exports oder SIEM-Berichte.
 === Evidenz-Sammlung
 
 * [ ] Terraform-Code aus dem Repository exportieren (Commit-Hash dokumentieren)
-* [ ] WAF++ Checker-Report als PDF exportieren
+* [ ] Wombat Checker-Report als PDF exportieren
 * [ ] CloudTrail: Query für Root-Login-Events der letzten 12 Monate
 * [ ] GuardDuty: Findings-Export für letzten Audit-Zeitraum
 * [ ] IAM Access Analyzer: Report für alle Accounts
 * [ ] Vulnerability-Scan-Reports: Alle Container-Images der letzten 90 Tage
 * [ ] CI/CD Pipeline-Logs: Nachweis, dass Security-Gates aktiv sind
 
-=== Häufige Auditor-Fragen und WAF++-Antworten
+=== Häufige Auditor-Fragen und Wombat-Antworten
 
 [cols="2,3"]
 |===
-|Auditor-Frage |WAF++-Nachweis
+|Auditor-Frage |Wombat-Nachweis
 
 |„Wie stellen Sie sicher, dass MFA für alle Nutzer aktiviert ist?"
 |IAM-Passwort-Policy in Terraform (WAF-SEC-010); CloudTrail-Export ohne MFA-freie Consolen-Logins
@@ -179,7 +179,7 @@ CloudWatch-Exports oder SIEM-Berichte.
 |GuardDuty-Konfiguration (WAF-SEC-080); CloudWatch Alarms; SIEM-Integration
 
 |„Wie stellen Sie sicher, dass nur genehmigter Code deployed wird?"
-|CI/CD mit WAF++ Security Gate (WAF-SEC-090); Pipeline-Logs als Nachweis
+|CI/CD mit Wombat Security Gate (WAF-SEC-090); Pipeline-Logs als Nachweis
 
 |===
 
@@ -231,21 +231,21 @@ CloudWatch-Exports oder SIEM-Berichte.
 
 |===
 
-== Evidenz aus wafpass generieren
+== Evidenz aus WOMBATpass generieren
 
-Der WAF++ Checker (`wafpass`) kann Evidenz direkt für Audits exportieren:
+Der Wombat Checker (`wombat`) kann Evidenz direkt für Audits exportieren:
 
 [source,bash]
 ----
 # Alle Security-Controls prüfen und PDF-Report generieren
-wafpass check \
+wombat check \
   --pillar security \
   --path ./infrastructure \
   --format pdf \
-  --output audit-evidence/wafpass-security-$(date +%Y%m%d).pdf
+  --output audit-evidence/wombat-security-$(date +%Y%m%d).pdf
 
 # Nur Compliance-relevante Felder (für ISO 27001)
-wafpass check \
+wombat check \
   --pillar security \
   --framework iso27001 \
   --path ./infrastructure \
@@ -253,17 +253,17 @@ wafpass check \
   --output audit-evidence/iso27001-mapping-$(date +%Y%m%d).json
 
 # Einzelnen Control prüfen
-wafpass check \
+wombat check \
   --control WAF-SEC-010 \
   --path ./infrastructure \
   --format github-annotations
 ----
 
-== Häufige Audit-Findings und WAF++-Lösungen
+== Häufige Audit-Findings und Wombat-Lösungen
 
 [cols="2,1,3"]
 |===
-|Audit-Finding |Betroffener Control |WAF++-Lösung
+|Audit-Finding |Betroffener Control |Wombat-Lösung
 
 |Root-Account wird für tägliche Operationen genutzt
 |WAF-SEC-010
@@ -271,7 +271,7 @@ wafpass check \
 
 |IAM-Policies mit `Action: *` und `Resource: *`
 |WAF-SEC-020
-|Policy-Refactoring; WAF++ Checker-Gate im CI verhindert Rückfälle
+|Policy-Refactoring; Wombat Checker-Gate im CI verhindert Rückfälle
 
 |EBS-Volumes, RDS-Instanzen ohne Verschlüsselung
 |WAF-SEC-030

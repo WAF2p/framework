@@ -1,7 +1,7 @@
 = Security Design Patterns
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Security – 6 bewährte Sicherheitsarchitekturpatterns: Hub-and-Spoke, JIT-Zugriff, Secrets Injection, Immutable Infrastructure, Security Event Pipeline, Policy-as-Code Gateway.
+:description: Wombat Security – 6 bewährte Sicherheitsarchitekturpatterns: Hub-and-Spoke, JIT-Zugriff, Secrets Injection, Immutable Infrastructure, Security Event Pipeline, Policy-as-Code Gateway.
 
 Die folgenden sechs Design Patterns sind bewährte Lösungsarchitekturen für häufige
 Security-Herausforderungen in Cloud-Umgebungen. Jedes Pattern ist direkt mit WAF-SEC Controls verknüpft.
@@ -379,7 +379,7 @@ resource "aws_cloudwatch_metric_alarm" "root_login_alarm" {
 
 == Pattern 6: Policy-as-Code Gateway
 
-*OPA oder wafpass im CI/CD als Qualitätsgate – Security-Violations werden vor dem Merge blockiert.*
+*OPA oder WOMBATpass im CI/CD als Qualitätsgate – Security-Violations werden vor dem Merge blockiert.*
 
 === Problem
 
@@ -399,7 +399,7 @@ Pull Request → CI/CD Pipeline
 Pipeline-Schritte:
   1. terraform fmt --check (Formatierung)
   2. terraform validate (Syntax)
-  3. wafpass check --pillar security (WAF++ Controls)
+  3. wombat check --pillar security (Wombat Controls)
         ├── Kritische Findings → Pipeline FAIL (PR wird geblockt)
         └── Mittlere Findings → Warning (PR kommt durch, aber mit Kommentar)
   4. tfsec / checkov (zusätzliche IaC-Security-Scanner)
@@ -419,7 +419,7 @@ name: Security Gate
 on: [pull_request]
 
 jobs:
-  wafpass:
+  wombat:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -435,9 +435,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE }}
           aws-region: eu-central-1
 
-      - name: WAF++ Security Check
+      - name: Wombat Security Check
         run: |
-          wafpass check \
+          wombat check \
             --pillar security \
             --path ./infrastructure \
             --format github-annotations \
