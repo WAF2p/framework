@@ -1,17 +1,17 @@
 = Controls – Security (WAF-SEC)
 :toc: left
 :toclevels: 3
-:description: WAF++ – Complete controls catalog for the Security pillar (WAF-SEC-010 through WAF-SEC-160) with all 16 controls, overview table, and descriptions.
+:description: Wombat – Complete controls catalog for the Security pillar (WAF-SEC-010 through WAF-SEC-160) with all 16 controls, overview table, and descriptions.
 
 Security controls translate the xref:principles.adoc[Security Principles] into measurable,
 auditable requirements for IaC-managed cloud infrastructure.
-They are the core of the WAF++ framework: machine-readable, automatically checkable, and
+They are the core of the Wombat framework: machine-readable, automatically checkable, and
 equipped with concrete evidence requirements.
 
 Each control has a unique ID in the format `WAF-SEC-NNN`, a severity rating,
 machine-readable YAML checks, and a maturity-level graduation.
 The YAML source files are located under `modules/controls/controls/WAF-SEC-*.yml`
-and can be executed directly by the WAF++ Checker Tool.
+and can be executed directly by the Wombat Checker Tool.
 
 The 16 controls are formulated as minimum requirements: anyone who meets all 16
 has a solid security foundation – not a complete security program,
@@ -86,7 +86,7 @@ Complete controls catalog across all pillars: xref:controls:catalog.adoc[Control
 |Medium
 |Policy-as-Code
 |Yes
-|wafpass/OPA as blocking CI gate, SCPs for org-level guardrails
+|WOMBATpass/OPA as blocking CI gate, SCPs for org-level guardrails
 
 |xref:controls/WAF-SEC-100.adoc[WAF-SEC-100]
 |Incident Response Readiness
@@ -374,7 +374,7 @@ security group changes).
 *Intent:* Manual security reviews do not scale. Policy-as-Code is the only way to enforce
 consistent security standards across many teams and repositories.
 
-*Requirement:* An automated security check (WAF++ Checker, OPA/Conftest, tfsec, checkov)
+*Requirement:* An automated security check (Wombat Checker, OPA/Conftest, tfsec, checkov)
 MUST be active in the CI/CD pipeline and block critical findings.
 SCPs (Service Control Policies) or Azure Policies SHOULD be used for organization-wide guardrails.
 
@@ -386,7 +386,7 @@ SCPs (Service Control Policies) or Azure Policies SHOULD be used for organizatio
 
 *Evidence:*
 
-* CI/CD pipeline logs with WAF++ Checker runs (all PRs scanned)
+* CI/CD pipeline logs with Wombat Checker runs (all PRs scanned)
 * OPA policy files in the repository
 
 *Best Practice:* xref:design-patterns.adoc#Pattern-6[Pattern 6 – Policy-as-Code Gateway →]
@@ -437,7 +437,7 @@ the foundation for software trust chains in regulated environments.
 * Container images MUST be cryptographically signed (Cosign/Notary); the signature MUST be verified before deployment
 * CI/CD pipelines MUST use OIDC-based identities (no static pipeline credentials); dependency scanning MUST be active for all dependencies
 
-*What wafpass checks automatically:*
+*What WOMBATpass checks automatically:*
 
 * `waf-sec-110.tf.aws.ecr-image-scanning-on-push` – ECR scan-on-push for all repositories
 * `waf-sec-110.tf.aws.ecr-tag-immutability` – ECR image tag immutability enabled
@@ -471,7 +471,7 @@ this control draws the line between workload isolation and host access.
 * Container file systems MUST be mounted read-only (`readOnlyRootFilesystem: true`) with explicit tmpfs mounts for write access
 * Kubernetes admission control (OPA Gatekeeper or Kyverno) MUST enforce container security requirements as mandatory rules; distroless or minimal base images are required
 
-*What wafpass checks automatically:*
+*What WOMBATpass checks automatically:*
 
 * `waf-sec-120.tf.aws.ecs-no-privileged-containers` – ECS task definition: no `privileged = true`
 * `waf-sec-120.tf.aws.ecs-no-root-user` – ECS task definition: `user` not `"root"` or `"0"`
@@ -507,7 +507,7 @@ GDPR accountability and audit evidence.
 * Resources with `confidential` or `restricted` classification MUST be CMK-encrypted and must not allow public access
 * Amazon Macie (or an equivalent sensitive data discovery tool) MUST be active for all S3 buckets with `internal` or higher classification
 
-*What wafpass checks automatically:*
+*What WOMBATpass checks automatically:*
 
 * `waf-sec-130.tf.any.data-classification-tag-required` – `DataClassification` tag on all storage resources
 * `waf-sec-130.tf.aws.confidential-restricted-cmk-encryption` – CMK requirement for `confidential`/`restricted` resources

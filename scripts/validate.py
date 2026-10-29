@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate the WAF++ documentation repository for:
+Validate the Wombat documentation repository for:
   1. YAML control schema compliance
   2. Narrative page existence for each control
   3. Navigation coverage of all controls

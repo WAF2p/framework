@@ -1,42 +1,42 @@
-= WAF++ PASS – CLI Reference
-:description: Complete reference for the wafpass command-line tool
+= WOMBATpass – CLI Reference
+:description: Complete reference for the WOMBATpass command-line tool
 :toc: left
 :toclevels: 3
 
-`wafpass` is the official CLI tool of the WAF++ Framework.
+`wombat` is the official CLI tool of the Wombat Framework.
 It reads the machine-readable YAML controls and automatically checks Terraform configurations against the defined assertions.
 
 == Installation
 
 [source,bash]
 ----
-pip install wafpass
+pip install wafpass-core
 ----
 
 Check version:
 
 [source,bash]
 ----
-wafpass --version
+wombat --version
 ----
 
 === Prerequisites
 
 * Python 3.10+
 * Terraform configuration as `.tf` files (HCL2)
-* WAF++ YAML controls (by default from the `controls/` directory)
+* Wombat YAML controls (by default from the `controls/` directory)
 
 ---
 
 == Commands
 
-=== `wafpass check`
+=== `wombat check`
 
-The only command in the current version. Checks Terraform files against WAF++ controls.
+The only command in the current version. Checks Terraform files against Wombat controls.
 
 [source,bash]
 ----
-wafpass check <PATH> [OPTIONS]
+wombat check <PATH> [OPTIONS]
 ----
 
 ==== Arguments
@@ -57,7 +57,7 @@ wafpass check <PATH> [OPTIONS]
 
 | `--controls-dir PATH`
 | `controls/`
-| Path to the directory containing the WAF++ YAML control files.
+| Path to the directory containing the Wombat YAML control files.
 
 | `--pillar NAME`
 | _(all)_
@@ -126,7 +126,7 @@ Default: only FAILs and SKIPs are displayed.
 
 [source]
 ----
- WAF++ PASS — Terraform Compliance Check
+ WOMBATpass — Terraform Compliance Check
  Path: ./infrastructure/   Controls: 12
 
  WAF-SOV-010  Data Residency Policy            critical   FAIL
@@ -184,7 +184,7 @@ A check receives `SKIP` when:
 
 == Assertion Operators
 
-The following table lists all operators that can be used in WAF++ YAML controls:
+The following table lists all operators that can be used in Wombat YAML controls:
 
 === Automatically evaluable
 
@@ -305,49 +305,49 @@ These operators require runtime information or cross-resource analysis that goes
 
 [source,bash]
 ----
-wafpass check ./infrastructure/
+wombat check ./infrastructure/
 ----
 
 === Sovereign controls only, critical severity
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --pillar sovereign --severity critical
+wombat check ./infrastructure/ --pillar sovereign --severity critical
 ----
 
 === Check individual controls
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
+wombat check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
 ----
 
 === Output summary only
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --summary
+wombat check ./infrastructure/ --summary
 ----
 
 === Custom controls directory
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --controls-dir /path/to/custom-controls/
+wombat check ./infrastructure/ --controls-dir /path/to/custom-controls/
 ----
 
 === CI/CD: Only critical as blocking
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --fail-on critical
+wombat check ./infrastructure/ --fail-on critical
 ----
 
 === CI/CD: Treat SKIPs as errors too
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --fail-on skip
+wombat check ./infrastructure/ --fail-on skip
 ----
 
 ---
@@ -358,7 +358,7 @@ wafpass check ./infrastructure/ --fail-on skip
 
 [source,yaml]
 ----
-name: WAF++ Compliance
+name: Wombat Compliance
 
 on:
   push:
@@ -368,7 +368,7 @@ on:
       - 'infrastructure/**'
 
 jobs:
-  wafpass:
+  wombat:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -378,15 +378,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install wafpass
-        run: pip install wafpass
+      - name: Install WOMBATpass
+        run: pip install wafpass-core
 
-      - name: Copy WAF++ controls
+      - name: Copy Wombat controls
         run: cp -r path/to/wafpp-controls/ controls/
 
-      - name: Run WAF++ PASS
+      - name: Run WOMBATpass
         run: |
-          wafpass check infrastructure/ \
+          wombat check infrastructure/ \
             --pillar cost,sovereign \
             --severity high \
             --fail-on critical \
@@ -397,12 +397,12 @@ jobs:
 
 [source,yaml]
 ----
-wafpass:
+wombat:
   stage: validate
   image: python:3.12-slim
   script:
-    - pip install wafpass
-    - wafpass check infrastructure/ --fail-on critical
+    - pip install wafpass-core
+    - wombat check infrastructure/ --fail-on critical
   rules:
     - changes:
         - infrastructure/**/*.tf
@@ -415,9 +415,9 @@ wafpass:
 #!/bin/bash
 # .git/hooks/pre-commit
 
-wafpass check ./infrastructure/ --fail-on critical --severity critical,high
+wombat check ./infrastructure/ --fail-on critical --severity critical,high
 if [ $? -ne 0 ]; then
-  echo "WAF++ PASS: Critical compliance findings. Commit aborted."
+  echo "WOMBATpass: Critical compliance findings. Commit aborted."
   exit 1
 fi
 ----
@@ -426,7 +426,7 @@ fi
 
 == Controls Directory
 
-`wafpass` expects YAML files in the format `WAF-*.yml` in the controls directory.
+`wombat` expects YAML files in the format `WAF-*.yml` in the controls directory.
 By default it looks in the `controls/` subdirectory relative to the working directory.
 
 Each YAML file corresponds to one control. The complete schema documentation is available at xref:resources/control-schema.adoc[Control Schema Reference].
@@ -435,6 +435,6 @@ Each YAML file corresponds to one control. The complete schema documentation is 
 
 == Further Reading
 
-* xref:best-practises/index.adoc[Assessment Methodology] – how wafpass is embedded in the assessment process
+* xref:best-practises/index.adoc[Assessment Methodology] – how WOMBATpass is embedded in the assessment process
 * xref:controls:catalog.adoc[Controls Catalog] – all available controls with assertions
 * xref:resources/control-schema.adoc[Control Schema Reference] – YAML structure for custom controls
