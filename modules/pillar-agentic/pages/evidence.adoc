@@ -1,16 +1,16 @@
 = Agentic – Evidence & Audit
 :page-toc: right
 :toclevels: 3
-:description: WAF++ Agentic – Evidence requirements for audits, evidence formats, retention periods, and common audit findings with WAF++ remediation approaches.
+:description: Wombat Agentic – Evidence requirements for audits, evidence formats, retention periods, and common audit findings with Wombat remediation approaches.
 
 == Overview: Evidence in the Agentic Context
 
-Evidence is the *proof* that an Agentic control is not only documented but actually implemented and effective. WAF++ distinguishes two classes:
+Evidence is the *proof* that an Agentic control is not only documented but actually implemented and effective. Wombat distinguishes two classes:
 
 * *Required Evidence*: Must exist for every control; absence is an audit finding
 * *Optional Evidence*: Recommended for higher maturity levels and regulated environments
 
-Evidence should ideally be *generated automatically* — by the WAF++ Checker, Terraform outputs, agent tracing systems, CloudWatch exports, or SIEM reports.
+Evidence should ideally be *generated automatically* — by the Wombat Checker, Terraform outputs, agent tracing systems, CloudWatch exports, or SIEM reports.
 
 == Evidence Types for Agentic Systems
 
@@ -63,7 +63,7 @@ Evidence should ideally be *generated automatically* — by the WAF++ Checker, T
 
 === Before the Audit (4–6 Weeks Out)
 
-* [ ] Run the WAF++ Checker against all Agentic IaC and address findings
+* [ ] Run the Wombat Checker against all Agentic IaC and address findings
 * [ ] Verify completeness of agent interaction logs (agent ID, timestamp, outcome)
 * [ ] Review tool-use logs from the last 90 days for approval and compliance
 * [ ] Generate guardrail test reports for the last 90 days and document outliers
@@ -73,41 +73,41 @@ Evidence should ideally be *generated automatically* — by the WAF++ Checker, T
 === Evidence Collection
 
 * [ ] Export Terraform code and document the commit hash
-* [ ] Export WAF++ Checker report as PDF
+* [ ] Export Wombat Checker report as PDF
 * [ ] Export agent logs for the audit period as JSON/CSV
 * [ ] Archive reasoning traces for critical decisions
 * [ ] Extract tool-use audit logs from SIEM or object storage
 * [ ] Create HIL approval export for sensitive decisions
 * [ ] Compile guardrail test and alignment-check results
 
-=== Common Auditor Questions and WAF++ Answers
+=== Common Auditor Questions and Wombat Answers
 
 [cols="2,3"]
 |===
-|Auditor Question |WAF++ Evidence
+|Auditor Question |Wombat Evidence
 
 |"How do you ensure every agent is uniquely identifiable?" |Agent inventory (WAF-AGN-010); Terraform IDs; IAM/service account bindings
-|"How do you prevent unauthorized tool use?" |Tool whitelist and IAM policies (WAF-AGN-020); tool-use audit logs; WAF++ Checker gate
+|"How do you prevent unauthorized tool use?" |Tool whitelist and IAM policies (WAF-AGN-020); tool-use audit logs; Wombat Checker gate
 |"How do you explain agent decisions?" |Reasoning traces with chain-of-thought (WAF-AGN-030); immutable audit trail
 |"How do you protect memory and state?" |Versioned storage, backups, point-in-time recovery (WAF-AGN-040)
 |"How do you ensure human review of sensitive decisions?" |HIL workflow with audit trail (WAF-AGN-080); approver lists and emergency intervention
 |===
 
-== Generate Evidence from wafpass
+== Generate Evidence from WOMBATpass
 
-The WAF++ Checker (`wafpass`) can export evidence directly for audits:
+The Wombat Checker (`wombat`) can export evidence directly for audits:
 
 [source,bash]
 ----
 # Check all Agentic controls and generate a PDF report
-wafpass check \
+wombat check \
   --pillar agentic \
   --path ./infrastructure \
   --format pdf \
-  --output audit-evidence/wafpass-agentic-$(date +%Y%m%d).pdf
+  --output audit-evidence/wombat-agentic-$(date +%Y%m%d).pdf
 
 # Export reasoning traces as machine-readable evidence
-wafpass check \
+wombat check \
   --pillar agentic \
   --control WAF-AGN-030 \
   --path ./infrastructure \
@@ -115,17 +115,17 @@ wafpass check \
   --output audit-evidence/agentic-reasoning-$(date +%Y%m%d).json
 
 # Check a single control
-wafpass check \
+wombat check \
   --control WAF-AGN-050 \
   --path ./infrastructure \
   --format github-annotations
 ----
 
-== Common Audit Findings and WAF++ Remediations
+== Common Audit Findings and Wombat Remediations
 
 [cols="2,1,3"]
 |===
-|Audit Finding |Control |WAF++ Remediation
+|Audit Finding |Control |Wombat Remediation
 
 |Agents without unique identity or auth |WAF-AGN-010 |Stable IDs in Terraform; IAM/service account bindings; inventory register
 |Unrestricted tool use |WAF-AGN-020 |Tool whitelist and schemas; IAM policies; tool-use logging

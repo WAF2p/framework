@@ -1,0 +1,141 @@
+= WAF-REL-120 – Graceful degradation and fallback strategies MUST be documented and tested
+:page-toc: right
+:control-id: WAF-REL-120
+:pillar: reliability
+:severity: high
+:category: reliability-design
+:automatable: Low
+:description: Critical user journeys MUST continue in a degraded mode when non-essential dependencies fail. Fallback behavior, default responses, and feature degradation order MUST be documented. Degradation paths MUST be tested in staging and during chaos experiments. Non-critical features MUST be tiered so lower-priority functions can be disabled first.
+
+[.metadata]
+*Pillar:* Reliability | *Severity:* 🟠 High | *Category:* Reliability Design | *Automatable:* Low
+
+== Description
+
+Critical user journeys MUST continue in a degraded mode when non-essential dependencies fail. Fallback behavior, default responses, and feature degradation order MUST be documented. Degradation paths MUST be tested in staging and during chaos experiments. Non-critical features MUST be tiered so lower-priority functions can be disabled first.
+
+== Rationale
+
+[cols="1,3"]
+|===
+|Risk |Description
+
+|*Risk* |Hard dependencies on non-essential services turn partial failures into total outages.
+
+|*Risk* |Untested fallback paths often fail when first invoked during a real incident.
+
+|===
+
+== Requirements
+
+* Critical user journeys MUST continue in a degraded mode when non-essential dependencies fail.
+* Fallback behavior, default responses, and feature degradation order MUST be documented.
+* Degradation paths MUST be tested in staging and during chaos experiments.
+* Non-critical features MUST be tiered so lower-priority functions can be disabled first.
+
+== Implementation Guidance
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Maturity Levels
+
+[cols="1,2,4"]
+|===
+|Level |Name |Criteria
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-rel-120.config.degradation-adr
+
+*Engine:* `config` | *Provider:* any | *Automated:* No
+
+*Graceful degradation must be documented in ADR*
+
+Graceful degradation must be documented in ADR
+
+*Scope:* `file` — `docs/adr/*degradation*.md`
+
+*Assertions:*
+* `exists` attribute_exists — At least one ADR must document graceful degradation strategy.
+
+*Remediation:* Graceful degradation must be documented in ADR
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-rel-120.config.degradation-adr
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-rel-120.config.degradation-adr
+----
+
+---
+
+=== waf-rel-120.config.chaos-test-evidence
+
+*Engine:* `config` | *Provider:* any | *Automated:* No
+
+*Chaos test evidence for fallback paths must exist*
+
+Chaos test evidence for fallback paths must exist
+
+*Scope:* `file` — `docs/reliability/chaos-tests.md`
+
+*Assertions:*
+* `exists` attribute_exists — Chaos tests must demonstrate fallback behavior.
+
+*Remediation:* Chaos test evidence for fallback paths must exist
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-rel-120.config.chaos-test-evidence
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-rel-120.config.chaos-test-evidence
+----
+
+---
+
+
+== Evidence
+
+* Terraform configuration implementing the requirement.
+* Policy, ADR, or standard documenting the requirement.
+* Optional cloud console or API output confirming runtime state.
+
+== Related Controls
+
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-reliability:controls/WAF-REL-110.adoc[WAF-REL-110]
+* xref:pillar-reliability:controls/WAF-REL-130.adoc[WAF-REL-130]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+== Regulatory Mapping
+
+* *SRE Book (Google)*: Chapter 22 – Addressing Cascading Failures
+* *AWS Well-Architected Framework*: REL 9 – Mitigate deployment risks
+* *Azure Well-Architected Framework*: Reliability – Failure mode analysis
+* *NIST CSF 2.0*: RS.RP-01 – Response plan is executed
+

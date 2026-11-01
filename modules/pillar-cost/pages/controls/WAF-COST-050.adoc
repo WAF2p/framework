@@ -3,209 +3,356 @@
 :control-id: WAF-COST-050
 :pillar: cost
 :severity: high
-:category: architectural-cost-debt
-:automated: partial
-:description: WAF++ Cost Optimization – Wirtschaftliche Bewertung jeder Architekturentscheidung als primäre Prävention architektonischer Kostenschuld.
+:category: cost-governance
+:automatable: High
+:description: Every Architecture Decision Record (ADR) covering infrastructure changes MUST include a structured Cost Impact Assessment section. The assessment MUST cover: TCO estimate (EUR/year), lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year), exit cost estimate, and 3-year NPV. ADRs with lock-in risk score >= 4 require Architecture Board approval before implementation. This control is the primary prevention mechanism for Architectural Cost Debt.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Architectural Cost Debt | *Automatisierbar:* Teilweise
+*Pillar:* Cost | *Severity:* High | *Category:* Cost Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Jedes Architecture Decision Record (ADR) mit Infrastruktur-Impact MUSS eine strukturierte
-Cost-Impact-Assessment-Sektion enthalten mit: TCO-Schätzung (EUR/Jahr), Lock-in-Risiko-Score (1–5),
-Datentransfer-Kostenschätzung, Betriebsaufwand (FTE/Jahr), Exit-Kosten-Schätzung und 3-Jahres-NPV.
-
-ADRs mit Lock-in-Score >= 4 erfordern die Genehmigung des Architecture Boards vor der Implementierung.
-
-Dieser Control ist der primäre Prävention-Mechanismus für Architektonische Kostenschuld.
+Every Architecture Decision Record (ADR) covering infrastructure changes MUST include a structured Cost Impact Assessment section. The assessment MUST cover: TCO estimate (EUR/year), lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year), exit cost estimate, and 3-year NPV. ADRs with lock-in risk score >= 4 require Architecture Board approval before implementation. This control is the primary prevention mechanism for Architectural Cost Debt.
 
 == Rationale
 
-Architektonische Kostenschuld entsteht genau in dem Moment, in dem eine Infrastrukturentscheidung
-ohne vollständige wirtschaftliche Bewertung getroffen wird. Einmal implementiert, ist die
-Kostenstruktur für Jahre eingefroren. Cost-Impact-Assessments in ADRs erzwingen die wirtschaftliche
-Bewertung beim einzigen Zeitpunkt, zu dem die Entscheidung noch geändert werden kann.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Architektonische Kostenschuld*
-|Kostenstrukturen, die sich in der Architektur festsetzen, ohne je bewertet worden zu sein.
+|*Risk* |Architecture decisions without cost consideration lead to lock-in and unaccountable spending.
 
-|*Vendor Lock-in ohne Rechtfertigung*
-|Proprietäre Services ohne Exit-Plan und ohne wirtschaftliche Begründung des Lock-ins.
-
-|*HA-Over-Engineering*
-|Multi-AZ/Multi-Region ohne SLO-Anforderung, die dies begründet: versteckte monatliche Zusatzkosten.
-
-|*TCO-Unterschätzung*
-|FTE-Betriebsaufwand, Lizenzkosten und Exit-Kosten werden systematisch aus Evaluierungen ausgeblendet.
+|*Risk* |Missing lock-in assessment complicates future contract negotiations and cloud migration.
 
 |===
 
-== Lock-in-Risiko-Score
+== Requirements
 
-[cols="1,2,3"]
+* Every Architecture Decision Record (ADR) covering infrastructure changes MUST include a structured Cost Impact Assessment section.
+* The assessment MUST cover: TCO estimate (EUR/year), lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year), exit cost estimate, and 3-year NPV.
+
+== Implementation Guidance
+
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+
+== Maturity Levels
+
+[cols="1,2,4"]
 |===
-|Score |Bewertung |Beispiele
+|Level |Name |Criteria
 
-|*1*
-|Kaum Lock-in
-|Standard-APIs, Open-Source, portables Datenformat, einfacher Anbieterwechsel
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Geringer Lock-in
-|Geringe Proprietarität; Alternativen verfügbar; überschaubarer Migrationsaufwand
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Mittlerer Lock-in
-|Proprietäre APIs, aber Alternativen vorhanden; Migration mit moderatem Aufwand
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Hoher Lock-in ⚠️
-|Starke Proprietarität; Migration teuer; **erfordert Architecture-Board-Genehmigung**
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Extremer Lock-in 🔴
-|Migration sehr teuer oder praktisch unmöglich; **erfordert Architecture-Board-Genehmigung**
-
-|===
-
-== ADR-Template Cost-Impact-Sektion
-
-[source,markdown]
-----
-## Cost Impact Assessment (WAF-COST-050)
-
-| Dimension            | Bewertung                          |
-|---------------------|------------------------------------|
-| Geschätzte TCO/Jahr | XX.XXX EUR                         |
-| Lock-in-Risiko      | X/5 – [Begründung]                 |
-| Datentransfer-Kosten | ~XXX EUR/Monat                    |
-| Betriebsaufwand     | X.X FTE/Jahr                       |
-| Exit-Kosten (est.)  | ~XX.XXX EUR                        |
-| 3-Jahres-NPV        | -XX.XXX EUR                        |
-
-**Kostenschuld-Risiko:** Gering / Mittel / Hoch
-
-**Begründung:** [Warum ist diese Entscheidung trotz Kosten/Lock-in die richtige?]
-
-**Cost-Debt-Register:** [CD-YYYY-XXX angelegt / Nicht erforderlich weil ...]
-
-**Architecture-Board-Genehmigung:** [Erforderlich bei Lock-in >= 4]
-----
-
-== Reifegrad-Abstufung
-
-[cols="1,2,3"]
-|===
-|Level |Bezeichnung |Kriterien
-
-|*1*
-|Keine Kosten in ADRs
-|ADR-Template ohne Cost-Sektion; wirtschaftliche Bewertung fehlt systematisch.
-
-|*2*
-|Informelle Kostennotizen
-|Einzelne ADRs erwähnen Kosten, aber ohne strukturiertes Format oder Lock-in-Bewertung.
-
-|*3*
-|Strukturiertes Cost-Assessment in ADRs
-|ADR-Template mit Pflicht-Cost-Sektion; alle neuen ADRs vollständig ausgefüllt; AB-Review für Score >= 4.
-
-|*4*
-|TCO-Modell mit Actuals-Vergleich
-|TCO-Schätzungen aus ADRs werden nach 6 Monaten mit tatsächlichen Kosten verglichen.
-
-|*5*
-|Automatisiertes Cost-Impact aus IaC-Plan
-|Infracost o.ä. im PR-Pipeline; automatische Lock-in-Score-Ableitung aus Ressourcentypen.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-050.tf.any.high-lockin-resource-tagged
-*Prüft:* Hochpropietäre Ressourcen müssen `lock-in-risk`-Tag tragen.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
 
-a|[source,hcl]
+*High lock-in resources must be tagged with lock-in risk score*
+
+Resources from services with inherently high vendor lock-in (proprietary streaming, proprietary database services, complex managed services) should be tagged with 'lock-in-risk' to document that the lock-in was consciously evaluated. This check validates that the tag exists on known high-lock-in resource types.
+
+*Scope:* `resource` — `aws_kinesis_stream`, `aws_kinesis_firehose_delivery_stream`, `aws_redshift_cluster`, `aws_neptune_cluster`, `aws_msk_cluster`, `azurerm_service_bus_namespace`, `azurerm_eventhub_namespace`, `azurerm_synapse_workspace`, `google_spanner_instance`, `google_bigquery_dataset`, `stackit_opensearch_instance`, `stackit_redis_instance`, `stackit_mysql_instance`, `ovh_dedicated_server`, `hcloud_server`
+
+*Assertions:*
+* `tags` key exists — High lock-in resource must have 'lock-in-risk' tag (value: 1-5) documenting conscious evaluation.
+
+*Remediation:* Add 'lock-in-risk' tag (value: 1-5) to document that vendor lock-in was consciously evaluated. Tag value 4 or 5 requires an ADR with Architecture Board approval. See docs/adr/ for the ADR template with Cost Impact Assessment section.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_kinesis_stream" "events" {
   name        = "payment-events"
   shard_count = 4
 
   tags = merge(module.mandatory_tags.tags, {
-    lock-in-risk  = "4"
+    lock-in-risk = "4"  # High lock-in; ADR-0042 documents cost impact assessment
     adr-reference = "ADR-0042"
   })
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_kinesis_stream" "events" {
   name        = "payment-events"
   shard_count = 4
   tags = {
     cost-center = "data-team"
-    # lock-in-risk Tag fehlt
-    # Kein Nachweis der Lock-in-Bewertung
-    # WAF-COST-050 Violation
+    # Missing lock-in-risk tag – no evidence of lock-in evaluation
   }
 }
 ----
+
+---
+
+=== waf-cost-050.config.any.cost-governance
+
+*Engine:* `config` | *Provider:* any | *Automated:* Yes
+
+*ADR documents must include Cost Impact Assessment section*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-050-cost-governance.md` and document the provider-agnostic implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/cost/waf-cost-050-cost-governance.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-050-cost-governance.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-050-cost-governance.md`. State the requirement, how it is implemented for provider-agnostic, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/cost/waf-cost-050-cost-governance.md:
+- The provider-agnostic implementation of WAF-COST-050 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/cost/waf-cost-050-cost-governance.md` is missing or does not contain a normative requirement.
+# WAF-COST-050 violation: provider-agnostic control is not documented
+----
+
+---
+
+=== waf-cost-050.config.azurerm.cost-impact-assessment
+
+*Engine:* `config` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure-specific Cost Impact Assessment policy must exist*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-050-azure-cost-impact-assessment.md` and document how Azure-specific ADRs implement the Cost Impact Assessment requirement.
+
+*Scope:* `file` — `docs/cost/waf-cost-050-azure-cost-impact-assessment.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-050-azure-cost-impact-assessment.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-050-azure-cost-impact-assessment.md`. Include TCO estimate (EUR/year), lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year), exit cost estimate, and 3-year NPV. Lock-in risk >= 4 requires Architecture Board approval.
+
+.Compliant
+
+[source,text]
+----
+docs/cost/waf-cost-050-azure-cost-impact-assessment.md:
+- Azure ADRs MUST include Cost Impact Assessment section.
+- Lock-in risk >= 4 requires Architecture Board approval.
+- Owner and review cadence are documented.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/cost/waf-cost-050-azure-cost-impact-assessment.md` is missing or does not contain a normative requirement.
+# WAF-COST-050 violation: Azure Cost Impact Assessment policy is not documented
+----
+
+---
+
+=== waf-cost-050.config.google.cost-impact-assessment
+
+*Engine:* `config` | *Provider:* google | *Automated:* Yes
+
+*GCP-specific Cost Impact Assessment policy must exist*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-050-gcp-cost-impact-assessment.md` and document how GCP-specific ADRs implement the Cost Impact Assessment requirement.
+
+*Scope:* `file` — `docs/cost/waf-cost-050-gcp-cost-impact-assessment.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-050-gcp-cost-impact-assessment.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-050-gcp-cost-impact-assessment.md`. Include TCO estimate (EUR/year), lock-in risk score (1-5), data transfer cost estimate, operational effort (FTE/year), exit cost estimate, and 3-year NPV. Lock-in risk >= 4 requires Architecture Board approval.
+
+.Compliant
+
+[source,text]
+----
+docs/cost/waf-cost-050-gcp-cost-impact-assessment.md:
+- GCP ADRs MUST include Cost Impact Assessment section.
+- Lock-in risk >= 4 requires Architecture Board approval.
+- Owner and review cadence are documented.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/cost/waf-cost-050-gcp-cost-impact-assessment.md` is missing or does not contain a normative requirement.
+# WAF-COST-050 violation: GCP Cost Impact Assessment policy is not documented
+----
+
+---
+
+=== waf-cost-050.tf.stackit.cost-impact-assessment
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*Every Architecture Decision Record (ADR) covering infrastructure changes... for stackit*
+
+Every Architecture Decision Record (ADR) covering infrastructure changes... must be documented in IaC via a cost-impact-assessment tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the cost-impact-assessment tag/label.
+
+*Remediation:* Add a cost-impact-assessment tag/label to the stackit_project resource to show the stackit implementation of WAF-COST-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    cost-impact-assessment = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing cost-impact-assessment labels
+}
+----
+
+---
+
+=== waf-cost-050.tf.ovh.cost-impact-assessment
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*Every Architecture Decision Record (ADR) covering infrastructure changes... for ovh*
+
+Every Architecture Decision Record (ADR) covering infrastructure changes... must be documented in IaC via a cost-impact-assessment tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the cost-impact-assessment tag/label.
+
+*Remediation:* Add a cost-impact-assessment tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-COST-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    cost-impact-assessment = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing cost-impact-assessment tags
+}
+----
+
+---
+
+=== waf-cost-050.tf.hcloud.cost-impact-assessment
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Every Architecture Decision Record (ADR) covering infrastructure changes... for hcloud*
+
+Every Architecture Decision Record (ADR) covering infrastructure changes... must be documented in IaC via a cost-impact-assessment tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the cost-impact-assessment tag/label.
+
+*Remediation:* Add a cost-impact-assessment tag/label to the hcloud_server resource to show the hcloud implementation of WAF-COST-050 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    cost-impact-assessment = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing cost-impact-assessment labels
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* `lock-in-risk`-Tag (Wert: 1–5) auf alle hochproprietären Ressourcen setzen.
-Bei Score 4–5: ADR mit Architecture-Board-Genehmigung erforderlich.
+== Related Controls
 
-== Evidenz
+* xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+* xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-100.adoc[WAF-PERF-100]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Architecture*
-|✅ Pflicht
-|ADR-Dokumente mit ausgefüllter Cost-Impact-Assessment-Sektion.
-
-|*Governance*
-|✅ Pflicht
-|Architecture-Board-Genehmigungen für ADRs mit Lock-in-Score >= 4.
-
-|*Architecture*
-|Optional
-|Infracost oder Cost-Estimation-Tool-Output für Infrastrukturänderungen.
-
-|*Process*
-|Optional
-|Cost-Debt-Register-Einträge verlinkt zu ADRs.
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*FinOps Foundation*
-|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
-
-|*ISO 20000*
-|Service financial management – cost allocation
-
-|*Internal Governance*
-|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
+|FinOps Foundation |* Operate Phase – Architecture and Cost Governance
+* FinOps Principles – Everyone Takes Ownership of Their Cloud Usage
 
 |===
-
-== Verwandte Controls

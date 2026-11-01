@@ -1,0 +1,108 @@
+id: WAF-PERF-120
+title: Database workloads MUST undergo regular index and query performance reviews
+status: active
+tags:
+- configuration
+- efficiancy
+- governance
+- medium
+pillar: efficiancy
+severity: medium
+type:
+- governance
+- configuration
+category: logging-monitoring
+rationale: Lokale oder manipulierbare Logs verhindern forensische Analysen und erschweren regulatorische Nachweise erheblich.
+  Dieses Control adressiert die Anforderungen des Bereichs 'Logging Monitoring' und stellt sicher, dass All production databases
+  MUST enable query performance insights, slow-query logging, or execution pl...
+threat:
+- Unreviewed slow queries accumulate until they become critical latency or availability incidents.
+- Missing indexes force full table scans, increasing cost and degrading user experience.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-120.adoc
+  related_controls:
+  - WAF-PERF-010
+  - WAF-PERF-020
+  - WAF-PERF-030
+  - WAF-COST-030
+  - WAF-OPS-050
+  - WAF-REL-110
+description: All production databases MUST enable query performance insights, slow-query logging, or execution plan analysis.
+  Slow queries exceeding defined latency thresholds MUST be reviewed monthly and optimized. Indexes MUST be justified by query
+  patterns and revisited as access patterns evolve. Query review results MUST be documented in a performance register.
+regulatory_mapping:
+- framework: AWS Well-Architected Framework
+  controls:
+  - PERF 04 – Optimize data patterns
+- framework: Azure Well-Architected Framework
+  controls:
+  - Performance Efficiency – Data storage
+checks:
+- id: waf-perf-120.tf.aws.rds-performance-insights
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS RDS instances must enable Performance Insights
+  description: AWS RDS instances must enable Performance Insights
+  expected: 'true'
+  remediation: AWS RDS instances must enable Performance Insights
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_db_instance
+    - aws_rds_cluster_instance
+  assertions:
+  - attribute: performance_insights_enabled
+    op: is_true
+    message: RDS must have Performance Insights enabled for query review.
+  on_fail: finding
+- id: waf-perf-120.config.query-review-register
+  engine: config
+  provider: any
+  automated: false
+  title: Database query review register must exist
+  description: Database query review register must exist
+  expected: 'true'
+  remediation: Database query review register must exist
+  scope:
+    block_type: file
+    path_pattern: docs/performance/db-query-review.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Database query review register must document review cadence and owners.
+  on_fail: finding

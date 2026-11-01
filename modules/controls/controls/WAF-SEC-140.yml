@@ -1,0 +1,179 @@
+id: WAF-SEC-140
+title: Web Application Firewall and DDoS protection MUST be enabled for public endpoints
+status: active
+tags:
+- architecture
+- configuration
+- high
+- security
+pillar: security
+severity: high
+type:
+- configuration
+- architecture
+category: network-security
+rationale: Unzureichender Netzwerkschutz und fehlende DDoS-Abwehr ermöglichen externe Angriffe, Serviceunterbrechungen und
+  Datendiebstahl. Dieses Control adressiert die Anforderungen des Bereichs 'Network Security' und stellt sicher, dass All
+  internet-facing applications and APIs MUST be protected by a Web Application Firewall (WAF) with...
+threat:
+- Unprotected public endpoints are directly exposed to SQL injection, XSS, and other OWASP Top 10 attacks.
+- Missing DDoS protection allows trivial disruption of services by saturating network or application capacity.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-security/pages/controls/WAF-SEC-140.adoc
+  related_controls:
+  - WAF-SEC-040
+  - WAF-SEC-050
+  - WAF-SEC-080
+  - WAF-SEC-160
+  - WAF-SEC-010
+  - WAF-REL-110
+  - WAF-AGN-110
+description: All internet-facing applications and APIs MUST be protected by a Web Application Firewall (WAF) with managed
+  rule sets. Distributed Denial-of-Service (DDoS) protection MUST be enabled at the network and application layers. WAF rules
+  MUST block common attack patterns (OWASP Top 10) and be reviewed quarterly. Rate limiting MUST be configured to mitigate
+  abuse and volumetric attacks.
+regulatory_mapping:
+- framework: ISO 27001:2022
+  controls:
+  - A.8.9 – Configuration management
+  - A.8.16 – Monitoring activities
+  - A.8.23 – Web filtering
+- framework: CIS Controls v8
+  controls:
+  - CIS 13 – Network Monitoring and Defense
+- framework: PCI DSS v4.0
+  controls:
+  - Req 1 – Install and maintain network security controls
+  - Req 6.4 – Prevent common vulnerabilities
+- framework: SOC 2 Type II
+  controls:
+  - CC6.6 – Security infrastructure and software
+  - CC7.2 – System monitoring
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: NIS2
+  controls:
+  - Art. 21(2)(d) – Network and information security
+- framework: DORA
+  controls:
+  - Art. 9 – Protection and prevention
+- framework: EUCS (ENISA)
+  controls:
+  - NS-03 – Network security
+- framework: BSI C5:2020
+  controls:
+  - INF-03 – Network security
+  - INF-04 – Communication security
+- framework: NIST SP 800-53
+  controls:
+  - SC-7 – Boundary Protection
+  - SI-4 – Information System Monitoring
+- framework: NIST CSF 2.0
+  controls:
+  - PR.DS-01 – Data security
+checks:
+- id: waf-sec-140.tf.aws.waf-associated
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS public ALB/CloudFront distributions must have an associated WAFv2 WebACL
+  description: AWS public ALB/CloudFront distributions must have an associated WAFv2 WebACL
+  expected: 'true'
+  remediation: AWS public ALB/CloudFront distributions must have an associated WAFv2 WebACL
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_wafv2_web_acl_association
+    - aws_cloudfront_distribution
+  assertions:
+  - attribute: web_acl_arn
+    op: attribute_exists
+    message: Public resource must be associated with a WAFv2 WebACL.
+  on_fail: violation
+- id: waf-sec-140.tf.azurerm.front-door-waf
+  engine: terraform
+  provider: azurerm
+  automated: true
+  title: Azure Front Door/CDN must use WAF policy with managed rules
+  description: Azure Front Door/CDN must use WAF policy with managed rules
+  expected: 'true'
+  remediation: Azure Front Door/CDN must use WAF policy with managed rules
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_cdn_endpoint_security_policy
+    - azurerm_frontdoor_firewall_policy
+  assertions:
+  - attribute: managed_rule
+    op: attribute_exists
+    message: WAF policy must include managed rule sets.
+  on_fail: violation
+- id: waf-sec-140.tf.google.cloud-armor
+  engine: terraform
+  provider: google
+  automated: true
+  title: GCP backend services must be protected by Cloud Armor security policy
+  description: GCP backend services must be protected by Cloud Armor security policy
+  expected: 'true'
+  remediation: GCP backend services must be protected by Cloud Armor security policy
+  scope:
+    block_type: resource
+    resource_types:
+    - google_compute_backend_service
+    - google_compute_backend_bucket
+  assertions:
+  - attribute: security_policy
+    op: attribute_exists
+    message: Backend service must reference a Cloud Armor security policy.
+  on_fail: violation
+- id: waf-sec-140.config.sovereign-provider-waf-documented
+  engine: config
+  provider: any
+  automated: false
+  title: Sovereign provider public endpoints must have WAF/DDoS configuration documented
+  description: Sovereign provider public endpoints must have WAF/DDoS configuration documented
+  expected: 'true'
+  remediation: Sovereign provider public endpoints must have WAF/DDoS configuration documented
+  scope:
+    block_type: file
+    path_pattern: docs/security/waf-ddos.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: WAF/DDoS documentation must exist for sovereign provider public endpoints.
+  on_fail: finding

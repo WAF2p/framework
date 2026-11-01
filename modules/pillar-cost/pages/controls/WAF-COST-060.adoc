@@ -3,109 +3,78 @@
 :control-id: WAF-COST-060
 :pillar: cost
 :severity: medium
-:category: finops-governance
-:automated: low
-:description: WAF++ Cost Optimization – Obligatorischer monatlicher Engineering- und quartalsweiser Architecture-Board-Review-Zyklus.
+:category: cost-governance
+:automatable: High
+:description: Monthly engineering-level FinOps reviews MUST take place for all production workloads. Quarterly Architecture Board reviews covering cost debt and strategic cost decisions MUST occur. Review outputs (action items with owner and due date) MUST be documented in writing and accessible in the team's task tracking system. Reviews are mandatory, not optional – absence of reviews is a control failure.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* Medium | *Kategorie:* FinOps Governance | *Automatisierbar:* Niedrig–Mittel
+*Pillar:* Cost | *Severity:* Medium | *Category:* Cost Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Monatliche Engineering-Level-FinOps-Reviews MÜSSEN für alle Produktions-Workloads stattfinden.
-Quartalsweise Architecture-Board-Reviews mit Cost-Debt-Governance MÜSSEN durchgeführt werden.
-Review-Outputs (Action Items mit Owner und Fälligkeit) MÜSSEN schriftlich dokumentiert sein.
-Reviews sind verpflichtend – nicht optional.
+Monthly engineering-level FinOps reviews MUST take place for all production workloads. Quarterly Architecture Board reviews covering cost debt and strategic cost decisions MUST occur. Review outputs (action items with owner and due date) MUST be documented in writing and accessible in the team's task tracking system. Reviews are mandatory, not optional – absence of reviews is a control failure.
 
 == Rationale
 
-FinOps ohne strukturierte Review-Zyklen ist Aspiration, keine Praxis.
-Cloud-Kosten ändern sich kontinuierlich: Workload-Wachstum, neue Services, Preisänderungen.
-Ohne regelmäßige Reviews werden Optimierungen reaktiv und ad-hoc.
-Strukturierte Reviews mit Action Items und Owners transformieren Cost-Management von reaktivem
-Firefighting zu proaktiver Disziplin.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Nicht umgesetzte Optimierungen*
-|Cloud-Provider-Empfehlungen werden nie eingebracht – weil kein Prozess existiert.
+|*Risk* |Uncontrolled cloud spend erodes budget and project viability.
 
-|*Unbemerkte Kostenschuld*
-|Cost-Debt akkumuliert quartalsweise ohne Architecture-Board-Oversight.
-
-|*Wiederholte Budget-Überschreitungen*
-|Ohne Post-Mortem und Review werden dieselben Fehler jeden Monat wiederholt.
-
-|*Unkontrolliertes Wachstum*
-|Teams wachsen in Kosten, ohne diese zu kennen – normalisierte Kostensorglosigkeit.
+|*Risk* |High lock-in or debt decisions are made without financial impact visibility.
 
 |===
 
-== Monatlicher Review: Pflicht-Agenda
+== Requirements
 
-[source,text]
-----
-1. Aktueller Kostenstand vs. Budget (Δ zum Vormonat, Prognose)
-2. Top-3-Kostentreiber des Monats
-3. Anomalien und Alert-Events der letzten 30 Tage
-4. Rightsizing-Empfehlungen (Compute Optimizer / Azure Advisor / GCP Recommender)
-5. Action Items (Owner, Fälligkeitsdatum, erwartete Einsparung)
-6. Status offener Action Items aus Vormonat
-----
+* Monthly engineering-level FinOps reviews MUST take place for all production workloads.
+* Quarterly Architecture Board reviews covering cost debt and strategic cost decisions MUST occur.
+* Review outputs (action items with owner and due date) MUST be documented in writing and accessible in the team's task tracking system.
 
-== Quarterly Architecture Board: Pflicht-Agenda
+== Implementation Guidance
 
-[source,text]
-----
-1. Gesamtkosten-Trend des Quartals
-2. Cost-Debt-Register: neue Einträge, Paydown-Fortschritt, Status-Updates
-3. ADR-Reviews mit Lock-in-Score >= 3 des Quartals
-4. Reservierungsstrategie (RI/SP-Portfolio)
-5. Sign-off und nächste Schritte
-----
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Ad-hoc-Reviews
-|Reviews nur bei Kostenspielen; keine Planung.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Monatliche Reviews (informell)
-|Monatliche Besprechungen, aber ohne strukturierte Agenda oder dokumentierte Action Items.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Strukturierter Review-Zyklus mit Owners
-|Monatliche Reviews mit Pflicht-Agenda; Action Items mit Owner und Fälligkeit; Quarterly AB-Review.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Anomalie-getriggerte Reviews
-|Cost-Anomalie-Alerts triggern unplante Reviews; Cloud-Provider-Empfehlungen automatisch in Agenda.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Continuous FinOps mit Real-Time-Dashboard
-|Real-Time-Cost-Dashboards in Engineering-Portalen; automatisierte Cost-Efficiency-Score.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-060.tf.any.finops-review-tag-current
-*Prüft:* Workload-Ressourcen sollten `last-finops-review`-Tag mit aktuellem Datum haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* any | *Automated:* Yes
 
-a|[source,hcl]
+*Workload resources should have current 'last-finops-review' tag*
+
+Workload infrastructure resources should carry a 'last-finops-review' tag with the date (YYYY-MM-DD) of the last FinOps review. A stale review tag (> 45 days old) indicates the review cadence is not being maintained. This tag is a lightweight operational proof of an active review process.
+
+*Scope:* `resource` — `aws_instance`, `aws_eks_cluster`, `aws_rds_cluster`, `azurerm_kubernetes_cluster`, `azurerm_virtual_machine_scale_set`, `google_container_cluster`, `stackit_project`, `ovh_cloud_project`, `hcloud_server`
+
+*Assertions:*
+* `tags` key exists — Resource is missing 'last-finops-review' tag. Monthly FinOps reviews required.
+
+*Remediation:* After each monthly FinOps review, update the 'last-finops-review' tag on workload resources to the current date. This can be automated in CI as part of the review process. Value format: YYYY-MM-DD.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_eks_cluster" "main" {
   name     = "payment-service-prod"
@@ -119,85 +88,271 @@ resource "aws_eks_cluster" "main" {
   version = "1.29"
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_eks_cluster" "main" {
   name     = "payment-service-prod"
   role_arn = aws_iam_role.eks.arn
-  # Kein last-finops-review Tag
-  # Kein Nachweis des Review-Prozesses
+  # Missing last-finops-review tag – no evidence of review process
 }
 ----
-|===
 
-*Remediation:* Nach jedem monatlichen FinOps-Review `last-finops-review`-Tag
-auf Workload-Ressourcen aktualisieren. Format: `YYYY-MM-DD`.
+---
 
-== Action-Item-Tracker Beispiel
+=== waf-cost-060.config.any.cost-governance
 
-[source,yaml]
+*Engine:* `config` | *Provider:* any | *Automated:* Yes
+
+*Cost Debt Register file must exist in repository*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-060-cost-governance.md` and document the provider-agnostic implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/cost/waf-cost-060-cost-governance.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-060-cost-governance.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-060-cost-governance.md`. State the requirement, how it is implemented for provider-agnostic, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
 ----
-# action-items/2025-03.yml
-month: "2025-03"
-team: "platform-team"
-
-action_items:
-  - id: AI-2025-03-001
-    title: "3 idle dev-Instanzen abschalten"
-    owner: "platform-team"
-    due: "2025-03-31"
-    expected_saving_eur_month: 180
-    status: "open"
-
-  - id: AI-2025-03-002
-    title: "Log-Group-Retention von unbegrenzt auf 30d"
-    owner: "platform-team"
-    due: "2025-03-15"
-    expected_saving_eur_month: 45
-    status: "done"
-    actual_saving_eur_month: 42
+docs/cost/waf-cost-060-cost-governance.md:
+- The provider-agnostic implementation of WAF-COST-060 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
 ----
 
-== Evidenz
+.Non-Compliant
 
-[cols="1,1,2"]
+[source,text]
+----
+# `docs/cost/waf-cost-060-cost-governance.md` is missing or does not contain a normative requirement.
+# WAF-COST-060 violation: provider-agnostic control is not documented
+----
+
+---
+
+=== waf-cost-060.config.azurerm.finops-review-cadence
+
+*Engine:* `config` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure-specific FinOps review cadence policy must exist*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-060-azure-finops-review-cadence.md` and document how Azure production workloads receive monthly engineering-level FinOps reviews and quarterly Architecture Board cost debt reviews.
+
+*Scope:* `file` — `docs/cost/waf-cost-060-azure-finops-review-cadence.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-060-azure-finops-review-cadence.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-060-azure-finops-review-cadence.md`. Define monthly review schedule, attendees, required outputs (action items with owner and due date), and quarterly Architecture Board review entry.
+
+.Compliant
+
+[source,text]
+----
+docs/cost/waf-cost-060-azure-finops-review-cadence.md:
+- Azure workloads MUST be reviewed monthly by the engineering team.
+- Architecture Board reviews cost debt quarterly.
+- Action items have owner and due date recorded in the task tracker.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/cost/waf-cost-060-azure-finops-review-cadence.md` is missing or does not contain a normative requirement.
+# WAF-COST-060 violation: Azure FinOps review cadence is not documented
+----
+
+---
+
+=== waf-cost-060.config.google.finops-review-cadence
+
+*Engine:* `config` | *Provider:* google | *Automated:* Yes
+
+*GCP-specific FinOps review cadence policy must exist*
+
+A version-controlled policy document must exist at `docs/cost/waf-cost-060-gcp-finops-review-cadence.md` and document how GCP production workloads receive monthly engineering-level FinOps reviews and quarterly Architecture Board cost debt reviews.
+
+*Scope:* `file` — `docs/cost/waf-cost-060-gcp-finops-review-cadence.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/cost/waf-cost-060-gcp-finops-review-cadence.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/cost/waf-cost-060-gcp-finops-review-cadence.md`. Define monthly review schedule, attendees, required outputs (action items with owner and due date), and quarterly Architecture Board review entry.
+
+.Compliant
+
+[source,text]
+----
+docs/cost/waf-cost-060-gcp-finops-review-cadence.md:
+- GCP workloads MUST be reviewed monthly by the engineering team.
+- Architecture Board reviews cost debt quarterly.
+- Action items have owner and due date recorded in the task tracker.
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/cost/waf-cost-060-gcp-finops-review-cadence.md` is missing or does not contain a normative requirement.
+# WAF-COST-060 violation: GCP FinOps review cadence is not documented
+----
+
+---
+
+=== waf-cost-060.tf.stackit.finops-review-tag
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT resources must carry a current FinOps review tag*
+
+STACKIT resources must carry a current FinOps review tag. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_server`, `stackit_ske_cluster`, `stackit_ske_node_pool`, `stackit_object_storage_bucket`
+
+*Assertions:*
+* `labels.finops-review` key exists — STACKIT resource is missing the 'finops-review' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-060.tf.ovh.finops-review-tag
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud resources must carry a current FinOps review tag*
+
+OVHcloud resources must carry a current FinOps review tag. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_instance`, `ovh_vps`, `ovh_dedicated_server`, `ovh_cloud_project_kube`, `ovh_cloud_project_kube_nodepool`
+
+*Assertions:*
+* `tags.finops-review` key exists — OVHcloud resource is missing the 'finops-review' tag.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-060.tf.hcloud.finops-review-tag
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud resources must carry a current FinOps review tag*
+
+Hetzner Cloud resources must carry a current FinOps review tag. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_volume`, `hcloud_load_balancer`
+
+*Assertions:*
+* `labels.finops-review` key exists — Hetzner Cloud resource is missing the 'finops-review' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Kind |Required |Description
 
-|*Process*
-|✅ Pflicht
-|Monatliche FinOps-Review-Protokolle der letzten 3 Monate mit Action-Item-Liste.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|Quarterly Architecture-Board-Review-Protokoll mit Cost-Debt-Sign-off.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*IaC*
-|Optional
-|Workload-Ressourcen mit `last-finops-review`-Tag (aktuell).
-
-|*Config*
-|Optional
-|Action-Item-Tracker-Export mit Erledigungsrate.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
+== Related Controls
 
-== Regulatorisches Mapping
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-100.adoc[WAF-PERF-100]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatory Mapping
 
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*FinOps Foundation*
-|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
-
-|*ISO 20000*
-|Service financial management – cost allocation
-
-|*Internal Governance*
-|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
+|FinOps Foundation |* Operate Phase – Review Cadence and Continuous Improvement
+* FinOps Principles – Teams Need Timely and Accurate Data
 
 |===
-
-== Verwandte Controls

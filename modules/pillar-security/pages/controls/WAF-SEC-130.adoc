@@ -2,116 +2,223 @@
 :page-toc: right
 :control-id: WAF-SEC-130
 :pillar: security
-:severity: medium
-:category: data-governance
-:automated: mittel
-:description: WAF++ Security – Datenklassifizierung und kategoriengerechter Schutz: Tags, Verschlüsselung und Zugriffskontrolle nach Schutzstufe.
+:severity: high
+:category: identity-access
+:automatable: High
+:description: All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters) MUST carry a 'data-class' tag indicating the sensitivity level (e.g., public, internal, confidential, pii, health, financial). Resources classified as 'pii', 'health', or 'financial' MUST be encrypted with a customer-managed KMS key (CMK). Database instances MUST have publicly_accessible set to false. S3 buckets MUST have public access blocked via aws_s3_bucket_public_access_block with all four block settings enabled. No data store containing personal data under GDPR scope MUST be directly reachable from the internet.
 
 [.metadata]
-*Pillar:* Security | *Severity:* Medium | *Kategorie:* Data Governance | *Automatisierbar:* Mittel
+*Pillar:* Security | *Severity:* High | *Category:* Identity Access | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Cloud-Datenspeicher (S3-Buckets, RDS-Instanzen, DynamoDB-Tabellen, ElastiCache-Cluster)
-MÜSSEN mit einem `data-classification`-Tag versehen sein, der die Datenschutzstufe angibt:
-`public`, `internal`, `confidential` oder `restricted`.
-Ressourcen mit Klassifizierung `confidential` oder `restricted` MÜSSEN mit kundenverwalteten
-KMS-Schlüsseln (CMK) verschlüsselt sein – AWS-verwaltete Standardschlüssel sind nicht ausreichend.
-S3-Buckets MÜSSEN Block-Public-Access konfiguriert haben (`block_public_acls` und `block_public_policy = true`).
-Ein organisationales Data-Classification-Register MUSS im Repository verfügbar sein.
+All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters) MUST carry a 'data-class' tag indicating the sensitivity level (e.g., public, internal, confidential, pii, health, financial). Resources classified as 'pii', 'health', or 'financial' MUST be encrypted with a customer-managed KMS key (CMK). Database instances MUST have publicly_accessible set to false. S3 buckets MUST have public access blocked via aws_s3_bucket_public_access_block with all four block settings enabled. No data store containing personal data under GDPR scope MUST be directly reachable from the internet.
 
 == Rationale
 
-Ohne Datenklassifizierung werden alle Daten identisch behandelt – entweder alles maximal abgesichert
-(unnötig teuer und friction-intensiv) oder alle Daten mit demselben niedrigen Schutzniveau (zu wenig
-für sensible Daten). Klassifizierung ermöglicht proportionalen, nachweisbaren Schutz: Öffentliche Daten
-benötigen keine CMK-Verschlüsselung; personenbezogene oder Geschäftsgeheimnisse benötigen die stärksten
-Schutzmaßnahmen. Tags als Klassifizierungsmechanismus ermöglichen automatische Compliance-Prüfungen.
-Der `data-classification`-Tag ist der Startpunkt für alle datenschutzbezogenen Sicherheitsentscheidungen.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Versehentliche Exposition sensibler Daten*
-|Ohne Klassifizierung sind S3-Buckets mit PII oder Geschäftsgeheimnissen von öffentlich zugänglichen Buckets nicht zu unterscheiden.
+|*Risk* |Sensitive data is exposed if storage or transport lacks strong encryption.
 
-|*Falsche Verschlüsselungsstufe*
-|Hochsensible Daten mit AWS-Default-Keys haben schwächere Zugangskontrolle als mit CMK; der Cloud-Provider kann theoretisch zugreifen.
-
-|*DSGVO-Verstoß durch fehlende Differenzierung*
-|Art. 25 DSGVO erfordert Privacy by Design; ohne Klassifizierung ist Data Protection by Design nicht umsetzbar.
-
-|*Audit-Failure durch mangelnde Nachvollziehbarkeit*
-|Auditoren erwarten eine nachvollziehbare Zuordnung von Schutzmaßnahmen zu Datenkategorien; ohne Klassifizierung ist das nicht möglich.
+|*Risk* |Compromised keys or weak key rotation extend the blast radius of a breach.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Alle Datenspeicher-Ressourcen MÜSSEN einen `data-classification`-Tag mit einem der erlaubten Werte haben: `public`, `internal`, `confidential`, `restricted`.
-* Ressourcen mit `confidential` oder `restricted` MÜSSEN einen `kms_key_id`-Verweis auf einen CMK haben.
-* Alle S3-Buckets MÜSSEN `block_public_acls = true` und `block_public_policy = true` konfiguriert haben (via `aws_s3_bucket_public_access_block`).
-* RDS-Instanzen DÜRFEN NICHT `publicly_accessible = true` sein.
-* Ein Data-Classification-Register (`data-classification-register.yml` oder äquivalent) MUSS im Repository verfügbar und aktuell gehalten werden.
+* All data-storing resources (S3 buckets, RDS instances, DynamoDB tables, ElastiCache clusters) MUST carry a 'data-class' tag indicating the sensitivity level (e.g., public, internal, confidential, pii, health, financial).
+* Resources classified as 'pii', 'health', or 'financial' MUST be encrypted with a customer-managed KMS key (CMK).
+* Database instances MUST have publicly_accessible set to false.
+* S3 buckets MUST have public access blocked via aws_s3_bucket_public_access_block with all four block settings enabled.
+* No data store containing personal data under GDPR scope MUST be directly reachable from the internet.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Klassifizierungsschema definieren*: Vier Stufen (public/internal/confidential/restricted) mit konkreten Beispieldaten und Schutzanforderungen pro Stufe dokumentieren.
-. *Data-Classification-Register erstellen*: YAML-Datei im Repository mit Mapping: Datentyp → Klassifizierung → Storage-Ressource → verantwortliches Team.
-. *Tags in Terraform setzen*: `data-classification`-Tag zu allen `aws_s3_bucket`, `aws_db_instance`, `aws_dynamodb_table`, `aws_elasticache_cluster`-Ressourcen.
-. *S3 Block Public Access*: `aws_s3_bucket_public_access_block`-Ressource für alle Buckets mit allen vier Flags auf `true`.
-. *RDS public access deaktivieren*: `publicly_accessible = false` in allen `aws_db_instance`-Ressourcen.
-. *CMK für confidential/restricted*: In Terraform-Variable-Validation oder CI-Check prüfen, dass Ressourcen mit diesen Tags einen CMK-ARN haben.
-. *Amazon Macie aktivieren* (optional): Automatisierte PII-Discovery für S3-Buckets via `aws_macie2_account`.
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Datenklassifizierung
-|Keine Klassifizierungsrichtlinie; alle Daten gleich behandelt; keine Data-Classification-Tags; öffentliche S3-Buckets ohne Kontrolle.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Klassifizierungsrichtlinie dokumentiert
-|Klassifizierungsschema dokumentiert; manuelle Umsetzung; keine technische Durchsetzung.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Tags erzwungen; grundlegender Schutz implementiert
-|`data-classification`-Tags auf allen Datenspeichern CI-seitig erzwungen; S3 Block Public Access überall aktiv; RDS nicht öffentlich.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Compliance nach Klassifizierung
-|CMK-Prüfung für confidential/restricted automatisiert; Data-Classification-Register gepflegt; Amazon Macie aktiv.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Dynamisches DLP und DSGVO-Art.-30-Dokumentation*
-|Echtzeitbasierte DLP-Erkennung; automatisch generiertes Art.-30-Verarbeitungsverzeichnis aus Data-Classification-Register; vollständige Datenherkunft.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
-=== waf-sec-130.tf.aws.s3-block-public-access
-*Prüft:* Alle S3-Buckets müssen Block-Public-Access aktiviert haben.
+=== waf-sec-130.tf.aws.data-class-tag-required
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*Data-storing resources must carry a data-class tag*
+
+All data-storing resources (S3 buckets, RDS instances, RDS clusters, DynamoDB tables, ElastiCache clusters) must carry a 'data-class' tag indicating the sensitivity level of data stored in the resource. This tag enables automated policy enforcement, access control decisions, and GDPR Art. 30 data inventory generation.
+
+*Scope:* `resource` — `aws_s3_bucket`, `aws_db_instance`, `aws_rds_cluster`, `aws_dynamodb_table`, `aws_elasticache_cluster`
+
+*Assertions:*
+* `tags` key exists — Data-storing resource MUST carry a 'data-class' tag (e.g., public, internal, confidential, pii, health, financial).
+
+*Remediation:* Add a 'data-class' tag to all data-storing resources with a value from the approved classification taxonomy (e.g., "public", "internal", "confidential", "pii", "health", "financial"). Enforce mandatory tagging via an AWS Config rule (required-tags) or an SCP denying CreateBucket, CreateDBInstance, CreateTable API calls without the required tag. Implement a tagging standard in your Terraform module library to make compliant resource creation the default path.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_db_instance" "app_db" {
+  identifier        = "prod-application-db"
+  engine            = "postgres"
+  engine_version    = "16.1"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.rds_pii.arn
+  publicly_accessible = false
+  db_subnet_group_name = aws_db_subnet_group.private.name
+
+  tags = {
+    environment = "production"
+    owner       = "application-team"
+    data-class  = "pii"       # Required data classification tag
+  }
+}
+
+resource "aws_dynamodb_table" "sessions" {
+  name         = "user-sessions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.dynamodb_internal.arn
+  }
+
+  tags = {
+    environment = "production"
+    data-class  = "internal"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_db_instance" "app_db" {
+  identifier        = "prod-application-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  # No tags at all – WAF-SEC-130 violation: data-class tag required
+  # No storage_encrypted – encryption required for classified data
+  # No publicly_accessible = false – WAF-SEC-130 violation (check 2)
+}
+----
+
+---
+
+=== waf-sec-130.tf.aws.db-not-publicly-accessible
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Database instances and clusters must not be publicly accessible*
+
+All aws_db_instance and aws_rds_cluster resources must have publicly_accessible set to false to prevent direct database access from the internet. Publicly accessible databases expose authentication endpoints to brute-force attacks and vulnerability exploitation and are among the most common causes of catastrophic data breaches.
+
+*Scope:* `resource` — `aws_db_instance`, `aws_rds_cluster`
+
+*Assertions:*
+* `publicly_accessible` is false — Database instance or cluster MUST NOT be publicly accessible. Set publicly_accessible = false and place in private subnet.
+
+*Remediation:* Set publicly_accessible = false on all aws_db_instance and aws_rds_cluster resources. Place database resources in a private subnet group (aws_db_subnet_group) using subnets with no route to an Internet Gateway. Applications must connect to databases via private VPC networking; use AWS Systems Manager Session Manager port forwarding or a bastion host with restricted access for administrative database connections.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_db_instance" "main" {
+  identifier             = "prod-db"
+  engine                 = "postgres"
+  engine_version         = "16.1"
+  instance_class         = "db.t3.medium"
+  allocated_storage      = 100
+  storage_encrypted      = true
+  kms_key_id             = aws_kms_key.rds.arn
+  db_subnet_group_name   = aws_db_subnet_group.private.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  publicly_accessible    = false
+  deletion_protection    = true
+
+  tags = {
+    environment = "production"
+    data-class  = "confidential"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_db_instance" "main" {
+  identifier          = "prod-db"
+  engine              = "postgres"
+  instance_class      = "db.t3.medium"
+  allocated_storage   = 100
+  publicly_accessible = true   # WAF-SEC-130 critical violation: database exposed to internet
+  # No subnet group specified – may default to public subnets
+  # No storage_encrypted – encryption not configured
+}
+----
+
+---
+
+=== waf-sec-130.tf.aws.s3-public-access-blocked
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*S3 buckets must have all public access block settings enabled*
+
+All aws_s3_bucket_public_access_block resources must have block_public_acls, block_public_policy, ignore_public_acls, and restrict_public_buckets all set to true. All four settings are required to fully prevent S3 buckets from being made public through any mechanism including ACLs, bucket policies, or presigned URL configurations.
+
+*Scope:* `resource` — `aws_s3_bucket_public_access_block`
+
+*Assertions:*
+* `block_public_acls` is true — S3 public access block: block_public_acls must be true.
+* `block_public_policy` is true — S3 public access block: block_public_policy must be true.
+* `ignore_public_acls` is true — S3 public access block: ignore_public_acls must be true.
+* `restrict_public_buckets` is true — S3 public access block: restrict_public_buckets must be true.
+
+*Remediation:* Create an aws_s3_bucket_public_access_block resource for every aws_s3_bucket resource with all four settings set to true. Additionally, enable the S3 account-level block public access setting via the AWS Console or CLI to provide a safety net for any buckets created outside of Terraform. Use aws_s3_bucket_ownership_controls with object_ownership = "BucketOwnerEnforced" to disable ACL-based access entirely.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket" "data" {
-  bucket = "myapp-prod-data"
+  bucket = "company-application-data-prod"
   tags = {
-    "data-classification" = "confidential"
-    owner                 = "platform-team"
-    environment           = "production"
+    environment = "production"
+    data-class  = "confidential"
   }
 }
 
@@ -122,162 +229,550 @@ resource "aws_s3_bucket_public_access_block" "data" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
-----
-a|[source,hcl]
-----
-resource "aws_s3_bucket" "data" {
-  bucket = "myapp-prod-data"
-  # data-classification Tag fehlt – WAF-SEC-130 Violation
-}
-# aws_s3_bucket_public_access_block fehlt
-# WAF-SEC-130 Violation: kein Public-Access-Block
-----
-|===
 
-*Remediation:* `aws_s3_bucket_public_access_block`-Ressource mit allen vier Flags auf `true` für jeden S3-Bucket erstellen. Alle Datenspeicher-Ressourcen mit `data-classification`-Tag versehen.
-
----
-
-=== waf-sec-130.tf.aws.rds-not-publicly-accessible
-*Prüft:* RDS-Instanzen dürfen nicht öffentlich zugänglich sein.
-
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
-
-a|[source,hcl]
-----
-resource "aws_db_instance" "app" {
-  identifier         = "app-prod-db"
-  engine             = "postgres"
-  instance_class     = "db.t3.medium"
-  allocated_storage  = 100
-  publicly_accessible = false
-  tags = {
-    "data-classification" = "confidential"
+resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3.arn
+    }
+    bucket_key_enabled = true
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_db_instance" "app" {
-  identifier          = "app-prod-db"
-  engine              = "postgres"
-  instance_class      = "db.t3.medium"
-  allocated_storage   = 100
-  publicly_accessible = true
-  # WAF-SEC-130 Violation: Datenbank öffentlich zugänglich
+resource "aws_s3_bucket" "data" {
+  bucket = "company-application-data-prod"
+  # No aws_s3_bucket_public_access_block – WAF-SEC-130 critical violation
+  # Bucket defaults may allow public access via ACL or bucket policy
+}
+
+resource "aws_s3_bucket_public_access_block" "data_partial" {
+  bucket                  = aws_s3_bucket.data.id
+  block_public_acls       = true
+  block_public_policy     = false   # WAF-SEC-130 violation: bucket policy can make bucket public
+  ignore_public_acls      = true
+  restrict_public_buckets = false   # WAF-SEC-130 violation: public bucket access not restricted
 }
 ----
+
+---
+
+=== waf-sec-130.tf.azurerm.data-class-tag
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure data-storing resources must carry a data-class tag*
+
+All Azure resources that store or process data (azurerm_storage_account, azurerm_mssql_database, azurerm_postgresql_server, azurerm_key_vault) must carry a data-class tag with a value from the approved taxonomy.
+
+*Scope:* `resource` — `azurerm_storage_account`, `azurerm_mssql_database`, `azurerm_postgresql_server`, `azurerm_key_vault`
+
+*Assertions:*
+* `tags.data-class` attribute exists — Azure data-storing resource must carry a data-class tag.
+
+*Remediation:* Add a 'data-class' tag to all data-storing Azure resources. Use values from the approved classification taxonomy (e.g., 'public', 'internal', 'confidential', 'pii').
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "app" {
+  name                     = "appstorage"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+  tags = {
+    data-class = "confidential"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "app" {
+  name                     = "appstorage"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+  # data-class tag missing
+}
+----
+
+---
+
+=== waf-sec-130.tf.azurerm.sql-no-public-network
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure SQL and PostgreSQL servers must disallow public network access*
+
+All azurerm_mssql_server and azurerm_postgresql_server resources must set public_network_access_enabled = false.
+
+*Scope:* `resource` — `azurerm_mssql_server`, `azurerm_postgresql_server`
+
+*Assertions:*
+* `public_network_access_enabled` is false — Azure SQL/PostgreSQL server must disable public network access.
+
+*Remediation:* Set public_network_access_enabled = false on every Azure SQL and PostgreSQL server. Connect via private endpoints or VNet service endpoints.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_mssql_server" "app" {
+  name                         = "app-sql"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = azurerm_resource_group.main.location
+  version                      = "12.0"
+  administrator_login          = "sqladmin"
+  administrator_login_password = var.sql_password
+  public_network_access_enabled = false
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_mssql_server" "app" {
+  name                         = "app-sql"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = azurerm_resource_group.main.location
+  version                      = "12.0"
+  administrator_login          = "sqladmin"
+  administrator_login_password = var.sql_password
+  # public_network_access_enabled defaults to true
+}
+----
+
+---
+
+=== waf-sec-130.tf.azurerm.storage-no-public-blob
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Storage accounts must disallow public blob access*
+
+All azurerm_storage_account resources must set allow_nested_items_to_public_access = false (or allow_blob_public_access = false depending on provider version) to prevent anonymous blob access.
+
+*Scope:* `resource` — `azurerm_storage_account`
+
+*Assertions:*
+* `allow_nested_items_to_public_access` is false — Azure Storage account must disallow public blob access.
+
+*Remediation:* Set allow_nested_items_to_public_access = false on every azurerm_storage_account resource. Review existing containers and blobs for public access and remove it.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "app" {
+  name                             = "appstorage"
+  resource_group_name              = azurerm_resource_group.main.name
+  location                         = azurerm_resource_group.main.location
+  account_tier                     = "Standard"
+  account_replication_type           = "GRS"
+  allow_nested_items_to_public_access = false
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "app" {
+  name                             = "appstorage"
+  resource_group_name              = azurerm_resource_group.main.name
+  location                         = azurerm_resource_group.main.location
+  account_tier                     = "Standard"
+  account_replication_type         = "GRS"
+  # allow_nested_items_to_public_access defaults to true
+}
+----
+
+---
+
+=== waf-sec-130.tf.google.data-class-label
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP data-storing resources must carry a data-class label*
+
+All GCP resources that store or process data (google_storage_bucket, google_sql_database_instance, google_secret_manager_secret, google_kms_crypto_key) must carry a data-class label.
+
+*Scope:* `resource` — `google_storage_bucket`, `google_sql_database_instance`, `google_secret_manager_secret`, `google_kms_crypto_key`
+
+*Assertions:*
+* `labels.data-class` attribute exists — GCP data-storing resource must carry a data-class label.
+
+*Remediation:* Add a 'data-class' label to all GCP data-storing resources. Use values from the approved classification taxonomy.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "app" {
+  name          = "app-bucket"
+  location      = "EU"
+  force_destroy = false
+  labels = {
+    data-class = "confidential"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "app" {
+  name          = "app-bucket"
+  location      = "EU"
+  force_destroy = false
+  # data-class label missing
+}
+----
+
+---
+
+=== waf-sec-130.tf.google.sql-no-public-ip
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*Google Cloud SQL instances must not have a public IP address*
+
+All google_sql_database_instance resources must set settings.ip_configuration.ipv4_enabled = false to prevent public internet access.
+
+*Scope:* `resource` — `google_sql_database_instance`
+
+*Assertions:*
+* `settings.ip_configuration.ipv4_enabled` is false — Cloud SQL instance must disable public IPv4 access.
+
+*Remediation:* Set ipv4_enabled = false in the ip_configuration block of every Cloud SQL instance. Connect via private IP or Cloud SQL Proxy.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "main" {
+  name             = "app-db"
+  database_version = "POSTGRES_15"
+  region           = "europe-west3"
+  settings {
+    tier = "db-custom-2-7680"
+    ip_configuration {
+      ipv4_enabled    = false
+      private_network = google_compute_network.main.id
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_sql_database_instance" "main" {
+  name             = "app-db"
+  database_version = "POSTGRES_15"
+  region           = "europe-west3"
+  settings {
+    tier = "db-custom-2-7680"
+    ip_configuration {
+      # ipv4_enabled defaults to true
+    }
+  }
+}
+----
+
+---
+
+=== waf-sec-130.tf.google.storage-public-access-prevention
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*Google Cloud Storage buckets must enforce public access prevention*
+
+All google_storage_bucket resources must set public_access_prevention = "enforced" and enable uniform_bucket_level_access to prevent anonymous access via ACLs.
+
+*Scope:* `resource` — `google_storage_bucket`
+
+*Assertions:*
+* `public_access_prevention` equals `enforced` — Cloud Storage bucket must enforce public access prevention.
+* `uniform_bucket_level_access` is true — Cloud Storage bucket must use uniform bucket-level access.
+
+*Remediation:* Set public_access_prevention = "enforced" and uniform_bucket_level_access = true on every google_storage_bucket resource.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "app" {
+  name          = "app-bucket"
+  location      = "EU"
+  force_destroy = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_storage_bucket" "app" {
+  name          = "app-bucket"
+  location      = "EU"
+  force_destroy = false
+  # public_access_prevention defaults to "inherited"
+}
+----
+
+---
+
+=== waf-sec-130.tf.stackit.load-balancer-tls
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT load balancers must enforce TLS 1.2 or higher*
+
+stackit_load_balancer resources terminating TLS must use TLS 1.2 or higher with a valid certificate. Weak protocols and ciphers must be disabled.
+
+*Scope:* `resource` — `stackit_load_balancer`
+
+*Assertions:*
+* `name` attribute exists — STACKIT load balancer must be configured with TLS 1.2+ and a valid certificate.
+
+*Remediation:* Configure stackit_load_balancer listeners to use TLS 1.2+ and strong cipher suites. Use certificates from a trusted CA or STACKIT-managed certificate service.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_load_balancer" "app" {
+  project_id = var.stackit_project_id
+  name       = "app-lb"
+  # listener configured with TLS 1.2+ and valid certificate
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_load_balancer" "app" {
+  project_id = var.stackit_project_id
+  name       = "app-lb"
+  # WAF-SEC-130 violation: TLS 1.0/1.1 or self-signed certificate
+}
+----
+
+---
+
+=== waf-sec-130.config.ovh.ovh-identity-access
+
+*Engine:* `config` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud public endpoints must enforce TLS 1.2 or higher*
+
+A version-controlled policy document must exist at `docs/security/waf-sec-130-ovh-identity-access.md` and document the OVHcloud implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/security/waf-sec-130-ovh-identity-access.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/security/waf-sec-130-ovh-identity-access.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/security/waf-sec-130-ovh-identity-access.md`. State the requirement, how it is implemented for OVHcloud, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/security/waf-sec-130-ovh-identity-access.md:
+- The OVHcloud implementation of WAF-SEC-130 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/security/waf-sec-130-ovh-identity-access.md` is missing or does not contain a normative requirement.
+# WAF-SEC-130 violation: OVHcloud control is not documented
+----
+
+---
+
+=== waf-sec-130.tf.hcloud.load-balancer-tls
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud load balancers must enforce TLS 1.2 or higher*
+
+hcloud_load_balancer services terminating TLS must use TLS 1.2 or higher with a valid certificate. Weak protocols and ciphers must be disabled.
+
+*Scope:* `resource` — `hcloud_load_balancer`
+
+*Assertions:*
+* `name` attribute exists — Hetzner Cloud load balancer must be configured with TLS 1.2+ and a valid certificate.
+
+*Remediation:* Configure hcloud_load_balancer services to use TLS 1.2+ and upload a valid certificate. Disable weak protocols and ciphers.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_load_balancer" "app" {
+  name               = "app-lb"
+  load_balancer_type = "lb11"
+  location           = "fsn1"
+}
+
+# hcloud_load_balancer_service configured with TLS 1.2+ certificate
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_load_balancer" "app" {
+  name               = "app-lb"
+  load_balancer_type = "lb11"
+  location           = "fsn1"
+  # WAF-SEC-130 violation: TLS 1.0/1.1 or self-signed certificate
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* `publicly_accessible = false` zu allen `aws_db_instance`- und `aws_rds_cluster`-Ressourcen setzen. Zugriff aus Anwendungen erfolgt über private VPC-Netzwerke.
+== Related Controls
 
-== Evidenz
+* xref:pillar-security:controls/WAF-SEC-120.adoc[WAF-SEC-120]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-security:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+* xref:pillar-security:controls/WAF-SEC-100.adoc[WAF-SEC-100]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-090.adoc[WAF-SEC-090]
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Governance*
-|✅ Pflicht
-|Data-Classification-Register mit Zuordnung Datentyp → Klassifizierung → Storage-Ressource.
-
-|*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration aller Datenspeicher mit `data-classification`-Tag und `aws_s3_bucket_public_access_block`.
-
-|*Config*
-|Optional
-|Amazon Macie Aktivierungs-Screenshot und aktueller Findings-Bericht für S3-Buckets.
-
-|*Process*
-|Optional
-|Jährlicher Data-Classification-Review mit Nachweis, dass Register aktuell ist.
-
-|===
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
+|ISO 27001:2022 |* A.5.12 – Classification of information
+* A.5.13 – Labelling of information
+* A.8.10 – Information deletion
+* A.8.11 – Data masking
+* A.8.24 – Use of cryptography
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+|ISO 27017 |* CLD.8.1 – Asset management in cloud services
 
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+|ISO 27018 |* A.2 – Purpose legitimacy and PII protection
+* A.10 – Confidentiality and security of PII
 
-|*GDPR*
-|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 32 – Security of processing
+|CIS Controls v8 |* CIS 3 – Data Protection
+* CIS 3.7 – Establish and maintain a data classification scheme
 
-|*BSI C5:2020*
-|IDM-01 – Identity and access management policy; IDM-02 – Role management; IDM-03 – User lifecycle management; COM-01 – Network and service security; COM-02 – Cloud monitoring
+|CSA STAR |* CCM DSP-01 – Data Classification
+* CCM DSP-02 – Data Inventory and Flow
+* CCM DSP-09 – Data Protection by Design
 
-|*EUCS (ENISA)*
-|IAM-01 – Identity and access management; IAM-02 – Access rights management; IAM-03 – Privileged access management
+|PCI DSS v4.0 |* Req 3 – Protect stored cardholder data
 
-|*NIST SP 800-53*
-|AC-1 – Policy and procedures; AC-2 – Account management; AC-3 – Access enforcement; AC-6 – Least privilege; IA-2 – Identification and authentication; SI-4 – Information system monitoring
+|SOC 2 Type II |* C1.1 – Confidentiality of information
+* P1 – Privacy criteria
 
-|*FedRAMP*
-|AC-1, AC-2, AC-3, AC-6, IA-2 (Moderate/High baseline)
+|GDPR |* Art. 5(1)(c) – Data minimisation
+* Art. 5(1)(f) – Integrity and confidentiality
+* Art. 9 – Special categories of personal data
+* Art. 25 – Data protection by design and by default
+* Art. 30 – Records of processing activities
+* Art. 32 – Security of processing
 
-|*HIPAA*
-|§ 164.308(a)(4) – Access management; § 164.312(a) – Access control; § 164.312(d) – Information system activity review
+|NIS2 |* Art. 21(2)(e) – Security in handling of data
 
-|*PCI DSS v4.0*
-|Req 7 – Restrict access to cardholder data; Req 8 – Identify and authenticate access; Req 8.3 – Non-service accounts
+|DORA |* Art. 9 – Protection and prevention
 
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC6.2 – Logical access security management; CC6.6 – Secure configuration
+|EUCS (ENISA) |* DSP-01 – Data classification and handling
+* DSP-02 – Data lifecycle management
 
-|*CSRD*
-|ESRS E1 – Climate change; ESRS G1 – Governance
+|BSI C5:2020 |* AM-04 – Data classification and handling
+* CRY-03 – Encryption of stored data
 
-|*NIST CSF 2.0*
-|GV.AC – Identity management and access control; DE.CM – Configuration management
+|IT-Grundschutz |* ORP.4 – Schutzbedarfsfeststellung
+* CON.2 – Datenschutz
 
-|*CIS Controls v8*
-|CIS 4 – Secure Configuration; CIS 4.4 – Access control; CIS 4.5 – Least privilege
+|TISAX |* Information security – Information classification and protection
+* Prototype protection – Sensitive data handling
 
-|*TISAX*
-|Information security – Access rights management
+|ANSSI SecNumCloud |* Domain – Data classification and protection
 
-|*ANSSI SecNumCloud*
-|Domain – Identity and access management; Domain – Security monitoring
+|BIO |* BIO – Classificatie en bescherming van informatie
 
-|*BIO*
-|BIO – Identificatie en authenticatie; BIO – Toegangsbeheer
+|ENS High |* mp.info.1 – Datos de carácter personal
+* mp.info.2 – Calificación de la información
 
-|*ENS High*
-|org.3 – Políticas de acceso; op.exp.5 – Monitorización de la configuración
+|UK NCSC CAF |* B3.a – Understanding data
+* B3.b – Data in transit
 
-|*UK NCSC CAF*
-|B1 – Access control; B2 – Secure configuration
+|UK GDPR |* Art. 5(1)(f) – Integrity and confidentiality
+* Art. 25 – Data protection by design
+* Art. 32 – Security of processing
 
-|*CMMC 2.0*
-|AC.L2-3.1.1 – Access control policy; AC.L2-3.5.1 – Access enforcement
+|NIST SP 800-53 |* MP-1 – Media Protection Policy
+* RA-2 – Security Categorization
+* SC-28 – Protection of Information at Rest
 
-|*IRAP*
-|ISM – Identity and access management; ISM – Access control
+|NIST CSF 2.0 |* ID.AM-05 – Resources are prioritized based on classification
+* PR.DS-01 – Data-at-rest is protected
 
-|*CCCS PBMM*
-|AC-6 – Least privilege; AC-7 – Unsuccessful logon attempts
+|FedRAMP |* MP-1, RA-2, SC-28 (Moderate/High baseline)
 
-|*MAS TRM*
-|Ch.4 – Identity and access management; Ch.8 – Security monitoring
+|HIPAA |* § 164.312(a)(2)(iv) – Encryption and decryption
+* § 164.514 – De-identification of PHI
 
-|*ISMAP*
-|Access control and identity management
+|CMMC 2.0 |* MP.L2-3.8.1 – Protect CUI on system media
+* SC.L2-3.13.16 – Protect CUI confidentiality at rest
 
-|*FISC*
-|Operational measures – Access control
+|IRAP |* ISM – Information classification and handling
+
+|CCCS PBMM |* RA-2, SC-28 – Information categorization and protection
+
+|MAS TRM |* Ch.5 – Information classification and data management
+
+|ISMAP |* Information classification and protection
+
+|FISC |* Operational measures – Information classification
 
 |===
-
-== Verwandte Controls

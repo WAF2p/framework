@@ -1,0 +1,111 @@
+id: WAF-COST-120
+title: Reserved capacity and savings plans MUST be reviewed and documented for steady-state workloads
+status: active
+tags:
+- configuration
+- cost
+- governance
+- medium
+pillar: cost
+severity: medium
+type:
+- governance
+- configuration
+category: cost-governance
+rationale: Fehlende Commitment-Planung und Dokumentation führen zu Budgetüberschreitungen und verschwendeten Cloud-Ausgaben.
+  Dieses Control adressiert die Anforderungen des Bereichs 'Cost Governance' und stellt sicher, dass Workloads with predictable
+  baseline utilization MUST be evaluated for Reserved Instances, Reserved V...
+threat:
+- Persistent on-demand usage for predictable workloads wastes up to 60-70% of compute budget.
+- Unmonitored reservation expiration silently reverts workloads to expensive on-demand rates.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-cost/pages/controls/WAF-COST-120.adoc
+  related_controls:
+  - WAF-COST-080
+  - WAF-COST-020
+  - WAF-COST-050
+  - WAF-COST-110
+  - WAF-OPS-060
+  - WAF-REL-130
+description: Workloads with predictable baseline utilization MUST be evaluated for Reserved Instances, Reserved VM Instances,
+  Committed Use Discounts, or Savings Plans. The reservation decision and coverage ratio MUST be documented in IaC or a FinOps
+  register. Unused reservations MUST be reviewed quarterly and reallocated or sold where supported. Expiration dates MUST
+  be tracked to avoid lapse into on-demand pricing.
+regulatory_mapping:
+- framework: FinOps Foundation
+  controls:
+  - Optimize Phase – Rate Optimization
+  - Commitment-Based Discounts
+- framework: ITIL 4
+  controls:
+  - Financial Management – Budgeting and cost optimization
+checks:
+- id: waf-cost-120.tf.aws.savings-plan
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS savings plans or reserved capacity must exist for steady-state compute
+  description: AWS savings plans or reserved capacity must exist for steady-state compute
+  expected: 'true'
+  remediation: AWS savings plans or reserved capacity must exist for steady-state compute
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_savingsplans_plan
+    - aws_ec2_host
+    - aws_ec2_capacity_reservation
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: Reservation or savings plan must be defined for steady-state workloads.
+  on_fail: advisory
+- id: waf-cost-120.config.reservation-register
+  engine: config
+  provider: any
+  automated: false
+  title: Reservation decisions must be documented in FinOps register
+  description: Reservation decisions must be documented in FinOps register
+  expected: 'true'
+  remediation: Reservation decisions must be documented in FinOps register
+  scope:
+    block_type: file
+    path_pattern: docs/finops/reservation-register.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Reservation register must document coverage ratio, expiration, and owner.
+  on_fail: finding

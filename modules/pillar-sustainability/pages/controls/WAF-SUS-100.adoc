@@ -3,255 +3,293 @@
 :control-id: WAF-SUS-100
 :pillar: sustainability
 :severity: low
-:category: sustainability-governance
-:automated: low
-:description: WAF++ Sustainability – Sustainability-Schulden dokumentieren, vierteljährlich reviewen und als Governance-Risiko adressieren. CSRD-Nachweis für aktive Sustainability-Governance.
+:category: cost-governance
+:automatable: High
+:description: Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability posture and target state across all WAF-SUS controls. The register MUST be reviewed and updated at least quarterly. Each entry MUST include: estimated carbon impact, remediation priority, owner, and target resolution date. Sustainability debt MUST be treated as a governance risk item and reported in the organization's ESG or sustainability report. Quarterly reviews MUST produce measurable progress against reduction targets.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Low | *Kategorie:* Sustainability Governance | *Automatisierbar:* Niedrig
+*Pillar:* Sustainability | *Severity:* Low | *Category:* Cost Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Organisationen MÜSSEN ein Sustainability Debt Register führen, das alle bekannten Lücken
-zwischen aktuellem Zustand und Zielzustand dokumentiert.
-Das Register MUSS mindestens quartalsweise reviewed und aktualisiert werden.
-Jeder Eintrag MUSS geschätzten CO₂-Impact, Remediation-Priorität, Owner und Ziel-Auflösungsdatum enthalten.
-Sustainability-Schulden MÜSSEN als Governance-Risiko behandelt und in ESG/CSRD-Berichten referenziert werden.
-AWS Config Rules SOLLEN für Sustainability-relevante Ressourcentypen aktiviert sein.
+Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability posture and target state across all WAF-SUS controls. The register MUST be reviewed and updated at least quarterly. Each entry MUST include: estimated carbon impact, remediation priority, owner, and target resolution date. Sustainability debt MUST be treated as a governance risk item and reported in the organization's ESG or sustainability report. Quarterly reviews MUST produce measurable progress against reduction targets.
 
 == Rationale
 
-Sustainability-Verbesserungen entstehen nicht spontan — sie erfordern deliberate Governance.
-Ein Sustainability Debt Register macht bekannte Lücken sichtbar, zugeordnet und terminiert.
-Ohne es optimieren Teams lokal, während strukturelle Sustainability-Schulden still akkumulieren.
-CSRD verlangt von Organisationen, ihren Sustainability-Governance-Prozess zu beschreiben —
-ein aktives Debt Register mit Quartalsreviews ist der operative Nachweis dafür.
-Analogie zu technischer Schuld: Sustainability Debt wächst wenn nicht aktiv adressiert.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*CSRD-Governance-Lücke*
-|Fehlende Dokumentation bekannter Sustainability-Gaps ist ein CSRD-Governance-Finding: "keine aktive Verwaltung".
+|*Risk* |Undocumented sustainability debt prevents targeted optimization and budget approvals.
 
-|*Ungetrackte Optimierungspotenziale*
-|Bekannte x86-Altlasten, fehlende Lifecycle-Policies und Idle-Ressourcen bleiben unpriorisiert ohne Register.
-
-|*SBTi-Zielverfehlung*
-|Ohne dokumentierten Remediation-Backlog sind SBTi-Scope-3-Ziele nicht planbar oder verfolgbar.
-
-|*Engineering-Silos*
-|Ohne zentrales Register optimiert jedes Team nach eigenem Ermessen; Cross-Team-Synergien bleiben ungenutzt.
+|*Risk* |Missing prioritization of green-debt items lets inefficient workloads run unchanged.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Sustainability Debt Register MUSS existieren und versioniert sein (Git oder dokumentiertes Tool)
-* Jeder Eintrag MUSS enthalten: Control-Referenz, Beschreibung, CO₂-Impact-Schätzung, Owner, Zieldatum
-* Quarterly Review MUSS dokumentiert sein (Meeting-Protokoll oder Ticket)
-* Sustainability-Schulden MÜSSEN in Engineering-Backlogs priorisiert werden
-* AWS-Ressourcen SOLLEN `sustainability-reviewed`-Tag mit Datum des letzten Reviews tragen
-* CSRD/ESG-Report SOLL auf aktiven Debt-Register-Governance-Prozess referenzieren
+* Organizations MUST maintain a Sustainability Debt Register documenting all known gaps between current sustainability posture and target state across all WAF-SUS controls.
+* The register MUST be reviewed and updated at least quarterly.
+* Each entry MUST include: estimated carbon impact, remediation priority, owner, and target resolution date.
+* Sustainability debt MUST be treated as a governance risk item and reported in the organization's ESG or sustainability report.
+* Quarterly reviews MUST produce measurable progress against reduction targets.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Register erstellen*: YAML-Datei in Architecture-Repository; oder Jira-Label `sustainability-debt` für alle betroffenen Tickets
-. *WAF-SUS-Assessment*: Für alle 10 Controls aktuellen Reifegrad bewerten; Lücken als Debt-Items erfassen
-. *Carbon-Impact schätzen*: Niedrig/Mittel/Hoch/Kritisch; für wichtige Items tCO₂e/Jahr schätzen
-. *Owner zuweisen*: Jeder Debt-Item braucht einen verantwortlichen Team-Owner; kein Item ohne Owner
-. *Quarterly Cadence*: Fester Kalender-Termin; Protokoll mit: Items geschlossen, Items hinzugefügt, Gesamtfortschritt
-. *Engineering-Integration*: Debt-Items in Sprint-Planning als `sustainability`-Epics oder -Stories
-. *Tag-Governance*: `sustainability-reviewed = "YYYY-MM-DD"` auf alle Tier-1-Compute-Ressourcen
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Governance
-|Keine Dokumentation; kein Review-Prozess; keine Ownership; Sustainability ist nicht Engineering-Thema.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Informelle Awareness
-|Team hat informelle Liste bekannter Probleme; kein formales Register; kein Review-Zyklus.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Register + Quarterly Review
-|Formales Register mit allen WAF-SUS-Gaps; Owner + Zieldatum; vierteljährliches Review dokumentiert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Leadership-Reporting + Carbon-Savings
-|Quartalsbericht an Engineering-Leadership; geschlossene Items zeigen dokumentierte CO₂-Einsparungen.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|OKR + Automatisierte Health Checks
-|Sustainability-Debt-Reduktion als OKR; automatisierte Compliance-Checks aktualisieren Register; Net-Zero-Roadmap.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
-=== waf-sus-100.tf.aws.tag-sustainability-reviewed
-*Prüft:* Compute-Ressourcen tragen `sustainability-reviewed`-Tag.
+=== waf-sus-100.tf.aws.config-rule-sustainability-governance
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS Config rules should be enabled for sustainability-relevant resource types*
+
+AWS Config provides continuous monitoring of resource configuration compliance. Enabling Config rules for sustainability-relevant resource types (EC2 instance types, S3 lifecycle policies, CloudWatch log retention) enables automated detection of sustainability debt as it is created.
+
+*Scope:* `resource` — `aws_config_config_rule`
+
+*Assertions:*
+* `name` attribute exists — AWS Config rule must have a name.
+* `source` attribute exists — AWS Config rule must have a source configuration.
+
+*Remediation:* Enable AWS Config and create managed rules for: required-tags, ec2-instance-managed-by-ssm, cloudwatch-log-group-retention-period-check, s3-lifecycle-policy-check. These rules provide continuous monitoring of the most common sources of sustainability debt.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu_arm.id
-  instance_type = "m7g.large"
-  tags = {
-    environment             = "production"
-    workload                = "payment-service"
-    owner                   = "platform-team"
-    sustainability-reviewed = "2026-01-15"
-  }
-}
-----
-a|[source,hcl]
-----
-resource "aws_instance" "app" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "m4.large"
-  tags = {
-    Name = "payment-app"
-    # WAF-SUS-100 Warning: kein sustainability-reviewed Tag
-    # AND: Previous-Gen-Instanz (WAF-SUS-020 Violation)
-  }
-}
-----
-|===
-
-*Remediation:* `sustainability-reviewed = "YYYY-MM-DD"` zu allen Tier-1-Compute-Ressourcen hinzufügen. Quartalsweise nach Review-Termin aktualisieren.
-
----
-
-=== waf-sus-100.tf.aws.config-rule-sustainability
-*Prüft:* AWS Config Rules für Sustainability-relevante Ressourcentypen konfiguriert.
-
-[source,hcl]
-----
-# Compliant: AWS Config Rule für Log-Retention-Prüfung (Sustainability-Governance)
 resource "aws_config_config_rule" "log_retention" {
   name        = "cloudwatch-log-group-retention-period-check"
-  description = "WAF-SUS-100: Detects CloudWatch log groups without retention (sustainability debt)"
+  description = "Checks that CloudWatch log groups have retention policy set (sustainability debt detection)"
 
   source {
     owner             = "AWS"
     source_identifier = "CLOUD_WATCH_LOG_GROUP_RETENTION_PERIOD_CHECK"
   }
-  input_parameters = jsonencode({ MinRetentionTime = "14" })
+
+  input_parameters = jsonencode({
+    MinRetentionTime = "14"
+  })
 
   tags = {
-    purpose = "sustainability-governance"
-    control = "WAF-SUS-100"
+    purpose  = "sustainability-governance"
+    control  = "WAF-SUS-100"
   }
 }
 ----
 
-== Evidenz
+.Non-Compliant
 
-[cols="1,1,2"]
+[source,terraform]
+----
+# No AWS Config rules configured – WAF-SUS-100 Warning
+# Sustainability debt accumulates undetected without automated config compliance
+----
+
+---
+
+=== waf-sus-100.tf.aws.tag-sustainability-reviewed
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Compute resources should have sustainability-reviewed tag to indicate review date*
+
+Resources tagged with 'sustainability-reviewed' demonstrate active governance: the sustainability posture of the resource was explicitly reviewed on the given date. This tag drives the sustainability debt register by identifying stale reviews.
+
+*Scope:* `resource` — `aws_instance`, `aws_eks_cluster`, `aws_ecs_cluster`
+
+*Assertions:*
+* `tags` key exists — Resource has no sustainability-reviewed tag – add date of last sustainability review.
+
+*Remediation:* Add sustainability-reviewed = "YYYY-MM-DD" tag to all major compute resources. Set up quarterly reminder to update this tag after sustainability review. Use AWS Config custom rule to alert when sustainability-reviewed tag is older than 180 days.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu_arm.id
+  instance_type = "m7g.large"
+
+  tags = {
+    environment              = "production"
+    workload                 = "payment-service"
+    owner                    = "platform-team"
+    sustainability-reviewed  = "2026-01-15"  # quarterly review date
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "m4.large"
+
+  tags = {
+    Name        = "payment-app"
+    # WAF-SUS-100 Warning: no sustainability-reviewed tag
+  }
+}
+----
+
+---
+
+=== waf-sus-100.tf.azurerm.sustainability-tag
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure compute resources should have sustainability governance tags*
+
+Azure compute resources should carry a sustainability-reviewed tag indicating the last date the resource's sustainability posture was reviewed as part of the quarterly sustainability debt register process.
+
+*Scope:* `resource` — `azurerm_linux_virtual_machine`, `azurerm_kubernetes_cluster`, `azurerm_container_group`
+
+*Assertions:*
+* `tags` key exists — Azure compute resource has no sustainability-reviewed tag – quarterly review required.
+
+*Remediation:* Add sustainability-reviewed tag with format YYYY-MM-DD to all Azure compute resources. Use Azure Policy to enforce tag presence on resource creation and flag resources where the date is older than 180 days.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name                = "vm-app-prod"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  size                = "Standard_D4ps_v5"
+
+  tags = {
+    environment             = "production"
+    workload                = "payment-service"
+    sustainability-reviewed = "2026-01-15"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_linux_virtual_machine" "app" {
+  name                = "vm-app-prod"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  size                = "Standard_D4_v3"
+  # WAF-SUS-100 Warning: old instance series AND no sustainability-reviewed tag
+}
+----
+
+---
+
+=== waf-sus-100.tf.google.sustainability-debt-label
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP project resources must track sustainability debt via labels*
+
+GCP projects and compute resources should declare whether they carry known sustainability debt via a sustainability-debt-register label, linking to the central register.
+
+*Scope:* `resource` — `google_project`
+
+*Assertions:*
+* `labels` key exists — GCP project must have a sustainability-debt-register label referencing the central register.
+
+*Remediation:* Add a sustainability-debt-register label to google_project resources. The label value should reference the central Sustainability Debt Register document.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_project" "app" {
+  name       = "Application Project"
+  project_id = "app-prod-123"
+  labels = {
+    sustainability-debt-register = "docs/sustainability/debt-register.md"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_project" "app" {
+  name       = "Application Project"
+  project_id = "app-prod-123"
+  # Missing sustainability-debt-register label
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Kind |Required |Description
 
-|*Governance*
-|✅ Pflicht
-|Sustainability Debt Register (versioniert) mit WAF-SUS-Control-Gaps, Owner, Carbon Impact, Zieldatum.
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|Quarterly Review Meeting-Protokolle mit Fortschrittsverfolgung (Items geschlossen, neu, Gesamtstatus).
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Governance*
-|Optional
-|ESG/Annual-Report-Sektion zum Sustainability-Governance-Prozess und aktiven Debt-Register.
-
-|*Process*
-|Optional
-|Engineering-Backlog-Nachweis (Epics/Stories) für Sustainability-Debt-Items in Sprint-Planning.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
+== Related Controls
 
-== Regulatorisches Mapping
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+* xref:pillar-cost:controls/WAF-COST-100.adoc[WAF-COST-100]
+* xref:pillar-efficiancy:controls/WAF-PERF-100.adoc[WAF-PERF-100]
+* xref:pillar-sustainability:controls/WAF-SUS-040.adoc[WAF-SUS-040]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+== Regulatory Mapping
 
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*
-|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+|EU CSRD (Corporate Sustainability Reporting Directive) |* ESRS 2 – General Disclosures: Governance, strategy and management of sustainability matters
+* ESRS E1 – Climate Change: governance of climate-related risks and opportunities
 
-|*GHG Protocol (Corporate Accounting and Reporting Standard)*
-|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+|GHG Protocol |* Corporate Standard – management and governance of GHG inventory
 
-|*Green Software Foundation (GSF)*
-|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+|SBTi (Science Based Targets initiative) |* ICT Sector Guidance – progress tracking and governance
 
-|*SBTi (Science Based Targets initiative)*
-|Target setting methodology; Validation and verification; Corporate target standards
-
-|*ISO 14001:2015*
-|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
-
-|*ISO 14064-1:2018*
-|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing
-
-|*CSRD*
-|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
-
-|*NIST SP 800-53*
-|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
-
-|*TISAX*
-|Information security – Sustainability; Prototype protection – Environmental protection
-
-|*ANSSI SecNumCloud*
-|Domain – Environmental impact
-
-|*BIO*
-|BIO – Milieueffecten
-
-|*ENS High*
-|op.exp.9 – Gestión del impacto ambiental
-
-|*UK NCSC CAF*
-|B6 – Environmental impact
-
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Automated audit logging
-
-|*IRAP*
-|ISM – Environmental monitoring
-
-|*CCCS PBMM*
-|AU-2 – Audit events
-
-|*MAS TRM*
-|Ch.12 – Outsourcing risk management
-
-|*ISMAP*
-|Sustainability and environmental impact
-
-|*FISC*
-|Operational measures – Environmental impact
+|ISO 14001 |* 10.3 – Continual improvement
+* 6.1 – Actions to address risks and opportunities
 
 |===
-
-== Verwandte Controls

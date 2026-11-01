@@ -1,0 +1,169 @@
+= WAF-OPS-110 – GitOps-based deployments SHOULD be preferred for Kubernetes and container workloads
+:page-toc: right
+:control-id: WAF-OPS-110
+:pillar: excellence
+:severity: medium
+:category: deployment-automation
+:automatable: Medium
+:description: Kubernetes and container workloads SHOULD be deployed via GitOps controllers that reconcile desired state from Git. GitOps repositories MUST enforce peer review, branch protection, and signed commits. Controllers MUST report sync status, drift, and errors to observability systems. Manual imperative changes to clusters MUST be reconciled or rejected.
+
+[.metadata]
+*Pillar:* Excellence | *Severity:* 🟡 Medium | *Category:* Deployment Automation | *Automatable:* Medium
+
+== Description
+
+Kubernetes and container workloads SHOULD be deployed via GitOps controllers that reconcile desired state from Git. GitOps repositories MUST enforce peer review, branch protection, and signed commits. Controllers MUST report sync status, drift, and errors to observability systems. Manual imperative changes to clusters MUST be reconciled or rejected.
+
+== Rationale
+
+[cols="1,3"]
+|===
+|Risk |Description
+
+|*Risk* |Imperative cluster changes bypass audit trails and create drift between environments.
+
+|*Risk* |Missing GitOps reconciliation leaves clusters in undocumented, non-reproducible states.
+
+|===
+
+== Requirements
+
+* Kubernetes and container workloads SHOULD be deployed via GitOps controllers that reconcile desired state from Git.
+* GitOps repositories MUST enforce peer review, branch protection, and signed commits.
+* Controllers MUST report sync status, drift, and errors to observability systems.
+* Manual imperative changes to clusters MUST be reconciled or rejected.
+
+== Implementation Guidance
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Maturity Levels
+
+[cols="1,2,4"]
+|===
+|Level |Name |Criteria
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-ops-110.tf.aws.eks-gitops-addon
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*AWS EKS should deploy GitOps agent via EKS add-on or Helm*
+
+AWS EKS should deploy GitOps agent via EKS add-on or Helm
+
+*Scope:* `resource` — aws_eks_addon, helm_release
+
+*Assertions:*
+* `addon_name` in `['fluxcd', 'argo-cd']` — EKS should have a GitOps add-on installed.
+
+*Remediation:* AWS EKS should deploy GitOps agent via EKS add-on or Helm
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-ops-110.tf.aws.eks-gitops-addon
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-ops-110.tf.aws.eks-gitops-addon
+----
+
+---
+
+=== waf-ops-110.tf.azurerm.gitops-extension
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure AKS should use Flux extension for GitOps*
+
+Azure AKS should use Flux extension for GitOps
+
+*Scope:* `resource` — azurerm_kubernetes_cluster_extension
+
+*Assertions:*
+* `extension_type` in `['microsoft.flux']` — AKS should use microsoft.flux GitOps extension.
+
+*Remediation:* Azure AKS should use Flux extension for GitOps
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-ops-110.tf.azurerm.gitops-extension
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-ops-110.tf.azurerm.gitops-extension
+----
+
+---
+
+=== waf-ops-110.config.gitops-policy
+
+*Engine:* `config` | *Provider:* any | *Automated:* No
+
+*GitOps policy must be documented*
+
+GitOps policy must be documented
+
+*Scope:* `file` — `docs/devops/gitops-policy.md`
+
+*Assertions:*
+* `exists` attribute_exists — GitOps policy must describe repository structure and reconciliation.
+
+*Remediation:* GitOps policy must be documented
+
+.Compliant
+[source,terraform]
+----
+# Example compliant with waf-ops-110.config.gitops-policy
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Example non-compliant with waf-ops-110.config.gitops-policy
+----
+
+---
+
+
+== Evidence
+
+* Terraform configuration implementing the requirement.
+* Policy, ADR, or standard documenting the requirement.
+* Optional cloud console or API output confirming runtime state.
+
+== Related Controls
+
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-050.adoc[WAF-OPS-050]
+* xref:pillar-excellence:controls/WAF-OPS-120.adoc[WAF-OPS-120]
+* xref:pillar-security:controls/WAF-SEC-090.adoc[WAF-SEC-090]
+* xref:pillar-reliability:controls/WAF-REL-110.adoc[WAF-REL-110]
+== Regulatory Mapping
+
+* *AWS Well-Architected Framework*: OPS 5 – Operate as a unified whole
+* *SRE Book (Google)*: Chapter 7 – The Evolution of Automation at Google
+* *NIST CSF 2.0*: PR.IP-01 – Baseline configurations
+

@@ -3,110 +3,84 @@
 :control-id: WAF-SUS-090
 :pillar: sustainability
 :severity: medium
-:category: esg-reporting
-:automated: medium
-:description: WAF++ Sustainability – CSRD-konforme ESG-Berichterstattung: Cloud-IT-Emissionen als Scope-3-Kategorie-11, automatisierte Datenerfassung, ESRS E1-6 und GHG Protocol Mapping.
+:category: agentic-governance
+:automatable: High
+:description: Organizations subject to CSRD (or voluntarily reporting ESG) MUST have documented processes for collecting, aggregating, and reporting cloud IT emissions as part of Scope 3 GHG inventory. Cloud IT emissions data MUST be exported from cloud provider tools at least quarterly. CSRD-scope organizations MUST map cloud emissions to ESRS E1-6 reporting requirements. Emission reduction targets MUST be documented and tracked against baseline. Where possible, ESG data collection MUST be automated (scheduled exports, API integrations) to ensure data quality and reduce manual reporting burden.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* ESG Reporting | *Automatisierbar:* Mittel
+*Pillar:* Sustainability | *Severity:* Medium | *Category:* Agentic Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-CSRD-pflichtige Organisationen MÜSSEN dokumentierte Prozesse für das Erfassen und Reporten von
-Cloud-IT-Emissionen als Scope-3-GHG-Inventar (Kategorie 11) haben.
-Cloud-IT-Emissionsdaten MÜSSEN mindestens quartalsweise automatisiert aus Cloud-Provider-Tools exportiert werden.
-CSRD-in-scope-Organisationen MÜSSEN Cloud-Emissionen nach ESRS E1-6 berichten.
-AWS Budgets und Cost-Management-Exports MÜSSEN konfiguriert und aktiv sein als Sustainability-Proxy.
-Ein CSRD-Scoping-Assessment MUSS dokumentiert sein.
+Organizations subject to CSRD (or voluntarily reporting ESG) MUST have documented processes for collecting, aggregating, and reporting cloud IT emissions as part of Scope 3 GHG inventory. Cloud IT emissions data MUST be exported from cloud provider tools at least quarterly. CSRD-scope organizations MUST map cloud emissions to ESRS E1-6 reporting requirements. Emission reduction targets MUST be documented and tracked against baseline. Where possible, ESG data collection MUST be automated (scheduled exports, API integrations) to ensure data quality and reduce manual reporting burden.
 
 == Rationale
 
-CSRD ist für berichtspflichtige Organisationen keine Best Practice, sondern eine gesetzliche Pflicht.
-ESRS E1-6 verlangt Angaben zu Scope 3 Kategorie 11 — worunter Cloud-IT-Dienste fallen.
-Fehlende oder fehlerhafte ESG-Berichte können zu Bußgeldern führen. Greenwashing-Ansprüche
-ohne Datenbasis sind ein wachsendes Reputations- und Haftungsrisiko. Automatisierung ist der
-einzige Weg zu konsistenten, audit-fähigen Daten — manuelle Jahres-Prozesse produzieren fehleranfällige Berichte.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*CSRD-Bußgeld*
-|Fehlende oder unvollständige Nachhaltigkeitsberichte für in-scope Unternehmen können zu empfindlichen Bußgeldern führen.
+|*Risk* |Missing sustainability reporting prevents ESG transparency and regulatory compliance.
 
-|*ESG-Audit-Finding*
-|Fehlende IT-Emissionsdaten sind bei ersten CSRD-Prüfungsrunden typische Audit-Findings mit Nachbesserungspflicht.
-
-|*Greenwashing-Haftung*
-|Nachhaltigkeitsversprechen ohne Datenunterbau sind nach CSRD und EU Green Claims Directive ein Haftungsrisiko.
-
-|*SBTi-Zielgefährdung*
-|Scope-3-Reduktionsziele können ohne Cloud-IT-Emissionsdaten nicht glaubwürdig verfolgt oder belegt werden.
+|*Risk* |Incomplete carbon data complicates defining and monitoring reduction targets.
 
 |===
 
-== Anforderung
+== Requirements
 
-* CSRD-Scoping-Assessment MUSS dokumentiert sein (in scope, out of scope, ab wann)
-* Emissions-Datenerfassungs-Prozess MUSS dokumentiert sein (Quellen, Methodik, Frequenz, Owner)
-* Cloud-IT-Emissionen MÜSSEN als Scope 3 Kategorie 11 im GHG-Inventar geführt werden
-* Automatisierte Cloud-Carbon-Exports MÜSSEN für alle genutzten Cloud-Provider konfiguriert sein
-* AWS Budgets MÜSSEN Notifications konfiguriert haben
-* Emissions-Baseline MUSS definiert und dokumentiert sein
+* Organizations subject to CSRD (or voluntarily reporting ESG) MUST have documented processes for collecting, aggregating, and reporting cloud IT emissions as part of Scope 3 GHG inventory.
+* Cloud IT emissions data MUST be exported from cloud provider tools at least quarterly.
+* CSRD-scope organizations MUST map cloud emissions to ESRS E1-6 reporting requirements.
+* Emission reduction targets MUST be documented and tracked against baseline.
+* Where possible, ESG data collection MUST be automated (scheduled exports, API integrations) to ensure data quality and reduce manual reporting burden.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *CSRD-Scoping*: Legal-Assessment: ist die Organisation direkt oder indirekt CSRD-pflichtig? Ab welchem Geschäftsjahr?
-. *Daten-Inventar*: Alle Cloud-Provider Carbon-Tools aktivieren; Export-Konfiguration für S3/BigQuery
-. *Aggregation*: Multi-Cloud Carbon Ledger; Methodik nach GHG Protocol Scope 3 dokumentieren
-. *ESRS E1-Mapping*: Cloud-IT-Emissionen explizit in ESRS E1-6-Sektion des Nachhaltigkeitsberichts
-. *Budget-Alerts*: AWS Budgets mit Notifications auf 80% und 100% Schwelle + Forecasted
-. *Retention*: 7-Jahres-Retention für Carbon-Daten (CSRD-Dokumentationspflicht)
-. *Assurance vorbereiten*: Datenquellen, Methodik, Berechnungskette für Third-Party-Assurance dokumentieren
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Reporting-Pflicht bekannt
-|CSRD-Pflicht nicht geklärt; keine Prozesse; keine Daten.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Manuelle Jahres-Abfragen
-|Manuelle Carbon-Daten für Jahresbericht; CSRD-Pflicht bekannt aber nicht strukturiert adressiert.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Quartalsexport mit Methodik
-|Quarterly Export; CSRD-Scoping-Assessment; Cloud-IT in ESRS E1 mit dokumentierter Methodik.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Pipeline, Assurance-ready
-|Automatisierte monatliche Pipeline; SBTi-Ziele gesetzt; vollständige Datenherkunft dokumentiert.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Echtzeit-Dashboard, Third-Party-Assurance
-|Echtzeit-Dashboard; externem Assurance-Provider bestanden; vollständige CSRD-Automatisierung.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sus-090.tf.aws.cost-explorer-export-s3
-*Prüft:* S3-Bucket für Carbon/ESG-Exports hat `purpose`-Tag und Lifecycle-Policy.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*S3 bucket for Cost Explorer / Carbon Footprint Tool exports must exist with appropriate retention*
+
+An S3 bucket dedicated to receiving automated exports from AWS Cost Explorer (including the Customer Carbon Footprint Tool data) must exist with appropriate lifecycle policies for ESG audit data retention (7 years for CSRD).
+
+*Scope:* `resource` — `aws_s3_bucket`
+
+*Assertions:*
+* `tags` key exists — ESG/sustainability S3 buckets should have a 'purpose' tag for audit identification.
+
+*Remediation:* Create a dedicated S3 bucket for sustainability data exports. Tag it with purpose = "esg-reporting" and configure lifecycle policies for 7-year retention (CSRD requires 7 years for sustainability disclosures). Enable versioning and access logging for audit trail completeness.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket" "esg_data" {
-  bucket = "acme-esg-carbon-exports"
+  bucket = "acme-esg-carbon-footprint-exports"
   tags = {
     purpose     = "esg-reporting"
     owner       = "sustainability-team"
@@ -114,54 +88,89 @@ resource "aws_s3_bucket" "esg_data" {
     workload    = "esg-reporting"
   }
 }
-resource "aws_s3_bucket_lifecycle_configuration" "esg" {
+
+resource "aws_s3_bucket_versioning" "esg_data" {
+  bucket = aws_s3_bucket.esg_data.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "esg_data" {
   bucket = aws_s3_bucket.esg_data.id
   rule {
-    id     = "csrd-7year"
+    id     = "esg-audit-retention"
     status = "Enabled"
-    expiration { days = 2555 }
+    transition {
+      days          = 365
+      storage_class = "GLACIER"
+    }
+    expiration {
+      days = 2555  # 7 years CSRD retention
+    }
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_s3_bucket" "esg_data" {
   bucket = "esg-exports-bucket"
-  # WAF-SUS-090 Warning: kein purpose-Tag,
-  # keine Lifecycle-Policy, kein 7-Jahres-Retention
+  # WAF-SUS-090 Warning: no purpose tag, no lifecycle policy, no versioning
 }
 ----
-|===
-
-*Remediation:* `purpose = "esg-reporting"` Tag setzen; 7-Jahres-Lifecycle-Policy konfigurieren; Versioning aktivieren für Audit-Trail.
 
 ---
 
 === waf-sus-090.tf.aws.budgets-sustainability-alert
-*Prüft:* AWS Budgets haben Notifications konfiguriert.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS Budgets must include sustainability monitoring (cost as carbon proxy)*
+
+AWS cost budgets serve as a proxy for sustainability monitoring. Carbon emissions are broadly proportional to cost for equivalent workloads. Budget alerts that detect unexpected cost increases also detect unexpected emission increases.
+
+*Scope:* `resource` — `aws_budgets_budget`
+
+*Assertions:*
+* `notification` not empty — AWS Budget has no notification configured – cost/carbon anomalies will go undetected.
+
+*Remediation:* Configure at least two budget notifications: at 80% (warning) and 100% (breach) of monthly budget. Add an additional ANOMALY_DETECTION notification type to catch unexpected spending spikes that indicate workload carbon anomalies.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_budgets_budget" "sustainability" {
-  name         = "sustainability-proxy"
+resource "aws_budgets_budget" "sustainability_proxy" {
+  name         = "sustainability-carbon-proxy"
   budget_type  = "COST"
   limit_amount = "500"
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
+
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 80
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [var.sustainability_email]
+    subscriber_email_addresses = [var.sustainability_team_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.sustainability_team_email]
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_budgets_budget" "main" {
   name         = "monthly-budget"
@@ -169,111 +178,150 @@ resource "aws_budgets_budget" "main" {
   limit_amount = "1000"
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
-  # WAF-SUS-090 Violation: keine Notifications
+  # WAF-SUS-090 Violation: no notifications – cost/carbon overruns not detected
 }
 ----
+
+---
+
+=== waf-sus-090.tf.azurerm.cost-management-export
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Cost Management export should be configured for sustainability reporting*
+
+Azure Cost Management exports enable automated delivery of cost and emissions data to Azure Storage, which can then feed into ESG reporting platforms. At minimum, a monthly actual cost export should be configured for the subscription.
+
+*Scope:* `resource` — `azurerm_cost_management_export_resource_group_cost`, `azurerm_subscription_cost_management_export`
+
+*Assertions:*
+* `active` is true — Azure Cost Management export is not active – ESG data collection interrupted.
+
+*Remediation:* Configure azurerm_subscription_cost_management_export with type = "ActualCost", recurrence_type = "Monthly", and export to an Azure Storage account with appropriate retention. Connect to Azure Emissions Impact Dashboard for carbon data.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_subscription_cost_management_export" "sustainability" {
+  name            = "monthly-sustainability-export"
+  subscription_id = var.subscription_id
+  active          = true
+
+  recurrence_type    = "Monthly"
+  recurrence_period_start_date = "2024-01-01T00:00:00Z"
+  recurrence_period_end_date   = "2030-12-31T00:00:00Z"
+
+  export_data_storage_location {
+    container_id     = azurerm_storage_container.esg_exports.resource_manager_id
+    root_folder_path = "/carbon-footprint"
+  }
+
+  export_data_options {
+    type       = "ActualCost"
+    time_frame = "TheLastMonth"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No Azure Cost Management export configured – WAF-SUS-090 Violation
+# ESG data collection requires automated export configuration
+----
+
+---
+
+=== waf-sus-090.tf.google.bigquery-billing-export
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP BigQuery dataset must be configured for billing/ESG export*
+
+GCP projects must export detailed billing data to a BigQuery dataset so cost and carbon data can be queried for CSRD/ESG reporting. The dataset must be labeled for ESG use.
+
+*Scope:* `resource` — `google_bigquery_dataset`
+
+*Assertions:*
+* `labels` key exists — BigQuery dataset for ESG export must be labeled with purpose.
+* `labels.purpose` matches pattern `esg|billing|sustainability|carbon` — BigQuery dataset purpose label should indicate ESG/sustainability/billing use.
+
+*Remediation:* Create a BigQuery dataset named or labeled for billing/ESG export and enable billing export in the GCP console.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_bigquery_dataset" "esg_billing" {
+  dataset_id = "esg_billing_export"
+  location   = "EU"
+  labels = {
+    purpose     = "esg-reporting"
+    environment = "production"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_bigquery_dataset" "other" {
+  dataset_id = "other"
+  location   = "US"
+  # Not labeled for ESG/billing export
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* Mindestens zwei Notifications konfigurieren: 80% (ACTUAL) und 100% (FORECASTED). Zusätzlich ANOMALY_DETECTION für unerwartete Spikes.
+== Related Controls
 
-== Evidenz
+* xref:pillar-agentic:controls/WAF-AGN-020.adoc[WAF-AGN-020]
+* xref:pillar-sustainability:controls/WAF-SUS-040.adoc[WAF-SUS-040]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Governance*
-|✅ Pflicht
-|CSRD-Scoping-Assessment (in scope / out of scope / ab welchem Jahr).
-
-|*Process*
-|✅ Pflicht
-|Emissions-Datenerfassungs-Prozess: Quellen, Methodik, Frequenz, verantwortlicher Owner.
-
-|*Config*
-|Optional
-|Automatisierter Cloud-Carbon-Export (S3 für AWS, BigQuery für GCP, Power BI für Azure).
-
-|*Governance*
-|Optional
-|ESRS E1 / GHG Protocol Scope 3 Report-Sektion mit IT-Emissionen und Methodik.
-
-|*Governance*
-|Optional
-|SBTi-Commitment-Brief oder internes Emissionsreduktionsziel-Dokument.
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*
-|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+|EU CSRD (Corporate Sustainability Reporting Directive) |* ESRS E1 – Climate Change
+* ESRS E1-6 – Gross Scope 1, 2, and 3 GHG emissions and total GHG emissions
+* ESRS 2 – General Disclosures: data collection and reporting processes
 
-|*GHG Protocol (Corporate Accounting and Reporting Standard)*
-|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+|GHG Protocol |* Corporate Standard – Scope 3 Category 11
+* Scope 2 Guidance – market-based and location-based methods
 
-|*Green Software Foundation (GSF)*
-|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+|SBTi (Science Based Targets initiative) |* ICT Sector Guidance – target setting and tracking
+* Near-term corporate targets – annual progress reporting
 
-|*SBTi (Science Based Targets initiative)*
-|Target setting methodology; Validation and verification; Corporate target standards
-
-|*ISO 14001:2015*
-|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
-
-|*ISO 14064-1:2018*
-|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing
-
-|*CSRD*
-|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
-
-|*NIST SP 800-53*
-|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
-
-|*TISAX*
-|Information security – Sustainability; Prototype protection – Environmental protection
-
-|*ANSSI SecNumCloud*
-|Domain – Environmental impact
-
-|*BIO*
-|BIO – Milieueffecten
-
-|*ENS High*
-|op.exp.9 – Gestión del impacto ambiental
-
-|*UK NCSC CAF*
-|B6 – Environmental impact
-
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Automated audit logging
-
-|*IRAP*
-|ISM – Environmental monitoring
-
-|*CCCS PBMM*
-|AU-2 – Audit events
-
-|*MAS TRM*
-|Ch.12 – Outsourcing risk management
-
-|*ISMAP*
-|Sustainability and environmental impact
-
-|*FISC*
-|Operational measures – Environmental impact
+|ISO 14001 |* 9.1 – Monitoring, measurement, analysis and evaluation
+* 9.3 – Management review – including environmental performance
 
 |===
-
-== Verwandte Controls

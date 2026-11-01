@@ -3,269 +3,571 @@
 :control-id: WAF-SEC-080
 :pillar: security
 :severity: high
-:category: monitoring
-:automated: hoch
-:description: WAF++ Security – Zentralisiertes Security Monitoring mit CloudTrail, GuardDuty und Security Hub.
+:category: identity-access
+:automatable: High
+:description: AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and global service event inclusion. GuardDuty MUST be enabled in all active AWS regions. AWS Security Hub or an equivalent SIEM MUST be enabled to aggregate and correlate security findings centrally. CloudTrail logs MUST be stored in a dedicated S3 bucket with server-side encryption and MFA delete enabled. Alerts MUST be configured for critical Security Hub findings and GuardDuty HIGH/CRITICAL severity findings. All security alerts MUST route to an on-call escalation channel with a defined response SLA.
 
 [.metadata]
-*Pillar:* Security | *Severity:* High | *Kategorie:* Monitoring | *Automatisierbar:* Hoch
+*Pillar:* Security | *Severity:* High | *Category:* Identity Access | *Automatable:* High
 
-== Beschreibung
+== Description
 
-AWS CloudTrail MUSS als Multi-Region-Trail mit Log-File-Validierung und Global-Service-Event-Inklusion
-aktiviert sein. GuardDuty MUSS in allen aktiven AWS-Regionen aktiviert sein. AWS Security Hub
-oder ein äquivalentes SIEM MUSS aktiviert sein, um Security-Findings zentral zu aggregieren.
-CloudTrail-Logs MÜSSEN in einem dedizierten S3-Bucket mit Server-Side-Encryption gespeichert werden.
-Alerts MÜSSEN für kritische Security-Hub-Findings und GuardDuty-HIGH/CRITICAL-Findings konfiguriert sein.
+AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and global service event inclusion. GuardDuty MUST be enabled in all active AWS regions. AWS Security Hub or an equivalent SIEM MUST be enabled to aggregate and correlate security findings centrally. CloudTrail logs MUST be stored in a dedicated S3 bucket with server-side encryption and MFA delete enabled. Alerts MUST be configured for critical Security Hub findings and GuardDuty HIGH/CRITICAL severity findings. All security alerts MUST route to an on-call escalation channel with a defined response SLA.
 
 == Rationale
 
-Ohne zentralisiertes Security Monitoring können Angreifende über Monate unentdeckt in Cloud-Umgebungen
-operieren. Die durchschnittliche Dwell-Time eines Cloud-Breaches ohne Monitoring übersteigt 200 Tage.
-CloudTrail liefert das fundamentale Audit-Log aller AWS-API-Aktivitäten; ohne es ist eine forensische
-Untersuchung nach einem Incident unmöglich. GuardDuty nutzt Machine Learning zur Erkennung anomaler
-Muster, die regelbasierte Systeme verpassen – Cryptomining, Credential-Exfiltration, ungewöhnliche API-Muster.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Unentdeckte Datenexfiltration*
-|Angreifende können Wochen oder Monate im AWS-Account operieren, ohne dass Alerts ausgelöst werden.
+|*Risk* |Security incidents go undetected without centralised, tamper-proof audit logs.
 
-|*Kompromittierte IAM-Credentials*
-|Gestohlene Credentials für Lateral Movement bleiben ohne GuardDuty vollständig unsichtbar.
-
-|*Cryptomining in nicht-überwachten Regionen*
-|In wenig genutzten Regionen gestartete Workloads verursachen Kosten und signalisieren einen Breach.
-
-|*DSGVO-Breach-Meldepflicht verfehlt*
-|Ohne SIEM-Erkennung wird die 72-Stunden-Meldepflicht nach Art. 33 DSGVO nicht eingehalten.
+|*Risk* |Forensic investigations are delayed or inconclusive when logs are missing.
 
 |===
 
-== Anforderung
+== Requirements
 
-* AWS CloudTrail MUSS als Multi-Region-Trail mit `is_multi_region_trail = true` und `enable_log_file_validation = true` konfiguriert sein.
-* GuardDuty MUSS in allen aktiven Regionen via `aws_guardduty_detector` mit `enable = true` aktiviert sein.
-* AWS Security Hub MUSS via `aws_securityhub_account` aktiviert sein.
-* CloudTrail-Logs MÜSSEN in einem dedizierten, verschlüsselten S3-Bucket (CMK) gespeichert werden.
-* SNS-Alerts MÜSSEN für GuardDuty-Findings der Severity HIGH und CRITICAL konfiguriert sein.
-* Log-Retention MUSS mindestens 12 Monate für CloudTrail-Logs und 90 Tage für Security-Hub-Findings betragen.
+* AWS CloudTrail MUST be enabled as a multi-region trail with log file validation and global service event inclusion.
+* GuardDuty MUST be enabled in all active AWS regions.
+* AWS Security Hub or an equivalent SIEM MUST be enabled to aggregate and correlate security findings centrally.
+* CloudTrail logs MUST be stored in a dedicated S3 bucket with server-side encryption and MFA delete enabled.
+* Alerts MUST be configured for critical Security Hub findings and GuardDuty HIGH/CRITICAL severity findings.
+* All security alerts MUST route to an on-call escalation channel with a defined response SLA.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *CloudTrail aktivieren*: `aws_cloudtrail` mit `is_multi_region_trail = true`, `enable_log_file_validation = true`, `include_global_service_events = true`.
-. *Dedizierter CloudTrail-S3-Bucket*: Separater Bucket mit KMS-Verschlüsselung, MFA-Delete, Block-Public-Access.
-. *GuardDuty aktivieren*: `aws_guardduty_detector` mit `enable = true` in allen genutzten Regionen (idealerweise via Terraform for_each über Region-Liste).
-. *Security Hub aktivieren*: `aws_securityhub_account` und relevante Standards aktivieren (AWS Foundational Security, CIS AWS Benchmark).
-. *EventBridge-Regel für GuardDuty*: EventBridge-Rule auf GuardDuty-Findings mit Severity >= 4.0 und SNS-Topic als Target.
-. *SNS → Slack/PagerDuty*: SNS-Topic mit Lambda oder direkt zu PagerDuty/Opsgenie für On-Call-Alerting.
-. *Log-Retention*: CloudWatch-Log-Groups mit Retention-Policy (90d–365d je nach Compliance-Anforderung).
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Kein oder partielles Logging
-|CloudTrail nicht oder nur in einer Region aktiv; GuardDuty deaktiviert; kein SIEM; keine Alerting-Regeln.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Grundlegendes Logging vorhanden
-|CloudTrail in Hauptregion aktiv; GuardDuty aktiviert; monatliche manuelle Log-Review; keine Echtzeit-Alerts.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Multi-Region-Monitoring mit Alerting
-|CloudTrail multi-region, log validation, CMK-Verschlüsselung; GuardDuty in allen Regionen; Security Hub aktiv; SNS-Alerts auf HIGH/CRITICAL.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Korreliertes SIEM mit automatischer Triage
-|Findings in SIEM korreliert; automatische Ticket-Erstellung für HIGH/CRITICAL; MTTD < 1 Stunde dokumentiert.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Vollautomatisierte Erkennung und Response
-|SOAR-Integration für automatisierte Playbooks; Threat-Intelligence-Feed-Integration; Continuous Compliance Attestation.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
-=== waf-sec-080.tf.aws.cloudtrail-multiregion
-*Prüft:* CloudTrail muss als Multi-Region-Trail mit Log-File-Validierung konfiguriert sein.
+=== waf-sec-080.tf.aws.cloudtrail-multi-region
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*CloudTrail must be enabled as a multi-region trail with log file validation*
+
+An aws_cloudtrail resource must exist with is_multi_region_trail = true, enable_log_file_validation = true, and include_global_service_events = true to ensure complete API activity coverage across all regions and global services.
+
+*Scope:* `resource` — `aws_cloudtrail`
+
+*Assertions:*
+* `is_multi_region_trail` is true — CloudTrail must be a multi-region trail to capture API activity in all regions.
+* `enable_log_file_validation` is true — CloudTrail log file validation must be enabled to detect log tampering.
+* `include_global_service_events` is true — CloudTrail must include global service events (e.g., IAM API calls).
+
+*Remediation:* Set is_multi_region_trail = true, enable_log_file_validation = true, and include_global_service_events = true on the aws_cloudtrail resource. Ensure the trail S3 bucket has SSE-KMS encryption and is not publicly accessible.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudtrail" "main" {
-  name                          = "prod-cloudtrail"
-  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+  name                          = "org-cloudtrail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
   is_multi_region_trail         = true
   enable_log_file_validation    = true
   include_global_service_events = true
   kms_key_id                    = aws_kms_key.cloudtrail.arn
+  tags = {
+    owner       = "security-team"
+    environment = "all"
+  }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_cloudtrail" "main" {
-  name           = "prod-cloudtrail"
-  s3_bucket_name = aws_s3_bucket.cloudtrail.id
-  # is_multi_region_trail fehlt (default: false)
-  # enable_log_file_validation fehlt
-  # WAF-SEC-080 Violation
+  name                          = "org-cloudtrail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
+  is_multi_region_trail         = false  # WAF-SEC-080 violation
+  enable_log_file_validation    = false  # WAF-SEC-080 violation
+  include_global_service_events = false  # WAF-SEC-080 violation
 }
 ----
-|===
-
-*Remediation:* `is_multi_region_trail = true` und `enable_log_file_validation = true` zu allen `aws_cloudtrail`-Ressourcen hinzufügen.
 
 ---
 
 === waf-sec-080.tf.aws.guardduty-enabled
-*Prüft:* GuardDuty-Detector muss aktiviert sein.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*GuardDuty must be enabled in all active regions*
+
+An aws_guardduty_detector resource must exist with enable = true in each active AWS region. GuardDuty provides continuous threat detection and is a foundational security detective control.
+
+*Scope:* `resource` — `aws_guardduty_detector`
+
+*Assertions:*
+* `enable` is true — GuardDuty detector must be enabled (enable = true).
+
+*Remediation:* Create an aws_guardduty_detector resource with enable = true in each active AWS region. For multi-account environments, configure GuardDuty at the organization level using aws_guardduty_organization_configuration to automatically enable GuardDuty in all existing and future member accounts.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_guardduty_detector" "main" {
   enable = true
   datasources {
     s3_logs { enable = true }
-    kubernetes {
-      audit_logs { enable = true }
-    }
+    kubernetes { audit_logs { enable = true } }
+    malware_protection { scan_ec2_instance_with_findings { ebs_volumes { enable = true } } }
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_guardduty_detector" "main" {
-  enable = false
-  # WAF-SEC-080 Violation: GuardDuty deaktiviert
+  enable = false  # WAF-SEC-080 violation: GuardDuty must be enabled
 }
 ----
+
+---
+
+=== waf-sec-080.tf.aws.securityhub-enabled
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*AWS Security Hub must be enabled*
+
+An aws_securityhub_account resource must exist to enable Security Hub in the account, providing centralized aggregation of security findings from GuardDuty, Amazon Inspector, AWS Config, Macie, and other integrated services.
+
+*Scope:* `resource` — `aws_securityhub_account`
+
+*Assertions:*
+* `` block exists — AWS Security Hub must be enabled (aws_securityhub_account resource must exist).
+
+*Remediation:* Add an aws_securityhub_account resource to the Terraform configuration. After enabling Security Hub, activate standards using aws_securityhub_standards_subscription: - arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0 - arn:aws:securityhub:REGION::standards/aws-foundational-security-best-practices/v/1.0.0
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_securityhub_account" "main" {}
+resource "aws_securityhub_standards_subscription" "cis" {
+  standards_arn = "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"
+  depends_on    = [aws_securityhub_account.main]
+}
+resource "aws_securityhub_standards_subscription" "fsbp" {
+  standards_arn = "arn:aws:securityhub:${data.aws_region.current.name}::standards/aws-foundational-security-best-practices/v/1.0.0"
+  depends_on    = [aws_securityhub_account.main]
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# aws_securityhub_account resource absent – WAF-SEC-080 violation
+# Security Hub is not enabled in this account
+----
+
+---
+
+=== waf-sec-080.tf.azurerm.sentinel-enabled
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Sentinel must be onboarded to a Log Analytics workspace*
+
+An azurerm_sentinel_log_analytics_workspace_onboarding resource must exist so that Azure Sentinel can centrally collect, detect, and investigate security events across the subscription.
+
+*Scope:* `resource` — `azurerm_sentinel_log_analytics_workspace_onboarding`
+
+*Assertions:*
+* `workspace_id` attribute exists — Azure Sentinel onboarding must reference a Log Analytics workspace ID.
+
+*Remediation:* Create a Log Analytics workspace and onboard it to Sentinel using azurerm_sentinel_log_analytics_workspace_onboarding. Configure data connectors for Azure Activity, Microsoft Entra ID, and any workload-specific sources.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_log_analytics_workspace" "sec" {
+  name                = "sec-workspace"
+  location            = azurerm_resource_group.sec.location
+  resource_group_name = azurerm_resource_group.sec.name
+  sku                 = "PerGB2018"
+}
+
+resource "azurerm_sentinel_log_analytics_workspace_onboarding" "sec" {
+  workspace_id = azurerm_log_analytics_workspace.sec.id
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No azurerm_sentinel_log_analytics_workspace_onboarding resource exists.
+# WAF-SEC-080 violation: Azure Sentinel is not enabled for threat detection
+----
+
+---
+
+=== waf-sec-080.tf.azurerm.security-center-standard
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Microsoft Defender for Cloud must be enabled at standard tier*
+
+An azurerm_security_center_subscription_pricing resource must exist with tier set to "Standard" to enable Microsoft Defender for Cloud threat detection and secure score recommendations.
+
+*Scope:* `resource` — `azurerm_security_center_subscription_pricing`
+
+*Assertions:*
+* `tier` equals `Standard` — Microsoft Defender for Cloud must be enabled at Standard tier.
+
+*Remediation:* Create azurerm_security_center_subscription_pricing with tier = "Standard" for the relevant resource types (e.g., VirtualMachines, SqlServers, ContainerRegistries). Ensure all active resource types are covered.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_security_center_subscription_pricing" "main" {
+  tier = "Standard"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_security_center_subscription_pricing" "main" {
+  tier = "Free"  # WAF-SEC-080 violation: Defender for Cloud standard tier required
+}
+----
+
+---
+
+=== waf-sec-080.tf.google.logging-project-sink
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP audit logs must be exported to a persistent destination*
+
+A google_logging_project_sink resource must exist to route GCP audit logs to Cloud Logging, BigQuery, Cloud Storage, or Pub/Sub for long-term retention and analysis.
+
+*Scope:* `resource` — `google_logging_project_sink`
+
+*Assertions:*
+* `destination` attribute exists — GCP logging sink must define a persistent destination for audit logs.
+
+*Remediation:* Create a google_logging_project_sink with filter including audit log events and destination pointing to a secure BigQuery dataset or Cloud Storage bucket. Ensure the sink service account has appropriate permissions.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_logging_project_sink" "audit" {
+  name        = "audit-logs-to-bigquery"
+  destination = "bigquery.googleapis.com/projects/${var.project_id}/datasets/audit_logs"
+  filter      = "protoPayload.@type=\"type.googleapis.com/google.cloud.audit.AuditLog\""
+
+  unique_writer_identity = true
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No google_logging_project_sink routes audit logs to a persistent store.
+# WAF-SEC-080 violation: GCP audit logs lack central export
+----
+
+---
+
+=== waf-sec-080.tf.google.security-command-center
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*Google Security Command Center must be enabled*
+
+A google_security_center_notification_config or google_scc_notification_config resource must exist to enable Security Command Center findings and centralize threat detection across the GCP organization.
+
+*Scope:* `resource` — `google_security_center_notification_config`, `google_scc_notification_config`
+
+*Assertions:*
+* `pubsub_topic` attribute exists — Security Command Center notification config must route findings to a Pub/Sub topic.
+
+*Remediation:* Enable Security Command Center at the organization level and create a google_security_center_notification_config or google_scc_notification_config to route HIGH/CRITICAL findings to a Pub/Sub topic and on-call channel.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_security_center_notification_config" "high_critical" {
+  config_id    = "high-critical-findings"
+  organization = var.org_id
+  pubsub_topic = google_pubsub_topic.scc.id
+
+  streaming_config {
+    filter = "severity = \"HIGH\" OR severity = \"CRITICAL\""
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No Security Command Center notification config exists.
+# WAF-SEC-080 violation: GCP threat detection not centralized
+----
+
+---
+
+=== waf-sec-080.tf.stackit.log-service-enabled
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT Log Service must collect audit and security logs*
+
+A stackit_log_service resource must be configured to centralise audit and security logs from STACKIT workloads. Logs must be retained and protected from tampering.
+
+*Scope:* `resource` — `stackit_log_service`
+
+*Assertions:*
+* `name` attribute exists — STACKIT Log Service must be configured for security log collection.
+
+*Remediation:* Create a stackit_log_service instance and configure workload integrations to forward security-relevant logs. Define retention and access controls.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_log_service" "security" {
+  project_id = var.stackit_project_id
+  name       = "security-logs"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No stackit_log_service centralises STACKIT security logs.
+# WAF-SEC-080 violation: logging not centralised
+----
+
+---
+
+=== waf-sec-080.config.ovh.ovh-identity-access
+
+*Engine:* `config` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud workloads must centralise audit and security logs*
+
+A version-controlled policy document must exist at `docs/security/waf-sec-080-ovh-identity-access.md` and document the OVHcloud implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/security/waf-sec-080-ovh-identity-access.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/security/waf-sec-080-ovh-identity-access.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/security/waf-sec-080-ovh-identity-access.md`. State the requirement, how it is implemented for OVHcloud, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/security/waf-sec-080-ovh-identity-access.md:
+- The OVHcloud implementation of WAF-SEC-080 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/security/waf-sec-080-ovh-identity-access.md` is missing or does not contain a normative requirement.
+# WAF-SEC-080 violation: OVHcloud control is not documented
+----
+
+---
+
+=== waf-sec-080.tf.hcloud.server-backups-and-logs
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud servers must have backup and log forwarding enabled*
+
+Hetzner Cloud production servers must have backups enabled and forward security logs to a centralised store. Backup and log retention must be defined.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `backups` is true — Hetzner Cloud production server must have backups enabled for log and state retention.
+
+*Remediation:* Enable backups on hcloud_server resources and configure log forwarding via cloud-init or configuration management. Document retention and alerting.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "app" {
+  name        = "app-server"
+  server_type = "cx22"
+  image       = "ubuntu-22.04"
+  backups     = true
+  # Log forwarding configured via cloud-init
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "app" {
+  name        = "app-server"
+  server_type = "cx22"
+  image       = "ubuntu-22.04"
+  backups     = false  # WAF-SEC-080 violation: backups disabled
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* `enable = true` im `aws_guardduty_detector` setzen. GuardDuty sollte in allen Regionen aktiviert werden, in denen AWS-Ressourcen betrieben werden.
+== Related Controls
 
-== Evidenz
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-090.adoc[WAF-SEC-090]
+* xref:pillar-security:controls/WAF-SEC-120.adoc[WAF-SEC-120]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+* xref:pillar-security:controls/WAF-SEC-100.adoc[WAF-SEC-100]
+* xref:pillar-security:controls/WAF-SEC-130.adoc[WAF-SEC-130]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration von CloudTrail (multi-region, log validation) und GuardDuty-Detector (enable=true).
-
-|*Config*
-|✅ Pflicht
-|Security Hub Findings Summary oder AWS Config Rule `cloud-trail-enabled` Compliance-Status.
-
-|*Process*
-|Optional
-|Alerting-Konfiguration (EventBridge-Regel + SNS-Topic) mit Test-Trigger und Nachweis der Benachrichtigungszustellung.
-
-|*Config*
-|Optional
-|GuardDuty-Sample-Findings-Bericht der letzten 30 Tage mit Triage-Nachweis.
-
-|===
-
-== Regulatorisches Mapping
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
+|ISO 27001:2022 |* A.8.15 – Logging
+* A.8.16 – Monitoring activities
+* A.5.26 – Response to information security incidents
 
-|*ISO 27017*
-|CLD.5.1 – Information security in cloud services; CLD.5.2 – Access control in cloud services
+|ISO 27017 |* CLD.12.4 – Logging and monitoring of cloud services
 
-|*ISO 27018*
-|A.2 – Purpose legitimacy and PII protection; A.10 – Confidentiality and security of PII
+|CIS Controls v8 |* CIS 8 – Audit Log Management
+* CIS 13 – Network Monitoring and Defense
 
-|*GDPR*
-|Art. 5(1)(c) – Data minimisation; Art. 5(1)(f) – Integrity and confidentiality; Art. 9 – Special categories of personal data; Art. 25 – Data protection by design and by default; Art. 32 – Security of processing
+|CSA STAR |* CCM LOG-01 – Logging and Monitoring Policy
+* CCM SEF-01 – Security Incident Management Policy
 
-|*BSI C5:2020*
-|IDM-01 – Identity and access management policy; IDM-02 – Role management; IDM-03 – User lifecycle management; COM-01 – Network and service security; COM-02 – Cloud monitoring
+|PCI DSS v4.0 |* Req 10 – Log and monitor all access
+* Req 11.5 – Detect intrusions and unexpected file changes
 
-|*EUCS (ENISA)*
-|IAM-01 – Identity and access management; IAM-02 – Access rights management; IAM-03 – Privileged access management
+|SOC 2 Type II |* CC7.2 – System anomaly detection
+* CC7.4 – Detection and monitoring of security events
 
-|*NIST SP 800-53*
-|AC-1 – Policy and procedures; AC-2 – Account management; AC-3 – Access enforcement; AC-6 – Least privilege; IA-2 – Identification and authentication; SI-4 – Information system monitoring
+|GDPR |* Art. 32 – Security of processing
+* Art. 33 – Breach notification to supervisory authority
 
-|*FedRAMP*
-|AC-1, AC-2, AC-3, AC-6, IA-2 (Moderate/High baseline)
+|NIS2 |* Art. 21(2)(b) – Incident handling
+* Art. 23 – Reporting obligations
 
-|*HIPAA*
-|§ 164.308(a)(4) – Access management; § 164.312(a) – Access control; § 164.312(d) – Information system activity review
+|DORA |* Art. 10 – Detection of ICT-related incidents
+* Art. 13 – ICT incident reporting
 
-|*PCI DSS v4.0*
-|Req 7 – Restrict access to cardholder data; Req 8 – Identify and authenticate access; Req 8.3 – Non-service accounts
+|EUCS (ENISA) |* LOG-01 – Audit logging
+* OPS-06 – Security monitoring
 
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC6.2 – Logical access security management; CC6.6 – Secure configuration
+|BSI C5:2020 |* RB-10 – Logging and monitoring
+* RB-11 – Log integrity and retention
+* SIM-01 – Security incident management
 
-|*CSRD*
-|ESRS E1 – Climate change; ESRS G1 – Governance
+|IT-Grundschutz |* DER.1 – Detektion sicherheitsrelevanter Ereignisse
+* OPS.1.1.5 – Protokollierung
 
-|*NIST CSF 2.0*
-|GV.AC – Identity management and access control; DE.CM – Configuration management
+|TISAX |* Information security – Security event logging and monitoring
 
-|*CIS Controls v8*
-|CIS 4 – Secure Configuration; CIS 4.4 – Access control; CIS 4.5 – Least privilege
+|ANSSI SecNumCloud |* Domain – Log management and security monitoring
 
-|*TISAX*
-|Information security – Access rights management
+|BIO |* BIO – Logging en monitoring
 
-|*ANSSI SecNumCloud*
-|Domain – Identity and access management; Domain – Security monitoring
+|ENS High |* op.exp.8 – Registro de actividad
+* op.exp.9 – Registro de la gestión de incidentes
 
-|*BIO*
-|BIO – Identificatie en authenticatie; BIO – Toegangsbeheer
+|UK NCSC CAF |* C1 – Security monitoring
+* C2 – Proactive security event discovery
 
-|*ENS High*
-|org.3 – Políticas de acceso; op.exp.5 – Monitorización de la configuración
+|UK GDPR |* Art. 32 – Security of processing
+* Art. 33 – Breach notification
 
-|*UK NCSC CAF*
-|B1 – Access control; B2 – Secure configuration
+|NIST SP 800-53 |* AU-2 – Event Logging
+* AU-6 – Audit Record Review
+* SI-4 – System Monitoring
+* IR-4 – Incident Handling
 
-|*CMMC 2.0*
-|AC.L2-3.1.1 – Access control policy; AC.L2-3.5.1 – Access enforcement
+|NIST CSF 2.0 |* DE.CM-01 – Networks are monitored to detect events
+* DE.AE-02 – Detected events are analyzed
 
-|*IRAP*
-|ISM – Identity and access management; ISM – Access control
+|FedRAMP |* AU-2, AU-6, SI-4, IR-4 (Moderate/High baseline)
 
-|*CCCS PBMM*
-|AC-6 – Least privilege; AC-7 – Unsuccessful logon attempts
+|HIPAA |* § 164.308(a)(1)(ii)(D) – Information system activity review
+* § 164.312(b) – Audit controls
 
-|*MAS TRM*
-|Ch.4 – Identity and access management; Ch.8 – Security monitoring
+|CMMC 2.0 |* AU.L2-3.3.1 – System auditing
+* SI.L2-3.14.6 – Monitor system for attacks
 
-|*ISMAP*
-|Access control and identity management
+|ASD Essential 8 |* ISM – Event logging and auditing
 
-|*FISC*
-|Operational measures – Access control
+|IRAP |* ISM – Event logging and security monitoring
+
+|CCCS PBMM |* AU-2, SI-4 – Audit and system monitoring
+
+|MAS TRM |* Ch.10 – Security incident management
+
+|ISMAP |* Logging, monitoring and security incident detection
+
+|FISC |* Operational measures – Security event monitoring
 
 |===
-
-== Verwandte Controls

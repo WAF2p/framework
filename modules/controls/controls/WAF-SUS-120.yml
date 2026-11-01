@@ -1,0 +1,114 @@
+id: WAF-SUS-120
+title: Batch and HPC workloads SHOULD run off-peak where SLA constraints allow
+status: active
+tags:
+- configuration
+- governance
+- low
+- sustainability
+pillar: sustainability
+severity: low
+type:
+- governance
+- configuration
+category: sustainability-efficiency
+rationale: Ineffiziente Planung von Batch-Workloads verschwendet Energie und erhöht den CO₂-Fußabdruck ohne Mehrwert. Dieses
+  Control adressiert die Anforderungen des Bereichs 'Sustainability Efficiency' und stellt sicher, dass Batch, report generation,
+  HPC, and data processing workloads SHOULD be scheduled during off-peak or...
+threat:
+- Running batch workloads during peak hours wastes energy from high-carbon grid mix and increases cost.
+- Missing scheduling constraints can violate SLA or delay critical business processes.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-sustainability/pages/controls/WAF-SUS-120.adoc
+  related_controls:
+  - WAF-SUS-010
+  - WAF-SUS-020
+  - WAF-SUS-030
+  - WAF-SUS-110
+  - WAF-COST-110
+  - WAF-OPS-040
+description: Batch, report generation, HPC, and data processing workloads SHOULD be scheduled during off-peak or high-renewable-energy
+  hours. Scheduler configurations MUST document SLA constraints and acceptable time windows. Preemptible/Spot capacity SHOULD
+  be combined with off-peak scheduling where feasible. Energy and cost savings of time-shifting MUST be tracked and reported.
+regulatory_mapping:
+- framework: EU CSRD (Corporate Sustainability Reporting Directive)
+  controls:
+  - ESRS E1 – Climate Change
+- framework: GHG Protocol
+  controls:
+  - Scope 2 – Market-based method
+- framework: Green Software Foundation
+  controls:
+  - Carbon Aware Computing – temporal shifting
+- framework: ISO 14001
+  controls:
+  - 6.1.2 – Environmental aspects
+checks:
+- id: waf-sus-120.tf.aws.batch-schedule
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS Batch compute environments should prefer Spot and off-peak scheduling
+  description: AWS Batch compute environments should prefer Spot and off-peak scheduling
+  expected: 'true'
+  remediation: AWS Batch compute environments should prefer Spot and off-peak scheduling
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_batch_compute_environment
+    - aws_batch_job_queue
+  assertions:
+  - attribute: compute_resources.spot_iam_fleet_role
+    op: attribute_exists
+    message: Batch compute environment should use Spot capacity.
+  on_fail: advisory
+- id: waf-sus-120.config.off-peak-schedule
+  engine: config
+  provider: any
+  automated: false
+  title: Off-peak scheduling policy must be documented
+  description: Off-peak scheduling policy must be documented
+  expected: 'true'
+  remediation: Off-peak scheduling policy must be documented
+  scope:
+    block_type: file
+    path_pattern: docs/sustainability/off-peak-scheduling.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Off-peak scheduling policy must define SLA windows.
+  on_fail: finding

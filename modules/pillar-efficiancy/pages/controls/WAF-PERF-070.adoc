@@ -1,112 +1,91 @@
 = WAF-PERF-070 – Network Latency & Topology Optimization
 :page-toc: right
 :control-id: WAF-PERF-070
-:pillar: performance
+:pillar: efficiancy
 :severity: medium
-:category: network-performance
-:automated: medium
-:description: WAF++ Performance Efficiency – Netzwerktopologie latenzoptimieren, CDN einsetzen und VPC Endpoints konfigurieren.
+:category: network-encryption
+:automatable: High
+:description: All production workloads MUST be deployed with network topology optimized for latency. Services that communicate frequently MUST be co-located in the same availability zone or use VPC peering to avoid cross-region traversal. Content Delivery Networks (CDN) MUST be used for all public-facing static and cacheable content. VPC Endpoints MUST be used for internal AWS service traffic to avoid internet routing. Cross-AZ data transfer costs and latency MUST be evaluated and minimized in service topology design.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Network Performance | *Automatisierbar:* Mittel
+*Pillar:* Efficiancy | *Severity:* Medium | *Category:* Network Encryption | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Produktions-Workloads MÜSSEN mit latenzoptimierter Netzwerktopologie deployed werden.
-CDN MUSS für alle öffentlichen statischen und cachefähigen Inhalte konfiguriert sein.
-VPC Endpoints MÜSSEN für alle Cloud-Service-API-Zugriffe aus privaten Subnetzen verwendet werden.
-Cross-AZ-Traffic in latenz-sensitiven Pfaden MUSS minimiert werden.
-Netzwerklatenz-Baselines MÜSSEN für Service-Kommunikationspfade dokumentiert sein.
+All production workloads MUST be deployed with network topology optimized for latency. Services that communicate frequently MUST be co-located in the same availability zone or use VPC peering to avoid cross-region traversal. Content Delivery Networks (CDN) MUST be used for all public-facing static and cacheable content. VPC Endpoints MUST be used for internal AWS service traffic to avoid internet routing. Cross-AZ data transfer costs and latency MUST be evaluated and minimized in service topology design.
 
 == Rationale
 
-Netzwerklatenz addiert sich kumulativ über Service-Hops. In einer Microservices-Architektur
-können 10 interne Service-Calls mit je 1–2ms Cross-AZ-Overhead bereits 20ms unnötige Latenz erzeugen.
-Fehlende VPC Endpoints bedeuten, dass Cloud-Service-Traffic (S3, DynamoDB, SSM) das öffentliche
-Internet passiert – unnötige Latenz und Egress-Kosten. CDN-Fehlen bedeutet, dass statische Assets
-von Origin geliefert werden – 100–500ms zusätzliche Latenz für internationale Nutzer.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Cross-AZ-Latenz-Akkumulation*
-|Häufige Service-Calls zwischen AZs akkumulieren Latenz in der Request-Chain.
+|*Risk* |Internet-facing resources or open management ports become direct attack vectors.
 
-|*Kein VPC Endpoint*
-|S3/DynamoDB/SSM-Traffic über Internet → erhöhte Latenz + Egress-Kosten.
-
-|*Fehlendes CDN*
-|Statische Assets von Origin geladen → hohe Latenz für internationale Nutzer.
-
-|*DNS-Resolution-Overhead*
-|Fehlende DNS-Caching-Konfiguration → 10–50ms pro DNS-Lookup in hot paths.
+|*Risk* |Lateral movement is easier when network segmentation and access rules are missing.
 
 |===
 
-== Anforderung
+== Requirements
 
-* CDN MUSS für alle öffentlichen statischen und cachefähigen Inhalte konfiguriert sein
-* VPC Endpoints MÜSSEN für S3, DynamoDB und weitere frequently-accessed Cloud Services existieren
-* Netzwerktopologie MUSS dokumentiert sein (Diagramm mit Service-Placement und Traffic-Routing)
-* CDN-Cache-Hit-Rate MUSS gemessen werden (Ziel: >= 95% für statische Assets)
+* All production workloads MUST be deployed with network topology optimized for latency.
+* Services that communicate frequently MUST be co-located in the same availability zone or use VPC peering to avoid cross-region traversal.
+* Content Delivery Networks (CDN) MUST be used for all public-facing static and cacheable content.
+* VPC Endpoints MUST be used for internal AWS service traffic to avoid internet routing.
+* Cross-AZ data transfer costs and latency MUST be evaluated and minimized in service topology design.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Service-Kommunikationsmuster kartieren*: Welche Services kommunizieren häufig? Mit welcher Latenz-Anforderung?
-. *VPC Endpoints anlegen*: Gateway-Endpoints für S3 und DynamoDB; Interface-Endpoints für ECR, SSM, Secrets Manager
-. *CDN konfigurieren*: CloudFront/Azure CDN/Cloud CDN mit Cache-Policies für statische und dynamische Inhalte
-. *AZ-Affinität planen*: Häufig kommunizierende Services bevorzugt in derselben AZ
-. *Connection Reuse*: HTTP/2 und Connection Keepalive für alle Service-zu-Service-Verbindungen
-. *Latenz-Baseline messen*: RTT zwischen Service-Paaren messen; in Dokument erfassen
-. *CDN-Hit-Rate monitoren*: CloudFront-Cache-Hit-Rate in CloudWatch; Alert bei < 90% für static
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Kein Topology-Design
-|Services ohne Topologie-Überlegungen deployed; kein CDN; keine VPC Endpoints.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basisabsicherung
-|CDN für statische Assets; VPC teilweise konfiguriert; keine Latenz-Baseline.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Optimierte Topologie
-|Vollständige VPC Endpoints; CDN für static + dynamic; AZ-Affinität dokumentiert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Gemessene und verbesserte Topologie
-|Latenz-Baseline pro Service-Pair; CDN-Hit-Rate >= 95%; Connection Reuse überall.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Intelligentes Routing
-|Anycast; Edge-Computing; automatische Topologie-Empfehlungen.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-070.tf.aws.vpc-endpoint-s3
-*Prüft:* VPCs mit privaten Subnetzen sollten S3 Gateway VPC Endpoints haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS VPCs with private subnets must have S3 Gateway VPC Endpoints*
+
+VPCs containing private subnets that access S3 must use Gateway VPC Endpoints to avoid internet routing and reduce latency and data transfer costs.
+
+*Scope:* `resource` — `aws_vpc_endpoint`
+
+*Assertions:*
+* `service_name` matches pattern `.*\\.s3$` — VPC Endpoint should be configured for S3 service.
+* `vpc_endpoint_type` equals `Gateway` — S3 VPC Endpoint must be Gateway type.
+
+*Remediation:* Create an aws_vpc_endpoint resource for S3 with vpc_endpoint_type = "Gateway" and associate it with private route tables. This routes S3 traffic via AWS backbone.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_route_table.private.id]
+  tags = { Name = "vpce-s3-${var.environment}" }
 }
 resource "aws_vpc_endpoint" "dynamodb" {
   vpc_id            = aws_vpc.main.id
@@ -115,129 +94,265 @@ resource "aws_vpc_endpoint" "dynamodb" {
   route_table_ids   = [aws_route_table.private.id]
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
+# No VPC Endpoints defined
+# S3 and DynamoDB traffic routes via internet gateway
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
+  # All service traffic exits to internet – WAF-PERF-070 violation
 }
-# Keine VPC Endpoints definiert
-# S3-Traffic über Internet
-# WAF-PERF-070 Advisory
 ----
+
+---
+
+=== waf-perf-070.tf.azurerm.cdn-profile-configured
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure applications with public endpoints should use CDN or Front Door*
+
+Public-facing Azure applications should use Azure CDN or Azure Front Door to cache static content and reduce origin load and end-user latency.
+
+*Scope:* `resource` — `azurerm_cdn_profile`, `azurerm_frontdoor`, `azurerm_cdn_frontdoor_profile`
+
+*Assertions:*
+* `sku` not empty — CDN profile must have SKU defined.
+
+*Remediation:* Deploy azurerm_cdn_profile with endpoints for static content delivery. For global applications, use Azure Front Door for routing and caching.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_cdn_profile" "main" {
+  name                = "cdn-payment-frontend"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "global"
+  sku                 = "Standard_Microsoft"
+}
+resource "azurerm_cdn_endpoint" "static" {
+  name                = "static-assets"
+  profile_name        = azurerm_cdn_profile.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "global"
+  origin {
+    name      = "storage-origin"
+    host_name = azurerm_storage_account.static.primary_blob_host
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No CDN or Front Door configured
+# All static content served directly from Storage Account or App Service
+# – WAF-PERF-070 violation
+----
+
+---
+
+=== waf-perf-070.tf.google.cloud-cdn-enabled
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP backends with public traffic should have Cloud CDN enabled*
+
+GCP HTTP(S) Load Balancer backend services serving public content should have Cloud CDN enabled to reduce origin latency and improve user experience.
+
+*Scope:* `resource` — `google_compute_backend_service`
+
+*Assertions:*
+* `enable_cdn` is true — External backend service should have Cloud CDN enabled.
+
+*Remediation:* Set enable_cdn = true on google_compute_backend_service for external load balancers. Configure cdn_policy with appropriate cache mode and TTL settings.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_compute_backend_service" "frontend" {
+  name                  = "backend-payment-frontend"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL"
+  enable_cdn            = true
+  cdn_policy {
+    cache_mode                   = "CACHE_ALL_STATIC"
+    default_ttl                  = 3600
+    client_ttl                   = 3600
+    negative_caching             = true
+    serve_while_stale            = 86400
+  }
+  backend {
+    group = google_compute_instance_group.frontend.id
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_compute_backend_service" "frontend" {
+  name                  = "backend-payment-frontend"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL"
+  enable_cdn            = false  # CDN disabled – WAF-PERF-070 violation
+}
+----
+
+---
+
+=== waf-perf-070.tf.stackit.database-performance-reviewed
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*All production workloads for stackit*
+
+All production workloads must be documented in IaC via a database-performance-reviewed tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the database-performance-reviewed tag/label.
+
+*Remediation:* Add a database-performance-reviewed tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    database-performance-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing database-performance-reviewed labels
+}
+----
+
+---
+
+=== waf-perf-070.tf.ovh.database-performance-reviewed
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*All production workloads for ovh*
+
+All production workloads must be documented in IaC via a database-performance-reviewed tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the database-performance-reviewed tag/label.
+
+*Remediation:* Add a database-performance-reviewed tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    database-performance-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing database-performance-reviewed tags
+}
+----
+
+---
+
+=== waf-perf-070.tf.hcloud.database-performance-reviewed
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*All production workloads for hcloud*
+
+All production workloads must be documented in IaC via a database-performance-reviewed tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the database-performance-reviewed tag/label.
+
+*Remediation:* Add a database-performance-reviewed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-070 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    database-performance-reviewed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing database-performance-reviewed labels
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* Gateway-Endpoints für S3 und DynamoDB anlegen (kostenlos).
-Interface-Endpoints für ECR, SSM, Secrets Manager hinzufügen (kostenpflichtig, aber Latenz-Vorteil).
+== Related Controls
 
-== Evidenz
+* xref:pillar-reliability:controls/WAF-REL-020.adoc[WAF-REL-020]
+* xref:pillar-reliability:controls/WAF-REL-030.adoc[WAF-REL-030]
+* xref:pillar-sustainability:controls/WAF-SUS-080.adoc[WAF-SUS-080]
+* xref:pillar-efficiancy:controls/WAF-PERF-060.adoc[WAF-PERF-060]
+* xref:pillar-efficiancy:controls/WAF-PERF-030.adoc[WAF-PERF-030]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration mit CDN und VPC Endpoints für Cloud-Service-Zugriffe.
-
-|*Governance*
-|✅ Pflicht
-|Netzwerktopologie-Diagramm mit Service-Placement, AZ-Verteilung, Traffic-Routing.
-
-|*Config*
-|Optional
-|Netzwerk-Latenz-Baseline (Service-zu-Service RTT nach AZ-Kombination).
-
-|*Process*
-|Optional
-|CDN-Cache-Hit-Rate-Bericht.
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Select the right resource types and sizes
-
-|*Azure Well-Architected Framework*
-|Performance Efficiency – Choose the right resources
-
-|*Google Cloud Architecture Framework*
-|Performance optimization – Right-size your instances
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection
-
-|*FedRAMP*
-|RA-2, RA-5 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
 
 |===
-
-== Verwandte Controls

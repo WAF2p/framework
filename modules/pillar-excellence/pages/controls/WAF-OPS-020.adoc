@@ -1,244 +1,406 @@
 = WAF-OPS-020 – Infrastructure as Code Enforced
 :page-toc: right
 :control-id: WAF-OPS-020
-:pillar: operations
+:pillar: excellence
 :severity: high
-:category: infrastructure-as-code
-:automated: high
-:description: WAF++ Operational Excellence – All cloud infrastructure must be defined as IaC. Manual resource creation in production is prohibited.
+:category: data-governance
+:automatable: High
+:description: All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent). Manual resource creation through cloud consoles MUST be prohibited for all production and staging environments. Infrastructure definitions MUST be version-controlled, reviewed through pull requests, and deployed exclusively through CI/CD pipelines.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* High | *Category:* Infrastructure as Code | *Automatable:* High
+*Pillar:* Excellence | *Severity:* High | *Category:* Data Governance | *Automatable:* High
 
 == Description
 
-All cloud infrastructure MUST be defined as code (Terraform, Pulumi, AWS CDK).
-Manual resource creation through the cloud console MUST be prohibited for production and staging.
-IaC definitions MUST be versioned, reviewed, and deployed through CI/CD.
+All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent). Manual resource creation through cloud consoles MUST be prohibited for all production and staging environments. Infrastructure definitions MUST be version-controlled, reviewed through pull requests, and deployed exclusively through CI/CD pipelines.
 
 == Rationale
-
-Manually created infrastructure cannot be reliably reproduced, cannot be reviewed,
-and cannot be audited. Snowflake servers are a primary risk for reliability
-and operational debt. IaC eliminates configuration drift, enables audit trails, and allows
-disaster recovery in minutes instead of weeks.
-
-== Threat Context
 
 [cols="1,3"]
 |===
 |Risk |Description
 
-|*Configuration Drift*
-|Manual console changes create invisible deviations between the IaC definition and reality.
+|*Risk* |Manually managed infrastructure drifts from documentation and is hard to restore.
 
-|*Snowflake Servers*
-|Manually configured systems cannot be reproduced after a failure.
-
-|*Missing Peer Review*
-|Without IaC and pull requests, there are no second eyes on infrastructure changes.
-
-|*DR Failure*
-|Disaster recovery tests fail because the actual infrastructure deviates from the documented IaC.
+|*Risk* |Missing IaC practices prevent versioning, peer review, and disaster recovery.
 
 |===
 
 == Requirements
 
-* All production and staging infrastructure MUST be defined as IaC
-* Manual changes MUST be restricted by IAM policy or Service Control Policy (SCP)
-* Remote state backend with locking MUST be configured (no local state)
-* All IaC changes MUST go through pull request review
-* State bucket MUST have versioning enabled for rollback capability
+* All cloud infrastructure MUST be defined as code using an IaC tool (Terraform, Pulumi, AWS CDK, or equivalent).
+* Manual resource creation through cloud consoles MUST be prohibited for all production and staging environments.
+* Infrastructure definitions MUST be version-controlled, reviewed through pull requests, and deployed exclusively through CI/CD pipelines.
 
 == Implementation Guidance
 
-. *Configure remote state:* S3+DynamoDB (AWS), Azure Storage Account, GCS Bucket – with locking
-. *Secure state bucket:* Enable versioning; encryption at rest; access logging
-. *Restrict console access:* SCP or IAM permission boundary for production accounts
-. *Build module library:* Reusable modules for networking, compute, security
-. *Enable drift detection:* `terraform plan` daily via EventBridge schedule; alert on drift
-. *Brownfield import:* Take over existing resources into state with `terraform import`
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
 == Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Criteria
 
-|*1*
-|Manual
-|No IaC; infrastructure created manually via console or CLI.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Inconsistent IaC
-|Parts of the infrastructure as IaC; manual resources coexist; no remote state.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|IaC Fully Enforced
-|100% production infrastructure as IaC; remote state; manual changes restricted.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Drift Detection & Policy Enforcement
-|Drift detected and alerted daily; policy-as-code in CI; module library present.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|GitOps
-|Git state = single source of truth; automatic drift remediation; IaC coverage 100%.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-020.tf.aws.s3-terraform-state-backend
-*Checks:* Terraform remote state is configured in S3 backend (not local state).
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*Terraform state must use S3 backend with DynamoDB locking*
+
+Terraform remote state MUST be stored in an S3 bucket with versioning enabled and a DynamoDB table for state locking. This prevents concurrent state modifications and enables state history and rollback.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `backend` attribute exists — Terraform must configure a remote backend (not local state).
+
+*Remediation:* Configure the S3 backend in your Terraform root module's terraform block. Create the S3 bucket with versioning enabled and a DynamoDB table for locking.
+
+.Compliant
+
+[source,terraform]
 ----
 terraform {
   backend "s3" {
-    bucket         = "my-org-tf-state"
-    key            = "service/prod/terraform.tfstate"
+    bucket         = "my-org-terraform-state"
+    key            = "payment-service/production/terraform.tfstate"
     region         = "eu-central-1"
     dynamodb_table = "terraform-state-lock"
     encrypt        = true
   }
 }
-----
-a|[source,hcl]
-----
-terraform {
-  # No backend – local state
-  # WAF-OPS-020 Violation:
-  # no remote state, no locking
-}
-----
 
-|===
-
-=== waf-ops-020.tf.aws.s3-state-bucket-versioning
-*Checks:* S3 state bucket has versioning enabled.
-
-[source,hcl]
-----
-# Compliant
 resource "aws_s3_bucket_versioning" "state" {
-  bucket = aws_s3_bucket.terraform_state.id
+  bucket = "my-org-terraform-state"
   versioning_configuration {
-    status = "Enabled"  # Not Suspended
+    status = "Enabled"
   }
 }
 ----
 
-*Remediation:* Configure remote state backend with S3+DynamoDB locking.
-Enable state bucket versioning.
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  # No backend configured – local state only
+  # WAF-OPS-020 Violation: no remote state
+}
+----
+
+---
+
+=== waf-ops-020.tf.aws.s3-state-bucket-versioning
+
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
+
+*Terraform state S3 bucket must have versioning enabled*
+
+The S3 bucket used for Terraform remote state MUST have versioning enabled to allow state history, audit, and rollback capabilities.
+
+*Scope:* `resource` — `aws_s3_bucket_versioning`
+
+*Assertions:*
+* `versioning_configuration.status` equals `Enabled` — S3 state bucket versioning must be Enabled.
+
+*Remediation:* Add an aws_s3_bucket_versioning resource with status = "Enabled" for your Terraform state bucket.
+
+.Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Suspended"
+  }
+}
+----
+
+---
+
+=== waf-ops-020.tf.azurerm.terraform-state-storage
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure Terraform state must use Azure Storage Account backend*
+
+Terraform state for Azure deployments MUST be stored in an Azure Storage Account with blob versioning enabled. This ensures state durability and collaboration.
+
+*Scope:* `resource` — `azurerm_storage_account`
+
+*Assertions:*
+* `blob_properties` attribute exists — Storage account must have blob_properties configured.
+
+*Remediation:* Configure blob versioning on the Storage Account used for Terraform state.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "terraform_state" {
+  name                     = "myorgtfstate"
+  resource_group_name      = azurerm_resource_group.tfstate.name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  blob_properties {
+    versioning_enabled = true
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_storage_account" "terraform_state" {
+  name                     = "myorgtfstate"
+  resource_group_name      = azurerm_resource_group.tfstate.name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  # No blob versioning – WAF-OPS-020 Violation
+}
+----
+
+---
+
+=== waf-ops-020.tf.google.gcs-state-backend
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP Terraform state must use Cloud Storage backend with versioning*
+
+Terraform state for GCP deployments MUST be stored in a google_storage_bucket configured as a backend with uniform_bucket_level_access and versioning enabled. This prevents concurrent state modifications and provides state history.
+
+*Scope:* `resource` — `google_storage_bucket`
+
+*Assertions:*
+* `versioning` attribute exists — GCP Terraform state bucket must have versioning enabled.
+
+*Remediation:* Configure the gcs backend in the Terraform root module and enable versioning on the state bucket. Use a dedicated project for state storage with restricted IAM access.
+
+.Compliant
+
+[source,terraform]
+----
+terraform {
+  backend "gcs" {
+    bucket = "my-org-terraform-state"
+    prefix = "payment-service/production"
+  }
+}
+
+resource "google_storage_bucket" "terraform_state" {
+  name          = "my-org-terraform-state"
+  location      = "EU"
+  storage_class = "STANDARD"
+
+  versioning {
+    enabled = true
+  }
+
+  uniform_bucket_level_access = true
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+terraform {
+  # No backend configured – local state only
+  # WAF-OPS-020 Violation: no remote state
+}
+----
+
+---
+
+=== waf-ops-020.tf.stackit.provider-version-constrained
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT Terraform provider must have version constraint*
+
+STACKIT Terraform provider must have version constraint. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `required_providers.stackit.source` attribute exists — STACKIT provider source must be declared.
+* `required_providers.stackit.version` attribute exists — STACKIT provider version must be constrained.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "provider" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "provider" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-020.tf.ovh.provider-version-constrained
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud Terraform provider must have version constraint*
+
+OVHcloud Terraform provider must have version constraint. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `required_providers.ovh.source` attribute exists — OVHcloud provider source must be declared.
+* `required_providers.ovh.version` attribute exists — OVHcloud provider version must be constrained.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "provider" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "provider" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-020.tf.hcloud.provider-version-constrained
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud Terraform provider must have version constraint*
+
+Hetzner Cloud Terraform provider must have version constraint. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `terraform`
+
+*Assertions:*
+* `required_providers.hcloud.source` attribute exists — Hetzner Cloud provider source must be declared.
+* `required_providers.hcloud.version` attribute exists — Hetzner Cloud provider version must be constrained.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "provider" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "provider" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidence
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Type |Required |Description
+|Kind |Required |Description
 
-|*IaC*
-|✅ Required
-|Terraform repository with remote state configuration (backend.tf with S3/Azure/GCS).
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Required
-|State backend configuration with versioning and locking enabled.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Drift detection report (last 30 days, drift events with resolution times).
-
-|*Governance*
-|Optional
-|SCP or IAM policy preventing direct console changes in production accounts.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Related Controls
 
-* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
-* xref:controls/WAF-OPS-090.adoc[WAF-OPS-090 – Configuration Drift Detection]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+== Regulatory Mapping
 
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 10.2.2 – Financial management
+|ISO/IEC 20000-1 |* Configuration management
+* Change and deployment management
 
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
+|ITIL 4 |* Infrastructure and platform management
+* Configuration management
 
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
+|CIS Controls v8 |* CIS-4.6: Securely Manage Enterprise Assets and Software
 
 |===
-
-== Best Practice

@@ -3,214 +3,331 @@
 :control-id: WAF-SUS-030
 :pillar: sustainability
 :severity: medium
-:category: region-selection
-:automated: medium
-:description: WAF++ Sustainability – Carbon Intensity als Architekturparameter: grüne Regionen bevorzugen, ADR-Dokumentation, Carbon-Aware Routing für Batch-Workloads.
+:category: data-governance
+:automatable: High
+:description: Workloads without strict data-residency requirements MUST consider carbon intensity of cloud regions in placement decisions. When architectural and regulatory constraints allow, workloads SHOULD be placed in regions with high renewable energy mix or low grid carbon intensity. Region selection decisions MUST document sustainability considerations alongside latency and cost factors. Batch workloads with flexible placement MUST evaluate green region alternatives.
 
 [.metadata]
-*Pillar:* Sustainability | *Severity:* Medium | *Kategorie:* Region Selection | *Automatisierbar:* Mittel
+*Pillar:* Sustainability | *Severity:* Medium | *Category:* Data Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Workloads ohne strikte Data-Residency-Anforderungen MÜSSEN Carbon Intensity von Cloud-Regionen
-in Placement-Entscheidungen berücksichtigen. Architekturentscheidungen (ADRs) MÜSSEN Carbon-Impact
-als expliziten Faktor dokumentieren. Batch-Workloads mit flexiblem Placement MÜSSEN grüne
-Regionsalternativen evaluieren. Wenn ein identischer Workload in Stockholm statt Hong Kong deployed
-wird, kann er 60–80% weniger CO₂ emittieren — ohne Code-Änderung.
+Workloads without strict data-residency requirements MUST consider carbon intensity of cloud regions in placement decisions. When architectural and regulatory constraints allow, workloads SHOULD be placed in regions with high renewable energy mix or low grid carbon intensity. Region selection decisions MUST document sustainability considerations alongside latency and cost factors. Batch workloads with flexible placement MUST evaluate green region alternatives.
 
 == Rationale
 
-Cloud-Regionen unterscheiden sich erheblich in ihrer Energie-Zusammensetzung.
-`eu-north-1` (Stockholm) hat ~95% erneuerbare Energie (~10 gCO₂eq/kWh),
-während `ap-east-1` (Hong Kong) ~25% erneuerbare Energie (~500 gCO₂eq/kWh) hat.
-Ohne Dokumentation dieser Entscheidungen entsteht ein Carbon-Footprint, der weder
-verstanden noch für CSRD-Berichterstattung begründbar ist.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Unnötige Scope-3-Emissionen*
-|Workloads in hohe-Kohlenstoff-Regionen emittieren 50–80% mehr als gleiche Workloads in grünen Regionen.
+|*Risk* |Data may leave approved jurisdictions and violate regulatory requirements.
 
-|*CSRD-Governance-Gap*
-|Fehlende Dokumentation der Carbon-Berücksichtigung in Architekturentscheidungen ist ein Governance-Gap für ESG-Audits.
-
-|*SBTi Scope-3-Zielverfehlung*
-|Region-Auswahl beeinflusst maßgeblich das erreichbare SBTi-Ziel — undokumentierte Hochkohlenstoff-Deployments gefährden Ziele.
+|*Risk* |Vendor lock-in reduces future portability and sovereignty options.
 
 |===
 
-== Anforderung
+== Requirements
 
-* Region-Auswahl-Entscheidungen MÜSSEN Carbon Intensity als dokumentierten Faktor enthalten
-* ADR-Template SOLL einen Carbon-Impact-Abschnitt enthalten
-* Grüne Regionen SOLLEN als Default bevorzugt werden, wenn Compliance und Latenz es erlauben
-* Batch-Workloads mit flexiblem Placement MÜSSEN grüne Regionen evaluieren
-* Abweichungen von grünen Regionen MÜSSEN dokumentiert und begründet werden
+* Workloads without strict data-residency requirements MUST consider carbon intensity of cloud regions in placement decisions.
+* When architectural and regulatory constraints allow, workloads SHOULD be placed in regions with high renewable energy mix or low grid carbon intensity.
+* Region selection decisions MUST document sustainability considerations alongside latency and cost factors.
+* Batch workloads with flexible placement MUST evaluate green region alternatives.
 
-== Implementierungsanleitung
+== Implementation Guidance
 
-. *Cloud-Provider-Sustainability-Seiten konsultieren*: AWS, Azure, GCP veröffentlichen Energie-Mix pro Region
-. *Regionsauswahl-ADR-Template erweitern*: Carbon-Intensity-Sektion zu Architecture Decision Records hinzufügen
-. *Terraform-Validation*: `variable "aws_region"` mit `validation`-Block auf genehmigte grüne Regionen beschränken
-. *Batch-Workloads prüfen*: Alle Batch-Jobs ohne Residency-Anforderung auf grüne Regionen umplanen
-. *Carbon-Aware-Routing*: Für fortgeschrittene Teams: electricityMaps API für dynamisches Regionsrouting
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Maturity Levels
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Keine Berücksichtigung
-|Region nach Kosten/Latenz; Carbon nicht betrachtet; kein ADR-Requirement.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Informelles Bewusstsein
-|Team kennt Carbon-Intensitäts-Unterschiede; informelle Berücksichtigung bei Neudeployments.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|ADR-Dokumentiert
-|Architecture Decision Template mit Carbon-Sektion; grüne Regionen als Präferenz dokumentiert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Carbon-Aware Placement
-|Batch-Workloads aktiv in grüne Regionen; Carbon-API-Integration evaluiert oder aktiv.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Dynamic Carbon Routing
-|Echtzeit-Carbon-Intensity für Workload-Routing; RECs/PPAs für alle deployed Regionen.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-sus-030.tf.aws.preferred-regions
-*Prüft:* AWS-Provider-Region ist eine vorgenehmigte grüne Region.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS provider region should be a low-carbon-intensity region*
+
+This check validates that the AWS provider is configured to use a region with known high renewable energy mix. High-carbon regions are flagged as warnings to trigger documentation of the sustainability justification.
+
+*Scope:* `provider` — `aws`
+
+*Assertions:*
+* `region` in `['us-west-2', 'eu-north-1', 'eu-west-1']` — AWS region has a high carbon intensity. Consider us-west-2, eu-north-1, eu-west-1 for lower emissions.
+
+*Remediation:* If workloads can be placed in a lower-carbon region without violating data residency, latency, or compliance requirements, prefer: us-west-2 (Oregon, ~89% renewable), eu-north-1 (Stockholm, ~95% renewable), eu-west-1 (Ireland, ~80% renewable). If high-carbon region is required, document the justification in an ADR and offset through RECs for that region's workload footprint.
+
+.Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  region = "eu-north-1"
-  # Stockholm: ~95% erneuerbare Energie
-  # ~10 gCO₂eq/kWh
+  region = "eu-north-1"  # Stockholm – ~95% renewable energy
+  # Sustainability justification: low carbon intensity region selected per WAF-SUS-030
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 provider "aws" {
-  region = "ap-east-1"
-  # Hong Kong: ~25% erneuerbare Energie
-  # WAF-SUS-030 Warning: Carbon-Begründung fehlt
+  region = "ap-east-1"  # Hong Kong – high carbon intensity grid
+  # WAF-SUS-030 Warning: document carbon justification or migrate to lower-carbon region
 }
 ----
+
+---
+
+=== waf-sus-030.tf.google.preferred-regions
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP provider region should be a low-carbon-intensity region*
+
+GCP regions vary significantly in carbon intensity. europe-north1 (Finland) and europe-west1 (Belgium) are among the lowest carbon-intensity regions globally.
+
+*Scope:* `provider` — `google`
+
+*Assertions:*
+* `region` in `['europe-north1', 'europe-west1', 'us-west1']` — GCP region has elevated carbon intensity. Consider europe-north1, europe-west1, or us-west1.
+
+*Remediation:* For GCP workloads, prefer europe-north1 (Finland, ~97% renewable), europe-west1 (Belgium), or us-west1 (Oregon). GCP Carbon Footprint dashboard shows per-project emissions by region. Use carbon-free energy percentage (CFE%) metric available in GCP Sustainability console.
+
+.Compliant
+
+[source,terraform]
+----
+provider "google" {
+  project = var.project_id
+  region  = "europe-north1"  # Finland – 97% carbon-free energy
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+provider "google" {
+  project = var.project_id
+  region  = "asia-east1"  # Taiwan – lower renewable energy share
+  # WAF-SUS-030 Warning: document carbon justification
+}
+----
+
+---
+
+=== waf-sus-030.tf.azurerm.preferred-regions
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure provider location should be a low-carbon-intensity region*
+
+Azure regions differ in their carbon intensity. Sweden Central, Norway East, and North Europe (Ireland) consistently show the lowest carbon intensity in Azure's Emissions Impact Dashboard.
+
+*Scope:* `resource` — `azurerm_resource_group`
+
+*Assertions:*
+* `location` in `['swedencentral', 'norwayeast', 'northeurope']` — Azure region may have elevated carbon intensity. Consider swedencentral, norwayeast, or northeurope.
+
+*Remediation:* For Azure, prefer swedencentral (Sweden, ~95% renewable), norwayeast (Norway, hydro-powered), or northeurope (Ireland). Review Azure Emissions Impact Dashboard for current carbon intensity by region. Document sustainability rationale when using other regions.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_resource_group" "main" {
+  name     = "rg-app-prod"
+  location = "swedencentral"  # Sweden – ~95% renewable energy
+  tags = {
+    sustainability-region = "green"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_resource_group" "main" {
+  name     = "rg-app-prod"
+  location = "eastasia"
+  # WAF-SUS-030 Warning: high carbon intensity region, document justification
+}
+----
+
+---
+
+=== waf-sus-030.tf.stackit.renewable-energy-used
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*Workloads without strict data-residency requirements for stackit*
+
+Workloads without strict data-residency requirements must be documented in IaC via a renewable-energy-used tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the renewable-energy-used tag/label.
+
+*Remediation:* Add a renewable-energy-used tag/label to the stackit_project resource to show the stackit implementation of WAF-SUS-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    renewable-energy-used = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing renewable-energy-used labels
+}
+----
+
+---
+
+=== waf-sus-030.tf.ovh.renewable-energy-used
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*Workloads without strict data-residency requirements for ovh*
+
+Workloads without strict data-residency requirements must be documented in IaC via a renewable-energy-used tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the renewable-energy-used tag/label.
+
+*Remediation:* Add a renewable-energy-used tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-SUS-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    renewable-energy-used = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing renewable-energy-used tags
+}
+----
+
+---
+
+=== waf-sus-030.tf.hcloud.renewable-energy-used
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Workloads without strict data-residency requirements for hcloud*
+
+Workloads without strict data-residency requirements must be documented in IaC via a renewable-energy-used tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the renewable-energy-used tag/label.
+
+*Remediation:* Add a renewable-energy-used tag/label to the hcloud_server resource to show the hcloud implementation of WAF-SUS-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    renewable-energy-used = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing renewable-energy-used labels
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
+|===
+|Kind |Required |Description
+
+|`iac` |Required |Terraform configuration implementing the control.
+
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
+
+|`config` |Optional |Cloud console or API output confirming runtime state.
+
 |===
 
-*Remediation:* Für hohe-Carbon-Regionen: Begründung in ADR dokumentieren.
-Grüne Alternativen: `eu-north-1`, `eu-west-1`, `us-west-2`, `ca-central-1`.
+== Related Controls
 
-== Evidenz
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-020.adoc[WAF-SUS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-040.adoc[WAF-SUS-040]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-sustainability:controls/WAF-SUS-100.adoc[WAF-SUS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+== Regulatory Mapping
 
-[cols="1,1,2"]
-|===
-|Typ |Pflicht |Beschreibung
-
-|*Governance*
-|✅ Pflicht
-|ADR oder Region-Selection-Dokument mit Carbon-Intensity als berücksichtigtem Faktor.
-
-|*Config*
-|✅ Pflicht
-|Terraform-Provider-Konfiguration mit eingesetzten Regionen; Zuordnung zu Carbon-Intensity-Daten.
-
-|*Governance*
-|Optional
-|REC oder PPA für deployed Regionen.
-
-|*Process*
-|Optional
-|Carbon-Aware-Scheduling-Konfiguration für Batch-Workloads.
-
-|===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*EU CSRD (Corporate Sustainability Reporting Directive)*
-|ESRS E1 – Climate change; ESRS G1 – Governance; ESRS S1 – Own workforce
+|EU CSRD (Corporate Sustainability Reporting Directive) |* ESRS E1 – Climate Change – Scope 3 reduction actions
 
-|*GHG Protocol (Corporate Accounting and Reporting Standard)*
-|Scope 1 – Direct emissions; Scope 2 – Indirect emissions from purchased energy; Scope 3 – Other indirect emissions
+|GHG Protocol |* Scope 2 – Market-based method (renewable energy certificates, PPAs)
+* Scope 3 – Category 11: purchased cloud services location factor
 
-|*Green Software Foundation (GSF)*
-|Software Engineering Principles – Carbon-aware computing; Carbon accounting standards
+|Green Software Foundation |* Carbon Aware Computing – location-based optimization
+* Software Carbon Intensity (SCI) – location component
 
-|*SBTi (Science Based Targets initiative)*
-|Target setting methodology; Validation and verification; Corporate target standards
-
-|*ISO 14001:2015*
-|Clause 6.1 – Actions to address risks and opportunities; Clause 8.1 – Operational planning and control
-
-|*ISO 14064-1:2018*
-|Clause 5 – GHG inventory quantification; Clause 6 – GHG inventory validation and verification
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing
-
-|*CSRD*
-|ESRS E1-6 – Emissions; ESRS G1-3 – Governance
-
-|*NIST SP 800-53*
-|AU-1 – Audit and accountability policy; AU-2 – Audit events; AU-3 – Content of audit records
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; DE.CM – Continuous monitoring; RV.RP – Recovery planning
-
-|*TISAX*
-|Information security – Sustainability; Prototype protection – Environmental protection
-
-|*ANSSI SecNumCloud*
-|Domain – Environmental impact
-
-|*BIO*
-|BIO – Milieueffecten
-
-|*ENS High*
-|op.exp.9 – Gestión del impacto ambiental
-
-|*UK NCSC CAF*
-|B6 – Environmental impact
-
-|*CMMC 2.0*
-|AU.L2-3.8.1 – Automated audit logging
-
-|*IRAP*
-|ISM – Environmental monitoring
-
-|*CCCS PBMM*
-|AU-2 – Audit events
-
-|*MAS TRM*
-|Ch.12 – Outsourcing risk management
-
-|*ISMAP*
-|Sustainability and environmental impact
-
-|*FISC*
-|Operational measures – Environmental impact
+|ISO 14001 |* 6.1.2 – Environmental aspects: procurement and infrastructure decisions
 
 |===
-
-== Verwandte Controls

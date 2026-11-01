@@ -3,111 +3,84 @@
 :control-id: WAF-COST-010
 :pillar: cost
 :severity: high
-:category: cost-allocation
-:automated: high
-:description: WAF++ Cost Optimization – Verpflichtende Kostenzuordnungs-Tags auf allen Cloud-Ressourcen.
+:category: data-governance
+:automatable: High
+:description: All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload. These tags are required on all resource types that generate billable costs (compute, storage, database, network, managed services). Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance MUST be blocked or flagged as violations.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Cost Allocation | *Automatisierbar:* Hoch
+*Pillar:* Cost | *Severity:* High | *Category:* Data Governance | *Automatable:* High
 
-== Beschreibung
+== Description
 
-Alle Cloud-Ressourcen MÜSSEN die Pflicht-Tags tragen: `cost-center`, `owner`, `environment`, `workload`.
-Fehlende Pflicht-Tags MÜSSEN im CI-Gate als Violation behandelt werden.
-Kein Deployment darf ohne vollständige Tagging-Compliance durchgeführt werden.
-
-Tagging-Compliance ist keine optionale Optimierungsmaßnahme – sie ist die Grundvoraussetzung
-für alle anderen Cost-Optimization-Controls. Ohne Kostenzuordnung ist keine Optimierung möglich.
+All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload. These tags are required on all resource types that generate billable costs (compute, storage, database, network, managed services). Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance MUST be blocked or flagged as violations.
 
 == Rationale
 
-Ohne konsistentes Tagging sind 20–40% der Cloud-Kosten typischerweise nicht zuordenbar.
-Costs ohne Workload-Zuordnung können nicht optimiert werden: kein Ownership, kein Chargeback,
-kein sinnvolles Rightsizing, keine workloadspezifische Budget-Kontrolle.
-
-Manuelles Tagging im Console-UI ist unzuverlässig: Tags werden beim nächsten Terraform-Apply
-überschrieben. IaC-seitig erzwungene Tags über ein gemeinsames Mandatory-Tag-Modul sind
-der einzige nachhaltige Ansatz.
-
-== Bedrohungskontext
-
 [cols="1,3"]
 |===
-|Risiko |Beschreibung
+|Risk |Description
 
-|*Nicht zuordenbare Kosten*
-|20–40% Cloud-Kosten ohne Workload-Zuordnung machen Ownership, Rightsizing und Chargeback unmöglich.
+|*Risk* |Uncontrolled cloud spend erodes budget and project viability.
 
-|*Fehlende Budget-Kontrolle*
-|Budget-Überschreitungen können keinem Team zugeordnet werden – niemand fühlt sich verantwortlich.
-
-|*Compliance-Gap*
-|Cost-Governance-Frameworks erfordern demonstrierbare Kostenzuordnung; fehlende Tags sind Audit-Findings.
-
-|*Drift durch Console-Tagging*
-|Im UI manuell gesetzte Tags werden bei Terraform-Runs überschrieben – kontinuierliche Inkonsistenz.
+|*Risk* |High lock-in or debt decisions are made without financial impact visibility.
 
 |===
 
-== Anforderung
+== Requirements
 
-Alle datenhaltenden und compute-intensiven Ressourcen MÜSSEN folgende Tags tragen:
+* All cloud resources MUST carry mandatory cost allocation tags: cost-center, owner, environment, and workload.
+* These tags are required on all resource types that generate billable costs (compute, storage, database, network, managed services).
+* Tagging MUST be enforced in the CI/CD pipeline; deployments without full tag compliance MUST be blocked or flagged as violations.
 
-* `cost-center` – Organisatorische Kosteneinheit (lowercase-kebab-case)
-* `owner` – Verantwortliches Team (nicht Einzelperson)
-* `environment` – Umgebung: `production`, `staging`, `development`, `testing`
-* `workload` – Name des Workloads oder Produkts
+== Implementation Guidance
 
-Die Tags MÜSSEN über ein gemeinsames Terraform-Modul gesetzt werden.
-Ein CI-Gate MUSS Tagging-Compliance bei jedem Pull Request prüfen.
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Implementierungsanleitung
+== Maturity Levels
 
-. *Tagging-Taxonomie dokumentieren*: `docs/tagging-taxonomy.yml` mit erlaubten Werten
-. *Mandatory-Tag-Modul erstellen*: Gemeinsames Terraform-Modul für alle Teams
-. *Variable-Validation hinzufügen*: `environment` auf erlaubte Werte beschränken
-. *CI-Gate konfigurieren*: WAF++ Check oder OPA-Policy prüft Tags bei jedem PR
-. *Chargeback/Showback einrichten*: Cost-Allocation-Gruppen in Cloud-Billing-Tools
-
-== Reifegrad-Abstufung
-
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Criteria
 
-|*1*
-|Ad-hoc Tagging
-|Kein Tagging-Standard; verschiedene Teams nutzen unterschiedliche Tag-Keys.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Taxonomie dokumentiert
-|Pflicht-Tag-Taxonomie dokumentiert; Tags manuell gesetzt; monatliches Compliance-Review.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|IaC-erzwungen mit CI-Gate
-|Mandatory-Tag-Modul in allen Deployments; CI-Pipeline blockiert non-compliant PRs; >= 95% Compliance.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisierte Remediation
-|Nicht-compliant getaggte Ressourcen werden automatisch remediert; Chargeback/Showback operativ.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Vollständige Kostenzuordnung
-|100% Kostenzuordnung zu Workloads; Real-Time-Dashboard; automatische Tag-Enforcement via SCP/Policy.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-010.tf.aws.compute-mandatory-tags
-*Prüft:* AWS Compute-Ressourcen müssen `cost-center`, `owner`, `environment`, `workload` Tags tragen.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Yes
 
-a|[source,hcl]
+*AWS compute resources must have all mandatory cost allocation tags*
+
+EC2 instances, ECS services, EKS node groups, Lambda functions and other compute resources must carry all mandatory cost allocation tags: cost-center, owner, environment, and workload.
+
+*Scope:* `resource` — `aws_instance`, `aws_launch_template`, `aws_eks_node_group`, `aws_ecs_service`, `aws_lambda_function`, `aws_db_instance`, `aws_rds_cluster`, `aws_elasticache_cluster`, `aws_s3_bucket`, `aws_cloudwatch_log_group`, `stackit_project`, `stackit_container_registry`, `stackit_mysql_instance`, `stackit_opensearch_instance`, `stackit_redis_instance`, `stackit_secret_manager`, `stackit_load_balancer`, `stackit_network`, `stackit_dns_zone`, `stackit_log_service`, `ovh_cloud_project`, `ovh_vps`, `ovh_dedicated_server`, `ovh_ip_loadbalancing`, `hcloud_server`, `hcloud_volume`, `hcloud_network`, `hcloud_load_balancer`, `hcloud_dns_record`
+
+*Assertions:*
+* `tags` key exists — Resource is missing the mandatory 'cost-center' tag.
+* `tags` key exists — Resource is missing the mandatory 'owner' tag.
+* `tags` key exists — Resource is missing the mandatory 'environment' tag.
+* `tags` key exists — Resource is missing the mandatory 'workload' tag.
+
+*Remediation:* Use the shared mandatory-tags module to generate the complete tag map. Add module "tags" { source = "../../modules/mandatory-tags"; cost_center = ...; owner = ...; environment = ...; workload = ...; } Then set tags = module.tags.tags on every resource.
+
+.Compliant
+
+[source,terraform]
 ----
+# AWS
 module "tags" {
   source      = "../../modules/mandatory-tags"
   cost_center = "fintech-platform"
@@ -115,39 +88,91 @@ module "tags" {
   environment = "production"
   workload    = "payment-service"
 }
-
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.medium"
   tags          = module.tags.tags
 }
+
+# Azure
+resource "azurerm_virtual_machine" "app" {
+  name                = "payment-app-vm"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = "germanywestcentral"
+  tags = merge(module.tags.tags, {
+    Name = "payment-app-vm"
+  })
+}
+
+# StackIT (SchwarzIT)
+resource "stackit_load_balancer" "app" {
+  project_id = stackit_project.main.id
+  name       = "payment-app-lb"
+  tags = merge(module.tags.tags, {
+    Name = "payment-app-lb"
+  })
+}
+
+# OVH
+resource "ovh_cloud_project_instance" "app" {
+  project_id = ovh_cloud_project.main.id
+  name       = "payment-app-vm"
+  flavor     = "b2-7"
+  image      = "Ubuntu 22.04"
+  tags = merge(module.tags.tags, {
+    Name = "payment-app-vm"
+  })
+}
+
+# Hetzner Cloud
+resource "hcloud_server" "app" {
+  name        = "payment-app-server"
+  server_type = "cx22"
+  location    = "fsn1"
+  labels = merge(module.tags.tags, {
+    Name = "payment-app-server"
+  })
+}
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.medium"
   tags = {
     Name = "payment-app"
-    # Fehlend: cost-center, owner,
-    # environment, workload
-    # WAF-COST-010 Violation
+    # Missing: cost-center, owner, environment, workload
   }
 }
 ----
-|===
-
-*Remediation:* Mandatory-Tag-Modul in alle Ressourcen einbinden. Werte für `environment` müssen
-aus der erlaubten Liste stammen: `production`, `staging`, `development`, `testing`.
 
 ---
 
 === waf-cost-010.tf.azurerm.resource-group-mandatory-tags
-*Prüft:* Azure Resource Groups müssen alle Pflicht-Tags tragen.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Yes
+
+*Azure resource groups must have all mandatory cost allocation tags*
+
+Azure resource groups must carry all mandatory cost allocation tags. Tags applied to resource groups propagate to child resources through Azure Cost Management.
+
+*Scope:* `resource` — `azurerm_resource_group`, `azurerm_virtual_machine`, `azurerm_storage_account`, `azurerm_sql_database`, `azurerm_kubernetes_cluster`, `stackit_project`, `stackit_container_registry`, `stackit_mysql_instance`, `stackit_opensearch_instance`, `stackit_redis_instance`, `stackit_secret_manager`, `ovh_cloud_project`, `ovh_vps`, `ovh_dedicated_server`, `hcloud_server`, `hcloud_volume`, `hcloud_network`, `hcloud_load_balancer`
+
+*Assertions:*
+* `tags` key exists — Azure resource is missing the mandatory 'cost-center' tag.
+* `tags` key exists — Azure resource is missing the mandatory 'owner' tag.
+* `tags` key exists — Azure resource is missing the mandatory 'environment' tag.
+* `tags` key exists — Azure resource is missing the mandatory 'workload' tag.
+
+*Remediation:* Add all mandatory tags to Azure resources. For resource groups, ensure tags include cost-center, owner, environment, and workload. Use Azure Policy to enforce tag inheritance.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "azurerm_resource_group" "main" {
   name     = "rg-payment-service-prod"
   location = var.location
@@ -161,46 +186,235 @@ resource "azurerm_resource_group" "main" {
 }
 ----
 
-== Evidenz
+.Non-Compliant
 
-[cols="1,1,2"]
+[source,terraform]
+----
+resource "azurerm_resource_group" "main" {
+  name     = "rg-payment-service-prod"
+  location = var.location
+  # Missing all mandatory tags – WAF-COST-010 violation
+}
+----
+
+---
+
+=== waf-cost-010.tf.google.project-labels-mandatory
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Yes
+
+*GCP projects and billable resources must have mandatory cost allocation labels*
+
+GCP projects must define labels for cost-center, owner, environment, and workload. Billable resources such as google_compute_instance, google_storage_bucket, and google_container_cluster must carry the same labels so cost allocation is possible via GCP Cost Management labels.
+
+*Scope:* `resource` — `google_project`, `google_compute_instance`, `google_storage_bucket`, `google_container_cluster`
+
+*Assertions:*
+* `labels` key exists — GCP resource is missing the mandatory 'cost-center' label.
+* `labels` key exists — GCP resource is missing the mandatory 'owner' label.
+* `labels` key exists — GCP resource is missing the mandatory 'environment' label.
+* `labels` key exists — GCP resource is missing the mandatory 'workload' label.
+
+*Remediation:* Set labels on the google_project and on every billable resource. Use a shared labels module and apply it consistently. For BigQuery datasets, also set default_table_expiration_ms where applicable.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_project" "payment" {
+  name       = "payment-service-prod"
+  project_id = "payment-service-prod-123"
+  labels = {
+    cost-center = "fintech-platform"
+    owner       = "payments-team"
+    environment = "production"
+    workload    = "payment-service"
+  }
+}
+
+resource "google_compute_instance" "app" {
+  name         = "vm-payment-app"
+  machine_type = "e2-medium"
+  zone         = var.zone
+
+  labels = merge(module.mandatory_tags.labels, {
+    cost-center = "fintech-platform"
+    owner       = "payments-team"
+    environment = "production"
+    workload    = "payment-service"
+  })
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_compute_instance" "app" {
+  name         = "vm-payment-app"
+  machine_type = "e2-medium"
+  zone         = var.zone
+  # Missing mandatory cost allocation labels
+}
+----
+
+---
+
+=== waf-cost-010.tf.stackit.project-mandatory-labels
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Yes
+
+*STACKIT project and billable resources must carry mandatory cost allocation labels*
+
+STACKIT project and billable resources must carry mandatory cost allocation labels. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_project`, `stackit_server`, `stackit_object_storage_bucket`, `stackit_ske_cluster`, `stackit_postgres_instance`, `stackit_mysql_instance`, `stackit_redis_instance`, `stackit_opensearch_instance`
+
+*Assertions:*
+* `labels` key exists — STACKIT resource is missing the mandatory 'cost-center' label.
+* `labels` key exists — STACKIT resource is missing the mandatory 'owner' label.
+* `labels` key exists — STACKIT resource is missing the mandatory 'environment' label.
+* `labels` key exists — STACKIT resource is missing the mandatory 'workload' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_project" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_project" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-010.tf.ovh.project-mandatory-tags
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Yes
+
+*OVHcloud project and billable resources must carry mandatory cost allocation tags*
+
+OVHcloud project and billable resources must carry mandatory cost allocation tags. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project`, `ovh_cloud_project_instance`, `ovh_vps`, `ovh_dedicated_server`, `ovh_cloud_project_kube`, `ovh_cloud_project_database_postgresql`, `ovh_cloud_project_database_mysql`
+
+*Assertions:*
+* `tags` key exists — OVHcloud resource is missing the mandatory 'cost-center' tag.
+* `tags` key exists — OVHcloud resource is missing the mandatory 'owner' tag.
+* `tags` key exists — OVHcloud resource is missing the mandatory 'environment' tag.
+* `tags` key exists — OVHcloud resource is missing the mandatory 'workload' tag.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-010.tf.hcloud.server-mandatory-labels
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Yes
+
+*Hetzner Cloud billable resources must carry mandatory cost allocation labels*
+
+Hetzner Cloud billable resources must carry mandatory cost allocation labels. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_volume`, `hcloud_load_balancer`, `hcloud_network`, `hcloud_floating_ip`, `hcloud_primary_ip`
+
+*Assertions:*
+* `labels` key exists — Hetzner Cloud resource is missing the mandatory 'cost-center' label.
+* `labels` key exists — Hetzner Cloud resource is missing the mandatory 'owner' label.
+* `labels` key exists — Hetzner Cloud resource is missing the mandatory 'environment' label.
+* `labels` key exists — Hetzner Cloud resource is missing the mandatory 'workload' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+== Evidence
+
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Kind |Required |Description
 
-|*Governance*
-|✅ Pflicht
-|Tagging-Taxonomie-Dokument (versioniert, mit erlaubten Werten und Enforcement-Regeln).
+|`iac` |Required |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Pflicht
-|Mandatory-Tags-Modul im Repository; verwendet von allen Teams.
+|`governance` |Required |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Monatlicher Tagging-Compliance-Report (Ziel: >= 95% Compliance).
-
-|*Config*
-|Optional
-|CI-Pipeline-Konfiguration mit Tag-Compliance-Check auf Pull Requests.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
+== Related Controls
 
-== Regulatorisches Mapping
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-cost:controls/WAF-COST-050.adoc[WAF-COST-050]
+* xref:pillar-cost:controls/WAF-COST-030.adoc[WAF-COST-030]
+* xref:pillar-cost:controls/WAF-COST-060.adoc[WAF-COST-060]
+* xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+== Regulatory Mapping
 
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
 |Framework |Controls
 
-|*FinOps Foundation*
-|Inform Phase – Cost Allocation and Showback; Operate Phase – Tagging and Cost Attribution
-
-|*ISO 20000*
-|Service financial management – cost allocation
-
-|*Internal Governance*
-|Cloud Cost Governance Policy – Resource Ownership; FinOps Charter – Accountability and Transparency
+|FinOps Foundation |* Inform Phase – Cost Allocation and Showback
+* Operate Phase – Tagging and Cost Attribution
 
 |===
-
-== Verwandte Controls
