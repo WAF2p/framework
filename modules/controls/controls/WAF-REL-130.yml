@@ -1,0 +1,120 @@
+id: WAF-REL-130
+title: Disaster recovery plans MUST be tested at least annually and updated based on test results
+status: active
+tags:
+- governance
+- high
+- process
+- reliability
+pillar: reliability
+severity: high
+type:
+- governance
+- process
+category: backup-recovery
+rationale: Ungetestete Disaster-Recovery-Pläne verlängern Ausfallzeiten und erhöhen das Risiko irreversibler Datenverluste.
+  Dieses Control adressiert die Anforderungen des Bereichs 'Backup Recovery' und stellt sicher, dass Every critical workload
+  MUST have a documented disaster recovery plan with defined RTO and RPO. DR p...
+threat:
+- Untested DR plans often miss critical gaps in network, identity, or data dependencies.
+- Outdated DR procedures extend recovery time and increase data loss during real disasters.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-reliability/pages/controls/WAF-REL-130.adoc
+  related_controls:
+  - WAF-REL-010
+  - WAF-REL-040
+  - WAF-REL-070
+  - WAF-OPS-030
+  - WAF-OPS-060
+  - WAF-SOV-120
+description: Every critical workload MUST have a documented disaster recovery plan with defined RTO and RPO. DR plans MUST
+  be exercised at least annually through tabletop, failover, or full recovery tests. Test results and corrective actions MUST
+  be documented and tracked to completion. DR runbooks MUST be reviewed after each test and after significant architecture
+  changes.
+regulatory_mapping:
+- framework: ISO 27001:2022
+  controls:
+  - A.8.13 – Information backup
+  - A.8.14 – Redundancy of information processing facilities
+- framework: BSI C5:2020
+  controls:
+  - OPS-06 – Operational continuity / Exit management
+- framework: DORA
+  controls:
+  - Art. 12 – ICT-related incident management
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: SOC 2 Type II
+  controls:
+  - A1.2 – Failover and recovery
+- framework: NIST SP 800-53
+  controls:
+  - CP-4 – Contingency Plan Testing
+checks:
+- id: waf-rel-130.config.dr-plan-documented
+  engine: config
+  provider: any
+  automated: false
+  title: DR plan with RTO/RPO must be documented
+  description: DR plan with RTO/RPO must be documented
+  expected: 'true'
+  remediation: DR plan with RTO/RPO must be documented
+  scope:
+    block_type: file
+    path_pattern: docs/reliability/disaster-recovery-plan.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: DR plan must define RTO, RPO, and test schedule.
+  on_fail: violation
+- id: waf-rel-130.config.dr-test-evidence
+  engine: config
+  provider: any
+  automated: false
+  title: Annual DR test evidence must exist
+  description: Annual DR test evidence must exist
+  expected: 'true'
+  remediation: Annual DR test evidence must exist
+  scope:
+    block_type: file
+    path_pattern: docs/reliability/dr-test-evidence.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: DR test evidence within last 12 months must exist.
+  on_fail: finding

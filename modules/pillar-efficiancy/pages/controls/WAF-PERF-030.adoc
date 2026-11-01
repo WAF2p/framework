@@ -1,249 +1,353 @@
 = WAF-PERF-030 – Caching Strategy Defined & Implemented
 :page-toc: right
 :control-id: WAF-PERF-030
-:pillar: performance
+:pillar: efficiancy
 :severity: medium
-:category: caching
-:automated: medium
-:description: WAF++ Performance Efficiency – Caching-Strategie dokumentieren und mehrschichtig implementieren.
+:category: identity-access
+:automatable: High
+:description: All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined and implemented. The caching strategy MUST specify cache layers (application, distributed cache, CDN), TTL policies, cache invalidation mechanisms, and cache hit rate targets. CDN caching MUST be configured for all public-facing static and dynamic content. Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data and frequently-accessed read-heavy datasets.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* Medium | *Kategorie:* Caching | *Automatisierbar:* Mittel
+*Säule:* Efficiancy | *Schweregrad:* Mittel | *Kategorie:* Identity Access | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle Workloads mit wiederholenden Lesemustern oder hochlatenten Datenquellen MÜSSEN eine
-dokumentierte Caching-Strategie haben. Die Strategie MUSS Cache-Layer, TTL-Policies und
-Invalidierungsmechanismen spezifizieren. CDN MUSS für alle öffentlichen statischen und
-cachefähigen Inhalte konfiguriert sein. Distributed Cache (Redis, Memcached) MUSS für
-Session-Daten und hochfrequente Read-Heavy-Lookups eingesetzt werden.
+All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined and implemented. The caching strategy MUST specify cache layers (application, distributed cache, CDN), TTL policies, cache invalidation mechanisms, and cache hit rate targets. CDN caching MUST be configured for all public-facing static and dynamic content. Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data and frequently-accessed read-heavy datasets.
 
-== Rationale
-
-Wiederholte identische Datenbankabfragen ohne Caching erzeugen unnötige Last auf dem Datenbankserver,
-unnötige Latenz für den Nutzer und unnötige Kosten für Datentransfer.
-Ein gut konfigurierter Cache kann die Datenbankauslastung um 60–90% reduzieren.
-Schlechtes Caching (falsche TTLs, fehlende Invalidierung) erzeugt Stale-Data-Probleme,
-die schwerer zu debuggen sind als kein Caching.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Datenbanküberlastung*
-|Identische Queries hundertfach pro Sekunde sättigen I/O und CPU des Datenbankservers.
+|*Risk* |Internet-facing resources or open management ports become direct attack vectors.
 
-|*Thundering Herd*
-|Cache-Expiry vieler gleichzeitiger Keys → simultane Backend-Anfragen → Datenbankausfall.
-
-|*Stale Data*
-|Fehlende Cache-Invalidierung bei Datenmutationen → Nutzer sehen veraltete Daten.
-
-|*Kein CDN → hohe Latenz*
-|Statische Assets ohne CDN von Origin ausgeliefert → unnötige Latenz für Nutzer außerhalb der Region.
+|*Risk* |Lateral movement is easier when network segmentation and access rules are missing.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Caching-Strategie MUSS dokumentiert sein (Layer, TTL pro Datentyp, Invalidierungsmechanismus)
-* Distributed Cache MUSS für Session-Daten und hochfrequente Lookups verwendet werden
-* CDN MUSS für alle öffentlichen statischen Inhalte konfiguriert sein
-* Cache-Hit-Raten MÜSSEN gemessen und gemonitored werden (Ziel: >= 80% App-Cache, >= 95% CDN)
+* All workloads with repeated read patterns or high-latency data sources MUST have a caching strategy defined and implemented.
+* The caching strategy MUST specify cache layers (application, distributed cache, CDN), TTL policies, cache invalidation mechanisms, and cache hit rate targets.
+* CDN caching MUST be configured for all public-facing static and dynamic content.
+* Distributed caching solutions (Redis, Memcached, or equivalents) MUST be used for session data and frequently-accessed read-heavy datasets.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Zugriffsmuster analysieren*: Top-20-Datenbankabfragen identifizieren; Wiederholungsfrequenz messen
-. *Caching-Strategie-Dokument erstellen*: `docs/caching-strategy.yml` mit Layer, TTL, Invalidierungslogik
-. *Redis/ElastiCache deployen*: Multi-AZ, Automatic Failover, Encryption in Transit
-. *Cache-Aside Pattern implementieren*: Stampede-Schutz via Lock oder Probabilistic Early Expiration
-. *CDN konfigurieren*: CloudFront/Azure CDN/Cloud CDN für statische Assets
-. *Hit-Rate-Monitoring*: CloudWatch ElastiCache Metrics; Alert bei Hit-Rate < 70%
-. *Invalidierungslogik sicherstellen*: Jede Datenmutation muss zugehörige Cache-Entries invalidieren
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Kein Cache
-|Alle Requests gehen auf Origin; keine CDN; keine distributed Cache.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Ad-hoc Cache
-|Einige Dinge gecacht ohne Strategie; TTLs arbiträr; keine Hit-Rate-Messung.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Dokumentierte Strategie
-|Caching-Strategie-Dokument; Hit-Rate gemessen; CDN aktiv; HA-Redis deployed.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Optimierter Cache
-|Hit-Rate >= 80% erreicht; automatische Invalidierung; Stampede-Schutz.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Adaptiver Cache
-|ML-basiertes Cache-Warming; adaptive TTLs; intelligentes Edge-Caching.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-030.tf.aws.elasticache-cluster-configured
-*Prüft:* ElastiCache Replication Group muss Automatic Failover, multi-node und Encryption haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS ElastiCache clusters must be in cluster mode with automatic failover*
+
+ElastiCache Redis clusters must have cluster mode or multi-AZ with automatic failover enabled to ensure high availability of the caching layer. Single-node ElastiCache deployments in production are a violation.
+
+*Scope:* `resource` — `aws_elasticache_replication_group`, `aws_elasticache_cluster`
+
+*Assertions:*
+* `automatic_failover_enabled` is true — ElastiCache replication group must have automatic_failover_enabled = true for production use.
+* `num_cache_clusters` greater than or equal `2` — ElastiCache must have at least 2 cache nodes for redundancy.
+* `at_rest_encryption_enabled` is true — ElastiCache must have at-rest encryption enabled.
+
+*Remediation:* Set automatic_failover_enabled = true, num_cache_clusters >= 2, and at_rest_encryption_enabled = true. For Redis, use replication_group resource with at least one replica.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_elasticache_replication_group" "main" {
+resource "aws_elasticache_replication_group" "app" {
   replication_group_id       = "payment-cache"
+  description                = "Cache for payment service sessions and lookups"
   node_type                  = "cache.t3.medium"
   num_cache_clusters         = 2
   automatic_failover_enabled = true
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
+  subnet_group_name          = aws_elasticache_subnet_group.main.name
+  security_group_ids         = [aws_security_group.cache.id]
 }
 ----
-a|[source,hcl]
-----
-resource "aws_elasticache_cluster" "main" {
-  cluster_id      = "payment-cache"
-  engine          = "redis"
-  num_cache_nodes = 1
-  # Single node, kein Failover
-  # WAF-PERF-030 Violation
-}
-----
-|===
 
-*Remediation:* `aws_elasticache_replication_group` mit `automatic_failover_enabled = true`,
-`num_cache_clusters >= 2`, `at_rest_encryption_enabled = true` verwenden.
+.Non-Compliant
+
+[source,terraform]
+----
+resource "aws_elasticache_cluster" "app" {
+  cluster_id        = "payment-cache"
+  engine            = "redis"
+  node_type         = "cache.t3.micro"
+  num_cache_nodes   = 1  # Single node, no failover – WAF-PERF-030 violation
+  # No encryption configured
+}
+----
+
+---
+
+=== waf-perf-030.tf.azurerm.redis-cache-premium
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Cache for Redis must be Premium or Standard tier with persistence*
+
+Azure Cache for Redis for production use must be Standard or Premium tier with clustering enabled for large datasets and geo-replication where required.
+
+*Scope:* `resource` — `azurerm_redis_cache`
+
+*Assertions:*
+* `sku_name` in `['Standard', 'Premium']` — Azure Redis Cache must use Standard or Premium SKU for production (not Basic).
+* `enable_non_ssl_port` is false — Non-SSL port must be disabled on Azure Redis Cache.
+* `minimum_tls_version` equals `1.2` — Azure Redis Cache must enforce TLS 1.2 minimum.
+
+*Remediation:* Upgrade Redis SKU to Standard or Premium. Disable non-SSL port. Set minimum_tls_version = "1.2". For large datasets enable cluster mode (Premium only).
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_redis_cache" "app" {
+  name                = "cache-payment-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  capacity            = 1
+  family              = "C"
+  sku_name            = "Standard"
+  enable_non_ssl_port = false
+  minimum_tls_version = "1.2"
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_redis_cache" "app" {
+  name                = "cache-payment-api"
+  capacity            = 0
+  family              = "C"
+  sku_name            = "Basic"  # Basic tier – no replication – WAF-PERF-030 violation
+  enable_non_ssl_port = true     # SSL disabled – security violation
+}
+----
+
+---
+
+=== waf-perf-030.tf.google.memorystore-redis-ha
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Memorystore for Redis must use STANDARD_HA tier*
+
+GCP Memorystore for Redis instances used for production caching must use STANDARD_HA tier to ensure failover and high availability.
+
+*Scope:* `resource` — `google_redis_instance`
+
+*Assertions:*
+* `tier` equals `STANDARD_HA` — Memorystore Redis must use STANDARD_HA tier for production use.
+* `transit_encryption_mode` equals `SERVER_AUTHENTICATION` — Memorystore Redis must have transit encryption enabled.
+
+*Remediation:* Set tier = "STANDARD_HA" for production Redis instances. Set transit_encryption_mode = "SERVER_AUTHENTICATION" for encryption in transit.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_redis_instance" "app" {
+  name                    = "cache-payment-api"
+  tier                    = "STANDARD_HA"
+  memory_size_gb          = 4
+  region                  = "europe-west3"
+  transit_encryption_mode = "SERVER_AUTHENTICATION"
+  redis_version           = "REDIS_7_0"
+  labels = {
+    workload = "payment-api"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_redis_instance" "app" {
+  name           = "cache-payment-api"
+  tier           = "BASIC"  # No failover – WAF-PERF-030 violation
+  memory_size_gb = 1
+}
+----
+
+---
+
+=== waf-perf-030.tf.stackit.scalability-tested
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*All workloads with repeated read patterns or high-latency data sources for stackit*
+
+All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the scalability-tested tag/label.
+
+*Remediation:* Add a scalability-tested tag/label to the stackit_project resource to show the stackit implementation of WAF-PERF-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    scalability-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing scalability-tested labels
+}
+----
+
+---
+
+=== waf-perf-030.tf.ovh.scalability-tested
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*All workloads with repeated read patterns or high-latency data sources for ovh*
+
+All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the scalability-tested tag/label.
+
+*Remediation:* Add a scalability-tested tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-PERF-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    scalability-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing scalability-tested tags
+}
+----
+
+---
+
+=== waf-perf-030.tf.hcloud.scalability-tested
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*All workloads with repeated read patterns or high-latency data sources for hcloud*
+
+All workloads with repeated read patterns or high-latency data sources must be documented in IaC via a scalability-tested tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the scalability-tested tag/label.
+
+*Remediation:* Add a scalability-tested tag/label to the hcloud_server resource to show the hcloud implementation of WAF-PERF-030 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    scalability-tested = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing scalability-tested labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Governance*
-|✅ Pflicht
-|Caching-Strategie-Dokument mit Layer, TTL-Policies und Invalidierungsmechanismus.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*IaC*
-|✅ Pflicht
-|Terraform-Konfiguration für Redis/ElastiCache und CDN mit Cache-Rules.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|Cache-Hit-Rate-Dashboard (Ziel: >= 80% Applikations-Cache).
-
-|*Process*
-|Optional
-|Cache-Invalidierungs-Runbook für Datenmutationen.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Selection; Performance Efficiency Pillar – Review; Performance Efficiency Pillar – Efficiency
-
-|*Azure Well-Architected Framework*
-|Performance – Performance monitoring; Performance – Load and stress testing; Performance – Auto-scaling
-
-|*Google Cloud Architecture Framework*
-|Performance – Performance design principles; Performance – Monitoring and debugging
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture; ADM Phase D – Technology architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution; 5.3.3 – Test reporting
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software; 9.4.2 – Verification
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management; CIS 8.1 – Vulnerability scanning
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls; RA-5 – Security assessments; RA-9 – External information system attacks
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection; DE.DP – Data performance
-
-|*FedRAMP*
-|RA-2, RA-5, RA-9 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-PERF-040.adoc[WAF-PERF-040 – Database Performance Baseline]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-070.adoc[WAF-PERF-070 – Network Latency & Topology Optimization]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-040.adoc[WAF-COST-040]
+* xref:pillar-cost:controls/WAF-COST-090.adoc[WAF-COST-090]
+* xref:pillar-security:controls/WAF-SEC-030.adoc[WAF-SEC-030]
+* xref:pillar-security:controls/WAF-SEC-040.adoc[WAF-SEC-040]
+* xref:pillar-security:controls/WAF-SEC-080.adoc[WAF-SEC-080]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-caching.adoc[Caching-Strategie implementieren →]
+|ISO/IEC 25010 |* Performance Efficiency – Time Behavior
+* Performance Efficiency – Resource Utilization
+
+|===

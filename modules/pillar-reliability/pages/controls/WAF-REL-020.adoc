@@ -3,106 +3,83 @@
 :control-id: WAF-REL-020
 :pillar: reliability
 :severity: high
-:category: health-monitoring
-:automated: high
-:description: WAF++ Reliability – Health Check Endpoints, Readiness/Liveness Probes und Load Balancer Konfiguration.
+:category: network-encryption
+:automatable: High
+:description: All production services MUST expose health check endpoints and configure readiness and liveness probes. Load balancers and orchestrators MUST use health checks to route traffic only to healthy instances. Kubernetes workloads MUST define readinessProbe and livenessProbe. AWS load balancers MUST have health check paths configured. Health check intervals, thresholds, and timeout values MUST be explicitly defined – no reliance on cloud provider defaults.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Health Monitoring | *Automatisierbar:* Hoch
+*Säule:* Reliability | *Schweregrad:* Hoch | *Kategorie:* Network Encryption | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle Produktions-Services MÜSSEN Health Check Endpoints exponieren und Readiness-/Liveness-Probes
-konfigurieren. Load Balancer MÜSSEN Health Checks mit explizit konfigurierten Pfaden, Intervallen
-und Schwellenwerten nutzen – keine Cloud-Provider-Defaults.
+All production services MUST expose health check endpoints and configure readiness and liveness probes. Load balancers and orchestrators MUST use health checks to route traffic only to healthy instances. Kubernetes workloads MUST define readinessProbe and livenessProbe. AWS load balancers MUST have health check paths configured. Health check intervals, thresholds, and timeout values MUST be explicitly defined – no reliance on cloud provider defaults.
 
-Kein Deployment ohne funktionierende Health Checks. Dies ist eine nicht-verhandelbare
-Voraussetzung für automatisches Failover und Zero-Downtime Deployments.
-
-== Rationale
-
-Ohne Health Checks werden fehlerhafte Instanzen weiterhin mit Traffic versorgt. Kubernetes
-ohne Readiness Probe sendet Traffic an Pods, die noch nicht bereit sind oder bereits
-ausgefallen sind. Load Balancer ohne explizite Health Check Konfiguration verwenden Defaults,
-die oft zu tolerant (30s Interval, keine Path-Validierung) sind.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Traffic auf fehlerhafte Instanzen*
-|Ohne Health Check routet LB weiterhin Requests an Instanzen, die Fehler zurückgeben.
+|*Risk* |Services without health checks are not recognized as failed by load balancers and keep receiving traffic.
 
-|*Deadlock unentdeckt*
-|Ohne Liveness Probe läuft ein deadlockter Prozess ewig weiter und blockiert Ressourcen.
-
-|*Premature Traffic*
-|Ohne Readiness Probe erhält ein nicht-initialisierter Pod Traffic und erzeugt Fehler.
-
-|*Default-Timeout zu tolerant*
-|Cloud-Provider-Defaults sind oft 30s Interval und 3 Fehlschläge – zu lang für schnelle Recovery.
+|*Risk* |Missing state-check endpoints delay detection of partial outages.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-Alle Services MÜSSEN:
+* All production services MUST expose health check endpoints and configure readiness and liveness probes.
+* Load balancers and orchestrators MUST use health checks to route traffic only to healthy instances.
+* Kubernetes workloads MUST define readinessProbe and livenessProbe.
+* AWS load balancers MUST have health check paths configured.
+* Health check intervals, thresholds, and timeout values MUST be explicitly defined – no reliance on cloud provider defaults.
 
-* `/health/live` Endpoint exponieren (Liveness: Prozess lebt)
-* `/health/ready` Endpoint exponieren (Readiness: Traffic-fähig, Abhängigkeiten OK)
-* Kubernetes: `readinessProbe` und `livenessProbe` mit gemessenen `initialDelaySeconds` konfigurieren
-* Load Balancer Health Checks: expliziter Path, Interval, Timeout, Healthy/Unhealthy Threshold
-* Keine Cloud-Provider-Defaults für Health Check Konfiguration
+== Implementierungsleitfaden
 
-== Implementierungsanleitung
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
-. *Endpoints implementieren*: `/health/live` (nur Prozess), `/health/ready` (Deps prüfen)
-. *initialDelaySeconds messen*: Startup-Zeit des Services messen, Puffer addieren
-. *Intervalle konfigurieren*: `interval=15s`, `timeout=5s`, `failureThreshold=3`
-. *ALB Health Check*: `path=/health/ready`, `interval=15`, `matcher=200`
-. *Liveness NUR für Prozess-Liveness*: Keine externe Abhängigkeiten in Liveness-Probe prüfen
-. *Testen*: Health Check Failure in Staging simulieren und Verhalten beobachten
+== Reifegrade
 
-== Reifegrad-Abstufung
-
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Health Checks
-|Keine Probes; LB verwendet TCP-Ping als Health Check.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basis LB Health Check
-|ALB Health Check auf "/" konfiguriert; keine Kubernetes Probes.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|ReadinessProbe + LivenessProbe
-|Beide Probes mit gemessenen Delays; LB prüft /health/ready; Fehler erzeugen Alerts.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Deep Health Checks
-|Readiness prüft echte Abhängigkeiten; StartupProbe für langsame Services.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Synthetisches Monitoring
-|Externe Validierung der Health Endpoints; Health-Check-Latenz als SLI.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-rel-020.tf.aws.alb-target-group-health-check
-*Prüft:* ALB Target Group hat expliziten health_check Block mit Path, Interval und Thresholds.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS ALB target group must have explicit health check configuration*
+
+AWS Application Load Balancer target groups must define an explicit health_check block with a non-default path, interval, timeout, and healthy/unhealthy thresholds.
+
+*Scope:* `resource` — `aws_lb_target_group`
+
+*Assertions:*
+* `health_check` attribute exists — Target group must define a health_check block.
+* `health_check.path` not empty — Health check path must be explicitly defined (not default '/').
+* `health_check.interval` attribute exists — Health check interval must be explicitly defined.
+* `health_check.healthy_threshold` attribute exists — Healthy threshold must be explicitly defined.
+
+*Remediation:* Add a health_check block to the aws_lb_target_group resource. Define path, interval, timeout, healthy_threshold, and unhealthy_threshold explicitly.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_lb_target_group" "api" {
   name     = "payment-api-tg"
@@ -111,132 +88,279 @@ resource "aws_lb_target_group" "api" {
   vpc_id   = var.vpc_id
 
   health_check {
-    enabled           = true
-    path              = "/health/ready"
-    interval          = 15
-    timeout           = 5
-    healthy_threshold = 2
+    enabled             = true
+    path                = "/health/ready"
+    interval            = 15
+    timeout             = 5
+    healthy_threshold   = 2
     unhealthy_threshold = 3
-    matcher           = "200"
+    matcher             = "200"
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_lb_target_group" "api" {
   name     = "payment-api-tg"
   port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
-  # Kein health_check Block –
-  # Cloud-Defaults werden verwendet
-  # WAF-REL-020 Violation
+  # Missing: health_check block – uses cloud defaults
+  # WAF-REL-020 violation
 }
 ----
-|===
 
-*Remediation:* `health_check` Block mit explizitem `path`, `interval`, `timeout`,
-`healthy_threshold` und `unhealthy_threshold` hinzufügen.
+---
+
+=== waf-rel-020.tf.azurerm.lb-probe
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Load Balancer must have a health probe configured*
+
+Azure Load Balancer or Application Gateway backends must have explicit health probes defined with non-default paths and intervals.
+
+*Scope:* `resource` — `azurerm_lb_probe`, `azurerm_application_gateway`
+
+*Assertions:*
+* `name` not empty — Health probe must have a name.
+* `protocol` not empty — Health probe protocol must be specified.
+* `request_path` not empty — Health probe request path must be explicitly configured.
+
+*Remediation:* Define an azurerm_lb_probe resource with protocol, port, request_path, interval_in_seconds, and number_of_probes configured.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_lb_probe" "api_health" {
+  loadbalancer_id     = azurerm_lb.main.id
+  name                = "api-health-probe"
+  protocol            = "Http"
+  port                = 8080
+  request_path        = "/health/ready"
+  interval_in_seconds = 15
+  number_of_probes    = 2
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_lb_probe" "probe" {
+  loadbalancer_id = azurerm_lb.main.id
+  name            = "probe"
+  protocol        = "Tcp"
+  port            = 80
+  # Missing: request_path – TCP probe does not validate application health
+}
+----
+
+---
+
+=== waf-rel-020.tf.google.compute-health-check
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Compute health check must be configured for managed instance groups*
+
+GCP managed instance groups and load balancers must use explicit health checks with HTTP paths and defined thresholds.
+
+*Scope:* `resource` — `google_compute_health_check`, `google_compute_backend_service`
+
+*Assertions:*
+* `name` not empty — Health check must have a name.
+* `http_health_check` attribute exists — HTTP health check configuration must be defined.
+* `check_interval_sec` attribute exists — Health check interval must be explicitly defined.
+
+*Remediation:* Define a google_compute_health_check with http_health_check specifying the request_path, check_interval_sec, timeout_sec, and thresholds.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_compute_health_check" "api" {
+  name                = "payment-api-health"
+  check_interval_sec  = 15
+  timeout_sec         = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 3
+
+  http_health_check {
+    port         = 8080
+    request_path = "/health/ready"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_compute_health_check" "api" {
+  name = "health-check"
+  tcp_health_check {
+    port = 80
+  }
+  # Missing: http_health_check with request_path
+  # Missing: explicit thresholds and intervals
+}
+----
+
+---
+
+=== waf-rel-020.tf.stackit.failure-mode-analyzed
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*All production services for stackit*
+
+All production services must be documented in IaC via a failure-mode-analyzed tag/label on stackit_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels` key exists — stackit_project is missing the failure-mode-analyzed tag/label.
+
+*Remediation:* Add a failure-mode-analyzed tag/label to the stackit_project resource to show the stackit implementation of WAF-REL-020 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  labels = {
+    failure-mode-analyzed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "stackit_project" "example" {
+  # Missing failure-mode-analyzed labels
+}
+----
+
+---
+
+=== waf-rel-020.tf.ovh.failure-mode-analyzed
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*All production services for ovh*
+
+All production services must be documented in IaC via a failure-mode-analyzed tag/label on ovh_cloud_project. This validates the control is tracked as code.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `tags` key exists — ovh_cloud_project is missing the failure-mode-analyzed tag/label.
+
+*Remediation:* Add a failure-mode-analyzed tag/label to the ovh_cloud_project resource to show the ovh implementation of WAF-REL-020 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  tags = {
+    failure-mode-analyzed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "ovh_cloud_project" "example" {
+  # Missing failure-mode-analyzed tags
+}
+----
+
+---
+
+=== waf-rel-020.tf.hcloud.failure-mode-analyzed
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*All production services for hcloud*
+
+All production services must be documented in IaC via a failure-mode-analyzed tag/label on hcloud_server. This validates the control is tracked as code.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels` key exists — hcloud_server is missing the failure-mode-analyzed tag/label.
+
+*Remediation:* Add a failure-mode-analyzed tag/label to the hcloud_server resource to show the hcloud implementation of WAF-REL-020 is tracked in IaC.
+
+.Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  labels = {
+    failure-mode-analyzed = "true"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "hcloud_server" "example" {
+  # Missing failure-mode-analyzed labels
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Terraform oder Kubernetes-Manifeste mit Readiness- und Liveness-Probe-Konfiguration.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Load Balancer Health Check Konfiguration mit explizitem Path und Thresholds.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Test-Ergebnisse: Health Check Failure in Staging simuliert und dokumentiert.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor; Reliability Pillar – Improve
-
-|*SRE Book (Google)*
-|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring; Chapter 7 – Emergency response
-
-|*CNCF Cloud Native Security*
-|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
-
-|*BSI C5:2022*
-|SIM-01 – Security incident management; SIM-02 – Security information and event management; SIM-03 – Emergency response
-
-|*GDPR*
-|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
-
-|*NIST SP 800-161*
-|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
-
-|*DORA*
-|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools and systems
-
-|*COBIT 2019*
-|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity; DSS04.02.01 – Manage incidents
-
-|*TISAX*
-|Information security – Incident response
-
-|*ANSSI SecNumCloud*
-|Domain – Incident response; Domain – Business continuity
-
-|*BIO*
-|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
-
-|*ENS High*
-|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
-
-|*UK NCSC CAF*
-|D1 – Response and recovery planning; D2 – Lessons learned
-
-|*CMMC 2.0*
-|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
-
-|*IRAP*
-|ISM – Incident management; ISM – Business continuity
-
-|*CCCS PBMM*
-|IR-4 – Incident handling; IR-8 – Incident response plan
-
-|*MAS TRM*
-|Ch.10 – Security incident management; Ch.11 – Business continuity
-
-|*ISMAP*
-|Reliability and incident management
-
-|*FISC*
-|Operational measures – Incident response
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-REL-010.adoc[WAF-REL-010 – SLO & SLA Definition]
-* xref:controls/WAF-REL-030.adoc[WAF-REL-030 – Multi-AZ High Availability]
-* xref:controls/WAF-REL-050.adoc[WAF-REL-050 – Circuit Breaker & Timeout]
+* xref:pillar-reliability:controls/WAF-REL-030.adoc[WAF-REL-030]
+* xref:pillar-efficiancy:controls/WAF-PERF-070.adoc[WAF-PERF-070]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-080.adoc[WAF-SUS-080]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-020.adoc[WAF-SEC-020]
+* xref:pillar-security:controls/WAF-SEC-060.adoc[WAF-SEC-060]
+* xref:pillar-sovereign:controls/WAF-SOV-020.adoc[WAF-SOV-020]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-agentic:controls/WAF-AGN-010.adoc[WAF-AGN-010]
+* xref:pillar-agentic:controls/WAF-AGN-080.adoc[WAF-AGN-080]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-health-checks.adoc[Health Checks & Readiness/Liveness Probes →]
+|ISO 27001:2022 |* A.17.2 – Redundancies
+
+|ITIL 4 |* Availability Management
+* Event Management
+
+|===

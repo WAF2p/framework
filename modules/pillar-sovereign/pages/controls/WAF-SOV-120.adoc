@@ -1,0 +1,113 @@
+= WAF-SOV-120 – Auftragsverarbeitungsvereinbarungen (AVV/DPA) müssen für jeden Subprozessor dokumentiert vorliegen
+:page-toc: right
+:control-id: WAF-SOV-120
+:pillar: sovereign
+:severity: high
+:category: data-governance
+:automatable: Low
+:description: A current data processing agreement (DPA) or order processing agreement (AVV) MUST exist for each sub-processor handling personal or regulated data. Sub-processor lists MUST be maintained and reviewed at least annually. DPA terms MUST cover data location, security measures, breach notification, deletion, and audit rights. Changes to sub-processors MUST follow a documented approval workflow.
+
+[.metadata]
+*Säule:* Sovereign | *Schweregrad:* 🟠 Hoch | *Kategorie:* Data Governance | *Automatisierbar:* Low
+
+== Beschreibung
+
+A current data processing agreement (DPA) or order processing agreement (AVV) MUST exist for each sub-processor handling personal or regulated data. Sub-processor lists MUST be maintained and reviewed at least annually. DPA terms MUST cover data location, security measures, breach notification, deletion, and audit rights. Changes to sub-processors MUST follow a documented approval workflow.
+
+== Begründung
+
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
+
+|*Risk* |Missing DPAs violate GDPR Article 28 and similar processor accountability requirements.
+
+|*Risk* |Undocumented sub-processors increase supply-chain risk and prevent effective exit management.
+
+|===
+
+== Anforderungen
+
+* A current data processing agreement (DPA) or order processing agreement (AVV) MUST exist for each sub-processor handling personal or regulated data.
+* Sub-processor lists MUST be maintained and reviewed at least annually.
+* DPA terms MUST cover data location, security measures, breach notification, deletion, and audit rights.
+* Changes to sub-processors MUST follow a documented approval workflow.
+
+== Implementierungsleitfaden
+
+. Document the requirement in a version-controlled policy, ADR, or standard.
+. Assign ownership and establish a review cadence (e.g., quarterly).
+. Implement the required configuration as code in Terraform or equivalent IaC.
+
+== Reifegrade
+
+[cols="1,2,4"]
+|===
+|Level |Name |Kriterien
+
+|L1 |Ad hoc – control not consistently applied |* Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+
+|L2 |Standardised – policy defined and communicated |* Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+
+|L3 |Integrated – automated validation in CI/CD |* Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+
+|L4 |Auditable – metrics and exceptions tracked |* Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+
+|L5 |Optimised – continuous improvement based on data |* Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+
+|===
+
+== Checks
+
+=== waf-sov-120.config.dpa-register
+
+*Engine:* `config` | *Provider:* any | *Automated:* Nein
+
+*DPA-Register muss alle Subprozessoren auflisten*
+
+DPA-Register muss alle Subprozessoren auflisten
+
+*Scope:* `file` — `docs/governance/dpa-register.md`
+
+*Assertions:*
+* `exists` attribute_exists — DPA/AVV register must list each sub-processor and agreement status.
+
+*Remediation:* DPA-Register muss alle Subprozessoren auflisten
+
+.Compliant
+[source,terraform]
+----
+# Beispiel konform zu waf-sov-120.config.dpa-register
+----
+
+.Non-Compliant
+[source,terraform]
+----
+# Beispiel nicht konform zu waf-sov-120.config.dpa-register
+----
+
+---
+
+
+== Evidenz
+
+* Terraform-Konfiguration, die die Anforderung umsetzt.
+* Policy, ADR oder Standard, der die Anforderung dokumentiert.
+* Optionale Cloud-Konsolen- oder API-Ausgaben, die den Laufzeit-Zustand bestätigen.
+
+== Verwandte Controls
+
+* xref:pillar-sovereign:controls/WAF-SOV-010.adoc[WAF-SOV-010]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+* xref:pillar-sovereign:controls/WAF-SOV-050.adoc[WAF-SOV-050]
+* xref:pillar-sovereign:controls/WAF-SOV-060.adoc[WAF-SOV-060]
+* xref:pillar-sovereign:controls/WAF-SOV-090.adoc[WAF-SOV-090]
+* xref:pillar-security:controls/WAF-SEC-010.adoc[WAF-SEC-010]
+* xref:pillar-security:controls/WAF-SEC-130.adoc[WAF-SEC-130]
+== Regulatorisches Mapping
+
+* *GDPR*: Art. 28 – Processor, Art. 46 – Transfers with appropriate safeguards
+* *BSI C5:2020*: OPS-02 – Supplier relationships
+* *DORA*: Art. 28 – Subcontracting of ICT services
+* *ISO 27001:2022*: A.5.19 – Information security in supplier relationships
+

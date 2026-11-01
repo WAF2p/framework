@@ -1,257 +1,394 @@
 = WAF-PERF-020 – Auto-Scaling Configured & Tested
 :page-toc: right
 :control-id: WAF-PERF-020
-:pillar: performance
+:pillar: efficiancy
 :severity: high
-:category: auto-scaling
-:automated: high
-:description: WAF++ Performance Efficiency – Auto-Scaling für zustandslose Workloads konfigurieren und durch Lasttest validieren.
+:category: logging-monitoring
+:automatable: High
+:description: All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired, and maximum capacity thresholds. Auto-scaling policies MUST be based on meaningful metrics (CPU utilization, request latency, queue depth, or custom application metrics), not just time-based schedules. Auto-scaling configurations MUST be tested under realistic load conditions before production deployment and re-validated after significant architectural changes.
 
 [.metadata]
-*Pillar:* Performance Efficiency | *Severity:* High | *Kategorie:* Auto-Scaling | *Automatisierbar:* Hoch
+*Säule:* Efficiancy | *Schweregrad:* Hoch | *Kategorie:* Logging Monitoring | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle zustandslosen Produktions-Workloads mit variablem oder unvorhergesagtem Traffic
-MÜSSEN Auto-Scaling konfiguriert haben. Auto-Scaling-Policies MÜSSEN auf aussagekräftigen Metriken
-basieren (Anfrage-Latenz, Request-Rate, Queue-Tiefe). Auto-Scaling-Konfigurationen MÜSSEN unter
-realistischer Last getestet werden, bevor sie in Produktion gehen.
+All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired, and maximum capacity thresholds. Auto-scaling policies MUST be based on meaningful metrics (CPU utilization, request latency, queue depth, or custom application metrics), not just time-based schedules. Auto-scaling configurations MUST be tested under realistic load conditions before production deployment and re-validated after significant architectural changes.
 
-Kein Deployment in Produktion ohne validierten Skalierungspfad.
-
-== Rationale
-
-Statische Kapazität erzeugt ein unlösbares Dilemma: Überprovisionierung für Peaks (teuer) oder
-Unterprovisionierung und Degradation bei unerwarteter Last (riskant). Auto-Scaling löst dieses
-Dilemma – aber nur, wenn korrekt konfiguriert. Falsche Schwellenwerte, fehlende Cooldowns
-oder das Fehlen von Instance Warmup-Konfiguration führen zu Scaling-Versagen im kritischen Moment.
-
-Jede Auto-Scaling-Konfiguration, die nie unter Last getestet wurde, ist faktisch nicht vorhanden.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Kapazitätsengpass bei Lastspitze*
-|Nicht-skalierender Service degradiert oder fällt aus während Traffic-Peaks.
+|*Risk* |Stateless workloads without autoscaling fail under load spikes or waste resources in troughs.
 
-|*Scaling-Oscillation*
-|Falsch konfigurierte Cooldowns führen zu konstantem Scale-out/Scale-in (Kosten + Instabilität).
-
-|*Zu spätes Scaling*
-|Threshold zu hoch oder Skalierungsmetrik falsch → Scaling triggers erst wenn SLO bereits verletzt.
-
-|*Cold-Start-Latenz*
-|Instance Warmup fehlt → neue Instanzen werden sofort mit vollem Traffic belastet.
+|*Risk* |Missing scaling policies force manual intervention and extend downtime.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Alle zustandslosen Produktions-Workloads MÜSSEN Auto-Scaling konfiguriert haben (min >= 1, max >= 2)
-* Scaling-Metriken MÜSSEN auf Anwendungsverhalten basieren, nicht nur auf CPU
-* Auto-Scaling MUSS durch Lasttest validiert werden (Nachweis: Test-Report)
-* Scale-in-Cooldown MUSS >= Scale-out-Cooldown (konservativer Scale-in)
+* All stateless compute workloads handling variable or unpredictable traffic MUST have auto-scaling configured with appropriate minimum, desired, and maximum capacity thresholds.
+* Auto-scaling policies MUST be based on meaningful metrics (CPU utilization, request latency, queue depth, or custom application metrics), not just time-based schedules.
+* Auto-scaling configurations MUST be tested under realistic load conditions before production deployment and re-validated after significant architectural changes.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Scaling-Metrik wählen*: ALB-Request-Count (HTTP-APIs), Queue-Depth (Worker), Custom Metrics (spezielle Workloads)
-. *Schwellenwerte aus Lasttest ableiten*: Welcher Request/s-Wert führt zur P95-Latenz von SLO/2?
-. *min/max konfigurieren*: min >= 2 für Redundanz; max = 3–5x erwartete Normallast
-. *Cooldowns konfigurieren*: Scale-out 60s, Scale-in 300s (konservativ)
-. *Instance Warmup konfigurieren*: 60–120s, damit neue Instanzen nicht sofort belastet werden
-. *Lasttest ausführen*: Gradual-Load-Profil bis 2x Peak; Auto-Scaling-Trigger validieren
-. *Monitoring konfigurieren*: Alert wenn Desired Capacity >= 80% Max Capacity
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Statische Kapazität
-|Kein Auto-Scaling; manuelle Anpassung bei Lastspitzen; typischerweise unkritisch überprovisioniert.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Konfiguriert, nicht validiert
-|ASG/VMSS konfiguriert; Default-CPU-Threshold; nie unter Last getestet.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Validiert mit Lasttest
-|Richtige Metriken; Lasttest-Validierung; dokumentierte Grenzen; Health-Check-Typ konfiguriert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Predictive & Event-Driven
-|Predictive Scaling; Queue-basiertes Scaling; Scale-out-Dauer im SLO gemessen.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Autonomes Capacity Management
-|Vollständig automatisiert; ML-basierte Policies; SLO-Breach-Prediction vor Eintreten.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-perf-020.tf.aws.autoscaling-group-policy
-*Prüft:* AWS Auto Scaling Groups müssen min >= 1, max >= 2 und Health-Check-Type haben.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS Auto Scaling Groups must have scaling policies defined*
+
+AWS Auto Scaling Groups must have at minimum one scaling policy defined. Groups without scaling policies rely on manual scaling only and cannot respond to traffic changes automatically.
+
+*Scope:* `resource` — `aws_autoscaling_group`
+
+*Assertions:*
+* `min_size` greater than or equal `1` — Auto Scaling Group min_size must be at least 1 to prevent cold starts in synchronous workloads.
+* `max_size` greater than or equal `1` — Auto Scaling Group max_size must be at least 2 to enable actual scaling.
+* `health_check_type` not empty — Auto Scaling Group must have health_check_type configured (EC2 or ELB).
+
+*Remediation:* Add scaling policies to the Auto Scaling Group. At minimum, add target tracking scaling based on ALBRequestCountPerTarget or CPU utilization. Set min_size >= 1, max_size >= 2. Configure health checks to use ELB type for web applications.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_autoscaling_group" "api" {
-  min_size          = 2
-  max_size          = 10
-  desired_capacity  = 2
-  health_check_type = "ELB"
+resource "aws_autoscaling_group" "app" {
+  name                = "asg-payment-api"
+  min_size            = 2
+  max_size            = 10
+  desired_capacity    = 2
+  health_check_type   = "ELB"
+  target_group_arns   = [aws_lb_target_group.app.arn]
+  vpc_zone_identifier = var.private_subnet_ids
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
+  tag {
+    key                 = "workload"
+    value               = "payment-api"
+    propagate_at_launch = true
+  }
 }
-resource "aws_autoscaling_policy" "scale" {
-  policy_type = "TargetTrackingScaling"
+resource "aws_autoscaling_policy" "scale_out" {
+  name                   = "payment-api-target-tracking"
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = "TargetTrackingScaling"
   target_tracking_configuration {
     predefined_metric_specification {
       predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.app.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
     }
     target_value = 1000.0
   }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_autoscaling_group" "api" {
-  min_size = 1
-  max_size = 1
-  # max=min=1 – kein Scaling
-  # WAF-PERF-020 Violation
+resource "aws_autoscaling_group" "app" {
+  name             = "asg-payment-api"
+  min_size         = 1
+  max_size         = 1  # max == min, no scaling possible – WAF-PERF-020 violation
+  desired_capacity = 1
+  # No scaling policy – manual only
 }
 ----
-|===
 
-*Remediation:* `min_size >= 2` für Produktions-Redundanz, `max_size >= 3` für Scaling-Fähigkeit.
-Scaling-Policy hinzufügen (TargetTracking oder StepScaling). Health-Check-Type auf `ELB` setzen.
+---
+
+=== waf-perf-020.tf.azurerm.vmss-autoscale
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure VMSS must have autoscale settings configured*
+
+Azure Virtual Machine Scale Sets used for production workloads must have autoscale settings configured with at least one scale-out and one scale-in rule.
+
+*Scope:* `resource` — `azurerm_monitor_autoscale_setting`
+
+*Assertions:*
+* `enabled` is true — Autoscale setting must be enabled.
+* `profile` not empty — Autoscale setting must have at least one profile configured.
+
+*Remediation:* Enable autoscale settings for the VMSS. Configure at least one profile with scale-out and scale-in rules based on CPU percentage or custom metrics.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_monitor_autoscale_setting" "app" {
+  name                = "autoscale-payment-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  target_resource_id  = azurerm_linux_virtual_machine_scale_set.app.id
+  enabled             = true
+  profile {
+    name = "defaultProfile"
+    capacity {
+      default = 2
+      minimum = 2
+      maximum = 10
+    }
+    rule {
+      metric_trigger {
+        metric_name        = "Percentage CPU"
+        metric_resource_id = azurerm_linux_virtual_machine_scale_set.app.id
+        time_grain         = "PT1M"
+        statistic          = "Average"
+        time_window        = "PT5M"
+        time_aggregation   = "Average"
+        operator           = "GreaterThan"
+        threshold          = 70
+      }
+      scale_action {
+        direction = "Increase"
+        type      = "ChangeCount"
+        value     = "1"
+        cooldown  = "PT3M"
+      }
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No azurerm_monitor_autoscale_setting resource defined
+# VMSS deployed with fixed capacity – WAF-PERF-020 violation
+resource "azurerm_linux_virtual_machine_scale_set" "app" {
+  instances = 2  # Static, no scaling
+}
+----
+
+---
+
+=== waf-perf-020.tf.google.managed-instance-group-autoscaler
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Managed Instance Groups must have autoscaler configured*
+
+GCP Managed Instance Groups used for production compute must have a google_compute_autoscaler resource configured with appropriate scaling policies.
+
+*Scope:* `resource` — `google_compute_autoscaler`, `google_compute_region_autoscaler`
+
+*Assertions:*
+* `autoscaling_policy` not empty — Autoscaler must have autoscaling_policy defined with min and max replicas.
+
+*Remediation:* Add a google_compute_autoscaler resource targeting the Managed Instance Group. Configure autoscaling_policy with appropriate min_replicas, max_replicas, and cpu_utilization target or load_balancing_utilization.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_compute_autoscaler" "app" {
+  name   = "autoscaler-payment-api"
+  zone   = "europe-west3-a"
+  target = google_compute_instance_group_manager.app.id
+  autoscaling_policy {
+    max_replicas    = 10
+    min_replicas    = 2
+    cooldown_period = 60
+    cpu_utilization {
+      target = 0.6
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No google_compute_autoscaler defined
+resource "google_compute_instance_group_manager" "app" {
+  name               = "igm-payment-api"
+  base_instance_name = "payment-api"
+  zone               = "europe-west3-a"
+  # Static capacity, no autoscaler – WAF-PERF-020 violation
+}
+----
+
+---
+
+=== waf-perf-020.tf.stackit.compute-sku-review
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT compute resources must use a reviewed and sized SKU*
+
+STACKIT compute resources must use a reviewed and sized SKU. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_server`, `stackit_ske_node_pool`
+
+*Assertions:*
+* `machine_type` attribute exists — STACKIT compute resource must specify a machine type.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-perf-020.tf.ovh.compute-flavor-review
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud compute resources must use a reviewed and sized flavor*
+
+OVHcloud compute resources must use a reviewed and sized flavor. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_instance`, `ovh_vps`, `ovh_cloud_project_kube_nodepool`
+
+*Assertions:*
+* `flavor_name` attribute exists — OVHcloud compute resource must specify a flavor.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-perf-020.tf.hcloud.server-type-review
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud servers must use a reviewed and sized type*
+
+Hetzner Cloud servers must use a reviewed and sized type. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `server_type` attribute exists — Hetzner Cloud server must specify a server type.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Auto-Scaling-Konfiguration mit min/max und Scaling-Policy.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|Lasttest-Ergebnisse die belegen, dass Scaling innerhalb des Latenz-SLO auslöst.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Config*
-|Optional
-|CloudWatch/Azure Monitor/GCP-Alerts für Scaling-Events konfiguriert.
-
-|*Governance*
-|Optional
-|Runbook mit dokumentierten Skalierungsgrenzen und bekannten Engpässen.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 25010:2011*
-|8.3.2 – Performance efficiency; 8.3.2.1 – Time behaviour; 8.3.2.2 – Resource utilisation; 8.3.2.3 – Capacity
-
-|*AWS Well-Architected Framework*
-|Performance Efficiency Pillar – Selection; Performance Efficiency Pillar – Review; Performance Efficiency Pillar – Efficiency
-
-|*Azure Well-Architected Framework*
-|Performance – Performance monitoring; Performance – Load and stress testing; Performance – Auto-scaling
-
-|*Google Cloud Architecture Framework*
-|Performance – Performance design principles; Performance – Monitoring and debugging
-
-|*TOGAF 10*
-|ADM Phase B – Business architecture; ADM Phase C – Application architecture; ADM Phase D – Technology architecture
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Performance monitoring
-
-|*ISO/IEC 29119*
-|4.4.3 – Test design techniques; 4.5.3 – Test execution; 5.3.3 – Test reporting
-
-|*ISO/IEC 12207*
-|8.2.2.3 – Design and development of software; 9.4.2 – Verification
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity
-
-|*CIS Controls v8*
-|CIS 8 – Continuous Vulnerability Management; CIS 8.1 – Vulnerability scanning
-
-|*NIST SP 800-53*
-|RA-1 – Security assessment policy; RA-2 – Security assessment controls; RA-5 – Security assessments; RA-9 – External information system attacks
-
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomaly detection; DE.DP – Data performance
-
-|*FedRAMP*
-|RA-2, RA-5, RA-9 (Moderate/High baseline)
-
-|*SOC 2 Type II*
-|CC6.1 – Logical access security software; CC7.1 – Infrastructure and software monitoring
-
-|*TISAX*
-|Information security – Performance monitoring
-
-|*ANSSI SecNumCloud*
-|Domain – Performance monitoring
-
-|*BIO*
-|BIO – Prestatiedoelstellingen
-
-|*ENS High*
-|op.exp.2 – Configuración de seguridad; op.exp.3 – Gestión de la configuración
-
-|*UK NCSC CAF*
-|B4 – System security; B5 – System performance
-
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Automated monitoring
-
-|*IRAP*
-|ISM – Performance monitoring
-
-|*CCCS PBMM*
-|RA-2 – Security assessment controls; RA-5 – Security assessments
-
-|*MAS TRM*
-|Ch.5 – Technology risk governance
-
-|*ISMAP*
-|Performance monitoring and validation
-
-|*FISC*
-|Technical measures – Performance monitoring
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-PERF-010.adoc[WAF-PERF-010 – Compute Instance Type & Sizing Validated]
-* xref:controls/WAF-PERF-050.adoc[WAF-PERF-050 – Performance Monitoring & SLO Definition]
-* xref:controls/WAF-PERF-060.adoc[WAF-PERF-060 – Load & Stress Testing in CI/CD Pipeline]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-efficiancy:controls/WAF-PERF-090.adoc[WAF-PERF-090]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-reliability:controls/WAF-REL-060.adoc[WAF-REL-060]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-autoscaling.adoc[Auto-Scaling konfigurieren →]
+|ISO/IEC 25010 |* Performance Efficiency – Capacity
+* Reliability – Fault Tolerance
+
+|===

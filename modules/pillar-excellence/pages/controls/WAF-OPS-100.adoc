@@ -1,249 +1,405 @@
 = WAF-OPS-100 – Operational Debt Register & Review
 :page-toc: right
 :control-id: WAF-OPS-100
-:pillar: operations
+:pillar: excellence
 :severity: medium
-:category: operational-governance
-:automated: low
-:description: WAF++ Operational Excellence – Alle bekannten Operational Debt-Posten werden in einem version-controlled Register dokumentiert und quartalsweise reviewed.
+:category: data-governance
+:automatable: High
+:description: All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks, siloed knowledge – MUST be tracked in a version-controlled Operational Debt Register. The register MUST be reviewed quarterly with explicit prioritization and paydown allocation. Operational debt items MUST have severity classification, estimated toil hours, owner, and target resolution date.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Operational Governance | *Automatisierbar:* Niedrig
+*Säule:* Excellence | *Schweregrad:* Mittel | *Kategorie:* Data Governance | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle bekannten Operational Debt-Posten – manuelle Prozesse, Workarounds, Toil-Quellen,
-veraltete Runbooks, siloed Wissen – MÜSSEN in einem version-controlled Operational Debt Register
-dokumentiert werden. Das Register MUSS quartalsweise mit expliziter Priorisierung und
-Sprint-Kapazitätszuweisung für Abbau reviewed werden.
+All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks, siloed knowledge – MUST be tracked in a version-controlled Operational Debt Register. The register MUST be reviewed quarterly with explicit prioritization and paydown allocation. Operational debt items MUST have severity classification, estimated toil hours, owner, and target resolution date.
 
-== Rationale
-
-Operational Debt ist die Akkumulation von Shortcuts, manuellen Prozessen und technischen
-Workarounds, die den Betriebsaufwand über Zeit erhöhen. Untrackierter Operational Debt
-bedeutet: Teams kämpfen reaktiv gegen Feuer statt proaktiv die operationale Last zu reduzieren.
-Toil zu messen ist der erste Schritt zur Eliminierung. Was nicht sichtbar ist, kann nicht
-priorisiert und nicht abgebaut werden.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*On-Call-Burnout*
-|Stetig wachsender Toil ohne Tracking oder Abbau führt zu Engineer-Burnout und hoher Fluktuation.
+|*Risk* |Undocumented manual processes accumulate operational debt and knowledge-risk.
 
-|*Manuelle Prozesse als SPOF*
-|Manuelle Operationen werden Single Points of Failure wenn die zuständige Person fehlt.
-
-|*Stille Akkumulation*
-|Operational Debt wächst unbemerkt bis er einen Major Incident verursacht.
-
-|*Toil übersteigt Feature-Arbeit*
-|Teams verbringen mehr Zeit mit Toil als mit Produkt-Entwicklung – Wettbewerbsnachteil.
+|*Risk* |Unprioritized operational debt blocks planned automation and scaling.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Operational Debt Register MUSS in Version-Control gespeichert sein
-* Jeder Eintrag MUSS Severity, Toil-Stunden/Woche, Owner, Created Date und Target Date enthalten
-* Quarterly Review MUSS stattfinden: Priorisierung, Kapazitätszuweisung, Status-Update
-* Sprint-Kapazität für Debt-Abbau MUSS explizit zugewiesen sein (mindestens 10%)
-* Neue Einträge aus Postmortem-Action-Items MÜSSEN systematisch überführt werden
+* All known operational debt – manual processes, undocumented workarounds, toil-generating tasks, outdated runbooks, siloed knowledge – MUST be tracked in a version-controlled Operational Debt Register.
+* The register MUST be reviewed quarterly with explicit prioritization and paydown allocation.
+* Operational debt items MUST have severity classification, estimated toil hours, owner, and target resolution date.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Register anlegen:* `ops-debt-register.yml` im Team-Repository; Schema: id, title, category, severity, toil_hours_per_week, owner, status, target_date
-. *Kategorien definieren:* `manual-process`, `missing-automation`, `missing-runbook`, `configuration-drift`, `tech-debt`, `knowledge-silo`
-. *Severity klassifizieren:* Critical (>4h/Woche Toil oder wöchentliche Incidents), High (2–4h), Medium (1–2h), Low (<1h)
-. *Quarterly Review etablieren:* Meeting-Einladung in Kalender; Outputs: Priorisierung, Sprint-Budget-Zuweisung, Status-Updates
-. *Postmortem-Integration:* Action Items aus Postmortems werden systematisch in Register überführt
-. *Toil-Metrik tracken:* Wöchentliche Stunden-Schätzung; Trend-Analyse; OKR: < 20% Ingenieurzeit für Toil
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Kein Tracking
-|Operational Debt existiert aber ist nicht anerkannt oder dokumentiert. Toil wird akzeptiert.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Informelle Awareness
-|Debt wird in Retrospektiven diskutiert. Keine formale Dokumentation. Ad-hoc-Verbesserungen.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Register gepflegt
-|Version-controlled Register mit allen bekannten Einträgen. Quarterly Review. Sprint-Budget.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Debt-Reduktions-Programm
-|Toil-Reduktion als explizites OKR. Trend positiv (Abbau > Zuwachs). Postmortem-Integration.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Kontinuierliche Verbesserung
-|Toil < 20% Ingenieurzeit (Google SRE-Ziel). Automation-Coverage-Report. Debt-Trend positiv.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-100.tf.aws.eventbridge-ops-review-schedule
-*Prüft:* EventBridge Scheduled Rule für quartalsliche Review-Erinnerungen konfiguriert.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*EventBridge scheduled rule must exist for automated operational review reminders*
+
+An AWS EventBridge (CloudWatch Events) scheduled rule MUST be configured to send quarterly operational debt review reminders to the team's notification channel.
+
+*Scope:* `resource` — `aws_cloudwatch_event_rule`
+
+*Assertions:*
+* `schedule_expression` attribute exists — CloudWatch Event rule must define a schedule_expression for periodic review.
+
+*Remediation:* Create an aws_cloudwatch_event_rule with a cron schedule_expression for quarterly reviews and target it to an SNS topic or Lambda for notifications.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_cloudwatch_event_rule" "ops_review" {
+resource "aws_cloudwatch_event_rule" "ops_review_reminder" {
   name                = "quarterly-ops-debt-review"
-  description         = "Quarterly Ops Debt Register review reminder"
+  description         = "Quarterly reminder to review and update Operational Debt Register"
   schedule_expression = "cron(0 9 1 1,4,7,10 ? *)"
   is_enabled          = true
 }
-resource "aws_cloudwatch_event_target" "ops_sns" {
-  rule      = aws_cloudwatch_event_rule.ops_review.name
+
+resource "aws_cloudwatch_event_target" "ops_review_sns" {
+  rule      = aws_cloudwatch_event_rule.ops_review_reminder.name
   target_id = "OpsReviewNotification"
   arn       = aws_sns_topic.team_notifications.arn
+  input = jsonencode({
+    message = "Quarterly Operational Debt Register review due. Runbook: https://wiki/ops-debt-review"
+  })
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-# Kein automatischer Review-Reminder konfiguriert
-# Quarterly Review passiert ad-hoc oder gar nicht
-# WAF-OPS-100 Violation
+# No scheduled operational review reminder configured
+# WAF-OPS-100 Violation: no automated review cadence enforcement
 ----
 
-|===
+---
 
 === waf-ops-100.tf.aws.ssm-automation-runbook
-*Prüft:* SSM Automation Documents für repetitive Operational Tasks existieren.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
+
+*AWS SSM automation documents must exist for repetitive operational tasks*
+
+Repetitive operational tasks (AMI patching, instance rotation, configuration updates) MUST be automated using AWS Systems Manager automation documents to reduce toil.
+
+*Scope:* `resource` — `aws_ssm_document`
+
+*Assertions:*
+* `document_type` not empty — SSM document must define a document_type.
+* `content` not empty — SSM document must have content defining automation steps.
+
+*Remediation:* Create aws_ssm_document resources with Automation document type to automate repetitive operational procedures that currently require manual intervention.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "aws_ssm_document" "rotate_instances" {
   name            = "RotateASGInstances"
   document_type   = "Automation"
   document_format = "YAML"
-  content         = file("ssm-documents/rotate-asg-instances.yaml")
+
+  content = <<-DOC
+    description: Rotate all instances in an Auto Scaling Group
+    schemaVersion: "0.3"
+    parameters:
+      AutoScalingGroupName:
+        type: String
+        description: Name of the Auto Scaling Group to rotate
+    mainSteps:
+      - name: TerminateInstances
+        action: aws:executeScript
+        inputs:
+          Runtime: python3.11
+          Handler: rotate_instances
+  DOC
 }
 ----
 
-*Remediation:* EventBridge Scheduled Rule für quartalsliche Review-Benachrichtigungen konfigurieren.
-SSM Automation Documents für alle bekannten manuellen Routineaufgaben erstellen.
+.Non-Compliant
+
+[source,terraform]
+----
+# No SSM automation documents defined
+# Instance rotation performed manually via console
+# WAF-OPS-100 Violation: manual process not automated
+----
+
+---
+
+=== waf-ops-100.tf.stackit.ops-debt-tag
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT resources must document operational debt*
+
+STACKIT resources must document operational debt. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_server`, `stackit_ske_cluster`
+
+*Assertions:*
+* `labels.ops-debt` key exists — STACKIT resource is missing the 'ops-debt' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-100.tf.ovh.ops-debt-tag
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud resources must document operational debt*
+
+OVHcloud resources must document operational debt. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_instance`, `ovh_cloud_project_kube`
+
+*Assertions:*
+* `tags.ops-debt` key exists — OVHcloud resource is missing the 'ops-debt' tag.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_instance" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-100.tf.hcloud.ops-debt-tag
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud resources must document operational debt*
+
+Hetzner Cloud resources must document operational debt. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels.ops-debt` key exists — Hetzner Cloud server is missing the 'ops-debt' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-100.tf.azurerm.automation-runbook
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Automation runbook must exist for repetitive operational tasks*
+
+Repetitive operational tasks (VM patching, certificate rotation, cleanup jobs) MUST be automated using Azure Automation runbooks to reduce toil.
+
+*Scope:* `resource` — `azurerm_automation_runbook`
+
+*Assertions:*
+* `runbook_type` not empty — Azure Automation runbook must define a runbook_type.
+* `automation_account_name` not empty — Azure Automation runbook must be linked to an automation account.
+
+*Remediation:* Create an azurerm_automation_runbook resource with PowerShell or Python runbook_type and linked to an existing azurerm_automation_account for operational procedures that currently require manual intervention.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_automation_account" "ops" {
+  name                = "ops-automation"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "Basic"
+}
+
+resource "azurerm_automation_runbook" "rotate_certs" {
+  name                    = "RotateKeyVaultCertificates"
+  location                = azurerm_resource_group.main.location
+  resource_group_name     = azurerm_resource_group.main.name
+  automation_account_name = azurerm_automation_account.ops.name
+  runbook_type            = "PowerShell"
+  log_verbose             = true
+  log_progress            = true
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_automation_runbook" "rotate_certs" {
+  name        = "RotateKeyVaultCertificates"
+  # Missing automation_account_name and runbook_type
+  # WAF-OPS-100 Violation: operational process not automated
+}
+----
+
+---
+
+=== waf-ops-100.tf.google.scheduler-ops-review
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*Cloud Scheduler job must trigger quarterly operational debt review reminders*
+
+A GCP Cloud Scheduler job MUST be configured to send quarterly operational debt review reminders to the team's notification channel.
+
+*Scope:* `resource` — `google_cloud_scheduler_job`
+
+*Assertions:*
+* `schedule` attribute exists — Cloud Scheduler job must define a schedule for periodic review reminders.
+
+*Remediation:* Create a google_cloud_scheduler_job with a cron schedule for quarterly reviews and target it to a Pub/Sub topic or HTTP endpoint for notifications.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloud_scheduler_job" "ops_review_reminder" {
+  name             = "quarterly-ops-debt-review"
+  description      = "Quarterly reminder to review and update Operational Debt Register"
+  schedule         = "0 9 1 1,4,7,10 *"
+  time_zone        = "Europe/Berlin"
+  pubsub_target {
+    topic_name = google_pubsub_topic.team_notifications.id
+    data       = base64encode("Quarterly Operational Debt Register review due")
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No Cloud Scheduler job configured
+# WAF-OPS-100 Violation: no automated review cadence enforcement
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Governance*
-|✅ Pflicht
-|Operational Debt Register (version-controlled) mit Einträgen, Severity, Toil-Schätzungen, Owners, Status.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Process*
-|✅ Pflicht
-|Quarterly-Review-Protokoll mit Priorisierungsentscheidungen und Sprint-Budget-Zuweisung.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Sprint-Kapazitäts-Report: % des Sprints für Operational-Debt-Abbau.
-
-|*Governance*
-|Optional
-|Toil-Metriken-Report: wöchentliche Toil-Stunden pro Ingenieur, Trend der letzten 6 Monate.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 8.4.1 – Service delivery; 8.4.2 – Service reporting
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy; Operational Excellence Pillar – Monitor; Operational Excellence Pillar – Improve
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring; CC7.2 – Evaluation of system changes
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives; Chapter 4 – Eliminating toil
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices; Req 6.6 – Application security
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity; OPS-04 – Change management
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management; CM-6 – Configuration settings; CM-8 – Information system integration; CA-7 – Continuous monitoring
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations; CA.L2-3.12.1 – Periodically assess security controls
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-OPS-060.adoc[WAF-OPS-060 – Runbook Coverage]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-reliability:controls/WAF-REL-050.adoc[WAF-REL-050]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-runbooks.adoc[Runbooks und Betriebsdokumentation pflegen →]
+|ISO/IEC 20000-1 |* Continual improvement
+* Risk management
+
+|ITIL 4 |* Continual improvement
+* Problem management
+
+|SRE Book (Google) |* Chapter 5: Eliminating Toil
+
+|===

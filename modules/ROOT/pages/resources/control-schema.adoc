@@ -1,9 +1,9 @@
 = Control-Schema Referenz
-:description: Vollständige YAML-Schema-Dokumentation für WAF++ Controls – für Autoren und Contributor
+:description: Vollständige YAML-Schema-Dokumentation für Wombat Controls – für Autoren und Contributor
 :toc: left
 :toclevels: 3
 
-WAF++ Controls sind maschinenlesbare YAML-Dateien.
+Wombat Controls sind maschinenlesbare YAML-Dateien.
 Sie definieren, *was* geprüft wird, *wie* geprüft wird, und *welche Evidenz* erwartet wird.
 Diese Seite dokumentiert die vollständige Schema-Struktur für Control-Autoren und Contributors.
 
@@ -33,7 +33,7 @@ WAF - \{PILLAR} - \{NNN}
 ----
 id:          # string  – eindeutige Control-ID (WAF-SOV-010)
 title:       # string  – kurzer, aktiver Titel ("Data Residency Policy Defined")
-pillar:      # string  – Pillar-Name (sovereign | cost | security | reliability | operations | architecture | governance)
+pillar:      # string  – Pillar-Name (security | cost | efficiancy | reliability | excellence | sustainability | sovereign | agentic)
 status:      # string  – active | deprecated | draft
 severity:    # string  – critical | high | medium | low
 category:    # string  – Kategorisierung innerhalb des Pillars (z.B. "data-residency", "cost-allocation")
@@ -157,7 +157,7 @@ maturity_levels:
 ----
 
 Jedes Level baut auf dem vorherigen auf.
-Level 3+ erfordern in der Regel automatisierte Prüfung (wafpass oder äquivalent).
+Level 3+ erfordern in der Regel automatisierte Prüfung (WOMBATpass oder äquivalent).
 
 ---
 
@@ -209,7 +209,7 @@ evidence:
 == checks
 
 Eine Liste von Prüfschritten.
-Jeder Check ist entweder automatisiert (ausführbar durch `wafpass`) oder manuell.
+Jeder Check ist entweder automatisiert (ausführbar durch `wombat`) oder manuell.
 
 [source,yaml]
 ----
@@ -253,11 +253,16 @@ checks:
       │           │        │              │
       │           │        │              └── Kebab-case, max 40 Zeichen
       │           │        └─────────────── aws | azurerm | google | any | manual
-      │           └──────────────────────── terraform | manual | api
+      │           └──────────────────────── terraform | config | manual | api
       └──────────────────────────────────── z.B. waf-sov-010 (lowercase)
 ----
 
 Beispiel: `waf-cost-010.tf.aws.compute-mandatory-tags`
+
+[NOTE]
+====
+Die Engine wird in Check-IDs oft abgekürzt: `tf` für `terraform`, `config`, `manual` und `api` bleiben wortgleich.
+====
 
 === engine
 
@@ -266,13 +271,34 @@ Beispiel: `waf-cost-010.tf.aws.compute-mandatory-tags`
 | Wert | Bedeutung
 
 | `terraform`
-| Check wird gegen HCL2-Terraform-Dateien ausgeführt (wafpass)
+| Check wird gegen HCL2-Terraform-Dateien ausgeführt (WOMBATpass)
+
+| `config`
+| Check wertet statische Konfiguration, Dokumentation oder deklarative Policies aus (z.B. ADRs, Register, Tagging-Standards)
 
 | `manual`
 | Manueller Review erforderlich; `automated: false` ist immer gesetzt
 
 | `api`
-| Prüfung erfordert Live-Abfrage der Cloud-API (wafpass unterstützt dies noch nicht)
+| Prüfung erfordert Live-Abfrage der Cloud-API (WOMBATpass unterstützt dies noch nicht)
+|===
+
+=== on_fail
+
+Definiert die Schwere eines fehlgeschlagenen Checks. Erlaubte Werte:
+
+[cols="1,4", options="header"]
+|===
+| Wert | Bedeutung
+
+| `violation`
+| Harte Anforderung (MUST/SHALL). Verhindert Deployment; muss vor Go-Live behoben werden.
+
+| `finding`
+| Pflicht-Anforderung mit SLA (SHOULD). Muss innerhalb eines definierten Zeitraums behoben werden.
+
+| `advisory`
+| Empfehlung/Best Practice. Sollte umgesetzt werden, blockiert Deployment aber nicht.
 |===
 
 === scope
@@ -302,6 +328,14 @@ Definiert, welche Terraform-Blöcke geprüft werden:
 | `module`
 | –
 | Alle `module`-Blöcke
+
+| `file`
+| `path_pattern: string`
+| Dateien im Repository (z.B. Policies, ADRs, Register). Wird von `engine: config` ausgewertet.
+
+| `any`
+| –
+| Beliebige Terraform-Blöcke (z.B. `resource`, `provider`, `data`). Nützlich für globale Musterprüfungen.
 |===
 
 ---
@@ -355,7 +389,7 @@ assertions:
 
 | `message`
 | Nein
-| Fehlermeldung bei FAIL. Wird im wafpass-Output angezeigt. Wenn weggelassen, generiert die Engine eine Standard-Meldung.
+| Fehlermeldung bei FAIL. Wird im WOMBATpass-Output angezeigt. Wenn weggelassen, generiert die Engine eine Standard-Meldung.
 |===
 
 === Operator-Referenz
@@ -453,7 +487,7 @@ references:
 
 == Vollständiges Beispiel-Control
 
-Das folgende Beispiel zeigt ein minimal-vollständiges Control, das alle Pflichtfelder enthält und direkt von `wafpass` ausgewertet werden kann:
+Das folgende Beispiel zeigt ein minimal-vollständiges Control, das alle Pflichtfelder enthält und direkt von `wombat` ausgewertet werden kann:
 
 [source,yaml]
 ----
@@ -486,7 +520,7 @@ regulatory_mapping:
 implementation_guidance:
   - "Define a mandatory tag taxonomy: cost-center, owner, environment, workload."
   - "Use a shared Terraform module to output the complete tag map."
-  - "Enforce tagging in CI/CD with wafpass --fail-on critical."
+  - "Enforce tagging in CI/CD with wombat --fail-on critical."
 
 maturity_levels:
   level_1:
@@ -596,7 +630,7 @@ references:
 +
 [source,bash]
 ----
-wafpass check ./tests/fixtures/ --controls WAF-COST-110
+wombat check ./tests/fixtures/ --controls WAF-COST-110
 ----
 . **Narrative-Seite erstellen** – passende `.adoc`-Datei im Pillar-Modul anlegen und in `references.narrative` verlinken.
 . **Pull Request öffnen** – Control-YAML + Narrative-Seite gemeinsam einreichen. Der PR-Titel sollte die Control-ID enthalten.
@@ -605,6 +639,6 @@ wafpass check ./tests/fixtures/ --controls WAF-COST-110
 
 == Weiterführende Seiten
 
-* xref:resources/wafpass.adoc[WAF++ PASS – CLI Referenz] – wie Controls ausgeführt werden
+* xref:resources/wafpass.adoc[WOMBATpass – CLI Referenz] – wie Controls ausgeführt werden
 * xref:controls:catalog.adoc[Controls-Katalog] – alle vorhandenen Controls
 * xref:best-practises/index.adoc[Assessment-Methodik] – Controls im Assessment-Kontext

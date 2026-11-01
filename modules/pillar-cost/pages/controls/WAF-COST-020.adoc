@@ -3,97 +3,80 @@
 :control-id: WAF-COST-020
 :pillar: cost
 :severity: high
-:category: budget-control
-:automated: high
-:description: WAF++ Cost Optimization – Budget-Limits und automatisierte Alerts als IaC-Ressourcen.
+:category: logging-monitoring
+:automatable: High
+:description: Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project. Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload owner and FinOps team. Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
 
 [.metadata]
-*Pillar:* Cost Optimization | *Severity:* High | *Kategorie:* Budget Control | *Automatisierbar:* Hoch
+*Säule:* Cost | *Schweregrad:* Hoch | *Kategorie:* Logging Monitoring | *Automatisierbar:* High
 
 == Beschreibung
 
-Cost-Budgets MÜSSEN als IaC-Ressourcen definiert sein – nicht manuell im Cloud-Console-UI.
-Budget-Alerts MÜSSEN bei 80% und 100% des Limits automatisch ausgelöst und an den
-Workload-Owner sowie das FinOps-Team geroutet werden.
+Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project. Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload owner and FinOps team. Budget resources in IaC ensure they are version-controlled, reviewable, and reproducible.
 
-Manuell im UI gesetzte Budgets sind nicht versioniert, nicht reproduzierbar und können
-ohne Audit-Trail geändert oder gelöscht werden.
-
-== Rationale
-
-Budget-Überschreitungen, die erst in der Monatsrechnung entdeckt werden, sind zu spät:
-Die Kosten sind bereits angefallen. Frühzeitige Alerts bei 80% ermöglichen proaktives Handeln,
-bevor das Budget ausgeschöpft ist. IaC-definierte Budget-Ressourcen sind versioniert,
-reviewbar und Teil des Infrastructure-as-Code-Workflows.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Späte Entdeckung*
-|Budget-Überschreitungen werden erst nach Monatsabschluss in der Abrechnung sichtbar.
+|*Risk* |Uncontrolled cloud spend erodes budget and project viability.
 
-|*Nicht-reproduzierbare Konfiguration*
-|Im UI manuell gesetzte Budgets sind nicht versioniert; Verlust bei Account-Änderungen möglich.
-
-|*Fehlende Prognose*
-|Ohne Forecasting-Alerts werden drohende Überschreitungen nicht erkannt, bevor sie eintreten.
-
-|*Falsche Benachrichtigungsempfänger*
-|Alerts, die an veraltete E-Mail-Adressen gehen, lösen keine operative Reaktion aus.
+|*Risk* |High lock-in or debt decisions are made without financial impact visibility.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Budget-Ressourcen MÜSSEN in Terraform definiert sein (`aws_budgets_budget`, `azurerm_consumption_budget_*`, `google_billing_budget`)
-* Alerts MÜSSEN bei 80% (ACTUAL) und 100% (ACTUAL) konfiguriert sein
-* Empfänger MÜSSEN: Team-Owner-Kanal + FinOps-Team
-* Ein Forecasting-Alert (FORECASTED, 110%) ist empfohlen
-* Budget-Ressourcen MÜSSEN quartalsweise auf Angemessenheit reviewed werden
+* Cost budgets MUST be defined as IaC resources (not manually in cloud console UIs) for each cloud account, subscription, or project.
+* Budget alerts MUST be configured at 80% and 100% of the budget limit and automatically routed to the workload owner and FinOps team.
 
-== Reifegrad-Abstufung
+== Implementierungsleitfaden
 
-[cols="1,2,3"]
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+
+== Reifegrade
+
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Kein Budget
-|Keine Budget-Limits; Kosten nur in Monatsrechnung sichtbar.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Budget manuell gesetzt
-|Budget-Limits existieren, aber im Console-UI konfiguriert; nicht versioniert.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Budget als IaC, Alerts konfiguriert
-|`aws_budgets_budget` o.ä. in Terraform; Alerts bei 80% und 100% mit korrekten Empfängern.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Forecasting-Alerts und Anomalie-Detection
-|Forecasted-Alert konfiguriert; AWS Cost Anomaly Detection o.ä. aktiv; Alerts triggern Tickets.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Predictive Budget Management
-|Budgets automatisch auf Basis von ML-Prognosen angepasst; Real-Time-Burn-Rate-Dashboard.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-cost-020.tf.aws.budgets-budget-exists
-*Prüft:* `aws_budgets_budget` Ressource muss als IaC existieren.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS budget must be defined as IaC resource*
+
+An aws_budgets_budget resource must exist in the Terraform configuration. Budgets set only in the AWS Console are not version-controlled and may be deleted or modified without audit trail.
+
+*Scope:* `resource` — `aws_budgets_budget`
+
+*Assertions:*
+* `budget_type` equals `COST` — Budget must be of type COST for cloud spend tracking.
+* `time_unit` in `['MONTHLY', 'QUARTERLY', 'DAILY']` — Budget time unit must be MONTHLY or QUARTERLY.
+
+*Remediation:* Add an aws_budgets_budget resource to your Terraform configuration. Set budget_type = "COST", time_unit = "MONTHLY", and configure notification blocks for 80% and 100% thresholds.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_budgets_budget" "monthly" {
+resource "aws_budgets_budget" "workload_monthly" {
   name         = "payment-service-prod-monthly"
   budget_type  = "COST"
   limit_amount = "5000"
@@ -113,34 +96,40 @@ resource "aws_budgets_budget" "monthly" {
     threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
-    subscriber_email_addresses = [
-      "payments-team@company.com",
-      "finops@company.com"
-    ]
+    subscriber_email_addresses = ["payments-team@company.com", "finops@company.com"]
   }
 }
 ----
-a|[source,hcl]
-----
-# Kein aws_budgets_budget definiert.
-# Budget wurde manuell im AWS-Console-UI
-# gesetzt – nicht versioniert, nicht
-# reproduzierbar.
-# WAF-COST-020 Violation
-----
-|===
 
-*Remediation:* `aws_budgets_budget` Ressource in Terraform anlegen. `budget_type = "COST"`,
-`time_unit = "MONTHLY"`. Notification-Blöcke für 80% und 100% mit Team-E-Mail als Empfänger.
+.Non-Compliant
+
+[source,terraform]
+----
+# No aws_budgets_budget resource defined.
+# Budget was set manually in AWS Console – not reproducible, not version-controlled.
+----
 
 ---
 
 === waf-cost-020.tf.azurerm.consumption-budget-defined
-*Prüft:* Azure `azurerm_consumption_budget_resource_group` muss existieren.
 
-[source,hcl]
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure consumption budget must be defined as IaC resource*
+
+An azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource must exist in the Terraform configuration for Azure spending control.
+
+*Scope:* `resource` — `azurerm_consumption_budget_resource_group`, `azurerm_consumption_budget_subscription`, `azurerm_consumption_budget_management_group`
+
+*Assertions:*
+* `amount` greater than or equal `1` — Budget amount must be greater than 0.
+
+*Remediation:* Add an azurerm_consumption_budget_resource_group or azurerm_consumption_budget_subscription resource to your Terraform configuration with appropriate notification thresholds.
+
+.Compliant
+
+[source,terraform]
 ----
-# Compliant
 resource "azurerm_consumption_budget_resource_group" "main" {
   name              = "payment-service-monthly-budget"
   resource_group_id = azurerm_resource_group.main.id
@@ -169,107 +158,221 @@ resource "azurerm_consumption_budget_resource_group" "main" {
 }
 ----
 
+.Non-Compliant
+
+[source,terraform]
+----
+# No azurerm_consumption_budget_* resource defined.
+# No automated budget control for this Azure workload.
+----
+
+---
+
+=== waf-cost-020.tf.google.billing-budget-exists
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP billing budget must be defined as IaC resource*
+
+A google_billing_budget resource must exist in the Terraform configuration. GCP budgets set only in the Cloud Console are not version-controlled and may be modified without audit trail.
+
+*Scope:* `resource` — `google_billing_budget`
+
+*Assertions:*
+* `billing_account` attribute exists — GCP billing budget must reference a billing account.
+* `threshold_rules` attribute exists — GCP billing budget must define threshold rules for alerts.
+
+*Remediation:* Add a google_billing_budget resource to your Terraform configuration. Define billing_account, display_name, amount, and threshold_rules for 80% and 100% of the budget.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_billing_budget" "workload_monthly" {
+  billing_account = data.google_billing_account.main.id
+  display_name    = "payment-service-prod-monthly"
+
+  amount {
+    specified_amount {
+      currency_code = "EUR"
+      units         = "5000"
+    }
+  }
+
+  threshold_rules {
+    threshold_percent = 80
+  }
+
+  threshold_rules {
+    threshold_percent = 100
+  }
+
+  all_updates_rule {
+    monitoring_notification_channels = [
+      google_monitoring_notification_channel.finops.id,
+      google_monitoring_notification_channel.owner.id,
+    ]
+    disable_default_iam_recipients   = false
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# No google_billing_budget resource defined.
+# Budget was set manually in GCP Console – not reproducible, not version-controlled.
+----
+
+---
+
+=== waf-cost-020.tf.stackit.budget-documented
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT cost budgets must be defined and documented*
+
+STACKIT cost budgets must be defined and documented. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_project`
+
+*Assertions:*
+* `labels.budget-alert` key exists — STACKIT project is missing the 'budget-alert' label documenting budget enforcement.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_project" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_project" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-020.tf.ovh.budget-documented
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud cost budgets must be defined and documented*
+
+OVHcloud cost budgets must be defined and documented. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project`
+
+*Assertions:*
+* `labels.budget-alert` key exists — OVHcloud project is missing the 'budget-alert' label documenting budget enforcement.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-cost-020.tf.hcloud.budget-documented
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud cost budgets must be defined and documented*
+
+Hetzner Cloud cost budgets must be defined and documented. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels.budget-alert` key exists — Hetzner Cloud resource is missing the 'budget-alert' label documenting budget enforcement.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Terraform Budget-Ressourcen im Repository für jeden Cloud-Account/Workload.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Alert-Notification-Konfiguration mit 80%- und 100%-Schwellwerten.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Alert-Auslieferungsnachweis der letzten 3 Monate.
-
-|*Process*
-|Optional
-|Quartalsweise Budget-Review-Protokoll mit Anpassungsentscheidungen.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO 27001:2022*
-|A.5.36 – Compliance with policies, rules and standards; A.8.1.1 – Access control strategy; A.8.10 – Information deletion; A.8.24 – Use of cryptography
-
-|*ISO 20000-1:2018*
-|9.4.1 – Configuration management; 9.4.2 – Configuration records; 10.2.2 – Financial management; 10.2.4 – Budgeting and accounting
-
-|*BSI C5:2020*
-|COM-01 – Network and service security; COM-02 – Cloud monitoring; GOV-01 – Governance, risk and compliance
-
-|*AWS Well-Architected Framework*
-|Cost Optimization Pillar – Cost allocation tagging; Financial Security – Budgeting and forecasting
-
-|*Azure Well-Architected Framework*
-|Cost management – Tagging; Governance – Resource governance; Cost optimization – Cost allocation
-
-|*Google Cloud Architecture Framework*
-|Organization and folders – Tagging; Billing – Cost allocation; Resource management – Resource hierarchy
-
-|*FinOps Foundation*
-|Core Module – Tagging standards; Management Layer – Cost attribution; Open Module – Financial accountability
-
-|*GDPR*
-|Art. 28 – Processor obligations; Art. 32 – Security of processing (cost of security measures)
-
-|*CSRD*
-|ESRS G1 – Governance – Disclosure of information; ESRS M1 – Materiality – Disclosure of information
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; FR.AN – Analysis; RP.RP – Recovery planning
-
-|*CIS Controls v8*
-|CIS 2 – Inventory and Control of Software Assets; CIS 2.1 – Software inventory; CIS 2.2 – Hardware inventory
-
-|*TISAX*
-|Information security – Resource management
-
-|*ANSSI SecNumCloud*
-|Domain – Financial management; Domain – Resource management
-
-|*BIO*
-|BIO – Financieel beheer
-
-|*ENS High*
-|org.2 – Control de gestión; op.exp.1 – Gestión de incidentes
-
-|*UK NCSC CAF*
-|A2 – Financial management; A3 – Resource management
-
-|*CMMC 2.0*
-|AC.L2-3.1.1 – Access control policy
-
-|*IRAP*
-|ISM – Financial management
-
-|*CCCS PBMM*
-|CM-6 – Configuration management
-
-|*MAS TRM*
-|Ch.6 – Financial management
-
-|*ISMAP*
-|Resource management and cost control
-
-|*FISC*
-|Operational measures – Financial management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-COST-010.adoc[WAF-COST-010 – Cost Allocation Tagging]
-* xref:controls/WAF-COST-060.adoc[WAF-COST-060 – FinOps Review Cadence]
+* xref:pillar-cost:controls/WAF-COST-070.adoc[WAF-COST-070]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-efficiancy:controls/WAF-PERF-020.adoc[WAF-PERF-020]
+* xref:pillar-efficiancy:controls/WAF-PERF-040.adoc[WAF-PERF-040]
+* xref:pillar-efficiancy:controls/WAF-PERF-050.adoc[WAF-PERF-050]
+* xref:pillar-reliability:controls/WAF-REL-060.adoc[WAF-REL-060]
+* xref:pillar-sovereign:controls/WAF-SOV-030.adoc[WAF-SOV-030]
+== Regulatorisches Mapping
+
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
+
+|FinOps Foundation |* Inform Phase – Budget Visibility and Accountability
+* Operate Phase – Budget Management and Variance Reporting
+
+|===

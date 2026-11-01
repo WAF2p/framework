@@ -1,0 +1,122 @@
+id: WAF-AGN-110
+title: Agent outputs and actions MUST be validated, sandboxed, and restricted to allowlists
+status: active
+tags:
+- agentic
+- configuration
+- governance
+- high
+pillar: agentic
+severity: high
+type:
+- governance
+- configuration
+category: agentic-governance
+rationale: Unvalidierte Agenten-Ausgaben und unsandboxete Tool-Aufrufe ermöglichen Manipulation, Datenkorruption und unautorisierte
+  Aktionen. Dieses Control adressiert die Anforderungen des Bereichs 'Agentic Governance' und stellt sicher, dass Agent-generated
+  outputs MUST be validated against schemas, business rules, or human-defined constrai...
+threat:
+- Unvalidated agent outputs can trigger incorrect business decisions or data corruption.
+- Unsandboxed tool access allows prompt injection and unauthorized actions by compromised agents.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-agentic/pages/controls/WAF-AGN-110.adoc
+  related_controls:
+  - WAF-AGN-010
+  - WAF-AGN-020
+  - WAF-AGN-030
+  - WAF-AGN-040
+  - WAF-AGN-050
+  - WAF-AGN-060
+  - WAF-AGN-070
+  - WAF-SEC-010
+  - WAF-SEC-060
+  - WAF-REL-110
+description: Agent-generated outputs MUST be validated against schemas, business rules, or human-defined constraints before
+  downstream use. Agent tool invocations MUST be sandboxed and restricted to an explicit allowlist of functions and parameters.
+  High-impact actions MUST require confirmation or human-in-the-loop approval. Validation failures MUST be logged, alerted,
+  and used to refine guardrails.
+regulatory_mapping:
+- framework: ISO 27001:2022
+  controls:
+  - A.8.3 – Information access restriction
+  - A.8.27 – Secure system architecture
+- framework: GDPR
+  controls:
+  - Art. 32 – Security of processing
+- framework: NIST AI Risk Management Framework
+  controls:
+  - Measure 1.1 – AI system is validated
+- framework: EU AI Act
+  controls:
+  - Art. 9 – Risk management system
+- framework: SOC 2 Type II
+  controls:
+  - CC6.1 – Logical access controls
+checks:
+- id: waf-agn-110.tf.aws.bedrock-guardrail
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS Bedrock agent must use guardrails with blocked outputs
+  description: AWS Bedrock agent must use guardrails with blocked outputs
+  expected: 'true'
+  remediation: AWS Bedrock agent must use guardrails with blocked outputs
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_bedrock_guardrail
+  assertions:
+  - attribute: name
+    op: attribute_exists
+    message: Bedrock guardrail must be configured.
+  on_fail: finding
+- id: waf-agn-110.config.agent-validation-policy
+  engine: config
+  provider: any
+  automated: false
+  title: Agent output validation and tool allowlist policy must exist
+  description: Agent output validation and tool allowlist policy must exist
+  expected: 'true'
+  remediation: Agent output validation and tool allowlist policy must exist
+  scope:
+    block_type: file
+    path_pattern: docs/agentic/agent-validation-policy.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: Agent validation and tool allowlist policy must exist.
+  on_fail: finding

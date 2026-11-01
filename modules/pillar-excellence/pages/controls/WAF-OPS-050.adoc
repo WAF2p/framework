@@ -1,108 +1,94 @@
 = WAF-OPS-050 – Change Management & Deployment Risk Assessment
 :page-toc: right
 :control-id: WAF-OPS-050
-:pillar: operations
+:pillar: excellence
 :severity: medium
-:category: change-management
-:automated: medium
-:description: WAF++ Operational Excellence – Alle Produktionsänderungen müssen durch einen definierten Change-Management-Prozess mit Risikobewertung und Approval laufen.
+:category: deployment-automation
+:automatable: High
+:description: All changes to production systems MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk changes, deployment freeze policies for critical periods, and post-deployment verification. Change records MUST be linked to deployment artifacts and stored with sufficient context for audit.
 
 [.metadata]
-*Pillar:* Operational Excellence | *Severity:* Medium | *Kategorie:* Change Management | *Automatisierbar:* Mittel
+*Säule:* Excellence | *Schweregrad:* Mittel | *Kategorie:* Deployment Automation | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle Änderungen an Produktionssystemen MÜSSEN durch einen definierten Change-Management-Prozess
-mit Risikobewertung, Approval-Workflow für High-Risk-Changes und Post-Deployment-Verifikation.
-Deployment-Freeze-Policies MÜSSEN für kritische Geschäftsperioden konfiguriert sein.
-Change-Records MÜSSEN mit Deployment-Artefakten verknüpft und auditierbar sein.
+All changes to production systems MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk changes, deployment freeze policies for critical periods, and post-deployment verification. Change records MUST be linked to deployment artifacts and stored with sufficient context for audit.
 
-== Rationale
-
-Unkontrollierte Änderungen sind die häufigste Ursache von Produktions-Incidents.
-Change Management bedeutet nicht: alles verlangsamen. Es bedeutet: jede Änderung hat
-einen bekannten Owner, ein bekanntes Risiklevel und einen Verifikationsplan.
-Automatisierte Change-Klassifikation (Low-Risk auto-approved, High-Risk reviewt)
-ermöglicht sowohl Geschwindigkeit als auch Sicherheit.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Ungeprüfte Änderungen*
-|Ohne Review: Security-Konfigurationsänderungen ohne Security-Team; kein Rollback-Plan.
+|*Risk* |Undocumented changes to production systems complicate rollbacks and audits.
 
-|*Change-Kollisionen*
-|Mehrere Teams deployen gleichzeitig ohne Koordination; gegenseitige Störung unbekannt.
-
-|*Kritische-Perioden-Deployment*
-|Release während Black Friday, Monatsende, Steuerzahlung – erhöhtes Risiko ohne Freeze.
-
-|*Compliance-Verletzung*
-|SOC 2, PCI DSS, ISO 20000 fordern Change-Records mit Approval-Nachweis.
+|*Risk* |Missing approval gates enable unauthorized or untested deployments.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Change-Kategorien MÜSSEN definiert sein (Standard: pre-approved; Normal: Review; Notfall: expedited)
-* High-Risk-Changes MÜSSEN Approval von mindestens 2 Personen erfordern
-* Deployment-Freeze MUSS für konfigurierbare Perioden erzwungen werden können
-* Jedes Deployment MUSS auf ein Change-Record oder Ticket verweisen
-* Post-Deployment-Verifikation MUSS automatisiert sein (Smoke Tests)
+* All changes to production systems MUST go through a defined change management process that includes risk assessment, approval workflow for high-risk changes, deployment freeze policies for critical periods, and post-deployment verification.
+* Change records MUST be linked to deployment artifacts and stored with sufficient context for audit.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Change-Kategorien definieren:* Standard (pre-approved Routineaufgaben), Normal (Review erforderlich), Notfall (expedited mit rückwirkender Dokumentation)
-. *Approval-Routing automatisieren:* Low-Risk (1 Reviewer), High-Risk (Tech Lead + Security), Notfall (CTO)
-. *Branch-Protection stärken:* `CODEOWNERS` für kritische Pfade; `required_approving_review_count >= 1`
-. *Deployment-Freeze konfigurieren:* GitHub Environment Protection Wait Times; Pipeline-Freeze-Check gegen Kalender
-. *Change-Tickets verknüpfen:* CI-Pipeline prüft Commit-Message oder Branch-Name auf Ticket-ID
-. *Smoke Tests als Gate:* Deployment gilt erst als erfolgreich wenn Smoke Tests grün sind
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
+3. Implement the required configuration as code in Terraform or equivalent IaC.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Kontrolle
-|Jeder kann jederzeit in Produktion deployen. Keine Dokumentation. Keine Review.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Basis-Review
-|Pull-Request-Reviews für Code-Änderungen. Informelle Koordination vor Deployments.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Dokumentierter Change-Prozess
-|Change-Kategorien definiert. High-Risk mit Multi-Approval. Deployment-Freeze konfiguriert.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatische Risikobewertung
-|Auto-Risikoscoring basierend auf betroffenen Ressourcen. Smoke Tests als Deployment-Gate.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Kontinuierliche Change-Optimierung
-|Change Failure Rate < 5%. MTTR < 1 Stunde. Predictive Risk Scoring via ML.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-ops-050.tf.aws.codepipeline-manual-approval
-*Prüft:* AWS CodePipeline hat eine manuelle Approval-Stage vor dem Production-Deployment.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*Production CodePipeline must include a manual approval stage before deployment*
+
+AWS CodePipeline pipelines deploying to production MUST include a manual approval action before the production deploy stage to enforce change review.
+
+*Scope:* `resource` — `aws_codepipeline`
+
+*Assertions:*
+* `stage` attribute exists — Pipeline must define at least one stage with approval action.
+
+*Remediation:* Add a stage with an Approval action before the production Deploy stage in your CodePipeline. Set the approval SNS topic and add a message referencing the change ticket.
+
+.Compliant
+
+[source,terraform]
 ----
-resource "aws_codepipeline" "app" {
-  /* ... */
+resource "aws_codepipeline" "app_pipeline" {
+  name     = "payment-service-pipeline"
+  role_arn = aws_iam_role.codepipeline_role.arn
+
+  artifact_store {
+    location = aws_s3_bucket.artifacts.bucket
+    type     = "S3"
+  }
+
+  stage { name = "Source" /* ... */ }
+  stage { name = "Build"  /* ... */ }
+  stage { name = "Deploy-Staging" /* ... */ }
+
   stage {
     name = "Approval-Production"
     action {
@@ -113,132 +99,273 @@ resource "aws_codepipeline" "app" {
       version  = "1"
       configuration = {
         NotificationArn = aws_sns_topic.approvals.arn
+        CustomData      = "Review checklist: https://wiki/deploy-checklist"
       }
     }
   }
+
   stage { name = "Deploy-Production" /* ... */ }
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
-resource "aws_codepipeline" "app" {
-  /* Source → Build → Deploy-Production */
-  /* Kein Approval-Gate vor Production */
-  /* WAF-OPS-050 Violation */
+resource "aws_codepipeline" "app_pipeline" {
+  # Pipeline goes directly from staging to production
+  # with no approval gate – WAF-OPS-050 Violation
+  stage { name = "Source" }
+  stage { name = "Build" }
+  stage { name = "Deploy-Production" }
 }
 ----
 
-|===
+---
 
-*Remediation:* Approval-Stage mit `category = "Approval"` und `provider = "Manual"` vor dem
-Production-Deployment in der CodePipeline konfigurieren.
+=== waf-ops-050.tf.azurerm.devops-environment-approval
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure DevOps production environment must require approval checks*
+
+Azure DevOps environments used for production deployments MUST have approval checks configured to enforce the change review process.
+
+*Scope:* `resource` — `azuredevops_environment`
+
+*Assertions:*
+* `name` not empty — Azure DevOps environment must have a name.
+
+*Remediation:* Configure approval checks on the azuredevops_environment used for production via azuredevops_check_approval or the Azure DevOps portal after environment creation.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azuredevops_environment" "production" {
+  project_id  = azuredevops_project.main.id
+  name        = "production"
+  description = "Production environment – requires approval before deployment"
+}
+
+# Configure approval check via API or portal:
+# Approvers: tech-lead group, minimum 1 approval required
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azuredevops_environment" "production" {
+  project_id = azuredevops_project.main.id
+  name       = "production"
+  # No approval check configured – WAF-OPS-050 Violation
+}
+----
+
+---
+
+=== waf-ops-050.tf.google.cloud-build-approval
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Build production trigger must require manual approval*
+
+GCP Cloud Build triggers deploying to production MUST include a manual approval step or be gated by a release promotion workflow that enforces change review before production deployment.
+
+*Scope:* `resource` — `google_cloudbuild_trigger`
+
+*Assertions:*
+* `approval_config` attribute exists — GCP Cloud Build production trigger must require manual approval.
+
+*Remediation:* Configure a Cloud Build approval configuration or use a release promotion pipeline where production deployments require at least one reviewer approval. Document the approval process in a version-controlled change-management policy.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloudbuild_trigger" "prod_deploy" {
+  name     = "deploy-to-production"
+  project  = var.project_id
+  filename = "cloudbuild-prod.yaml"
+
+  approval_config {
+    approval_required = true
+  }
+
+  substitutions = {
+    _ENVIRONMENT = "production"
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloudbuild_trigger" "prod_deploy" {
+  name     = "deploy-to-production"
+  project  = var.project_id
+  filename = "cloudbuild-prod.yaml"
+  # No approval_config – production deployment proceeds automatically
+}
+----
+
+---
+
+=== waf-ops-050.tf.stackit.pipeline-defined
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT infrastructure changes must go through a pipeline*
+
+STACKIT infrastructure changes must go through a pipeline. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_ske_cluster`
+
+*Assertions:*
+* `labels.deployment-pipeline` key exists — STACKIT SKE cluster is missing the 'deployment-pipeline' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_ske_cluster" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_ske_cluster" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-050.tf.ovh.pipeline-defined
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud infrastructure changes must go through a pipeline*
+
+OVHcloud infrastructure changes must go through a pipeline. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_kube`, `ovh_cloud_project_kube_nodepool`
+
+*Assertions:*
+* `tags.deployment-pipeline` key exists — OVHcloud Kubernetes resource is missing the 'deployment-pipeline' tag.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-ops-050.tf.hcloud.pipeline-defined
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud infrastructure changes must go through a pipeline*
+
+Hetzner Cloud infrastructure changes must go through a pipeline. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`
+
+*Assertions:*
+* `labels.deployment-pipeline` key exists — Hetzner Cloud server is missing the 'deployment-pipeline' label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*Process*
-|✅ Pflicht
-|Change-Management-Policy mit Change-Kategorien, Approval-Anforderungen und Freeze-Perioden.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Branch-Protection- und Approval-Konfiguration (min. Reviewer, CODEOWNERS).
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Governance*
-|Optional
-|Change-Log mit Change-Records verknüpft zu Deployments (letzte 3 Monate).
-
-|*Config*
-|Optional
-|Deployment-Freeze-Konfiguration (Environment Protection Rules oder Pipeline-Freeze-Check).
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 20000-1:2018*
-|8.2.3 – Change management; 8.3.4 – Release management; 8.4.1 – Service delivery; 8.4.2 – Service reporting
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Operational Excellence Pillar – Prepare; Operational Excellence Pillar – Deploy; Operational Excellence Pillar – Monitor; Operational Excellence Pillar – Improve
-
-|*DORA*
-|DORA 2024 – Technical practices; DORA 2024 – Organizational culture
-
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring; CC7.2 – Evaluation of system changes
-
-|*Google SRE Book*
-|Chapter 2 – SRE: The role of an SRE; Chapter 3 – Service Level Objectives; Chapter 4 – Eliminating toil
-
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices; Req 6.6 – Application security
-
-|*FinOps Foundation*
-|Core Module – Financial accountability; Management Layer – Cost governance
-
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring; OPS-02 – Operational control; OPS-03 – Operational capacity; OPS-04 – Change management
-
-|*NIST SP 800-53*
-|CM-1 – Configuration management policy; CM-2 – Configuration management; CM-6 – Configuration settings; CM-8 – Information system integration; CA-7 – Continuous monitoring
-
-|*NIST CSF 2.0*
-|GV.PO – Policy; RC.RP – Recovery planning; DE.CM – Continuous monitoring
-
-|*TISAX*
-|Information security – Change management
-
-|*ANSSI SecNumCloud*
-|Domain – Change management
-
-|*BIO*
-|BIO – Veranderingenbeheer
-
-|*ENS High*
-|op.exp.6 – Gestión de cambios
-
-|*UK NCSC CAF*
-|A4 – Policy and assurance; A5 – Continual improvement
-
-|*CMMC 2.0*
-|CM.L2-3.4.1 – Establish baseline configurations; CA.L2-3.12.1 – Periodically assess security controls
-
-|*IRAP*
-|ISM – Change management
-
-|*CCCS PBMM*
-|CM-2 – Baseline configuration; CA-7 – Continuous monitoring
-
-|*MAS TRM*
-|Ch.3 – Technology risk governance; Ch.9 – Change management
-
-|*ISMAP*
-|Operational excellence and continuous improvement
-
-|*FISC*
-|Operational measures – Change management
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-OPS-010.adoc[WAF-OPS-010 – CI/CD Pipeline]
-* xref:controls/WAF-OPS-080.adoc[WAF-OPS-080 – Feature Flags & Safe Deployments]
-* xref:controls/WAF-OPS-070.adoc[WAF-OPS-070 – Post-Incident Review]
+* xref:pillar-excellence:controls/WAF-OPS-010.adoc[WAF-OPS-010]
+* xref:pillar-excellence:controls/WAF-OPS-080.adoc[WAF-OPS-080]
+* xref:pillar-excellence:controls/WAF-OPS-040.adoc[WAF-OPS-040]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-excellence:controls/WAF-OPS-090.adoc[WAF-OPS-090]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-sustainability:controls/WAF-SUS-060.adoc[WAF-SUS-060]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-cicd.adoc[CI/CD-Pipeline aufbauen und absichern →]
+|ISO/IEC 20000-1 |* Change and deployment management
+* Release and deployment management
+
+|ITIL 4 |* Change enablement
+* Release management
+
+|SOC 2 Type II |* CC8.1 – Change Management – Authorized Changes
+
+|PCI DSS v4.0 |* Requirement 6.5: Changes to all system components are managed securely
+
+|===

@@ -1,42 +1,42 @@
-= WAF++ PASS – CLI Referenz
-:description: Vollständige Referenz für das wafpass Kommandozeilenwerkzeug
+= WOMBATpass – CLI Referenz
+:description: Vollständige Referenz für das WOMBATpass Kommandozeilenwerkzeug
 :toc: left
 :toclevels: 3
 
-`wafpass` ist das offizielle CLI-Werkzeug des WAF++ Frameworks.
+`wombat` ist das offizielle CLI-Werkzeug des Wombat Frameworks.
 Es liest die maschinenlesbaren YAML-Controls und prüft Terraform-Konfigurationen automatisiert gegen die definierten Assertions.
 
 == Installation
 
 [source,bash]
 ----
-pip install wafpass
+pip install wafpass-core
 ----
 
 Version prüfen:
 
 [source,bash]
 ----
-wafpass --version
+wombat --version
 ----
 
 === Voraussetzungen
 
 * Python 3.10+
 * Terraform-Konfiguration als `.tf`-Dateien (HCL2)
-* WAF++ YAML-Controls (standardmäßig aus dem Verzeichnis `controls/`)
+* Wombat YAML-Controls (standardmäßig aus dem Verzeichnis `controls/`)
 
 ---
 
 == Befehle
 
-=== `wafpass check`
+=== `wombat check`
 
-Der einzige Befehl der aktuellen Version. Prüft Terraform-Dateien gegen WAF++ Controls.
+Der einzige Befehl der aktuellen Version. Prüft Terraform-Dateien gegen Wombat Controls.
 
 [source,bash]
 ----
-wafpass check <PATH> [OPTIONEN]
+wombat check <PATH> [OPTIONEN]
 ----
 
 ==== Argumente
@@ -57,7 +57,7 @@ wafpass check <PATH> [OPTIONEN]
 
 | `--controls-dir PATH`
 | `controls/`
-| Pfad zum Verzeichnis mit den WAF++ YAML-Control-Dateien.
+| Pfad zum Verzeichnis mit den Wombat YAML-Control-Dateien.
 
 | `--pillar NAME`
 | _(alle)_
@@ -126,7 +126,7 @@ Standard: nur FAILs und SKIPs werden angezeigt.
 
 [source]
 ----
- WAF++ PASS — Terraform Compliance Check
+ WOMBATpass — Terraform Compliance Check
  Path: ./infrastructure/   Controls: 12
 
  WAF-SOV-010  Data Residency Policy            critical   FAIL
@@ -184,7 +184,7 @@ Ein Check erhält `SKIP`, wenn:
 
 == Assertion-Operatoren
 
-Die folgende Tabelle listet alle Operatoren, die in WAF++ YAML-Controls verwendet werden können:
+Die folgende Tabelle listet alle Operatoren, die in Wombat YAML-Controls verwendet werden können:
 
 === Automatisiert auswertbar
 
@@ -305,49 +305,49 @@ Diese Operatoren erfordern Laufzeit-Informationen oder Cross-Resource-Analyse, d
 
 [source,bash]
 ----
-wafpass check ./infrastructure/
+wombat check ./infrastructure/
 ----
 
 === Nur Sovereign-Controls, kritische Severity
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --pillar sovereign --severity critical
+wombat check ./infrastructure/ --pillar sovereign --severity critical
 ----
 
 === Einzelne Controls prüfen
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
+wombat check ./infrastructure/ --controls WAF-COST-010,WAF-COST-020,WAF-SOV-010
 ----
 
 === Nur Summary ausgeben
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --summary
+wombat check ./infrastructure/ --summary
 ----
 
 === Eigenes Controls-Verzeichnis
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --controls-dir /path/to/custom-controls/
+wombat check ./infrastructure/ --controls-dir /path/to/custom-controls/
 ----
 
 === CI/CD: Nur critical als Blocking
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --fail-on critical
+wombat check ./infrastructure/ --fail-on critical
 ----
 
 === CI/CD: Auch SKIPs als Fehler behandeln
 
 [source,bash]
 ----
-wafpass check ./infrastructure/ --fail-on skip
+wombat check ./infrastructure/ --fail-on skip
 ----
 
 ---
@@ -358,7 +358,7 @@ wafpass check ./infrastructure/ --fail-on skip
 
 [source,yaml]
 ----
-name: WAF++ Compliance
+name: Wombat Compliance
 
 on:
   push:
@@ -368,7 +368,7 @@ on:
       - 'infrastructure/**'
 
 jobs:
-  wafpass:
+  wombat:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -378,15 +378,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install wafpass
-        run: pip install wafpass
+      - name: Install WOMBATpass
+        run: pip install wafpass-core
 
-      - name: Copy WAF++ controls
+      - name: Copy Wombat controls
         run: cp -r path/to/wafpp-controls/ controls/
 
-      - name: Run WAF++ PASS
+      - name: Run WOMBATpass
         run: |
-          wafpass check infrastructure/ \
+          wombat check infrastructure/ \
             --pillar cost,sovereign \
             --severity high \
             --fail-on critical \
@@ -397,12 +397,12 @@ jobs:
 
 [source,yaml]
 ----
-wafpass:
+wombat:
   stage: validate
   image: python:3.12-slim
   script:
-    - pip install wafpass
-    - wafpass check infrastructure/ --fail-on critical
+    - pip install wafpass-core
+    - wombat check infrastructure/ --fail-on critical
   rules:
     - changes:
         - infrastructure/**/*.tf
@@ -415,9 +415,9 @@ wafpass:
 #!/bin/bash
 # .git/hooks/pre-commit
 
-wafpass check ./infrastructure/ --fail-on critical --severity critical,high
+wombat check ./infrastructure/ --fail-on critical --severity critical,high
 if [ $? -ne 0 ]; then
-  echo "WAF++ PASS: Critical compliance findings. Commit aborted."
+  echo "WOMBATpass: Critical compliance findings. Commit aborted."
   exit 1
 fi
 ----
@@ -426,7 +426,7 @@ fi
 
 == Controls-Verzeichnis
 
-`wafpass` erwartet YAML-Dateien im Format `WAF-*.yml` im Controls-Verzeichnis.
+`wombat` erwartet YAML-Dateien im Format `WAF-*.yml` im Controls-Verzeichnis.
 Standardmäßig sucht es im Unterverzeichnis `controls/` relativ zum Arbeitsverzeichnis.
 
 Jede YAML-Datei entspricht einem Control. Die vollständige Schema-Dokumentation ist unter xref:resources/control-schema.adoc[Control-Schema Referenz] verfügbar.
@@ -435,6 +435,6 @@ Jede YAML-Datei entspricht einem Control. Die vollständige Schema-Dokumentation
 
 == Weiterführende Seiten
 
-* xref:best-practises/index.adoc[Assessment-Methodik] – wie wafpass in den Assessment-Prozess eingebettet wird
+* xref:best-practises/index.adoc[Assessment-Methodik] – wie WOMBATpass in den Assessment-Prozess eingebettet wird
 * xref:controls:catalog.adoc[Controls-Katalog] – alle verfügbaren Controls mit Assertions
 * xref:resources/control-schema.adoc[Control-Schema Referenz] – YAML-Struktur für eigene Controls

@@ -1,0 +1,127 @@
+id: WAF-PERF-110
+title: Caching strategies MUST be defined for workloads with repeated read patterns or latency-sensitive endpoints
+status: active
+tags:
+- architecture
+- configuration
+- efficiancy
+- medium
+pillar: efficiancy
+severity: medium
+type:
+- configuration
+- architecture
+category: network-security
+rationale: Unzureichender Netzwerkschutz und fehlende DDoS-Abwehr ermöglichen externe Angriffe, Serviceunterbrechungen und
+  Datendiebstahl. Dieses Control adressiert die Anforderungen des Bereichs 'Network Security' und stellt sicher, dass Workloads
+  serving repeated content MUST use edge caches (CDN), application caches, or in-memory stor...
+threat:
+- Uncached repeated requests overload backends and increase latency without business value.
+- Missing cache invalidation strategies can serve stale or incorrect data to users.
+implementation_guidance:
+- Document the requirement in a version-controlled policy, ADR, or standard.
+- Assign ownership and establish a review cadence (e.g., quarterly).
+- Implement the required configuration as code in Terraform or equivalent IaC.
+maturity_levels:
+  level_1:
+    description: Ad hoc – control not consistently applied
+    criteria:
+    - Die Anforderung ist nicht einheitlich umgesetzt; Nachweis existiert nur punktuell oder fehlt.
+  level_2:
+    description: Standardised – policy defined and communicated
+    criteria:
+    - Eine dokumentierte Policy oder ein Standard beschreibt die Anforderung.
+  level_3:
+    description: Integrated – automated validation in CI/CD
+    criteria:
+    - Terraform-Checks oder IaC-Gates prüfen die Anforderung automatisch in CI/CD.
+  level_4:
+    description: Auditable – metrics and exceptions tracked
+    criteria:
+    - Abdeckung, Ausnahmen und Qualitätsmetriken werden quartalsweise berichtet.
+  level_5:
+    description: Optimised – continuous improvement based on data
+    criteria:
+    - Die Effektivität wird kontinuierlich gemessen und automatisch optimiert.
+evidence:
+  required:
+  - kind: iac
+    description: Terraform configuration implementing the control.
+  - kind: governance
+    description: Policy, ADR, or standard documenting the requirement.
+  optional:
+  - kind: config
+    description: Cloud console or API output confirming runtime state.
+references:
+  narrative: modules/pillar-efficiancy/pages/controls/WAF-PERF-110.adoc
+  related_controls:
+  - WAF-PERF-010
+  - WAF-PERF-020
+  - WAF-PERF-030
+  - WAF-REL-110
+  - WAF-COST-010
+  - WAF-OPS-040
+description: Workloads serving repeated content MUST use edge caches (CDN), application caches, or in-memory stores. Cache
+  invalidation and TTL policies MUST be documented and aligned with data freshness requirements. Latency-sensitive APIs MUST
+  define cache-control headers or use managed cache layers. Cache hit ratios and latency percentiles MUST be monitored.
+regulatory_mapping:
+- framework: AWS Well-Architected Framework
+  controls:
+  - PERF 04 – Optimize data patterns and usage
+- framework: Azure Well-Architected Framework
+  controls:
+  - Performance Efficiency – Caching
+- framework: Google Cloud Architecture Framework
+  controls:
+  - Performance Optimization – Caching and content delivery
+checks:
+- id: waf-perf-110.tf.aws.cloudfront-cache
+  engine: terraform
+  provider: aws
+  automated: true
+  title: AWS CloudFront distributions must define default cache behavior
+  description: AWS CloudFront distributions must define default cache behavior
+  expected: 'true'
+  remediation: AWS CloudFront distributions must define default cache behavior
+  scope:
+    block_type: resource
+    resource_types:
+    - aws_cloudfront_distribution
+  assertions:
+  - attribute: default_cache_behavior
+    op: attribute_exists
+    message: CloudFront must define default cache behavior.
+  on_fail: finding
+- id: waf-perf-110.tf.azurerm.cdn-endpoint
+  engine: terraform
+  provider: azurerm
+  automated: true
+  title: Azure CDN endpoints must have origin host header and compression configured
+  description: Azure CDN endpoints must have origin host header and compression configured
+  expected: 'true'
+  remediation: Azure CDN endpoints must have origin host header and compression configured
+  scope:
+    block_type: resource
+    resource_types:
+    - azurerm_cdn_endpoint
+  assertions:
+  - attribute: origin_host_header
+    op: attribute_exists
+    message: CDN endpoint must have origin host header configured.
+  on_fail: finding
+- id: waf-perf-110.config.cache-adr
+  engine: config
+  provider: any
+  automated: false
+  title: Caching strategy must be documented in architecture decision record
+  description: Caching strategy must be documented in architecture decision record
+  expected: 'true'
+  remediation: Caching strategy must be documented in architecture decision record
+  scope:
+    block_type: file
+    path_pattern: docs/adr/*.md
+  assertions:
+  - attribute: exists
+    op: attribute_exists
+    message: At least one ADR must document caching strategy.
+  on_fail: advisory

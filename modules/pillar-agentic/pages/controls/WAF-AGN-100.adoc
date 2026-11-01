@@ -3,182 +3,493 @@
 :control-id: WAF-AGN-100
 :pillar: agentic
 :severity: low
-:category: agent-debt
-:automated: partial
-:description: WAF++ Agentic – Bekannte Limitationen müssen in einem Agent Debt Register dokumentiert sein. Quarterly Review erforderlich.
+:category: reliability-design
+:automatable: High
+:description: Known agent limitations must be documented in an Agent Debt Register. Limitations include: knowledge cutoff, tool availability, accuracy limitations, edge cases, and failure modes. The register must be reviewed quarterly with improvement plans.
 
 [.metadata]
-*Pillar:* Agentic | *Severity:* Low | *Category:* Agent Debt | *Automatisierbar:* Partial
+*Säule:* Agentic | *Schweregrad:* Niedrig | *Kategorie:* Reliability Design | *Automatisierbar:* High
 
 == Beschreibung
 
-Bekannte Agenten-Limitationen müssen in einem Agent Debt Register dokumentiert sein. Limitationen umfassen: Wissens-Cutoff, Tool-Availability, Genauigkeits-Limitationen, Edge Cases und Failure Modes. Das Register muss vierteljährlich mit Verbesserungsplänen überprüft werden.
+Known agent limitations must be documented in an Agent Debt Register. Limitations include: knowledge cutoff, tool availability, accuracy limitations, edge cases, and failure modes. The register must be reviewed quarterly with improvement plans.
 
 == Begründung
 
-Nicht dokumentierte Agenten-Limitationen erzeugen mehrere Probleme:
+[cols="1,3"]
+|===
+|Risiko |Beschreibung
 
-*Unerwartete Ausfälle:* Agenten können auf Arten ausfallen, die nicht vorhergesehen wurden.
+|*Risk* |Undocumented agent limitations accumulate technical and regulatory debt.
 
-*Compliance-Lücken:* Aufsichtsbehörden können Kenntnis über System-Limitationen erfordern.
+|*Risk* |Unknown weaknesses in agent systems expose the organization to emergent failure modes.
 
-*User-Verwirrung:* User verstehen Agenten-Limitationen möglicherweise nicht und erwarten falsche Fähigkeiten.
-
-*Schwieriges Debugging:* Wenn Agenten ausfallen, machen unbekannte Limitationen die Wurzelursachenanalyse schwieriger.
-
-*Keine Verbesserungspfad:* Ohne Tracking kann kein Fortschritt bei Limitationen gemessen werden.
+|===
 
 == Anforderungen
 
-* Agent Debt Register muss existieren und alle bekannten Limitationen dokumentieren
-* Jede Limitation muss folgendes beinhalten: Beschreibung, Impact-Bewertung, Priorität, Target-Datum, Owner
-* Register muss vierteljährlich mit Verbesserungsplänen überprüft werden
-* Limitationen müssen kategorisiert sein: Wissen, Tool, Genauigkeit, Edge Cases, Failure Modes
-* Verbesserungspläne müssen konkrete Schritte und verantwortliche Personen enthalten
+* Known agent limitations must be documented in an Agent Debt Register.
+* The register must be reviewed quarterly with improvement plans.
 
-== Implementierungshinweise
+== Implementierungsleitfaden
 
-. *Register erstellen:* Dokument, Datenbank oder Repository für Limitationen verwenden
-. *Limitationen kategorisieren:* Nach Typ gruppieren (Wissens-Cutoff, Tool-Lücken, Genauigkeit, etc.)
-. *Owner zuweisen:* Jeder Limitation eine verantwortliche Person zuweisen
-. *Prioritäten setzen:* High/Medium/Low für Reihenfolge der Verbesserungsarbeiten
-. *Reviews planen:* Vierteljährliche Reviews mit dokumentierten Ergebnissen
-. *Fortschritt verfolgen:* Verbesserungen mit Development-Backlog verknüpfen
+1. Document the requirement in a version-controlled policy or standard.
+2. Assign ownership and establish a review cadence (e.g., quarterly).
 
-== Reifegradstufen
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
 |Level |Name |Kriterien
 
-|*1*
-|Kein Register
-|Keine Dokumentation von Agenten-Limitationen. Unbekannte Risiken.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Ad-hoc-Dokumentation
-|Einige Limitationen dokumentiert. Kein formeller Prozess.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Formelles Register
-|Agent Debt Register gepflegt. Vierteljährliche Reviews.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Automatisiertes Tracking
-|Limitationen verknüpft mit Issue-Tracking. Fortschritts-Dashboards.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Predictive Debt
-|AI vorhersagt potenzielle Limitationen, bevor sie auftreten.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
+
+== Checks
+
+=== waf-agn-100.config.multi.agent-debt-register
+
+*Engine:* `config` | *Provider:* multi | *Automated:* Ja
+
+*Agent Debt Register must be maintained*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-reliability-design.md` and document the cross-provider implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-reliability-design.md`. State the requirement, how it is implemented for cross-provider, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-reliability-design.md:
+- The cross-provider implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: cross-provider control is not documented
+----
+
+---
+
+=== waf-agn-100.config.multi.knowledge-cutoff
+
+*Engine:* `config` | *Provider:* multi | *Automated:* Ja
+
+*Knowledge cutoff date must be documented*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-reliability-design.md` and document the cross-provider implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-reliability-design.md`. State the requirement, how it is implemented for cross-provider, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-reliability-design.md:
+- The cross-provider implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: cross-provider control is not documented
+----
+
+---
+
+=== waf-agn-100.config.multi.quarterly-review
+
+*Engine:* `config` | *Provider:* multi | *Automated:* Ja
+
+*Agent limitations must be reviewed quarterly*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-reliability-design.md` and document the cross-provider implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-reliability-design.md`. State the requirement, how it is implemented for cross-provider, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-reliability-design.md:
+- The cross-provider implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: cross-provider control is not documented
+----
+
+---
+
+=== waf-agn-100.config.multi.improvement-plan
+
+*Engine:* `config` | *Provider:* multi | *Automated:* Ja
+
+*Improvement plan must be maintained for agent debt*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-reliability-design.md` and document the cross-provider implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-reliability-design.md`. State the requirement, how it is implemented for cross-provider, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-reliability-design.md:
+- The cross-provider implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: cross-provider control is not documented
+----
+
+---
+
+=== waf-agn-100.config.aws.aws-reliability-design
+
+*Engine:* `config` | *Provider:* aws | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-aws-reliability-design.md` and document the AWS implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-aws-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-aws-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-aws-reliability-design.md`. State the requirement, how it is implemented for AWS, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-aws-reliability-design.md:
+- The AWS implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-aws-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: AWS control is not documented
+----
+
+---
+
+=== waf-agn-100.config.azurerm.azurerm-reliability-design
+
+*Engine:* `config` | *Provider:* azurerm | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-azurerm-reliability-design.md` and document the Azure implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-azurerm-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-azurerm-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-azurerm-reliability-design.md`. State the requirement, how it is implemented for Azure, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-azurerm-reliability-design.md:
+- The Azure implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-azurerm-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: Azure control is not documented
+----
+
+---
+
+=== waf-agn-100.config.google.google-reliability-design
+
+*Engine:* `config` | *Provider:* google | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-google-reliability-design.md` and document the GCP implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-google-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-google-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-google-reliability-design.md`. State the requirement, how it is implemented for GCP, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-google-reliability-design.md:
+- The GCP implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-google-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: GCP control is not documented
+----
+
+---
+
+=== waf-agn-100.config.stackit.stackit-reliability-design
+
+*Engine:* `config` | *Provider:* stackit | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-stackit-reliability-design.md` and document the STACKIT implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-stackit-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-stackit-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-stackit-reliability-design.md`. State the requirement, how it is implemented for STACKIT, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-stackit-reliability-design.md:
+- The STACKIT implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-stackit-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: STACKIT control is not documented
+----
+
+---
+
+=== waf-agn-100.config.ovh.ovh-reliability-design
+
+*Engine:* `config` | *Provider:* ovh | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-ovh-reliability-design.md` and document the OVHcloud implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-ovh-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-ovh-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-ovh-reliability-design.md`. State the requirement, how it is implemented for OVHcloud, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-ovh-reliability-design.md:
+- The OVHcloud implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-ovh-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: OVHcloud control is not documented
+----
+
+---
+
+=== waf-agn-100.config.hcloud.hcloud-reliability-design
+
+*Engine:* `config` | *Provider:* hcloud | *Automated:* Ja
+
+*Known agent limitations must be documented in an Agent Debt Register*
+
+A version-controlled policy document must exist at `docs/agentic/waf-agn-100-hcloud-reliability-design.md` and document the Hetzner Cloud implementation of this control. The checker validates that the file exists and contains a normative requirement statement (MUST/SHALL/required/mandatory).
+
+*Scope:* `file` — `docs/agentic/waf-agn-100-hcloud-reliability-design.md`
+
+*Assertions:*
+* `content` matches pattern `(?i)MUST|SHALL|required|mandatory|enforced|documented` — Policy file `docs/agentic/waf-agn-100-hcloud-reliability-design.md` must contain a normative requirement statement.
+
+*Remediation:* Create or update `docs/agentic/waf-agn-100-hcloud-reliability-design.md`. State the requirement, how it is implemented for Hetzner Cloud, the review cadence, and the owner.
+
+.Compliant
+
+[source,text]
+----
+docs/agentic/waf-agn-100-hcloud-reliability-design.md:
+- The Hetzner Cloud implementation of WAF-AGN-100 is documented.
+- Implementation status and owner are recorded.
+- Review cadence is defined (e.g. quarterly).
+----
+
+.Non-Compliant
+
+[source,text]
+----
+# `docs/agentic/waf-agn-100-hcloud-reliability-design.md` is missing or does not contain a normative requirement.
+# WAF-AGN-100 violation: Hetzner Cloud control is not documented
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Erforderlich |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Erforderlich
-|Agent Debt Register Datei (Dokument, Datenbank-Schema, Repository).
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Konfig*
-|✅ Erforderlich
-|Review-Zeitplan-Konfiguration, Verbesserungs-Plan-Templates.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Prozess*
-|✅ Erforderlich
-|Vierteljährliche Review-Minutes, Verbesserungs-Fortschrittsberichte.
-
-|*Governance*
-|✅ Erforderlich
-|Agent Debt Register Policy, die Anforderungen und Verfahren definiert.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
 
 == Verwandte Controls
 
-* xref:controls/WAF-AGN-050.adoc[WAF-AGN-050 – Safety & Guardrails]
-* xref:controls/WAF-AGN-070.adoc[WAF-AGN-070 – Agent Observability]
-* xref:controls/WAF-AGN-090.adoc[WAF-AGN-090 – Cost & Performance Monitoring]
+* xref:pillar-reliability:controls/WAF-REL-080.adoc[WAF-REL-080]
+* xref:pillar-reliability:controls/WAF-REL-100.adoc[WAF-REL-100]
+* xref:pillar-agentic:controls/WAF-AGN-090.adoc[WAF-AGN-090]
+* xref:pillar-agentic:controls/WAF-AGN-050.adoc[WAF-AGN-050]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+* xref:pillar-agentic:controls/WAF-AGN-070.adoc[WAF-AGN-070]
+* xref:pillar-agentic:controls/WAF-AGN-060.adoc[WAF-AGN-060]
+* xref:pillar-agentic:controls/WAF-AGN-030.adoc[WAF-AGN-030]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-cost:controls/WAF-COST-020.adoc[WAF-COST-020]
+* xref:pillar-excellence:controls/WAF-OPS-010.adoc[WAF-OPS-010]
+* xref:pillar-excellence:controls/WAF-OPS-030.adoc[WAF-OPS-030]
+== Regulatorisches Mapping
 
-== Regulatorische Zuordnung
-
-[cols="1,2"]
+[cols="2,4", options="header"]
 |===
-|Rahmenwerk |Controls
+|Framework |Controls
 
-|*ISO 27001:2022*
-|A.8.1 – Information security roles and responsibilities; A.8.2 – Privileged access rights
+|ISO 27001:2022 |* A.8.1 – Information security roles and responsibilities
+* A.8.2 – Privileged access rights
 
-|*NIST SP 800-53*
-|RA-5 – Vulnerability scanning; SI-4 – Information system monitoring
+|ISO 27017 |* CLD.9.5 – Segregation in virtual computing environments
 
-|*NIST CSF 2.0*
-|DE.CM – Continuous monitoring; DE.AE – Anomalies and events
+|CIS Controls v8 |* CIS 13 – Content Filtering
 
-|*GDPR*
-|Art. 32 – Security of processing; Art. 5(1)(f) – Integrity and confidentiality
+|SOC 2 Type II |* CC4.1 – Monitoring activities
+* CC7.1 – Infrastructure and software monitoring
 
-|*PCI DSS v4.0*
-|Req 6.4 – Secure development lifecycle; Req 6.5 – Secure coding practices
+|NIST SP 800-53 |* RA-5 – Vulnerability scanning
+* SI-4 – Information system monitoring
 
-|*TISAX*
-|Information security – Monitoring and logging
+|NIST CSF 2.0 |* DE.CM – Continuous monitoring
+* DE.AE – Anomalies and events
 
-|*ANSSI SecNumCloud*
-|Domain – Logging und monitoring
+|GDPR |* Art. 32 – Security of processing
+* Art. 5(1)(f) – Integrity and confidentiality
 
-|*BIO*
-|BIO – Logboekhouding en monitoring
+|PCI DSS v4.0 |* Req 6.4 – Secure development lifecycle
+* Req 6.5 – Secure coding practices
 
-|*ENS High*
-|op.exp.6 – Gestión de cambios
+|CSA STAR |* CCM Logging and Monitoring
 
-|*UK NCSC CAF*
-|A4 – Policy and assurance
+|BSI C5:2020 |* OPS-01 – Operational monitoring
 
-|*FedRAMP*
-|RA-5, SI-4 (Moderate baseline)
+|TISAX |* Information security – Monitoring and logging
 
-|*CMMC 2.0*
-|RA.L2-3.8.1 – Vulnerability scanning
+|ANSSI SecNumCloud |* Domain – Logging and monitoring
 
-|*IT-Grundschutz*
-|ORP.1 – Informationstechnisch-related Angriffsschutz
+|BIO |* BIO – Logboekhouding en monitoring
 
-|*IRAP*
-|ISM – Logging and monitoring
+|ENS High |* op.exp.6 – Gestión de cambios
 
-|*CCCS PBMM*
-|RA-5 – Vulnerability scanning
+|UK NCSC CAF |* A4 – Policy and assurance
 
-|*MAS TRM*
-|Ch.9 – Change management
+|FedRAMP |* RA-5, SI-4 (Moderate baseline)
 
-|*ISMAP*
-|Monitoring and logging controls
+|CMMC 2.0 |* RA.L2-3.8.1 – Vulnerability scanning
 
-|*FISC*
-|Technical measures – Logging and monitoring
+|IT-Grundschutz |* ORP.1 – Organisation
 
-|*AWS Well-Architected Framework*
-|Security Pillar – System limits; Reliability Pillar – Failure modes
+|IRAP |* ISM – Logging and monitoring
 
-|*Google Cloud Architecture Framework*
-|Reliability – Failure modes and mitigation; Security – System limits
+|CCCS PBMM |* RA-5 – Vulnerability scanning
 
-|*BSI C5:2020*
-|OPS-01 – Operational monitoring
+|MAS TRM |* Ch.9 – Change management
 
-|*SOC 2 Type II*
-|CC4.1 – Monitoring activities; CC7.1 – Infrastructure and software monitoring
+|ISMAP |* Monitoring and logging controls
 
-|*CSA STAR*
-|CCM Logging and Monitoring
-
-|*CIS Controls v8*
-|CIS 13 – Content Filtering
+|FISC |* Technical measures – Logging and monitoring
 
 |===

@@ -3,231 +3,378 @@
 :control-id: WAF-REL-050
 :pillar: reliability
 :severity: high
-:category: resilience-patterns
-:automated: high
-:description: WAF++ Reliability – Circuit Breaker, Timeouts und Retry-Logik gegen Cascading Failures.
+:category: data-governance
+:automatable: High
+:description: All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values. Critical service dependencies MUST implement circuit breaker patterns. Retry logic MUST use exponential backoff with jitter. Connection pools MUST have defined maximum sizes. Services MUST implement bulkhead isolation for different dependency classes. No service may rely on default (infinite or undefined) timeouts for external calls.
 
 [.metadata]
-*Pillar:* Reliability | *Severity:* High | *Kategorie:* Resilience Patterns | *Automatisierbar:* Hoch
+*Säule:* Reliability | *Schweregrad:* Hoch | *Kategorie:* Data Governance | *Automatisierbar:* High
 
 == Beschreibung
 
-Alle ausgehenden HTTP/gRPC-Calls MÜSSEN explizite Timeout-Werte definieren.
-Kritische Service-Abhängigkeiten MÜSSEN Circuit Breaker implementieren.
-Retry-Logik MUSS Exponential Backoff mit Jitter verwenden.
-Connection Pools MÜSSEN maximale Größen definieren.
-Kein Service darf Default-Timeouts (undefined oder infinite) für externe Calls verwenden.
+All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values. Critical service dependencies MUST implement circuit breaker patterns. Retry logic MUST use exponential backoff with jitter. Connection pools MUST have defined maximum sizes. Services MUST implement bulkhead isolation for different dependency classes. No service may rely on default (infinite or undefined) timeouts for external calls.
 
-== Rationale
-
-Cascading Failures sind die primäre Ursache großer Cloud-Outages. Ohne Circuit Breaker
-erschöpft eine langsame Abhängigkeit schrittweise Thread Pools und Connection Pools,
-bis der abhängige Service selbst ausfällt und die Kaskade sich fortsetzt. Explizite
-Timeouts verhindern, dass Ressource-Threads ewig auf nicht-antwortende Services warten.
-
-== Bedrohungskontext
+== Begründung
 
 [cols="1,3"]
 |===
 |Risiko |Beschreibung
 
-|*Thread Pool Exhaustion*
-|Langsame externe API lässt alle Handler-Threads warten → Service vollständig blockiert.
+|*Risk* |Unbounded timeouts and retries cascade failures into downstream systems and extend outages.
 
-|*Connection Pool Depletion*
-|Geteilter DB-Connection-Pool erschöpft sich → alle abhängigen Services scheitern.
-
-|*Retry Storm*
-|1000 Clients retrien synchron ohne Jitter → 1000x Lastspitze auf degradiertem Service.
-
-|*Optionale Dep reißt Hauptservice mit*
-|Nicht-kritische Enrichment-API ohne Circuit Breaker → Totalausfall statt Feature-Verlust.
+|*Risk* |Missing circuit breakers let workloads remain in perpetual failure states when downstream breaks.
 
 |===
 
-== Anforderung
+== Anforderungen
 
-* Explizite Timeouts für alle ausgehenden Calls (connect + read getrennt)
-* Circuit Breaker für alle kritischen synchronen Abhängigkeiten
-* Retry: maximal 3 Versuche, Exponential Backoff (100ms → 200ms → 400ms), Jitter ±50%
-* Connection Pool: maximale Größe pro Abhängigkeitsklasse definiert
-* Bulkhead: separate Resource Pools für verschiedene Abhängigkeitsklassen
-* Load Balancer: expliziter `idle_timeout` – kein Provider-Default
+* All inter-service and downstream HTTP/gRPC calls MUST define explicit timeout values.
+* Critical service dependencies MUST implement circuit breaker patterns.
+* Retry logic MUST use exponential backoff with jitter.
+* Connection pools MUST have defined maximum sizes.
+* Services MUST implement bulkhead isolation for different dependency classes.
 
-== Implementierungsanleitung
+== Implementierungsleitfaden
 
-. *Timeout-Audit*: Alle ausgehenden HTTP-Clients auf explizite Timeout-Werte prüfen
-. *Circuit Breaker konfigurieren*: Resilience4j, pybreaker, oder Service Mesh `outlierDetection`
-. *Retry konfigurieren*: `maxAttempts=3`, `initialDelay=100ms`, `multiplier=2`, `jitter=0.5`
-. *Connection Pools*: Separate HTTP-Client-Instanzen pro Abhängigkeit
-. *ALB idle_timeout*: Explizit auf API-Latenz abstimmen (typisch 30s für REST APIs)
-. *Chaos Test*: Circuit Breaker durch Latenz-Injektion validieren
+1. Implement the required configuration as code in Terraform or equivalent IaC.
+2. Add an automated check to CI/CD so deviations are caught before deployment.
 
-== Reifegrad-Abstufung
+== Reifegrade
 
-[cols="1,2,3"]
+[cols="1,2,4"]
 |===
-|Level |Bezeichnung |Kriterien
+|Level |Name |Kriterien
 
-|*1*
-|Keine Timeouts
-|Default/infinite Timeouts für externe Calls.
+|L1 |Ad hoc – control not consistently applied |* Manual evidence exists for some workloads, but coverage is unknown.
 
-|*2*
-|Timeouts konfiguriert
-|Connect und Read Timeouts für externe HTTP-Calls definiert.
+|L2 |Standardised – policy defined and communicated |* A version-controlled policy, ADR, or standard describes the requirement.
 
-|*3*
-|Circuit Breaker + Retry
-|CB für alle kritischen Deps; Retry mit Backoff und Jitter; Connection Pools.
+|L3 |Integrated – automated validation in CI/CD |* Terraform checks run automatically on pull requests and report results.
 
-|*4*
-|Bulkheads + Service Mesh
-|Bulkhead-Isolation; Istio/Linkerd verwaltet CB deklarativ; Chaos Tests.
+|L4 |Auditable – metrics and exceptions tracked |* Control coverage, failures, and approved exceptions are reported quarterly.
 
-|*5*
-|Adaptive Thresholds
-|CB-Schwellenwerte auto-tuned; Request Hedging; vollständige Resilience Matrix.
+|L5 |Optimised – continuous improvement based on data |* Control effectiveness is measured and iteratively improved.
 
 |===
 
-== Terraform Checks
+== Checks
 
 === waf-rel-050.tf.aws.alb-idle-timeout
-*Prüft:* ALB hat expliziten `idle_timeout` – kein Provider-Default.
 
-[cols="1,1"]
-|===
-|Compliant |Non-Compliant
+*Engine:* `terraform` | *Provider:* aws | *Automated:* Ja
 
-a|[source,hcl]
+*AWS ALB idle timeout must be explicitly configured*
+
+ALB idle_timeout must be set to a value appropriate for the workload, not relying on the default 60 seconds which may be too long or too short.
+
+*Scope:* `resource` — `aws_lb`
+
+*Assertions:*
+* `idle_timeout` attribute exists — ALB idle_timeout must be explicitly configured, not using default.
+* `load_balancer_type` equals `application` — This check applies to Application Load Balancers.
+
+*Remediation:* Set idle_timeout on the aws_lb resource. Typical values: 30s for APIs, 300s for file uploads. Align with client-side timeout configuration.
+
+.Compliant
+
+[source,terraform]
 ----
 resource "aws_lb" "api" {
   name               = "payment-api-alb"
+  internal           = false
   load_balancer_type = "application"
-  security_groups    =
-    [aws_security_group.alb.id]
-  subnets = var.public_subnet_ids
-  idle_timeout = 30  # Explizit gesetzt
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = var.public_subnet_ids
+  idle_timeout       = 30
+
   tags = var.mandatory_tags
 }
 ----
-a|[source,hcl]
+
+.Non-Compliant
+
+[source,terraform]
 ----
 resource "aws_lb" "api" {
   name               = "payment-api-alb"
+  internal           = false
   load_balancer_type = "application"
-  security_groups    =
-    [aws_security_group.alb.id]
-  subnets = var.public_subnet_ids
-  # Kein idle_timeout –
-  # AWS Default 60s wird verwendet
-  # WAF-REL-050 Violation
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = var.public_subnet_ids
+  # Missing: idle_timeout – using AWS default of 60s
+  # WAF-REL-050 violation
 }
 ----
-|===
 
-*Remediation:* `idle_timeout` explizit setzen. REST APIs: 30s; File Uploads: 300s.
+---
+
+=== waf-rel-050.tf.azurerm.app-gateway-timeout
+
+*Engine:* `terraform` | *Provider:* azurerm | *Automated:* Ja
+
+*Azure Application Gateway backend settings must define explicit timeouts*
+
+Azure Application Gateway backend HTTP settings must define request_timeout_in_seconds rather than relying on defaults.
+
+*Scope:* `resource` — `azurerm_application_gateway`
+
+*Assertions:*
+* `backend_http_settings` attribute exists — Application Gateway must define backend_http_settings.
+* `backend_http_settings.request_timeout_in_seconds` attribute exists — Backend HTTP settings must define explicit request_timeout_in_seconds.
+
+*Remediation:* Set request_timeout_in_seconds in the backend_http_settings block. Recommended values: 30 for APIs, 120 for batch operations.
+
+.Compliant
+
+[source,terraform]
+----
+resource "azurerm_application_gateway" "main" {
+  name                = "payment-appgw"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  backend_http_settings {
+    name                  = "api-backend-settings"
+    cookie_based_affinity = "Disabled"
+    port                  = 8080
+    protocol              = "Http"
+    request_timeout_in_seconds = 30
+  }
+  # ... other required blocks
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "azurerm_application_gateway" "main" {
+  name                = "payment-appgw"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  backend_http_settings {
+    name                  = "api-backend-settings"
+    cookie_based_affinity = "Disabled"
+    port                  = 8080
+    protocol              = "Http"
+    # Missing: request_timeout_in_seconds
+    # WAF-REL-050 violation
+  }
+}
+----
+
+---
+
+=== waf-rel-050.tf.google.cloud-run-timeout
+
+*Engine:* `terraform` | *Provider:* google | *Automated:* Ja
+
+*GCP Cloud Run services must define explicit request timeout*
+
+GCP Cloud Run service templates must define timeout_seconds to prevent runaway requests from consuming resources indefinitely.
+
+*Scope:* `resource` — `google_cloud_run_service`, `google_cloud_run_v2_service`
+
+*Assertions:*
+* `template.spec.timeout_seconds` attribute exists — Cloud Run service must define timeout_seconds in the template spec.
+
+*Remediation:* Set timeout_seconds in the template.spec block of google_cloud_run_service. Default is 300s; set to the appropriate value for your workload latency SLO.
+
+.Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "api" {
+  name     = "payment-api"
+  location = var.region
+
+  template {
+    spec {
+      timeout_seconds = 30
+      containers {
+        image = var.container_image
+        resources {
+          limits = { cpu = "1000m", memory = "512Mi" }
+        }
+      }
+    }
+  }
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+resource "google_cloud_run_service" "api" {
+  name     = "payment-api"
+  location = var.region
+
+  template {
+    spec {
+      # Missing: timeout_seconds – using default 300s
+      # WAF-REL-050 violation
+      containers {
+        image = var.container_image
+      }
+    }
+  }
+}
+----
+
+---
+
+=== waf-rel-050.tf.stackit.multi-az-workloads
+
+*Engine:* `terraform` | *Provider:* stackit | *Automated:* Ja
+
+*STACKIT production workloads must span multiple availability zones*
+
+STACKIT production workloads must span multiple availability zones. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `stackit_ske_cluster`, `stackit_ske_node_pool`, `stackit_load_balancer`
+
+*Assertions:*
+* `availability_zones` attribute exists — STACKIT production workload must define availability zones.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "stackit_ske_cluster" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "stackit_ske_cluster" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-rel-050.tf.ovh.multi-region-workloads
+
+*Engine:* `terraform` | *Provider:* ovh | *Automated:* Ja
+
+*OVHcloud production workloads must span multiple regions or zones*
+
+OVHcloud production workloads must span multiple regions or zones. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `ovh_cloud_project_kube`, `ovh_cloud_project_kube_nodepool`, `ovh_cloud_project_instance`
+
+*Assertions:*
+* `region` attribute exists — OVHcloud production workload must define a region for resilience planning.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "ovh_cloud_project_kube" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
+
+=== waf-rel-050.tf.hcloud.multi-location-workloads
+
+*Engine:* `terraform` | *Provider:* hcloud | *Automated:* Ja
+
+*Hetzner Cloud production workloads must span multiple locations*
+
+Hetzner Cloud production workloads must span multiple locations. This check validates the Terraform configuration uses the expected resource and attribute.
+
+*Scope:* `resource` — `hcloud_server`, `hcloud_placement_group`, `hcloud_load_balancer`
+
+*Assertions:*
+* `labels.resilience-zone` key exists — Hetzner Cloud production workload must declare a resilience-zone label.
+
+*Remediation:* Review the Terraform configuration for the listed resource types and ensure the required attribute or tag is present. See the control narrative for provider-specific guidance.
+
+.Compliant
+
+[source,terraform]
+----
+# Example resource meets the requirement.
+resource "hcloud_server" "example" {
+  # required attribute/tag/label present
+}
+----
+
+.Non-Compliant
+
+[source,terraform]
+----
+# Example resource does not meet the requirement.
+resource "hcloud_server" "example" {
+  # Missing required attribute/tag/label
+}
+----
+
+---
 
 == Evidenz
 
-[cols="1,1,2"]
+[cols="1,1,3"]
 |===
-|Typ |Pflicht |Beschreibung
+|Art |Erforderlich |Beschreibung
 
-|*IaC*
-|✅ Pflicht
-|Terraform oder Service Mesh-Konfiguration mit Timeout und Circuit Breaker Settings.
+|`iac` |Erforderlich |Terraform configuration implementing the control.
 
-|*Config*
-|✅ Pflicht
-|Application-Konfigurationsdateien mit expliziten Timeout-Werten für alle Abhängigkeiten.
+|`governance` |Erforderlich |Policy, ADR, or standard documenting the requirement.
 
-|*Process*
-|Optional
-|Latenz-Injektions-Testergebnisse mit Circuit Breaker Aktivierung dokumentiert.
+|`config` |Optional |Cloud console or API output confirming runtime state.
 
 |===
-
-
-== Regulatorisches Mapping
-
-[cols="1,2"]
-|===
-|Framework |Controls
-
-|*ISO/IEC 27001:2022*
-|A.5.15 – Threat intelligence; A.5.16 – Threat classification; A.5.24 – Information security incident management; A.5.25 – Assessment and decision on information security events; A.5.26 – Response to information security incidents; A.5.27 – Learning from information security incidents; A.5.28 – Collection of evidence; A.8.16 – Technology use identification and monitoring; A.8.21 – Telecommunications and network security
-
-|*ITIL 4*
-|SVS – Service value system; DP – Design principle; OV – Operation value chain; CW – Continual improvement
-
-|*AWS Well-Architected Framework*
-|Reliability Pillar – Prepare; Reliability Pillar – Deploy; Reliability Pillar – Monitor; Reliability Pillar – Improve
-
-|*SRE Book (Google)*
-|Chapter 4 – Service Level Objectives; Chapter 5 – Eliminating toil; Chapter 6 – Monitoring; Chapter 7 – Emergency response
-
-|*CNCF Cloud Native Security*
-|SLSA – Supply chain Levels for Software Artifacts; SBOM – Software Bill of Materials
-
-|*BSI C5:2022*
-|SIM-01 – Security incident management; SIM-02 – Security information and event management; SIM-03 – Emergency response
-
-|*GDPR*
-|Art. 32 – Security of processing; Art. 33 – Breach notification; Art. 34 – Communication of breach
-
-|*NIST SP 800-161*
-|SR-1 – Supply chain risk management; SR-2 – Supplier agreements; SR-3 – Supply chain controls
-
-|*DORA*
-|Art. 9 – Protection and prevention; Art. 13 – ICT incident reporting; Art. 17 – Testing of ICT tools and systems
-
-|*COBIT 2019*
-|DSS04.01.01 – Ensure service availability; DSS04.01.02 – Ensure service capacity; DSS04.02.01 – Manage incidents
-
-|*TISAX*
-|Information security – Incident response
-
-|*ANSSI SecNumCloud*
-|Domain – Incident response; Domain – Business continuity
-
-|*BIO*
-|BIO – Incidentmanagement; BIO – Bedrijfscontinuïteit
-
-|*ENS High*
-|op.exp.7 – Gestión de incidentes; op.exp.8 – Gestión de la continuidad del negocio
-
-|*UK NCSC CAF*
-|D1 – Response and recovery planning; D2 – Lessons learned
-
-|*CMMC 2.0*
-|IR.L2-3.6.1 – Establish incident handling capability; IR.L2-3.6.2 – Track, document and report incidents
-
-|*IRAP*
-|ISM – Incident management; ISM – Business continuity
-
-|*CCCS PBMM*
-|IR-4 – Incident handling; IR-8 – Incident response plan
-
-|*MAS TRM*
-|Ch.10 – Security incident management; Ch.11 – Business continuity
-
-|*ISMAP*
-|Reliability and incident management
-
-|*FISC*
-|Operational measures – Incident response
-
-|===
-
 
 == Verwandte Controls
 
-* xref:controls/WAF-REL-020.adoc[WAF-REL-020 – Health Checks & Readiness Probes]
-* xref:controls/WAF-REL-080.adoc[WAF-REL-080 – Dependency Resilience Management]
-* xref:controls/WAF-REL-090.adoc[WAF-REL-090 – Chaos Engineering]
+* xref:pillar-reliability:controls/WAF-REL-040.adoc[WAF-REL-040]
+* xref:pillar-cost:controls/WAF-COST-010.adoc[WAF-COST-010]
+* xref:pillar-excellence:controls/WAF-OPS-020.adoc[WAF-OPS-020]
+* xref:pillar-sustainability:controls/WAF-SUS-010.adoc[WAF-SUS-010]
+* xref:pillar-reliability:controls/WAF-REL-010.adoc[WAF-REL-010]
+* xref:pillar-reliability:controls/WAF-REL-060.adoc[WAF-REL-060]
+* xref:pillar-cost:controls/WAF-COST-080.adoc[WAF-COST-080]
+* xref:pillar-excellence:controls/WAF-OPS-070.adoc[WAF-OPS-070]
+* xref:pillar-excellence:controls/WAF-OPS-100.adoc[WAF-OPS-100]
+* xref:pillar-sustainability:controls/WAF-SUS-030.adoc[WAF-SUS-030]
+* xref:pillar-reliability:controls/WAF-REL-090.adoc[WAF-REL-090]
+* xref:pillar-agentic:controls/WAF-AGN-040.adoc[WAF-AGN-040]
+== Regulatorisches Mapping
 
-== Best Practice
+[cols="2,4", options="header"]
+|===
+|Framework |Controls
 
-* xref:best-practices/bp-circuit-breaker.adoc[Circuit Breaker, Timeouts & Bulkheads →]
+|ISO 27001:2022 |* A.17.1 – Information security continuity
+
+|ITIL 4 |* Service Continuity Management
+* Problem Management
+
+|SRE Book (Google) |* Chapter 22 – Addressing Cascading Failures
+
+|===

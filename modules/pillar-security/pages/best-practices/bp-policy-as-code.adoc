@@ -1,7 +1,7 @@
 = Best Practice: Policy-as-Code
 :toc: left
 :toclevels: 3
-:description: WAF++ Security – Policy-as-Code: Richtlinien als versionierte, ausführbare Regeln mit wafpass, OPA/Conftest, HashiCorp Sentinel und AWS Config.
+:description: Wombat Security – Policy-as-Code: Richtlinien als versionierte, ausführbare Regeln mit WOMBATpass, OPA/Conftest, HashiCorp Sentinel und AWS Config.
 
 == Kontext
 
@@ -45,16 +45,16 @@ maschinenausführbarer Form zu formulieren. Die Kernmerkmale:
 |===
 |Tool |Stärken |Schwächen |Empfohlener Einsatz
 
-|*wafpass (WAF++)*
-|Nativ für WAF++-Controls; pillar-basierter Filter; direkte YAML-Control-Integration;
+|*WOMBATpass (Wombat)*
+|Nativ für Wombat-Controls; pillar-basierter Filter; direkte YAML-Control-Integration;
 Terraform Plan + Live-State prüfen
-|WAF++-spezifisch; keine Kubernetes-Manifeste
+|Wombat-spezifisch; keine Kubernetes-Manifeste
 |Primäres Tool für alle WAF-SEC-Controls
 
 |*OPA / Conftest*
 |Hochflexibel; Rego-Sprache für komplexe Regeln; Kubernetes + Terraform + Docker;
 große Community; Gatekeeper für K8s Admission Control
-|Rego-Lernkurve; kein nativer WAF++-Bezug
+|Rego-Lernkurve; kein nativer Wombat-Bezug
 |Kubernetes Admission Control; Custom Business Rules
 
 |*HashiCorp Sentinel*
@@ -71,14 +71,14 @@ Config Aggregator für Multi-Account
 
 |*Checkov*
 |Open Source; breite Terraform-Coverage; CI-Integration; SARIF-Output
-|Kein WAF++-Bezug; viele False Positives; weniger flexibel als OPA
-|CI-Pipeline als Ergänzung zu wafpass
+|Kein Wombat-Bezug; viele False Positives; weniger flexibel als OPA
+|CI-Pipeline als Ergänzung zu WOMBATpass
 
 |===
 
-== WAF++ wafpass in CI/CD
+== WOMBATpass in CI/CD
 
-wafpass ist das native Policy-as-Code-Tool des WAF++-Frameworks. Es evaluiert
+WOMBATpass ist das native Policy-as-Code-Tool des Wombat-Frameworks. Es evaluiert
 Terraform-Pläne und -State gegen die WAF-SEC (und andere Pillar-) Controls.
 
 === Grundlegende Verwendung
@@ -86,26 +86,26 @@ Terraform-Pläne und -State gegen die WAF-SEC (und andere Pillar-) Controls.
 [source,bash]
 ----
 # Alle Security-Controls prüfen
-wafpass check --pillar security
+wombat check --pillar security
 
 # Nur kritische Controls prüfen (CI-Gate: kein Deployment bei Failure)
-wafpass check --pillar security --severity critical --fail-on critical
+wombat check --pillar security --severity critical --fail-on critical
 
 # Spezifische Controls prüfen
-wafpass check --controls WAF-SEC-010,WAF-SEC-020,WAF-SEC-030
+wombat check --controls WAF-SEC-010,WAF-SEC-020,WAF-SEC-030
 
 # Terraform Plan prüfen (pre-deployment)
 terraform plan -out=plan.tfplan
-wafpass check --plan plan.tfplan --pillar security
+wombat check --plan plan.tfplan --pillar security
 
 # Report als JSON ausgeben
-wafpass check --pillar security --output json > security-report.json
+wombat check --pillar security --output json > security-report.json
 
 # Report als HTML für Management
-wafpass check --pillar security --output html > security-report.html
+wombat check --pillar security --output html > security-report.html
 ----
 
-=== wafpass in GitHub Actions
+=== WOMBATpass in GitHub Actions
 
 [source,yaml]
 ----
@@ -118,7 +118,7 @@ on:
     branches: [main]
 
 jobs:
-  wafpass-security:
+  wombat-security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -136,21 +136,21 @@ jobs:
         env:
           AWS_ROLE_ARN: ${{ secrets.AWS_OIDC_ROLE }}
 
-      - name: wafpass – Security Pillar Check
+      - name: WOMBATpass – Security Pillar Check
         run: |
-          wafpass check \
+          wombat check \
             --plan terraform/plan.tfplan \
             --pillar security \
             --fail-on critical \
             --output sarif \
-            > wafpass-results.sarif
+            > wombat-results.sarif
 
-      - name: Upload wafpass Results
+      - name: Upload WOMBATpass Results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: wafpass-results.sarif
-          category: wafpass-security
+          sarif_file: wombat-results.sarif
+          category: wombat-security
 ----
 
 Der `--fail-on critical` Flag stellt sicher, dass kritische Control-Verletzungen
@@ -357,7 +357,7 @@ Ohne Versionierungsstrategie führt das zu Breaking Changes:
 
 [source,yaml]
 ----
-# wafpass-policies/security/WAF-SEC-010.policy.yml
+# wombat-policies/security/WAF-SEC-010.policy.yml
 version: "2.1.0"
 # 2.x.x = Breaking Change (neue Mandatory-Assertion)
 # x.2.x = Non-breaking Enhancement (neues Optional-Check)
@@ -395,4 +395,4 @@ enforcement_level: fail
 * *Security Hub Findings*: Config-Findings aggregiert mit anderen Sicherheitsquellen
 * *Policy Coverage Metric*: Anteil der Ressourcen, die von mindestens einer Policy abgedeckt werden
 * *Mean Time to Remediation (MTTR)*: Wie lange dauert es, eine Config-Finding zu beheben?
-* `wafpass check --pillar security --controls WAF-SEC-090 --output json | jq '.summary'`
+* `wombat check --pillar security --controls WAF-SEC-090 --output json | jq '.summary'`
